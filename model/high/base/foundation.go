@@ -3,12 +3,17 @@
 
 package base
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Foundational interface {
 	GetParent() Foundational
 	GetPathSegment() string
 	GenerateJSONPath() string
+	GenerateJSONPathWithLevel(level int) string
+	AddRuleFunctionResult(result *RuleFunctionResult)
+	GetRuleFunctionResults() []*RuleFunctionResult
 }
 
 type Foundation struct {
@@ -17,6 +22,15 @@ type Foundation struct {
 	Index       int
 	Key         string
 	Parent      any
+	RuleResults []*RuleFunctionResult
+}
+
+func (f *Foundation) AddRuleFunctionResult(result *RuleFunctionResult) {
+	f.RuleResults = append(f.RuleResults, result)
+}
+
+func (f *Foundation) GetRuleFunctionResults() []*RuleFunctionResult {
+	return f.RuleResults
 }
 
 func (f *Foundation) GetParent() Foundational {
@@ -28,24 +42,32 @@ func (f *Foundation) GetPathSegment() string {
 }
 
 func (f *Foundation) GenerateJSONPath() string {
+	return f.GenerateJSONPathWithLevel(0)
+}
+
+func (f *Foundation) GenerateJSONPathWithLevel(level int) string {
+	level++
+	if level > 150 {
+		return f.PathSegment
+	}
 	sep := "."
 	if f.Parent != nil {
 		if f.Key != "" {
 			if f.PathSegment == "" {
 				sep = ""
 			}
-			return f.Parent.(Foundational).GenerateJSONPath() + sep + f.PathSegment + "['" + f.Key + "']"
+			return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment + "['" + f.Key + "']"
 		}
 		if f.IsIndexed {
 			//if f.PathSegment == "" {
 			//	sep = ""
 			//}
-			return f.Parent.(Foundational).GenerateJSONPath() + sep + f.PathSegment + "[" + fmt.Sprint(f.Index) + "]"
+			return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment + "[" + fmt.Sprint(f.Index) + "]"
 		}
 		if f.PathSegment == "" {
 			sep = ""
 		}
-		return f.Parent.(Foundational).GenerateJSONPath() + sep + f.PathSegment
+		return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment
 
 	}
 	return f.PathSegment

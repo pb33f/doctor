@@ -5,7 +5,7 @@ License text copyright (c) 2020 MariaDB Corporation Ab, All Rights Reserved.
 “Business Source License” is a trademark of MariaDB Corporation Ab.
 
 Licensor:	Princess Beef Heavy Industries, LLC
-Licensed Work:	The Licensed Work is (c) 2024 Princess Beef Heavy Industries, LLC
+Licensed Work:	The Licensed Work is "The Doctor" (c) 2024 Princess Beef Heavy Industries, LLC
 
 Princess Beef Heavy Industries, LLC is also referred to as 'pb33f' in this document.
 
@@ -31,3 +31,6 @@ for the competitive offering to operate.
 
 Hosting or using the Licensed Work(s) for internal purposes within an organization is not considered a competitive 
 offering. pb33f considers your organization to include all of your affiliates under common control.
+
+Contact sales@pb33f.io if you have questions about whether your use of the Licensed Work is a competitive offering.
+or if you are interested in licensing the Licensed Work for use in a competitive offering.

@@ -4,41 +4,42 @@
 package v3
 
 import (
-    "context"
-    "github.com/pb33f/doctor/model/high/base"
-    v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
-    "github.com/pb33f/libopenapi/orderedmap"
+	"context"
+	"github.com/pb33f/doctor/model/high/base"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/orderedmap"
 )
 
 type Responses struct {
-    Value   *v3.Responses
-    Codes   *orderedmap.Map[string, *Response]
-    Default *Response
-    base.Foundation
+	Value   *v3.Responses
+	Codes   *orderedmap.Map[string, *Response]
+	Default *Response
+	base.Foundation
 }
 
 func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 
-    r.Value = responses
-    r.PathSegment = "responses"
+	r.Value = responses
+	r.PathSegment = "responses"
 
-    if responses.Codes != nil {
-        r.Codes = orderedmap.New[string, *Response]()
-        for respPairs := responses.Codes.First(); respPairs != nil; respPairs = respPairs.Next() {
-            k := respPairs.Key()
-            v := respPairs.Value()
-            resp := &Response{}
-            resp.Key = k
-            resp.Parent = r
-            resp.Walk(ctx, v)
-            r.Codes.Set(k, resp)
-        }
-    }
+	if responses.Codes != nil {
+		r.Codes = orderedmap.New[string, *Response]()
+		for respPairs := responses.Codes.First(); respPairs != nil; respPairs = respPairs.Next() {
+			k := respPairs.Key()
+			v := respPairs.Value()
+			resp := &Response{}
+			resp.Key = k
+			resp.Parent = r
+			resp.Walk(ctx, v)
+			r.Codes.Set(k, resp)
+		}
+	}
 
-    if responses.Default != nil {
-        r.Default = &Response{}
-        r.Parent = r
-        r.Default.Walk(ctx, responses.Default)
-    }
+	if responses.Default != nil {
+		resp := &Response{}
+		resp.Parent = r
+		resp.Walk(ctx, responses.Default)
+		r.Default = resp
+	}
 
 }

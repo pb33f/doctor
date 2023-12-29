@@ -5,7 +5,6 @@ package base
 
 import (
 	"context"
-	"fmt"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
@@ -39,13 +38,13 @@ type Schema struct {
 func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 
 	s.Value = schema
-	s.Hash = fmt.Sprintf("%x", schema.GoLow().Hash())
+	//s.Hash = fmt.Sprintf("%x", schema.GoLow().Hash())
 
 	if schema.AllOf != nil {
 		var allOf []*SchemaProxy
 		for i, allOfItem := range schema.AllOf {
 			sch := &SchemaProxy{}
-			sch.Parent = sch
+			sch.Parent = s
 			sch.IsIndexed = true
 			sch.Index = i
 			sch.PathSegment = "allOf"
@@ -60,7 +59,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		var oneOf []*SchemaProxy
 		for i, oneOfItem := range schema.OneOf {
 			sch := &SchemaProxy{}
-			sch.Parent = sch
+			sch.Parent = s
 			sch.IsIndexed = true
 			sch.Index = i
 			sch.PathSegment = "oneOf"
@@ -75,7 +74,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		var anyOf []*SchemaProxy
 		for i, anyOfItem := range schema.AnyOf {
 			sch := &SchemaProxy{}
-			sch.Parent = sch
+			sch.Parent = s
 			sch.IsIndexed = true
 			sch.Index = i
 			sch.PathSegment = "anyOf"
@@ -90,7 +89,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		var prefixItems []*SchemaProxy
 		for i, prefixItem := range schema.PrefixItems {
 			sch := &SchemaProxy{}
-			sch.Parent = sch
+			sch.Parent = s
 			sch.IsIndexed = true
 			sch.Index = i
 			sch.PathSegment = "prefixItems"
