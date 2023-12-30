@@ -50,5 +50,4 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) 
 			drCtx.SchemaChan <- newSchema
 		}
 	}
-
 }

@@ -19,6 +19,9 @@ type Responses struct {
 
 func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 
+	drCtx := base.GetDrContext(ctx)
+	wg := drCtx.WaitGroup
+
 	r.Value = responses
 	r.PathSegment = "responses"
 
@@ -30,7 +33,7 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 			resp := &Response{}
 			resp.Key = k
 			resp.Parent = r
-			resp.Walk(ctx, v)
+			wg.Go(func() { resp.Walk(ctx, v) })
 			r.Codes.Set(k, resp)
 		}
 	}
@@ -38,7 +41,7 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 	if responses.Default != nil {
 		resp := &Response{}
 		resp.Parent = r
-		resp.Walk(ctx, responses.Default)
+		wg.Go(func() { resp.Walk(ctx, responses.Default) })
 		r.Default = resp
 	}
 

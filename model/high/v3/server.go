@@ -4,34 +4,36 @@
 package v3
 
 import (
-    "context"
-    "github.com/pb33f/doctor/model/high/base"
-    v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
-    "github.com/pb33f/libopenapi/orderedmap"
+	"context"
+	"github.com/pb33f/doctor/model/high/base"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/orderedmap"
 )
 
 type Server struct {
-    Value     *v3.Server
-    Variables *orderedmap.Map[string, *ServerVariable]
-    base.Foundation
+	Value     *v3.Server
+	Variables *orderedmap.Map[string, *ServerVariable]
+	base.Foundation
 }
 
 func (s *Server) Walk(ctx context.Context, server *v3.Server) {
-    s.Value = server
-    s.PathSegment = "servers"
 
-    if server.Variables != nil {
-        s.Variables = orderedmap.New[string, *ServerVariable]()
-        i := 0
-        for serverVariablePairs := server.Variables.First(); serverVariablePairs != nil; serverVariablePairs = serverVariablePairs.Next() {
-            k := serverVariablePairs.Key()
-            v := serverVariablePairs.Value()
-            sv := &ServerVariable{}
-            sv.Parent = s
-            sv.Walk(ctx, v, k)
-            s.Variables.Set(k, sv)
-            i++
-        }
-    }
+	drCtx := base.GetDrContext(ctx)
+	wg := drCtx.WaitGroup
+
+	s.Value = server
+	s.PathSegment = "servers"
+
+	if server.Variables != nil {
+		s.Variables = orderedmap.New[string, *ServerVariable]()
+		for serverVariablePairs := server.Variables.First(); serverVariablePairs != nil; serverVariablePairs = serverVariablePairs.Next() {
+			k := serverVariablePairs.Key()
+			v := serverVariablePairs.Value()
+			sv := &ServerVariable{}
+			sv.Parent = s
+			wg.Go(func() { sv.Walk(ctx, v, k) })
+			s.Variables.Set(k, sv)
+		}
+	}
 
 }

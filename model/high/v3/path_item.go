@@ -37,75 +37,81 @@ func (p *PathItem) buildOperation(method string) *Operation {
 }
 
 func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
+
+	drCtx := base.GetDrContext(ctx)
+	wg := drCtx.WaitGroup
+
 	p.Value = pathItem
 
 	if pathItem.Get != nil {
 		op := p.buildOperation("get")
-		op.Walk(ctx, pathItem.Get)
+		wg.Go(func() { op.Walk(ctx, pathItem.Get) })
 		p.Get = op
 	}
 
 	if pathItem.Post != nil {
 		op := p.buildOperation("post")
-		op.Walk(ctx, pathItem.Post)
+		wg.Go(func() { op.Walk(ctx, pathItem.Post) })
 		p.Post = op
 	}
 
 	if pathItem.Put != nil {
 		op := p.buildOperation("put")
-		op.Walk(ctx, pathItem.Put)
+		wg.Go(func() { op.Walk(ctx, pathItem.Put) })
 		p.Put = op
 	}
 
 	if pathItem.Delete != nil {
 		op := p.buildOperation("delete")
-		op.Walk(ctx, pathItem.Delete)
+		wg.Go(func() { op.Walk(ctx, pathItem.Delete) })
 		p.Delete = op
 	}
 
 	if pathItem.Options != nil {
 		op := p.buildOperation("options")
-		op.Walk(ctx, pathItem.Options)
+		wg.Go(func() { op.Walk(ctx, pathItem.Options) })
 		p.Options = op
 	}
 
 	if pathItem.Head != nil {
 		op := p.buildOperation("head")
-		op.Walk(ctx, pathItem.Head)
+		wg.Go(func() { op.Walk(ctx, pathItem.Head) })
 		p.Head = op
 	}
 
 	if pathItem.Patch != nil {
 		op := p.buildOperation("patch")
-		op.Walk(ctx, pathItem.Patch)
+		wg.Go(func() { op.Walk(ctx, pathItem.Patch) })
 		p.Patch = op
 	}
 
 	if pathItem.Trace != nil {
 		op := p.buildOperation("trace")
-		op.Walk(ctx, pathItem.Trace)
+		wg.Go(func() { op.Walk(ctx, pathItem.Trace) })
 		p.Trace = op
 	}
 
 	if pathItem.Servers != nil {
 		for i, server := range pathItem.Servers {
+			server := server
 			s := &Server{}
 			s.Parent = p
 			s.IsIndexed = true
 			s.Index = i
-			s.Walk(ctx, server)
+			wg.Go(func() { s.Walk(ctx, server) })
 			p.Servers = append(p.Servers, s)
 		}
 	}
 
 	if pathItem.Parameters != nil {
 		for i, parameter := range pathItem.Parameters {
+			parameter := parameter
 			para := &Parameter{}
 			para.PathSegment = "parameters"
 			para.Parent = p
 			para.IsIndexed = true
 			para.Index = i
-			para.Walk(ctx, parameter)
+			wg.Go(func() { para.Walk(ctx, parameter) })
 			p.Parameters = append(p.Parameters, para)
 		}
 	}

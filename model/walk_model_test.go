@@ -25,6 +25,23 @@ func TestWalker_TestStripe(t *testing.T) {
 
 }
 
+func BenchmarkWalker_TestStripe(b *testing.B) {
+
+	// create a libopenapi document
+	bytes, _ := os.ReadFile("../test_specs/stripe.yaml")
+	newDoc, _ := libopenapi.NewDocument(bytes)
+	v3Doc, _ := newDoc.BuildV3Model()
+
+	for n := 0; n < b.N; n++ {
+		walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
+		walker.WalkV3(&v3Doc.Model)
+
+		assert.Equal(b, 15538, len(walker.Schemas))
+		assert.Equal(b, 26, len(walker.SkippedSchemas))
+	}
+
+}
+
 func TestWalker_TestStripe_Old(t *testing.T) {
 
 	// create a libopenapi document

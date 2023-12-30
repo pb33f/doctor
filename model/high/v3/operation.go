@@ -23,6 +23,10 @@ type Operation struct {
 }
 
 func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
+
+	drCtx := drBase.GetDrContext(ctx)
+	wg := drCtx.WaitGroup
+
 	o.Value = operation
 
 	if operation.ExternalDocs != nil {
@@ -35,12 +39,13 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 
 	if operation.Parameters != nil {
 		for i, parameter := range operation.Parameters {
+			parameter := parameter
 			p := &Parameter{}
 			p.PathSegment = "parameters"
 			p.Parent = o
 			p.IsIndexed = true
 			p.Index = i
-			p.Walk(ctx, parameter)
+			wg.Go(func() { p.Walk(ctx, parameter) })
 			o.Parameters = append(o.Parameters, p)
 		}
 	}
@@ -49,18 +54,15 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 		rb := &RequestBody{}
 		rb.Parent = o
 		rb.PathSegment = "requestBody"
-		rb.Walk(ctx, operation.RequestBody)
+		wg.Go(func() { rb.Walk(ctx, operation.RequestBody) })
 		o.RequestBody = rb
 	}
-
-	// TODO: start here in the morning.
-	// stripe is getting lost on a walk.
 
 	if operation.Responses != nil {
 		r := &Responses{}
 		r.Parent = o
 		r.PathSegment = "responses"
-		r.Walk(ctx, operation.Responses)
+		wg.Go(func() { r.Walk(ctx, operation.Responses) })
 		o.Responses = r
 	}
 
@@ -71,7 +73,8 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			c.Parent = o
 			c.PathSegment = "callbacks"
 			c.Key = callbackPairs.Key()
-			c.Walk(ctx, callbackPairs.Value())
+			v := callbackPairs.Value()
+			wg.Go(func() { c.Walk(ctx, v) })
 			callbacks.Set(callbackPairs.Key(), c)
 		}
 		o.Callbacks = callbacks
@@ -79,22 +82,24 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 
 	if operation.Security != nil {
 		for i, security := range operation.Security {
+			security := security
 			s := &drBase.SecurityRequirement{}
 			s.Parent = o
 			s.IsIndexed = true
 			s.Index = i
-			s.Walk(ctx, security)
+			wg.Go(func() { s.Walk(ctx, security) })
 			o.Security = append(o.Security, s)
 		}
 	}
 
 	if operation.Servers != nil {
 		for i, server := range operation.Servers {
+			server := server
 			s := &Server{}
 			s.Parent = o
 			s.IsIndexed = true
 			s.Index = i
-			s.Walk(ctx, server)
+			wg.Go(func() { s.Walk(ctx, server) })
 			o.Servers = append(o.Servers, s)
 		}
 	}

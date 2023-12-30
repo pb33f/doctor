@@ -4,7 +4,9 @@ go 1.21.5
 
 require (
 	github.com/pb33f/libopenapi v0.14.4
+	github.com/sourcegraph/conc v0.3.0
 	github.com/stretchr/testify v1.8.4
+	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
 	gopkg.in/yaml.v3 v3.0.1
 )
 

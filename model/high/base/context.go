@@ -5,11 +5,18 @@ package base
 
 import (
 	"github.com/pb33f/libopenapi/index"
+	"github.com/sourcegraph/conc"
+	"golang.org/x/net/context"
 )
 
 type DrContext struct {
-	SchemaChan chan *Schema
+	SchemaChan        chan *Schema
 	SkippedSchemaChan chan *Schema
-	Index      *index.SpecIndex
-	Rolodex    *index.Rolodex
+	Index             *index.SpecIndex
+	Rolodex           *index.Rolodex
+	WaitGroup         *conc.WaitGroup
+}
+
+func GetDrContext(ctx context.Context) *DrContext {
+	return ctx.Value("drCtx").(*DrContext)
 }

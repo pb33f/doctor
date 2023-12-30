@@ -10,6 +10,7 @@ import (
 	drV3 "github.com/pb33f/doctor/model/high/v3"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/index"
+	"github.com/sourcegraph/conc"
 )
 
 type DrDocument struct {
@@ -36,6 +37,7 @@ func (w *DrDocument) WalkV3(doc *v3.Document) *drV3.Document {
 		SkippedSchemaChan: skippedSchemaChan,
 		Index:             w.index,
 		Rolodex:           w.rolodex,
+		WaitGroup:         &conc.WaitGroup{},
 	}
 
 	drCtx := context.WithValue(context.Background(), "drCtx", dctx)

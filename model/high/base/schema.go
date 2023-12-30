@@ -5,6 +5,7 @@ package base
 
 import (
 	"context"
+	"fmt"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
@@ -37,12 +38,16 @@ type Schema struct {
 
 func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 
+	drCtx := GetDrContext(ctx)
+	wg := drCtx.WaitGroup
+
 	s.Value = schema
-	//s.Hash = fmt.Sprintf("%x", schema.GoLow().Hash())
+	s.Hash = fmt.Sprintf("%x", schema.GoLow().Hash())
 
 	if schema.AllOf != nil {
 		var allOf []*SchemaProxy
 		for i, allOfItem := range schema.AllOf {
+			allOfItem := allOfItem
 			sch := &SchemaProxy{}
 			sch.Parent = s
 			sch.IsIndexed = true
@@ -50,7 +55,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.PathSegment = "allOf"
 			sch.Value = allOfItem
 			allOf = append(allOf, sch)
-			sch.Walk(ctx, allOfItem)
+			wg.Go(func() { sch.Walk(ctx, allOfItem) })
 		}
 		s.AllOf = allOf
 	}
@@ -58,6 +63,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 	if schema.OneOf != nil {
 		var oneOf []*SchemaProxy
 		for i, oneOfItem := range schema.OneOf {
+			oneOfItem := oneOfItem
 			sch := &SchemaProxy{}
 			sch.Parent = s
 			sch.IsIndexed = true
@@ -65,7 +71,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.PathSegment = "oneOf"
 			sch.Value = oneOfItem
 			oneOf = append(oneOf, sch)
-			sch.Walk(ctx, oneOfItem)
+			wg.Go(func() { sch.Walk(ctx, oneOfItem) })
 		}
 		s.OneOf = oneOf
 	}
@@ -73,6 +79,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 	if schema.AnyOf != nil {
 		var anyOf []*SchemaProxy
 		for i, anyOfItem := range schema.AnyOf {
+			anyOfItem := anyOfItem
 			sch := &SchemaProxy{}
 			sch.Parent = s
 			sch.IsIndexed = true
@@ -80,7 +87,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.PathSegment = "anyOf"
 			sch.Value = anyOfItem
 			anyOf = append(anyOf, sch)
-			sch.Walk(ctx, anyOfItem)
+			wg.Go(func() { sch.Walk(ctx, anyOfItem) })
 		}
 		s.AnyOf = anyOf
 	}
@@ -88,6 +95,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 	if schema.PrefixItems != nil {
 		var prefixItems []*SchemaProxy
 		for i, prefixItem := range schema.PrefixItems {
+			prefixItem := prefixItem
 			sch := &SchemaProxy{}
 			sch.Parent = s
 			sch.IsIndexed = true
@@ -95,7 +103,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.PathSegment = "prefixItems"
 			sch.Value = prefixItem
 			prefixItems = append(prefixItems, sch)
-			sch.Walk(ctx, prefixItem)
+			wg.Go(func() { sch.Walk(ctx, prefixItem) })
 		}
 		s.PrefixItems = prefixItems
 	}
@@ -112,7 +120,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		sch := &SchemaProxy{}
 		sch.Parent = s
 		sch.PathSegment = "contains"
-		sch.Walk(ctx, schema.Contains)
+		wg.Go(func() { sch.Walk(ctx, schema.Contains) })
 		s.Contains = sch
 	}
 
@@ -120,7 +128,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		sch := &SchemaProxy{}
 		sch.Parent = s
 		sch.PathSegment = "if"
-		sch.Walk(ctx, schema.Contains)
+		wg.Go(func() { sch.Walk(ctx, schema.Contains) })
 		s.If = sch
 	}
 
@@ -128,7 +136,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		sch := &SchemaProxy{}
 		sch.Parent = s
 		sch.PathSegment = "else"
-		sch.Walk(ctx, schema.Contains)
+		wg.Go(func() { sch.Walk(ctx, schema.Contains) })
 		s.Else = sch
 	}
 
@@ -136,7 +144,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		sch := &SchemaProxy{}
 		sch.Parent = s
 		sch.PathSegment = "then"
-		sch.Walk(ctx, schema.Contains)
+		wg.Go(func() { sch.Walk(ctx, schema.Contains) })
 		s.Then = sch
 	}
 
@@ -148,7 +156,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.PathSegment = "dependentSchemas"
 			sch.Key = dependentSchemasPairs.Key()
 			dependentSchemas.Set(dependentSchemasPairs.Key(), sch)
-			sch.Walk(ctx, dependentSchemasPairs.Value())
+			v := dependentSchemasPairs.Value()
+			wg.Go(func() { sch.Walk(ctx, v) })
 		}
 		s.DependentSchemas = dependentSchemas
 	}
@@ -161,7 +170,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.PathSegment = "patternProperties"
 			sch.Key = patternPropertiesPairs.Key()
 			patternProperties.Set(patternPropertiesPairs.Key(), sch)
-			sch.Walk(ctx, patternPropertiesPairs.Value())
+			v := patternPropertiesPairs.Value()
+			wg.Go(func() { sch.Walk(ctx, v) })
 		}
 		s.PatternProperties = patternProperties
 	}
@@ -191,7 +201,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch := &SchemaProxy{}
 			sch.Parent = s
 			sch.Value = schema.UnevaluatedProperties.A
-			sch.Walk(ctx, schema.UnevaluatedProperties.A)
+			v := schema.UnevaluatedProperties.A
+			wg.Go(func() { sch.Walk(ctx, v) })
 		} else {
 			dynamicValue.B = schema.UnevaluatedProperties.B
 		}
@@ -208,7 +219,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.Parent = dynamicValue
 			sch.Value = schema.Items.A
 			dynamicValue.A = sch
-			sch.Walk(ctx, schema.Items.A)
+			v := schema.Items.A
+			wg.Go(func() { sch.Walk(ctx, v) })
 		} else {
 			dynamicValue.B = schema.Items.B
 		}
@@ -221,7 +233,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		sch.PathSegment = "not"
 		sch.Value = schema.Not
 		s.Not = sch
-		sch.Walk(ctx, schema.Not)
+		v := schema.Not
+		wg.Go(func() { sch.Walk(ctx, v) })
 	}
 
 	if schema.Properties != nil {
@@ -232,7 +245,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.PathSegment = "properties"
 			sch.Key = propertiesPairs.Key()
 			properties.Set(propertiesPairs.Key(), sch)
-			sch.Walk(ctx, propertiesPairs.Value())
+			v := propertiesPairs.Value()
+			wg.Go(func() { sch.Walk(ctx, v) })
 		}
 		s.Properties = properties
 	}
@@ -247,7 +261,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.Parent = dynamicValue
 			sch.Value = schema.AdditionalProperties.A
 			dynamicValue.A = sch
-			dynamicValue.Walk(ctx)
+			wg.Go(func() { dynamicValue.Walk(ctx) })
 		} else {
 			dynamicValue.B = schema.AdditionalProperties.B
 		}
@@ -269,5 +283,4 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		externalDocs.Value = schema.ExternalDocs
 		s.ExternalDocs = externalDocs
 	}
-
 }
