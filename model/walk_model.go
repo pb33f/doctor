@@ -1,6 +1,10 @@
 // Copyright 2024 Princess B33f Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: BUSL-1.1
 
+// This code is made available for private, non commercial use. It is covered by the Business Source License 1.1,
+// Please feel free to use it accordingly. If you wish to use this code in a competitive product, please contact
+// sales@pb33f.io
+
 package model
 
 import (
@@ -13,11 +17,17 @@ import (
 	"github.com/sourcegraph/conc"
 )
 
+// DrDocument is a turbo charged version of the libopenapi Document struct. The doctor
+// provides a much more powerful way to navigate an OpenAPI document.
+//
+// The doctor is the library we wanted all along.
 type DrDocument struct {
 	Schemas        []*drBase.Schema
 	SkippedSchemas []*drBase.Schema
+	Parameters     []*drV3.Parameter
 	V3Document     *drV3.Document
 	seenSchemas    map[string]bool
+	seenParameters map[string]bool
 	skippedSchemas map[string]bool
 	index          *index.SpecIndex
 	rolodex        *index.Rolodex
@@ -31,10 +41,12 @@ func (w *DrDocument) WalkV3(doc *v3.Document) *drV3.Document {
 
 	schemaChan := make(chan *drBase.Schema)
 	skippedSchemaChan := make(chan *drBase.Schema)
+	parameterChan := make(chan any)
 
 	dctx := &drBase.DrContext{
 		SchemaChan:        schemaChan,
 		SkippedSchemaChan: skippedSchemaChan,
+		ParameterChan:     parameterChan,
 		Index:             w.index,
 		Rolodex:           w.rolodex,
 		WaitGroup:         &conc.WaitGroup{},
@@ -44,8 +56,11 @@ func (w *DrDocument) WalkV3(doc *v3.Document) *drV3.Document {
 
 	var schemas []*drBase.Schema
 	var skippedSchemas []*drBase.Schema
+	var parameters []*drV3.Parameter
 	w.skippedSchemas = make(map[string]bool)
 	w.seenSchemas = make(map[string]bool)
+	w.seenParameters = make(map[string]bool)
+
 	done := make(chan bool)
 	complete := make(chan bool)
 	go func(sChan chan *drBase.Schema, skippedChan chan *drBase.Schema, done chan bool) {
@@ -76,8 +91,16 @@ func (w *DrDocument) WalkV3(doc *v3.Document) *drV3.Document {
 						w.skippedSchemas[key] = true
 					}
 				}
+			case parameter := <-parameterChan:
+				if parameter != nil {
+					key := fmt.Sprintf("%d:%d", parameter.(*drV3.Parameter).Value.GoLow().Name.KeyNode.Line,
+						parameter.(*drV3.Parameter).Value.GoLow().Name.KeyNode.Column)
+					if _, ok := w.seenParameters[key]; !ok {
+						parameters = append(parameters, parameter.(*drV3.Parameter))
+						w.seenParameters[key] = true
+					}
+				}
 			}
-
 		}
 	}(schemaChan, skippedSchemaChan, done)
 	drDoc := &drV3.Document{}
@@ -86,6 +109,7 @@ func (w *DrDocument) WalkV3(doc *v3.Document) *drV3.Document {
 	<-complete
 	w.Schemas = schemas
 	w.SkippedSchemas = skippedSchemas
+	w.Parameters = parameters
 	w.V3Document = drDoc
 	return drDoc
 }

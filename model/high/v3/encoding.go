@@ -18,6 +18,9 @@ type Encoding struct {
 
 func (e *Encoding) Walk(ctx context.Context, encoding *v3.Encoding) {
 
+	drCtx := base.GetDrContext(ctx)
+	wg := drCtx.WaitGroup
+
 	e.Value = encoding
 
 	if encoding.Headers != nil {
@@ -26,7 +29,8 @@ func (e *Encoding) Walk(ctx context.Context, encoding *v3.Encoding) {
 			h := &Header{}
 			h.Parent = e
 			h.Key = encodingPairs.Key()
-			h.Walk(ctx, encodingPairs.Value())
+			v := encodingPairs.Value()
+			wg.Go(func() { h.Walk(ctx, v) })
 			headers.Set(encodingPairs.Key(), h)
 		}
 		e.Headers = headers

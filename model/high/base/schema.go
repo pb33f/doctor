@@ -5,7 +5,6 @@ package base
 
 import (
 	"context"
-	"fmt"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
@@ -42,7 +41,6 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 	wg := drCtx.WaitGroup
 
 	s.Value = schema
-	s.Hash = fmt.Sprintf("%x", schema.GoLow().Hash())
 
 	if schema.AllOf != nil {
 		var allOf []*SchemaProxy

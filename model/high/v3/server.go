@@ -35,5 +35,4 @@ func (s *Server) Walk(ctx context.Context, server *v3.Server) {
 			s.Variables.Set(k, sv)
 		}
 	}
-
 }

@@ -20,10 +20,13 @@ func (l *Link) Walk(ctx context.Context, link *v3.Link) {
 	l.Value = link
 	l.PathSegment = "links"
 
+	drCtx := base.GetDrContext(ctx)
+	wg := drCtx.WaitGroup
+
 	if link.Server != nil {
 		s := &Server{}
 		s.Parent = l
-		s.Walk(ctx, link.Server)
+		wg.Go(func() { s.Walk(ctx, link.Server) })
 		l.Server = s
 	}
 }

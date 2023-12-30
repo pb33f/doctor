@@ -12,6 +12,7 @@ import (
 type DrContext struct {
 	SchemaChan        chan *Schema
 	SkippedSchemaChan chan *Schema
+	ParameterChan     chan any
 	Index             *index.SpecIndex
 	Rolodex           *index.Rolodex
 	WaitGroup         *conc.WaitGroup

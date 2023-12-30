@@ -17,7 +17,11 @@ type Callback struct {
 }
 
 func (c *Callback) Walk(ctx context.Context, callback *v3.Callback) {
+
 	c.Value = callback
+
+	drCtx := base.GetDrContext(ctx)
+	wg := drCtx.WaitGroup
 
 	if callback.Expression != nil {
 		expression := orderedmap.New[string, *PathItem]()
@@ -25,7 +29,8 @@ func (c *Callback) Walk(ctx context.Context, callback *v3.Callback) {
 			p := &PathItem{}
 			p.Parent = c
 			p.Key = expressionPairs.Key()
-			p.Walk(ctx, expressionPairs.Value())
+			v := expressionPairs.Value()
+			wg.Go(func() { p.Walk(ctx, v) })
 			expression.Set(expressionPairs.Key(), p)
 		}
 		c.Expression = expression

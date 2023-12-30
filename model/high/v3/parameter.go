@@ -59,4 +59,6 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 			content.Set(contentPairs.Key(), mt)
 		}
 	}
+
+	drCtx.ParameterChan <- p
 }
