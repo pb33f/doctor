@@ -26,8 +26,9 @@ type Foundation struct {
 }
 
 func (f *Foundation) AddRuleFunctionResult(result *RuleFunctionResult) {
-	if f == nil {
-		panic("why is f nil?")
+	if f.RuleResults == nil {
+		f.RuleResults = []*RuleFunctionResult{result}
+		return
 	}
 	f.RuleResults = append(f.RuleResults, result)
 }
