@@ -7,13 +7,17 @@ import (
 	"fmt"
 )
 
+type AcceptsRuleResults interface {
+	AddRuleFunctionResult(result *RuleFunctionResult)
+	GetRuleFunctionResults() []*RuleFunctionResult
+}
+
 type Foundational interface {
 	GetParent() Foundational
 	GetPathSegment() string
 	GenerateJSONPath() string
 	GenerateJSONPathWithLevel(level int) string
-	AddRuleFunctionResult(result *RuleFunctionResult)
-	GetRuleFunctionResults() []*RuleFunctionResult
+	GetRoot() Foundational
 }
 
 type Foundation struct {
@@ -26,11 +30,26 @@ type Foundation struct {
 }
 
 func (f *Foundation) AddRuleFunctionResult(result *RuleFunctionResult) {
+	result.ParentObject = f
 	if f.RuleResults == nil {
 		f.RuleResults = []*RuleFunctionResult{result}
+		if f.Parent != nil {
+			root := f.GetRoot()
+			root.(AcceptsRuleResults).AddRuleFunctionResult(result)
+		}
 		return
 	}
 	f.RuleResults = append(f.RuleResults, result)
+	if f.Parent != nil {
+		f.GetRoot().(AcceptsRuleResults).AddRuleFunctionResult(result)
+	}
+}
+
+func (f *Foundation) GetRoot() Foundational {
+	if f.Parent == nil {
+		return f
+	}
+	return f.Parent.(Foundational).GetRoot()
 }
 
 func (f *Foundation) GetRuleFunctionResults() []*RuleFunctionResult {

@@ -25,6 +25,7 @@ type RuleFunctionResult struct {
 	Rule         *Rule             `json:"-" yaml:"-"`
 	StartNode    *yaml.Node        `json:"-" yaml:"-"`
 	EndNode      *yaml.Node        `json:"-" yaml:"-"`
+	ParentObject any               `json:"-" yaml:"-"`
 }
 
 // Rule is a structure that represents a rule as part of a ruleset.
