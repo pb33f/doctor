@@ -30,6 +30,7 @@ func (sp *SchemaProxy) IsCircular(ctx context.Context) bool {
 func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) {
 	sp.Value = schemaProxy
 	drCtx := ctx.Value("drCtx").(*DrContext)
+
 	sch := schemaProxy.Schema()
 	if sch != nil {
 		if schemaProxy.IsReference() {
@@ -38,7 +39,10 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) 
 				newSchema.Parent = sp
 				sp.Schema = newSchema
 				newSchema.Value = sch
-				drCtx.SkippedSchemaChan <- newSchema
+				drCtx.SkippedSchemaChan <- &WalkedSchema{
+					Schema:     newSchema,
+					SchemaNode: schemaProxy.GetSchemaKeyNode(),
+				}
 				return
 			}
 		}
@@ -47,7 +51,18 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) 
 		sp.Schema = newSchema
 		newSchema.Walk(ctx, sch)
 		if !schemaProxy.IsReference() {
-			drCtx.SchemaChan <- newSchema
+			drCtx.SchemaChan <- &WalkedSchema{
+				Schema:     newSchema,
+				SchemaNode: schemaProxy.GetSchemaKeyNode(),
+			}
+		}
+	} else {
+		if schemaProxy.GetBuildError() != nil {
+			drCtx.ErrorChan <- &BuildError{
+				SchemaProxy:   schemaProxy,
+				DrSchemaProxy: sp,
+				Error:         schemaProxy.GetBuildError(),
+			}
 		}
 	}
 }

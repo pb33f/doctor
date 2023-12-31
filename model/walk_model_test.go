@@ -20,8 +20,8 @@ func TestWalker_TestStripe(t *testing.T) {
 	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
 	walker.WalkV3(&v3Doc.Model)
 
-	assert.Equal(t, 15538, len(walker.Schemas))
-	assert.Equal(t, 26, len(walker.SkippedSchemas))
+	assert.Equal(t, 15360, len(walker.Schemas))
+	assert.Equal(t, 186, len(walker.SkippedSchemas))
 
 }
 
@@ -52,8 +52,8 @@ func TestWalker_TestStripe_Old(t *testing.T) {
 	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
 	walker.WalkV3(&v3Doc.Model)
 
-	assert.Equal(t, 11287, len(walker.Schemas))
-	assert.Equal(t, 23, len(walker.SkippedSchemas))
+	assert.Equal(t, 11112, len(walker.Schemas))
+	assert.Equal(t, 153, len(walker.SkippedSchemas))
 
 }
 
@@ -83,7 +83,7 @@ func TestWalker_TestSquare(t *testing.T) {
 	walker.WalkV3(&v3Doc.Model)
 
 	assert.Equal(t, 3065, len(walker.Schemas))
-	assert.Equal(t, 1, len(walker.SkippedSchemas))
+	assert.Equal(t, 15, len(walker.SkippedSchemas))
 
 }
 
@@ -649,6 +649,36 @@ paths:
 
 	creds := walked.Paths.PathItems.GetOrZero("/hello").Get.ExternalDocs.GenerateJSONPath()
 	assert.Equal(t, "$.paths['/hello'].get.externalDocs", creds)
+
+}
+
+func TestWalker_WalkV3_TestBuildErrors(t *testing.T) {
+
+	yml := `openapi: "3.1"
+components:
+  schemas:
+    Foo:
+      type: object
+      additionalProperties: indeterminate
+    Bar:
+      type: object
+      additionalProperties: indeterminate`
+
+	newDoc, dErr := libopenapi.NewDocument([]byte(yml))
+	if dErr != nil {
+		t.Error(dErr)
+	}
+	v3Doc, err := newDoc.BuildV3Model()
+	if err != nil {
+		t.Error(err)
+	}
+
+	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
+	walker.WalkV3(&v3Doc.Model)
+
+	assert.Len(t, walker.BuildErrors, 2)
+	assert.Equal(t, "build schema failed: unexpected data type: 'string', line 6, col 29",
+		walker.BuildErrors[0].Error.Error())
 
 }
 

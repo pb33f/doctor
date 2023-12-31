@@ -60,5 +60,8 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 		}
 	}
 
-	drCtx.ParameterChan <- p
+	drCtx.ParameterChan <- &drBase.WalkedParam{
+		Param:     p,
+		ParamNode: param.GoLow().KeyNode,
+	}
 }

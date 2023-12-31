@@ -1,9 +1,7 @@
 // Copyright 2024 Princess B33f Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: BUSL-1.1
 
-// This code is made available for private, non commercial use. It is covered by the Business Source License 1.1,
-// Please feel free to use it accordingly. If you wish to use this code in a competitive product, please contact
-// sales@pb33f.io
+// If you wish to use this code in a competitive or commercial product, please contact sales@pb33f.io
 
 package model
 
@@ -15,6 +13,7 @@ import (
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/sourcegraph/conc"
+	"sort"
 )
 
 // DrDocument is a turbo charged version of the libopenapi Document struct. The doctor
@@ -22,6 +21,7 @@ import (
 //
 // The doctor is the library we wanted all along.
 type DrDocument struct {
+	BuildErrors    []*drBase.BuildError
 	Schemas        []*drBase.Schema
 	SkippedSchemas []*drBase.Schema
 	Parameters     []*drV3.Parameter
@@ -39,9 +39,10 @@ func NewDrDocument(index *index.SpecIndex, rolodex *index.Rolodex) *DrDocument {
 
 func (w *DrDocument) WalkV3(doc *v3.Document) *drV3.Document {
 
-	schemaChan := make(chan *drBase.Schema)
-	skippedSchemaChan := make(chan *drBase.Schema)
-	parameterChan := make(chan any)
+	schemaChan := make(chan *drBase.WalkedSchema)
+	skippedSchemaChan := make(chan *drBase.WalkedSchema)
+	parameterChan := make(chan *drBase.WalkedParam)
+	buildErrorChan := make(chan *drBase.BuildError)
 
 	dctx := &drBase.DrContext{
 		SchemaChan:        schemaChan,
@@ -50,6 +51,7 @@ func (w *DrDocument) WalkV3(doc *v3.Document) *drV3.Document {
 		Index:             w.index,
 		Rolodex:           w.rolodex,
 		WaitGroup:         &conc.WaitGroup{},
+		ErrorChan:         buildErrorChan,
 	}
 
 	drCtx := context.WithValue(context.Background(), "drCtx", dctx)
@@ -57,48 +59,54 @@ func (w *DrDocument) WalkV3(doc *v3.Document) *drV3.Document {
 	var schemas []*drBase.Schema
 	var skippedSchemas []*drBase.Schema
 	var parameters []*drV3.Parameter
+	var buildErrors []*drBase.BuildError
 	w.skippedSchemas = make(map[string]bool)
 	w.seenSchemas = make(map[string]bool)
 	w.seenParameters = make(map[string]bool)
 
 	done := make(chan bool)
 	complete := make(chan bool)
-	go func(sChan chan *drBase.Schema, skippedChan chan *drBase.Schema, done chan bool) {
+	go func(sChan chan *drBase.WalkedSchema, skippedChan chan *drBase.WalkedSchema, done chan bool) {
 		for {
 			select {
 			case <-done:
 				complete <- true
 				return
-			case schema := <-sChan:
-				if schema != nil {
-					if len(schema.Value.Type) == 0 {
+			case s := <-sChan:
+				if s != nil {
+					if s.Schema.Value != nil && len(s.Schema.Value.Type) == 0 {
 						continue
 					}
-					key := fmt.Sprintf("%d:%d", schema.Value.GoLow().Type.KeyNode.Line,
-						schema.Value.GoLow().Type.KeyNode.Column)
+
+					key := fmt.Sprintf("%d:%d", s.SchemaNode.Line,
+						s.SchemaNode.Column)
+
 					if _, ok := w.seenSchemas[key]; !ok {
-						schemas = append(schemas, schema)
+						schemas = append(schemas, s.Schema)
 						w.seenSchemas[key] = true
 					}
 				}
 			case schema := <-skippedChan:
 				if schema != nil {
-					key := fmt.Sprintf("%d:%d", schema.Value.GoLow().Type.KeyNode.Line,
-						schema.Value.GoLow().Type.KeyNode.Column)
+					key := fmt.Sprintf("%d:%d", schema.SchemaNode.Line, schema.SchemaNode.Column)
 
 					if _, ok := w.skippedSchemas[key]; !ok {
-						skippedSchemas = append(skippedSchemas, schema)
+						skippedSchemas = append(skippedSchemas, schema.Schema)
 						w.skippedSchemas[key] = true
 					}
 				}
-			case parameter := <-parameterChan:
-				if parameter != nil {
-					key := fmt.Sprintf("%d:%d", parameter.(*drV3.Parameter).Value.GoLow().Name.KeyNode.Line,
-						parameter.(*drV3.Parameter).Value.GoLow().Name.KeyNode.Column)
+			case p := <-parameterChan:
+				if p != nil {
+					key := fmt.Sprintf("%d:%d", p.ParamNode.Line, p.ParamNode.Column)
+
 					if _, ok := w.seenParameters[key]; !ok {
-						parameters = append(parameters, parameter.(*drV3.Parameter))
+						parameters = append(parameters, p.Param.(*drV3.Parameter))
 						w.seenParameters[key] = true
 					}
+				}
+			case buildError := <-buildErrorChan:
+				if buildError != nil {
+					buildErrors = append(buildErrors, buildError)
 				}
 			}
 		}
@@ -107,9 +115,19 @@ func (w *DrDocument) WalkV3(doc *v3.Document) *drV3.Document {
 	drDoc.Walk(drCtx, doc)
 	done <- true
 	<-complete
+
 	w.Schemas = schemas
 	w.SkippedSchemas = skippedSchemas
 	w.Parameters = parameters
 	w.V3Document = drDoc
+	w.BuildErrors = buildErrors
+
+	if len(w.BuildErrors) > 0 {
+		orderedFunc := func(i, j int) bool {
+			return w.BuildErrors[i].SchemaProxy.GoLow().GetKeyNode().Line < w.BuildErrors[j].SchemaProxy.GoLow().GetKeyNode().Line
+		}
+		sort.Slice(w.BuildErrors, orderedFunc)
+	}
+
 	return drDoc
 }
