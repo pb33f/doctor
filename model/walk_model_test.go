@@ -17,8 +17,7 @@ func TestWalker_TestStripe(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
 
 	assert.Equal(t, 15360, len(walker.Schemas))
 	assert.Equal(t, 186, len(walker.SkippedSchemas))
@@ -33,8 +32,7 @@ func BenchmarkWalker_TestStripe(b *testing.B) {
 	v3Doc, _ := newDoc.BuildV3Model()
 
 	for n := 0; n < b.N; n++ {
-		walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-		walker.WalkV3(&v3Doc.Model)
+		walker := NewDrDocument(v3Doc)
 
 		assert.Equal(b, 15538, len(walker.Schemas))
 		assert.Equal(b, 26, len(walker.SkippedSchemas))
@@ -49,8 +47,7 @@ func TestWalker_TestStripe_Old(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
 
 	assert.Equal(t, 11112, len(walker.Schemas))
 	assert.Equal(t, 153, len(walker.SkippedSchemas))
@@ -64,8 +61,7 @@ func TestWalker_TestAsana(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
 
 	assert.Equal(t, 874, len(walker.Schemas))
 	assert.Equal(t, 0, len(walker.SkippedSchemas))
@@ -79,8 +75,7 @@ func TestWalker_TestSquare(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
 
 	assert.Equal(t, 3065, len(walker.Schemas))
 	assert.Equal(t, 15, len(walker.SkippedSchemas))
@@ -94,8 +89,8 @@ func TestWalker_WalkV3_Info(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	contactPath := walked.Info.Contact.GenerateJSONPath()
 	assert.Equal(t, "$.info.contact", contactPath)
@@ -117,8 +112,8 @@ func TestWalker_WalkV3_Server(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	serverVariablePath := walked.Servers[0].Variables.GetOrZero("scheme").GenerateJSONPath()
 	assert.Equal(t, "$.servers[0].variables['scheme']", serverVariablePath)
@@ -131,8 +126,8 @@ func TestWalker_WalkV3_PathItem(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	pathItem := walked.Paths.PathItems.GetOrZero("/burgers").GenerateJSONPath()
 	assert.Equal(t, "$.paths['/burgers']", pathItem)
@@ -160,8 +155,8 @@ paths:
 	newDoc, _ := libopenapi.NewDocument([]byte(yml))
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	pathItem := walked.Paths.PathItems.GetOrZero("/baggers").Parameters[0].GenerateJSONPath()
 	assert.Equal(t, "$.paths['/baggers'].parameters[0]", pathItem)
@@ -181,8 +176,8 @@ paths:
 	newDoc, _ := libopenapi.NewDocument([]byte(yml))
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	pathItem := walked.Paths.PathItems.GetOrZero("/baggers").Parameters[0].GenerateJSONPath()
 	assert.Equal(t, "$.paths['/baggers'].parameters[0]", pathItem)
@@ -197,8 +192,8 @@ func TestWalker_WalkV3_Responses(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	responses := walked.Paths.PathItems.GetOrZero("/burgers").Post.Responses.GenerateJSONPath()
 	assert.Equal(t, "$.paths['/burgers'].post.responses", responses)
@@ -230,8 +225,8 @@ func TestWalker_WalkV3_RequestBody(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	requestBody := walked.Paths.PathItems.GetOrZero("/burgers").Post.RequestBody.GenerateJSONPath()
 	assert.Equal(t, "$.paths['/burgers'].post.requestBody", requestBody)
@@ -252,8 +247,8 @@ func TestWalker_WalkV3_Callback(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	callbacks := walked.Paths.PathItems.GetOrZero("/burgers/{burgerId}").Get.Callbacks.GetOrZero("burgerCallback").GenerateJSONPath()
 	assert.Equal(t, "$.paths['/burgers/{burgerId}'].get.callbacks['burgerCallback']", callbacks)
@@ -271,8 +266,8 @@ func TestWalker_WalkV3_Security(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	security := walked.Paths.PathItems.GetOrZero("/burgers").
 		Post.Security[0].GenerateJSONPath()
@@ -287,8 +282,8 @@ func TestWalker_WalkV3_Servers(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	servers := walked.Paths.PathItems.GetOrZero("/burgers").
 		Post.Servers[0].GenerateJSONPath()
@@ -302,8 +297,8 @@ func TestWalker_WalkV3_Components(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	components := walked.Components.Schemas.GetOrZero("Burger").GenerateJSONPath()
 	assert.Equal(t, "$.components.schemas['Burger']", components)
@@ -327,8 +322,8 @@ func TestWalker_WalkV3_Tags(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	tags := walked.Tags[0].GenerateJSONPath()
 	assert.Equal(t, "$.tags[0]", tags)
@@ -341,8 +336,8 @@ func TestWalker_WalkV3_ExternalDocs(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	tags := walked.ExternalDocs.GenerateJSONPath()
 	assert.Equal(t, "$.externalDocs", tags)
@@ -355,8 +350,8 @@ func TestWalker_WalkV3_Webhooks(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	tags := walked.Webhooks.GetOrZero("someHook").Post.RequestBody.GenerateJSONPath()
 	assert.Equal(t, "$.webhooks['someHook'].post.requestBody", tags)
@@ -369,7 +364,7 @@ func TestWalker_WalkV3_CheckSchemas(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
+	walker := NewDrDocument(v3Doc)
 	walker.WalkV3(&v3Doc.Model)
 
 	schemas := walker.Schemas
@@ -421,8 +416,8 @@ components:
 		t.Error(err)
 	}
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	pathItem := walked.Components.Schemas.GetOrZero("MintyFresh").Schema.UnevaluatedItems.GenerateJSONPath()
 	assert.Equal(t, "$.components.schemas['MintyFresh'].unevaluatedItems", pathItem)
@@ -468,8 +463,8 @@ components:
 		t.Error(err)
 	}
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	pathItem := walked.Components.Schemas.GetOrZero("MintyFresh").Schema.UnevaluatedProperties.GenerateJSONPath()
 	assert.Equal(t, "$.components.schemas['MintyFresh'].unevaluatedProperties", pathItem)
@@ -502,8 +497,8 @@ components:
 		t.Error(err)
 	}
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	pathItem := walked.Components.Schemas.GetOrZero("MintyFresh").Schema.AdditionalProperties.GenerateJSONPath()
 	assert.Equal(t, "$.components.schemas['MintyFresh'].additionalProperties", pathItem)
@@ -538,8 +533,8 @@ components:
 		t.Error(err)
 	}
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	pathItem := walked.Components.Schemas.GetOrZero("MintyFresh").Schema.Items.GenerateJSONPath()
 	assert.Equal(t, "$.components.schemas['MintyFresh'].items", pathItem)
@@ -578,8 +573,8 @@ components:
 		t.Error(err)
 	}
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	pathItem := walked.Components.Headers.GetOrZero("MintyFresh").Schema.GenerateJSONPath()
 	assert.Equal(t, "$.components.headers['MintyFresh'].schema", pathItem)
@@ -614,8 +609,8 @@ components:
 		t.Error(err)
 	}
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	creds := walked.Components.SecuritySchemes.GetOrZero("oauth").Flows.Password.GenerateJSONPath()
 	assert.Equal(t, "$.components.securitySchemes['oauth'].flows.password", creds)
@@ -644,8 +639,8 @@ paths:
 		t.Error(err)
 	}
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	creds := walked.Paths.PathItems.GetOrZero("/hello").Get.ExternalDocs.GenerateJSONPath()
 	assert.Equal(t, "$.paths['/hello'].get.externalDocs", creds)
@@ -673,7 +668,7 @@ components:
 		t.Error(err)
 	}
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
+	walker := NewDrDocument(v3Doc)
 	walker.WalkV3(&v3Doc.Model)
 
 	assert.Len(t, walker.BuildErrors, 2)
@@ -702,8 +697,8 @@ components:
 		t.Error(err)
 	}
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	creds := walked.Components.Parameters.GetOrZero("hello").Examples.GetOrZero("test").GenerateJSONPath()
 	assert.Equal(t, "$.components.parameters['hello'].examples['test']", creds)
@@ -736,8 +731,8 @@ paths:
 		t.Error(err)
 	}
 
-	walker := NewDrDocument(v3Doc.Index, v3Doc.Index.GetRolodex())
-	walked := walker.WalkV3(&v3Doc.Model)
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
 
 	op := walked.Paths.PathItems.GetOrZero("/hello").Options.GenerateJSONPath()
 	assert.Equal(t, "$.paths['/hello'].options", op)

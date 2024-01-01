@@ -10,16 +10,20 @@ import (
 	"fmt"
 	drBase "github.com/pb33f/doctor/model/high/base"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/sourcegraph/conc"
 	"sort"
 )
 
-// DrDocument is a turbo charged version of the libopenapi Document struct. The doctor
+// DrDocument is a turbo charged version of the libopenapi Document model. The doctor
 // provides a much more powerful way to navigate an OpenAPI document.
 //
-// The doctor is the library we wanted all along.
+// DrDocument also absorbs results from vacuum rules, and allows them to be attached contextually
+// to the models they represent.
+//
+// The doctor is the library we wanted all along. The doctor is the library we deserve.
 type DrDocument struct {
 	BuildErrors    []*drBase.BuildError
 	Schemas        []*drBase.Schema
@@ -30,14 +34,17 @@ type DrDocument struct {
 	seenParameters map[string]bool
 	skippedSchemas map[string]bool
 	index          *index.SpecIndex
-	rolodex        *index.Rolodex
 }
 
-func NewDrDocument(index *index.SpecIndex, rolodex *index.Rolodex) *DrDocument {
-	return &DrDocument{index: index, rolodex: rolodex}
+func NewDrDocument(document *libopenapi.DocumentModel[v3.Document]) *DrDocument {
+	doc := &DrDocument{
+		index: document.Index,
+	}
+	doc.walkV3(&document.Model)
+	return doc
 }
 
-func (w *DrDocument) WalkV3(doc *v3.Document) *drV3.Document {
+func (w *DrDocument) walkV3(doc *v3.Document) *drV3.Document {
 
 	schemaChan := make(chan *drBase.WalkedSchema)
 	skippedSchemaChan := make(chan *drBase.WalkedSchema)
@@ -49,7 +56,6 @@ func (w *DrDocument) WalkV3(doc *v3.Document) *drV3.Document {
 		SkippedSchemaChan: skippedSchemaChan,
 		ParameterChan:     parameterChan,
 		Index:             w.index,
-		Rolodex:           w.rolodex,
 		WaitGroup:         &conc.WaitGroup{},
 		ErrorChan:         buildErrorChan,
 	}
