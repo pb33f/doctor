@@ -365,7 +365,6 @@ func TestWalker_WalkV3_CheckSchemas(t *testing.T) {
 	v3Doc, _ := newDoc.BuildV3Model()
 
 	walker := NewDrDocument(v3Doc)
-	walker.WalkV3(&v3Doc.Model)
 
 	schemas := walker.Schemas
 	assert.Equal(t, 29, len(schemas))
@@ -669,7 +668,6 @@ components:
 	}
 
 	walker := NewDrDocument(v3Doc)
-	walker.WalkV3(&v3Doc.Model)
 
 	assert.Len(t, walker.BuildErrors, 2)
 	assert.Equal(t, "build schema failed: unexpected data type: 'string', line 6, col 29",

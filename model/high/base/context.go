@@ -27,11 +27,22 @@ type WalkedParam struct {
 	ParamNode *yaml.Node
 }
 
+type WalkedHeader struct {
+	Header any
+	HeaderNode *yaml.Node
+}
+
+type WalkedMediaType struct {
+	MediaType any
+	MediaTypeNode *yaml.Node
+}
 
 type DrContext struct {
 	SchemaChan        chan *WalkedSchema
 	SkippedSchemaChan chan *WalkedSchema
 	ParameterChan     chan *WalkedParam
+	HeaderChan        chan *WalkedHeader
+	MediaTypeChan     chan *WalkedMediaType
 	ErrorChan         chan *BuildError
 	Index             *index.SpecIndex
 	Rolodex           *index.Rolodex

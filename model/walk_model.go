@@ -29,11 +29,11 @@ type DrDocument struct {
 	Schemas        []*drBase.Schema
 	SkippedSchemas []*drBase.Schema
 	Parameters     []*drV3.Parameter
+	Headers        []*drV3.Header
+	MediaTypes     []*drV3.MediaType
 	V3Document     *drV3.Document
-	seenSchemas    map[string]bool
-	seenParameters map[string]bool
-	skippedSchemas map[string]bool
-	index          *index.SpecIndex
+
+	index *index.SpecIndex
 }
 
 func NewDrDocument(document *libopenapi.DocumentModel[v3.Document]) *DrDocument {
@@ -49,12 +49,16 @@ func (w *DrDocument) walkV3(doc *v3.Document) *drV3.Document {
 	schemaChan := make(chan *drBase.WalkedSchema)
 	skippedSchemaChan := make(chan *drBase.WalkedSchema)
 	parameterChan := make(chan *drBase.WalkedParam)
+	headerChan := make(chan *drBase.WalkedHeader)
+	mediaTypeChan := make(chan *drBase.WalkedMediaType)
 	buildErrorChan := make(chan *drBase.BuildError)
 
 	dctx := &drBase.DrContext{
 		SchemaChan:        schemaChan,
 		SkippedSchemaChan: skippedSchemaChan,
 		ParameterChan:     parameterChan,
+		HeaderChan:        headerChan,
+		MediaTypeChan:     mediaTypeChan,
 		Index:             w.index,
 		WaitGroup:         &conc.WaitGroup{},
 		ErrorChan:         buildErrorChan,
@@ -65,10 +69,14 @@ func (w *DrDocument) walkV3(doc *v3.Document) *drV3.Document {
 	var schemas []*drBase.Schema
 	var skippedSchemas []*drBase.Schema
 	var parameters []*drV3.Parameter
+	var headers []*drV3.Header
+	var mediaTypes []*drV3.MediaType
 	var buildErrors []*drBase.BuildError
-	w.skippedSchemas = make(map[string]bool)
-	w.seenSchemas = make(map[string]bool)
-	w.seenParameters = make(map[string]bool)
+	skippedSchemasState := make(map[string]bool)
+	seenSchemasState := make(map[string]bool)
+	seenParametersState := make(map[string]bool)
+	seenHeadersState := make(map[string]bool)
+	seenMediaTypesState := make(map[string]bool)
 
 	done := make(chan bool)
 	complete := make(chan bool)
@@ -87,27 +95,45 @@ func (w *DrDocument) walkV3(doc *v3.Document) *drV3.Document {
 					key := fmt.Sprintf("%d:%d", s.SchemaNode.Line,
 						s.SchemaNode.Column)
 
-					if _, ok := w.seenSchemas[key]; !ok {
+					if _, ok := seenSchemasState[key]; !ok {
 						schemas = append(schemas, s.Schema)
-						w.seenSchemas[key] = true
+						seenSchemasState[key] = true
 					}
 				}
 			case schema := <-skippedChan:
 				if schema != nil {
 					key := fmt.Sprintf("%d:%d", schema.SchemaNode.Line, schema.SchemaNode.Column)
 
-					if _, ok := w.skippedSchemas[key]; !ok {
+					if _, ok := skippedSchemasState[key]; !ok {
 						skippedSchemas = append(skippedSchemas, schema.Schema)
-						w.skippedSchemas[key] = true
+						skippedSchemasState[key] = true
 					}
 				}
 			case p := <-parameterChan:
 				if p != nil {
 					key := fmt.Sprintf("%d:%d", p.ParamNode.Line, p.ParamNode.Column)
 
-					if _, ok := w.seenParameters[key]; !ok {
+					if _, ok := seenParametersState[key]; !ok {
 						parameters = append(parameters, p.Param.(*drV3.Parameter))
-						w.seenParameters[key] = true
+						seenParametersState[key] = true
+					}
+				}
+			case h := <-headerChan:
+				if h != nil {
+					key := fmt.Sprintf("%d:%d", h.HeaderNode.Line, h.HeaderNode.Column)
+
+					if _, ok := seenHeadersState[key]; !ok {
+						headers = append(headers, h.Header.(*drV3.Header))
+						seenHeadersState[key] = true
+					}
+				}
+			case mt := <-mediaTypeChan:
+				if mt != nil {
+					key := fmt.Sprintf("%d:%d", mt.MediaTypeNode.Line, mt.MediaTypeNode.Column)
+
+					if _, ok := seenMediaTypesState[key]; !ok {
+						mediaTypes = append(mediaTypes, mt.MediaType.(*drV3.MediaType))
+						seenMediaTypesState[key] = true
 					}
 				}
 			case buildError := <-buildErrorChan:
@@ -125,6 +151,8 @@ func (w *DrDocument) walkV3(doc *v3.Document) *drV3.Document {
 	w.Schemas = schemas
 	w.SkippedSchemas = skippedSchemas
 	w.Parameters = parameters
+	w.Headers = headers
+	w.MediaTypes = mediaTypes
 	w.V3Document = drDoc
 	w.BuildErrors = buildErrors
 

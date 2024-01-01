@@ -29,6 +29,7 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 		headers := orderedmap.New[string, *Header]()
 		for headerPairs := response.Headers.First(); headerPairs != nil; headerPairs = headerPairs.Next() {
 			h := &Header{}
+			h.PathSegment = "headers"
 			h.Parent = r
 			h.Key = headerPairs.Key()
 			v := headerPairs.Value()
@@ -56,6 +57,7 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 		links := orderedmap.New[string, *Link]()
 		for linksPairs := response.Links.First(); linksPairs != nil; linksPairs = linksPairs.Next() {
 			l := &Link{}
+			l.PathSegment = "links"
 			l.Parent = r
 			l.Key = linksPairs.Key()
 			v := linksPairs.Value()

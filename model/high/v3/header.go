@@ -6,6 +6,7 @@ package v3
 import (
 	"context"
 	"github.com/pb33f/doctor/model/high/base"
+	drBase "github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
@@ -56,5 +57,9 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 			wg.Go(func() { mt.Walk(ctx, v) })
 			h.Content.Set(contentPairs.Key(), mt)
 		}
+	}
+	drCtx.HeaderChan <- &drBase.WalkedHeader{
+		Header:     h,
+		HeaderNode: header.GoLow().RootNode,
 	}
 }

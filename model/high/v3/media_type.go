@@ -60,4 +60,8 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 			encoding.Set(encodingPairs.Key(), e)
 		}
 	}
+	drCtx.MediaTypeChan <- &drBase.WalkedMediaType{
+		MediaType:     m,
+		MediaTypeNode: mediaType.GoLow().RootNode,
+	}
 }
