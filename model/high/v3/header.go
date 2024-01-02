@@ -12,10 +12,10 @@ import (
 )
 
 type Header struct {
-	Value    *v3.Header
-	Schema   *base.SchemaProxy
-	Examples *orderedmap.Map[string, *base.Example]
-	Content  *orderedmap.Map[string, *MediaType]
+	Value       *v3.Header
+	SchemaProxy *base.SchemaProxy
+	Examples    *orderedmap.Map[string, *base.Example]
+	Content     *orderedmap.Map[string, *MediaType]
 	base.Foundation
 }
 
@@ -30,7 +30,8 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 		c.Parent = h
 		c.Value = header.Schema
 		c.PathSegment = "schema"
-		h.Schema = c
+		wg.Go(func() { c.Walk(ctx, header.Schema) })
+		h.SchemaProxy = c
 	}
 
 	if header.Examples != nil {

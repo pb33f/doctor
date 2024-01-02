@@ -56,7 +56,7 @@ type Swagger struct {
 	//  - https://swagger.io/specification/v2/#pathsObject
 	Paths *Paths
 
-	// Definitions is an object to hold data types produced and consumed by operations. It's composed of Schema instances
+	// Definitions is an object to hold data types produced and consumed by operations. It's composed of SchemaProxy instances
 	//  - https://swagger.io/specification/v2/#definitionsObject
 	Definitions *Definitions
 

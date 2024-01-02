@@ -367,7 +367,7 @@ func TestWalker_WalkV3_CheckSchemas(t *testing.T) {
 	walker := NewDrDocument(v3Doc)
 
 	schemas := walker.Schemas
-	assert.Equal(t, 29, len(schemas))
+	assert.Equal(t, 31, len(schemas))
 
 }
 
@@ -575,7 +575,7 @@ components:
 	walker := NewDrDocument(v3Doc)
 	walked := walker.V3Document
 
-	pathItem := walked.Components.Headers.GetOrZero("MintyFresh").Schema.GenerateJSONPath()
+	pathItem := walked.Components.Headers.GetOrZero("MintyFresh").SchemaProxy.GenerateJSONPath()
 	assert.Equal(t, "$.components.headers['MintyFresh'].schema", pathItem)
 
 	pathItem = walked.Components.Headers.GetOrZero("MintyFresh").Examples.GetOrZero("test").GenerateJSONPath()
