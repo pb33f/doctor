@@ -1,5 +1,5 @@
 // Copyright 2022 Princess B33f Heavy Industries / Dave Shanley
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 
 package v2
 
