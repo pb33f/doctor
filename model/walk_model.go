@@ -33,10 +33,10 @@ type DrDocument struct {
 	Headers        []*drV3.Header
 	MediaTypes     []*drV3.MediaType
 	V3Document     *drV3.Document
-
-	index *index.SpecIndex
+	index          *index.SpecIndex
 }
 
+// NewDrDocument Create a new DrDocument from an OpenAPI v3+ document
 func NewDrDocument(document *libopenapi.DocumentModel[v3.Document]) *DrDocument {
 	doc := &DrDocument{
 		index: document.Index,
@@ -144,8 +144,10 @@ func (w *DrDocument) walkV3(doc *v3.Document) *drV3.Document {
 			}
 		}
 	}(schemaChan, skippedSchemaChan, done)
+
 	drDoc := &drV3.Document{}
 	drDoc.Walk(drCtx, doc)
+
 	done <- true
 	<-complete
 
