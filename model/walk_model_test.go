@@ -5,6 +5,7 @@ package model
 
 import (
 	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
@@ -746,5 +747,54 @@ paths:
 
 	op = walked.Paths.PathItems.GetOrZero("/hello").Servers[0].GenerateJSONPath()
 	assert.Equal(t, "$.paths['/hello'].servers[0]", op)
+
+}
+
+func TestWalker_WalkV3_ArrayCircle(t *testing.T) {
+
+	yml := `openapi: 3.1.0
+info:
+  title: FailureCases
+  version: 0.1.0
+servers:
+  - url: http://localhost:35123
+    description: The default server.
+paths:
+  /test:
+    get:
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Obj:
+      type: object
+      properties:
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Obj'
+      required:
+        - children
+ `
+
+	docConfig := &datamodel.DocumentConfiguration{
+		IgnoreArrayCircularReferences: true,
+	}
+
+	newDoc, dErr := libopenapi.NewDocumentWithConfiguration([]byte(yml), docConfig)
+	if dErr != nil {
+		t.Error(dErr)
+	}
+	v3Doc, err := newDoc.BuildV3Model()
+	if err != nil {
+		t.Error(err)
+	}
+
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
+
+	children := walked.Components.Schemas.GetOrZero("Obj").Schema.Properties.GetOrZero("children").GenerateJSONPath()
+	assert.Equal(t, "$.components.schemas['Obj'].properties['children']", children)
 
 }

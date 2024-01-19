@@ -1,0 +1,24 @@
+openapi: 3.1.0
+info:
+  title: FailureCases
+  version: 0.1.0
+servers:
+  - url: http://localhost:35123
+    description: The default server.
+paths:
+  /test:
+    get:
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Obj:
+      type: object
+      properties:
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Obj'
+      required:
+        - children

@@ -19,11 +19,16 @@ func (sp *SchemaProxy) IsCircular(ctx context.Context) bool {
 	drCtx := ctx.Value("drCtx").(*DrContext)
 	idx := drCtx.Index
 	circularRefs := idx.GetCircularReferences()
+	polyRefs := idx.GetIgnoredPolymorphicCircularReferences()
+	arrayRefs := idx.GetIgnoredArrayCircularReferences()
+	circularRefs = append(circularRefs, polyRefs...)
+	circularRefs = append(circularRefs, arrayRefs...)
 	for _, ref := range circularRefs {
 		if ref.LoopPoint.Definition == sp.Value.GetReference() {
 			return true
 		}
 	}
+
 	return false
 }
 
