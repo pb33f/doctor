@@ -4,11 +4,13 @@
 package model
 
 import (
+	"os"
+	"testing"
+
+	"github.com/pb33f/doctor/model/high/base"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"testing"
 )
 
 func TestWalker_TestStripe(t *testing.T) {
@@ -797,4 +799,51 @@ components:
 	children := walked.Components.Schemas.GetOrZero("Obj").Schema.Properties.GetOrZero("children").GenerateJSONPath()
 	assert.Equal(t, "$.components.schemas['Obj'].properties['children']", children)
 
+}
+
+func TestWalker_WalkV3_Disabled_Security(t *testing.T) {
+
+	yml := `openapi: 3.1.0
+paths:
+    /hello:
+        get:
+            description: hello
+            security: []`
+
+	newDoc, dErr := libopenapi.NewDocument([]byte(yml))
+	if dErr != nil {
+		t.Error(dErr)
+	}
+	v3Doc, err := newDoc.BuildV3Model()
+	if err != nil {
+		t.Error(err)
+	}
+
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
+
+	assert.Equal(t, []*base.SecurityRequirement{}, walked.Paths.PathItems.GetOrZero("/hello").Get.Security)
+}
+
+func TestWalker_WalkV3_Path_With_No_Security(t *testing.T) {
+
+	yml := `openapi: 3.1.0
+paths:
+    /hello:
+        get:
+            description: hello`
+
+	newDoc, dErr := libopenapi.NewDocument([]byte(yml))
+	if dErr != nil {
+		t.Error(dErr)
+	}
+	v3Doc, err := newDoc.BuildV3Model()
+	if err != nil {
+		t.Error(err)
+	}
+
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
+
+	assert.Equal(t, []*base.SecurityRequirement(nil), walked.Paths.PathItems.GetOrZero("/hello").Get.Security)
 }
