@@ -81,6 +81,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 	}
 
 	if operation.Security != nil {
+		o.Security = []*drBase.SecurityRequirement{}
 		for i, security := range operation.Security {
 			security := security
 			s := &drBase.SecurityRequirement{}
