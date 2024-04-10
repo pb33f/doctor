@@ -7,6 +7,10 @@ import (
 	"fmt"
 )
 
+type HasValue interface {
+	GetValue() any
+}
+
 type AcceptsRuleResults interface {
 	AddRuleFunctionResult(result *RuleFunctionResult)
 	GetRuleFunctionResults() []*RuleFunctionResult
@@ -27,6 +31,7 @@ type Foundation struct {
 	Key         string
 	Parent      any
 	RuleResults []*RuleFunctionResult
+	JSONPath    string
 }
 
 func (f *Foundation) AddRuleFunctionResult(result *RuleFunctionResult) {
@@ -65,7 +70,12 @@ func (f *Foundation) GetPathSegment() string {
 }
 
 func (f *Foundation) GenerateJSONPath() string {
-	return f.GenerateJSONPathWithLevel(0)
+	if f.JSONPath != "" {
+		return f.JSONPath
+	}
+	path := f.GenerateJSONPathWithLevel(0)
+	f.JSONPath = path
+	return path
 }
 
 func (f *Foundation) GenerateJSONPathWithLevel(level int) string {

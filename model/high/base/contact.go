@@ -17,3 +17,7 @@ func (c *Contact) Walk(_ context.Context, contact *base.Contact) {
 	c.Value = contact
 	c.PathSegment = "contact"
 }
+
+func (c *Contact) GetValue() any {
+	return c.Value
+}

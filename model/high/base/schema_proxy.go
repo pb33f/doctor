@@ -71,3 +71,7 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) 
 		}
 	}
 }
+
+func (sp *SchemaProxy) GetValue() any {
+	return sp.Value
+}

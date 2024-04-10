@@ -31,3 +31,7 @@ func (s *SecurityScheme) Walk(ctx context.Context, securityScheme *v3.SecuritySc
 		s.Flows = f
 	}
 }
+
+func (s *SecurityScheme) GetValue() any {
+	return s.Value
+}

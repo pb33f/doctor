@@ -11,3 +11,7 @@ type Discriminator struct {
 	Value *base.Discriminator
 	Foundation
 }
+
+func (d *Discriminator) GetValue() any {
+	return d.Value
+}

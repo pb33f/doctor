@@ -37,3 +37,7 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 		r.Content = content
 	}
 }
+
+func (r *RequestBody) GetValue() any {
+	return r.Value
+}

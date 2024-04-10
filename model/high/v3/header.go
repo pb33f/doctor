@@ -64,3 +64,7 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 		HeaderNode: header.GoLow().RootNode,
 	}
 }
+
+func (h *Header) GetValue() any {
+	return h.Value
+}

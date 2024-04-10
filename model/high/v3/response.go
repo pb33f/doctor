@@ -67,3 +67,7 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 		r.Links = links
 	}
 }
+
+func (r *Response) GetValue() any {
+	return r.Value
+}

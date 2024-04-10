@@ -30,3 +30,7 @@ func (l *Link) Walk(ctx context.Context, link *v3.Link) {
 		l.Server = s
 	}
 }
+
+func (l *Link) GetValue() any {
+	return l.Value
+}
