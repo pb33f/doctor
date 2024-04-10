@@ -9,3 +9,7 @@ type Tag struct {
 	Value *base.Tag
 	Foundation
 }
+
+func (t *Tag) GetValue() any {
+	return t.Value
+}

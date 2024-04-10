@@ -16,3 +16,7 @@ type Example struct {
 func (e *Example) Walk(_ context.Context, example *base.Example) {
 	e.Value = example
 }
+
+func (e *Example) GetValue() *base.Example {
+	return e.Value
+}

@@ -37,3 +37,7 @@ func (p *Paths) Walk(ctx context.Context, paths *v3.Paths) {
 		}
 	}
 }
+
+func (p *Paths) GetValue() any {
+	return p.Value
+}

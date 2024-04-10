@@ -44,5 +44,8 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 		wg.Go(func() { resp.Walk(ctx, responses.Default) })
 		r.Default = resp
 	}
+}
 
+func (r *Responses) GetValue() any {
+	return r.Value
 }

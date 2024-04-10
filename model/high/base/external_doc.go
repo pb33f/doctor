@@ -11,3 +11,7 @@ type ExternalDoc struct {
 	Value *base.ExternalDoc
 	Foundation
 }
+
+func (ed *ExternalDoc) GetValue() any {
+	return ed.Value
+}

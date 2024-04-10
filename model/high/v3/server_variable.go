@@ -20,3 +20,7 @@ func (sv *ServerVariable) Walk(_ context.Context, serverVariable *v3.ServerVaria
 	sv.PathSegment = "variables"
 	sv.Key = key
 }
+
+func (sv *ServerVariable) GetValue() any {
+	return sv.Value
+}

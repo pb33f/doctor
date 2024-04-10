@@ -17,3 +17,7 @@ func (s *SecurityRequirement) Walk(_ context.Context, securityRequirement *base.
 	s.Value = securityRequirement
 	s.PathSegment = "security"
 }
+
+func (s *SecurityRequirement) GetValue() any {
+	return s.Value
+}

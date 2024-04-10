@@ -282,3 +282,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		s.ExternalDocs = externalDocs
 	}
 }
+
+func (s *Schema) GetValue() any {
+	return s.Value
+}

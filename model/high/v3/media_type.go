@@ -65,3 +65,7 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 		MediaTypeNode: mediaType.GoLow().RootNode,
 	}
 }
+
+func (m *MediaType) GetValue() any {
+	return m.Value
+}

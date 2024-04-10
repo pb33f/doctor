@@ -105,3 +105,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 		}
 	}
 }
+
+func (o *Operation) GetValue() any {
+	return o.Value
+}

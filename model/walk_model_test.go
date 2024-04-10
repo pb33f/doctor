@@ -847,3 +847,45 @@ paths:
 
 	assert.Equal(t, []*base.SecurityRequirement(nil), walked.Paths.PathItems.GetOrZero("/hello").Get.Security)
 }
+
+func TestWalker_WalkV3_Path_With_Security(t *testing.T) {
+
+	yml := `openapi: "3.0.1"
+
+info:
+  title: Test
+  version: 1.0.0
+
+paths: {}
+
+components:
+  schemas:
+    A:
+      type: object
+      properties: {}
+
+    B:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/A'
+      properties:
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/B'`
+
+	newDoc, dErr := libopenapi.NewDocument([]byte(yml))
+	if dErr != nil {
+		t.Error(dErr)
+	}
+	v3Doc, err := newDoc.BuildV3Model()
+	if err != nil {
+		t.Error(err)
+	}
+
+	walker := NewDrDocument(v3Doc)
+	walked := walker.V3Document
+
+	assert.Equal(t, "object", walked.Components.Schemas.GetOrZero("B").Schema.Value.Type[0])
+
+}

@@ -35,3 +35,7 @@ func (i *Info) Walk(ctx context.Context, info *base.Info) {
 		wg.Go(func() { i.License.Walk(ctx, info.License) })
 	}
 }
+
+func (i *Info) GetValue() any {
+	return i.Value
+}

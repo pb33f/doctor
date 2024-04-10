@@ -158,3 +158,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 		}
 	}
 }
+
+func (c *Components) GetValue() any {
+	return c.Value
+}

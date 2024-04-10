@@ -65,3 +65,7 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 		ParamNode: param.GoLow().RootNode,
 	}
 }
+
+func (p *Parameter) GetValue() any {
+	return p.Value
+}

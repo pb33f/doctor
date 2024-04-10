@@ -11,3 +11,7 @@ type XML struct {
 	Value *base.XML
 	Foundation
 }
+
+func (x *XML) GetValue() any {
+	return x.Value
+}

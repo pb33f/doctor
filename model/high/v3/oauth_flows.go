@@ -50,3 +50,7 @@ func (o *OAuthFlows) Walk(_ context.Context, flows *v3.OAuthFlows) {
 	}
 
 }
+
+func (o *OAuthFlows) GetValue() any {
+	return o.Value
+}

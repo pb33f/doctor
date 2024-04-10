@@ -12,3 +12,7 @@ type OAuthFlow struct {
 	Value *v3.OAuthFlow
 	base.Foundation
 }
+
+func (o *OAuthFlow) GetValue() any {
+	return o.Value
+}

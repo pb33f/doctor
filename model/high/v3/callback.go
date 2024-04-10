@@ -36,3 +36,7 @@ func (c *Callback) Walk(ctx context.Context, callback *v3.Callback) {
 		c.Expression = expression
 	}
 }
+
+func (c *Callback) GetValue() any {
+	return c.Value
+}

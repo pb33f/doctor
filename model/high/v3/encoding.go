@@ -36,3 +36,7 @@ func (e *Encoding) Walk(ctx context.Context, encoding *v3.Encoding) {
 		e.Headers = headers
 	}
 }
+
+func (e *Encoding) GetValue() any {
+	return e.Value
+}

@@ -36,3 +36,7 @@ func (s *Server) Walk(ctx context.Context, server *v3.Server) {
 		}
 	}
 }
+
+func (s *Server) GetValue() any {
+	return s.Value
+}

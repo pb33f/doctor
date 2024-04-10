@@ -31,3 +31,7 @@ func (d *DynamicValue[A, R, S, E]) Walk(ctx context.Context) {
 	}
 	// there are no models that use the B value for walkable structures.
 }
+
+func (d *DynamicValue[A, R, S, E]) GetValue() any {
+	return d.Value
+}

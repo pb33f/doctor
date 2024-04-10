@@ -17,3 +17,7 @@ func (l *License) Walk(_ context.Context, license *base.License) {
 	l.PathSegment = "license"
 	l.Value = license
 }
+
+func (l *License) GetValue() any {
+	return l.Value
+}

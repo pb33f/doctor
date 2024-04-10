@@ -169,3 +169,7 @@ func (p *PathItem) GetOperations() *orderedmap.Map[string, *Operation] {
 	}
 	return o
 }
+
+func (p *PathItem) GetValue() any {
+	return p.Value
+}
