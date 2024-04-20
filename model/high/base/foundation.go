@@ -5,6 +5,7 @@ package base
 
 import (
 	"fmt"
+	"sync"
 )
 
 type HasValue interface {
@@ -32,21 +33,27 @@ type Foundation struct {
 	Parent      any
 	RuleResults []*RuleFunctionResult
 	JSONPath    string
+	Mutex	    sync.Mutex
 }
 
 func (f *Foundation) AddRuleFunctionResult(result *RuleFunctionResult) {
 	result.ParentObject = f
+	f.Mutex.Lock()
 	if f.RuleResults == nil {
 		f.RuleResults = []*RuleFunctionResult{result}
 		if f.Parent != nil {
 			root := f.GetRoot()
 			root.(AcceptsRuleResults).AddRuleFunctionResult(result)
 		}
+		f.Mutex.Unlock()
 		return
 	}
 	f.RuleResults = append(f.RuleResults, result)
+	f.Mutex.Unlock()
 	if f.Parent != nil {
+		f.Mutex.Lock()
 		f.GetRoot().(AcceptsRuleResults).AddRuleFunctionResult(result)
+		f.Mutex.Unlock()
 	}
 }
 
