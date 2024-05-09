@@ -58,6 +58,7 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 			wg.Go(func() { mt.Walk(ctx, v) })
 			content.Set(contentPairs.Key(), mt)
 		}
+		p.Content = content
 	}
 
 	drCtx.ParameterChan <- &drBase.WalkedParam{
