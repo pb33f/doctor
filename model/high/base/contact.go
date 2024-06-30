@@ -6,6 +6,8 @@ package base
 import (
 	"context"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type Contact struct {
@@ -13,9 +15,12 @@ type Contact struct {
 	Foundation
 }
 
-func (c *Contact) Walk(_ context.Context, contact *base.Contact) {
+func (c *Contact) Walk(ctx context.Context, contact *base.Contact) {
 	c.Value = contact
 	c.PathSegment = "contact"
+	c.ValueNode = contact.GoLow().RootNode
+	c.KeyNode = contact.GoLow().KeyNode
+	c.BuildNodesAndEdges(ctx, cases.Title(language.English).String(c.PathSegment), c.PathSegment, contact, c)
 }
 
 func (c *Contact) GetValue() any {

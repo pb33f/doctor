@@ -15,7 +15,6 @@ type ServerVariable struct {
 }
 
 func (sv *ServerVariable) Walk(_ context.Context, serverVariable *v3.ServerVariable, key string) {
-
 	sv.Value = serverVariable
 	sv.PathSegment = "variables"
 	sv.Key = key

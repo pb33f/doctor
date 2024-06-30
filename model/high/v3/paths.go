@@ -8,6 +8,8 @@ import (
 	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type Paths struct {
@@ -23,6 +25,7 @@ func (p *Paths) Walk(ctx context.Context, paths *v3.Paths) {
 
 	p.Value = paths
 	p.PathSegment = "paths"
+	p.BuildNodesAndEdges(ctx, cases.Title(language.English).String(p.PathSegment), p.PathSegment, paths, p)
 
 	if paths.PathItems != nil {
 		p.PathItems = orderedmap.New[string, *PathItem]()
@@ -30,7 +33,16 @@ func (p *Paths) Walk(ctx context.Context, paths *v3.Paths) {
 			k := pathItemPairs.Key()
 			v := pathItemPairs.Value()
 			pi := &PathItem{}
+
+			for lowPathItemPairs := paths.GoLow().PathItems.First(); lowPathItemPairs != nil; lowPathItemPairs = lowPathItemPairs.Next() {
+				if lowPathItemPairs.Key().Value == k {
+					pi.ValueNode = lowPathItemPairs.Value().ValueNode
+					pi.KeyNode = lowPathItemPairs.Key().KeyNode
+					break
+				}
+			}
 			pi.Parent = p
+			pi.NodeParent = p
 			pi.Key = k
 			wg.Go(func() { pi.Walk(ctx, v) })
 			p.PathItems.Set(k, pi)

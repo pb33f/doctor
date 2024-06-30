@@ -24,15 +24,25 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 
 	r.Value = responses
 	r.PathSegment = "responses"
+	//r.BuildNodesAndEdges(ctx, cases.Title(language.English).String(r.PathSegment), r.PathSegment, responses, r)
 
 	if responses.Codes != nil {
 		r.Codes = orderedmap.New[string, *Response]()
+
 		for respPairs := responses.Codes.First(); respPairs != nil; respPairs = respPairs.Next() {
 			k := respPairs.Key()
 			v := respPairs.Value()
 			resp := &Response{}
 			resp.Key = k
+			for lowRespPairs := responses.GoLow().Codes.First(); lowRespPairs != nil; lowRespPairs = lowRespPairs.Next() {
+				if lowRespPairs.Key().Value == k {
+					resp.KeyNode = lowRespPairs.Key().KeyNode
+					resp.ValueNode = lowRespPairs.Value().ValueNode
+					break
+				}
+			}
 			resp.Parent = r
+			resp.NodeParent = r.NodeParent
 			wg.Go(func() { resp.Walk(ctx, v) })
 			r.Codes.Set(k, resp)
 		}
@@ -41,7 +51,12 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 	if responses.Default != nil {
 		resp := &Response{}
 		resp.Parent = r
-		wg.Go(func() { resp.Walk(ctx, responses.Default) })
+		resp.NodeParent = r.NodeParent
+		resp.ValueNode = responses.Default.GoLow().KeyNode
+		resp.Key = "default"
+		wg.Go(func() {
+			resp.Walk(ctx, responses.Default)
+		})
 		r.Default = resp
 	}
 }

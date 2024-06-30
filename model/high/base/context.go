@@ -5,6 +5,7 @@ package base
 
 import (
 	"github.com/pb33f/libopenapi/datamodel/high/base"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/sourcegraph/conc"
 	"golang.org/x/net/context"
@@ -44,9 +45,13 @@ type DrContext struct {
 	HeaderChan        chan *WalkedHeader
 	MediaTypeChan     chan *WalkedMediaType
 	ErrorChan         chan *BuildError
+	NodeChan          chan *Node
+	EdgeChan          chan *Edge
 	Index             *index.SpecIndex
 	Rolodex           *index.Rolodex
+	V3Document        *v3.Document
 	WaitGroup         *conc.WaitGroup
+	BuildGraph        bool
 }
 
 func GetDrContext(ctx context.Context) *DrContext {

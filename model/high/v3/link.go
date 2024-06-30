@@ -22,6 +22,7 @@ func (l *Link) Walk(ctx context.Context, link *v3.Link) {
 
 	drCtx := base.GetDrContext(ctx)
 	wg := drCtx.WaitGroup
+	l.BuildNodesAndEdges(ctx, l.Key, "link", link, l)
 
 	if link.Server != nil {
 		s := &Server{}

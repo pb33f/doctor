@@ -22,6 +22,7 @@ func (s *SecurityScheme) Walk(ctx context.Context, securityScheme *v3.SecuritySc
 
 	s.Value = securityScheme
 	s.PathSegment = "securitySchemes"
+	s.BuildNodesAndEdges(ctx, s.Key, "securityScheme", securityScheme, s)
 
 	if securityScheme.Flows != nil {
 		f := &OAuthFlows{}

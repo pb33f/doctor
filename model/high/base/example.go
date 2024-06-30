@@ -13,7 +13,8 @@ type Example struct {
 	Foundation
 }
 
-func (e *Example) Walk(_ context.Context, example *base.Example) {
+func (e *Example) Walk(ctx context.Context, example *base.Example) {
+	e.BuildNodesAndEdges(ctx, e.Key, "example", example, e)
 	e.Value = example
 }
 

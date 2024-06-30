@@ -22,16 +22,34 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 	wg := drCtx.WaitGroup
 
 	r.Value = requestBody
+	if r.PathSegment == "" {
+		r.PathSegment = "requestBody"
+	}
+	label := r.Key
+
+	r.BuildNodesAndEdges(ctx, label, r.PathSegment, requestBody, r)
 
 	if requestBody.Content != nil {
 		content := orderedmap.New[string, *MediaType]()
 		for contentPairs := requestBody.Content.First(); contentPairs != nil; contentPairs = contentPairs.Next() {
 			mt := &MediaType{}
+			mt.Key = contentPairs.Key()
+			for lowRespPairs := requestBody.GoLow().Content.Value.First(); lowRespPairs != nil; lowRespPairs = lowRespPairs.Next() {
+				if lowRespPairs.Key().Value == mt.Key {
+					mt.KeyNode = lowRespPairs.Key().KeyNode
+					mt.ValueNode = lowRespPairs.Value().ValueNode
+					break
+				}
+			}
+
 			mt.Parent = r
 			mt.PathSegment = "content"
-			mt.Key = contentPairs.Key()
+
+			mt.NodeParent = r
 			value := contentPairs.Value()
-			wg.Go(func() { mt.Walk(ctx, value) })
+			wg.Go(func() {
+				mt.Walk(ctx, value)
+			})
 			content.Set(contentPairs.Key(), mt)
 		}
 		r.Content = content

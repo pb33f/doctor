@@ -24,16 +24,31 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 	wg := drCtx.WaitGroup
 
 	r.Value = response
+	label := r.PathSegment
+	if r.Key != "" {
+		label = r.Key
+	}
+	r.BuildNodesAndEdges(ctx, label, "response", response, r)
 
 	if response.Headers != nil {
 		headers := orderedmap.New[string, *Header]()
 		for headerPairs := response.Headers.First(); headerPairs != nil; headerPairs = headerPairs.Next() {
+			v := headerPairs.Value()
 			h := &Header{}
+			h.Key = headerPairs.Key()
+			for lowHeaderPairs := response.GoLow().Headers.Value.First(); lowHeaderPairs != nil; lowHeaderPairs = lowHeaderPairs.Next() {
+				if lowHeaderPairs.Key().Value == h.Key {
+					h.KeyNode = lowHeaderPairs.Key().KeyNode
+					h.ValueNode = lowHeaderPairs.Value().ValueNode
+					break
+				}
+			}
 			h.PathSegment = "headers"
 			h.Parent = r
-			h.Key = headerPairs.Key()
-			v := headerPairs.Value()
-			wg.Go(func() { h.Walk(ctx, v) })
+			h.NodeParent = r
+			wg.Go(func() {
+				h.Walk(ctx, v)
+			})
 			headers.Set(headerPairs.Key(), h)
 		}
 		r.Headers = headers
@@ -43,9 +58,17 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 		content := orderedmap.New[string, *MediaType]()
 		for contentPairs := response.Content.First(); contentPairs != nil; contentPairs = contentPairs.Next() {
 			m := &MediaType{}
+			m.Key = contentPairs.Key()
+			for lowMtPairs := response.GoLow().Content.Value.First(); lowMtPairs != nil; lowMtPairs = lowMtPairs.Next() {
+				if lowMtPairs.Key().Value == m.Key {
+					m.KeyNode = lowMtPairs.Key().KeyNode
+					m.ValueNode = lowMtPairs.Value().ValueNode
+					break
+				}
+			}
 			m.Parent = r
 			m.PathSegment = "content"
-			m.Key = contentPairs.Key()
+			m.NodeParent = r
 			v := contentPairs.Value()
 			wg.Go(func() { m.Walk(ctx, v) })
 			content.Set(contentPairs.Key(), m)
@@ -59,6 +82,7 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 			l := &Link{}
 			l.PathSegment = "links"
 			l.Parent = r
+			l.NodeParent = r
 			l.Key = linksPairs.Key()
 			v := linksPairs.Value()
 			wg.Go(func() { l.Walk(ctx, v) })

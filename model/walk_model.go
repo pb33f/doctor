@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 // https://pb33f.io
 
+// Code may be used for internal projects only and may not be distributed.
 // If you wish to use this code in a competitive or commercial product, please contact sales@pb33f.io
-
 package model
 
 import (
@@ -12,7 +12,9 @@ import (
 	drBase "github.com/pb33f/doctor/model/high/base"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/datamodel/high"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/sourcegraph/conc"
 	"sort"
@@ -33,6 +35,8 @@ type DrDocument struct {
 	Headers        []*drV3.Header
 	MediaTypes     []*drV3.MediaType
 	V3Document     *drV3.Document
+	Nodes          []*drBase.Node
+	Edges          []*drBase.Edge
 	index          *index.SpecIndex
 }
 
@@ -41,11 +45,20 @@ func NewDrDocument(document *libopenapi.DocumentModel[v3.Document]) *DrDocument 
 	doc := &DrDocument{
 		index: document.Index,
 	}
-	doc.walkV3(&document.Model)
+	doc.walkV3(&document.Model, false)
 	return doc
 }
 
-func (w *DrDocument) walkV3(doc *v3.Document) *drV3.Document {
+// NewDrDocument Create a new DrDocument from an OpenAPI v3+ document, and create a graph of the model.
+func NewDrDocumentAndGraph(document *libopenapi.DocumentModel[v3.Document]) *DrDocument {
+	doc := &DrDocument{
+		index: document.Index,
+	}
+	doc.walkV3(&document.Model, true)
+	return doc
+}
+
+func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 
 	schemaChan := make(chan *drBase.WalkedSchema)
 	skippedSchemaChan := make(chan *drBase.WalkedSchema)
@@ -53,6 +66,8 @@ func (w *DrDocument) walkV3(doc *v3.Document) *drV3.Document {
 	headerChan := make(chan *drBase.WalkedHeader)
 	mediaTypeChan := make(chan *drBase.WalkedMediaType)
 	buildErrorChan := make(chan *drBase.BuildError)
+	nodeChan := make(chan *drBase.Node)
+	edgeChan := make(chan *drBase.Edge)
 
 	dctx := &drBase.DrContext{
 		SchemaChan:        schemaChan,
@@ -63,6 +78,10 @@ func (w *DrDocument) walkV3(doc *v3.Document) *drV3.Document {
 		Index:             w.index,
 		WaitGroup:         &conc.WaitGroup{},
 		ErrorChan:         buildErrorChan,
+		NodeChan:          nodeChan,
+		EdgeChan:          edgeChan,
+		V3Document:        doc,
+		BuildGraph:        buildGraph,
 	}
 
 	drCtx := context.WithValue(context.Background(), "drCtx", dctx)
@@ -73,6 +92,13 @@ func (w *DrDocument) walkV3(doc *v3.Document) *drV3.Document {
 	var headers []*drV3.Header
 	var mediaTypes []*drV3.MediaType
 	var buildErrors []*drBase.BuildError
+	var nodes []*drBase.Node
+	var edges []*drBase.Edge
+	var refEdges []*drBase.Edge
+	var nodeMap = make(map[string]*drBase.Node)
+	var nodeValueMap = make(map[string]*drBase.Node)
+	var nodeIdMap = make(map[string]*drBase.Node)
+
 	skippedSchemasState := make(map[string]bool)
 	seenSchemasState := make(map[string]bool)
 	seenParametersState := make(map[string]bool)
@@ -81,6 +107,10 @@ func (w *DrDocument) walkV3(doc *v3.Document) *drV3.Document {
 
 	done := make(chan bool)
 	complete := make(chan bool)
+
+	targets := make(map[string]*drBase.Edge)
+	sources := make(map[string]*drBase.Edge)
+
 	go func(sChan chan *drBase.WalkedSchema, skippedChan chan *drBase.WalkedSchema, done chan bool) {
 		for {
 			select {
@@ -137,6 +167,43 @@ func (w *DrDocument) walkV3(doc *v3.Document) *drV3.Document {
 						seenMediaTypesState[key] = true
 					}
 				}
+			case nt := <-dctx.NodeChan:
+				if nt != nil {
+					if _, ok := nodeMap[fmt.Sprint(nt.KeyLine)]; !ok {
+						nodeMap[fmt.Sprint(nt.KeyLine)] = nt
+					}
+
+					// check if node is a reference node
+					if gl, o := nt.Instance.(high.GoesLowUntyped); o {
+						if r, k := gl.GoLowUntyped().(low.IsReferenced); k {
+							if !r.IsReference() {
+								if _, ok := nodeValueMap[fmt.Sprint(nt.ValueLine)]; !ok {
+									nodeValueMap[fmt.Sprint(nt.ValueLine)] = nt
+								}
+							}
+						} else {
+							if _, ok := nodeValueMap[fmt.Sprint(nt.ValueLine)]; !ok {
+								nodeValueMap[fmt.Sprint(nt.ValueLine)] = nt
+							}
+						}
+					} else {
+						if _, ok := nodeValueMap[fmt.Sprint(nt.ValueLine)]; !ok {
+							nodeValueMap[fmt.Sprint(nt.ValueLine)] = nt
+						}
+					}
+					nodes = append(nodes, nt)
+					nodeIdMap[nt.Id] = nt
+				}
+
+			case nt := <-dctx.EdgeChan:
+				if nt != nil {
+					if nt.Ref == "" {
+						edges = append(edges, nt)
+					} else {
+						refEdges = append(refEdges, nt)
+					}
+				}
+
 			case buildError := <-buildErrorChan:
 				if buildError != nil {
 					buildErrors = append(buildErrors, buildError)
@@ -157,7 +224,56 @@ func (w *DrDocument) walkV3(doc *v3.Document) *drV3.Document {
 	w.Headers = headers
 	w.MediaTypes = mediaTypes
 	w.V3Document = drDoc
+	w.Nodes = nodes
 	w.BuildErrors = buildErrors
+
+	roughEdges := edges
+	var cleanedEdges []*drBase.Edge
+
+	if buildGraph {
+		for _, edge := range refEdges {
+			//extract node id from line map
+			if n, ok := nodeMap[edge.Targets[0]]; ok {
+				edge.Targets[0] = n.Id
+				targets[edge.Targets[0]] = edge
+				sources[edge.Sources[0]] = edge
+			} else {
+				if b, ko := nodeValueMap[edge.Targets[0]]; ko {
+					edge.Targets[0] = b.Id
+					targets[edge.Targets[0]] = edge
+					sources[edge.Sources[0]] = edge
+				}
+			}
+			roughEdges = append(roughEdges, edge)
+		}
+
+		// run through edges and make sure no stragglers exist
+		for _, re := range roughEdges {
+			var l, r bool
+			for _, t := range re.Sources {
+				if _, ok := nodeIdMap[t]; !ok {
+					l = true
+				}
+			}
+			for _, t := range re.Targets {
+				if _, ok := nodeIdMap[t]; !ok {
+					r = true
+				}
+			}
+			if !l && !r {
+				cleanedEdges = append(cleanedEdges, re)
+			}
+		}
+
+		w.Edges = cleanedEdges
+
+		// build node tree
+		for _, n := range w.Nodes {
+			if p, ok := nodeIdMap[n.ParentId]; ok {
+				p.Children = append(p.Children, n)
+			}
+		}
+	}
 
 	if len(w.BuildErrors) > 0 {
 		orderedFunc := func(i, j int) bool {
