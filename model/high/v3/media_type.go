@@ -24,17 +24,21 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 	wg := drCtx.WaitGroup
 
 	m.Value = mediaType
+	m.BuildNodesAndEdges(ctx, m.Key, "mediaType", mediaType, m)
 
 	if mediaType.Schema != nil {
 		s := &drBase.SchemaProxy{}
+		s.ValueNode = mediaType.Schema.GoLow().GetValueNode()
+		s.KeyNode = mediaType.Schema.GetSchemaKeyNode()
 		s.Parent = m
 		s.PathSegment = "schema"
 		s.Value = mediaType.Schema
+		s.NodeParent = m
 		m.SchemaProxy = s
 		s.Walk(ctx, mediaType.Schema)
 	}
 
-	if mediaType.Examples != nil {
+	if mediaType.Examples != nil && mediaType.Examples.Len() > 0 {
 		examples := orderedmap.New[string, *drBase.Example]()
 		for mediaTypePairs := mediaType.Examples.First(); mediaTypePairs != nil; mediaTypePairs = mediaTypePairs.Next() {
 			e := &drBase.Example{}
@@ -42,13 +46,22 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 			e.PathSegment = "examples"
 			e.Key = mediaTypePairs.Key()
 			v := mediaTypePairs.Value()
+			for lowExpPairs := mediaType.GoLow().Examples.Value.First(); lowExpPairs != nil; lowExpPairs = lowExpPairs.Next() {
+				if lowExpPairs.Key().Value == e.Key {
+					e.KeyNode = lowExpPairs.Key().KeyNode
+					e.ValueNode = lowExpPairs.Value().ValueNode
+					break
+				}
+			}
+			e.Value = v
+			e.NodeParent = m
 			wg.Go(func() { e.Walk(ctx, v) })
 			examples.Set(mediaTypePairs.Key(), e)
 		}
 		m.Examples = examples
 	}
 
-	if mediaType.Encoding != nil {
+	if mediaType.Encoding != nil && mediaType.Encoding.Len() > 0 {
 		encoding := orderedmap.New[string, *Encoding]()
 		for encodingPairs := mediaType.Encoding.First(); encodingPairs != nil; encodingPairs = encodingPairs.Next() {
 			e := &Encoding{}
@@ -56,6 +69,14 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 			e.PathSegment = "encoding"
 			e.Key = encodingPairs.Key()
 			v := encodingPairs.Value()
+			for lowEncPairs := mediaType.GoLow().Encoding.Value.First(); lowEncPairs != nil; lowEncPairs = lowEncPairs.Next() {
+				if lowEncPairs.Key().Value == e.Key {
+					e.KeyNode = lowEncPairs.Key().KeyNode
+					e.ValueNode = lowEncPairs.Value().ValueNode
+					break
+				}
+			}
+			e.NodeParent = m
 			wg.Go(func() { e.Walk(ctx, v) })
 			encoding.Set(encodingPairs.Key(), e)
 		}

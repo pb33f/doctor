@@ -18,13 +18,15 @@ type OAuthFlows struct {
 	base.Foundation
 }
 
-func (o *OAuthFlows) Walk(_ context.Context, flows *v3.OAuthFlows) {
+func (o *OAuthFlows) Walk(ctx context.Context, flows *v3.OAuthFlows) {
 	o.Value = flows
+	//o.BuildNodesAndEdges(ctx, "oAuthFlows")
 
 	if flows.Implicit != nil {
 		i := &OAuthFlow{}
 		i.Parent = o
 		i.PathSegment = "implicit"
+		//i.BuildNodesAndEdges(ctx, "implicit")
 		o.Implicit = i
 	}
 
@@ -32,20 +34,25 @@ func (o *OAuthFlows) Walk(_ context.Context, flows *v3.OAuthFlows) {
 		p := &OAuthFlow{}
 		p.Parent = o
 		p.PathSegment = "password"
+		//p.BuildNodesAndEdges(ctx, "password")
 		o.Password = p
+
 	}
 
 	if flows.ClientCredentials != nil {
 		c := &OAuthFlow{}
 		c.Parent = o
 		c.PathSegment = "clientCredentials"
+		//c.BuildNodesAndEdges(ctx, "clientCredentials")
 		o.ClientCredentials = c
+
 	}
 
 	if flows.AuthorizationCode != nil {
 		a := &OAuthFlow{}
 		a.Parent = o
 		a.PathSegment = "authorizationCode"
+		//a.BuildNodesAndEdges(ctx, "authorizationCode")
 		o.AuthorizationCode = a
 	}
 

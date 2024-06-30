@@ -22,16 +22,25 @@ func (e *Encoding) Walk(ctx context.Context, encoding *v3.Encoding) {
 	wg := drCtx.WaitGroup
 
 	e.Value = encoding
+	e.BuildNodesAndEdges(ctx, e.Key, "encoding", encoding, e)
 
-	if encoding.Headers != nil {
+	if encoding.Headers != nil && encoding.Headers.Len() > 0 {
 		headers := orderedmap.New[string, *Header]()
-		for encodingPairs := encoding.Headers.First(); encodingPairs != nil; encodingPairs = encodingPairs.Next() {
+		for headerPairs := encoding.Headers.First(); headerPairs != nil; headerPairs = headerPairs.Next() {
 			h := &Header{}
 			h.Parent = e
-			h.Key = encodingPairs.Key()
-			v := encodingPairs.Value()
+			h.Key = headerPairs.Key()
+			for lowHeadPairs := encoding.GoLow().Headers.Value.First(); lowHeadPairs != nil; lowHeadPairs = lowHeadPairs.Next() {
+				if lowHeadPairs.Key().Value == h.Key {
+					h.KeyNode = lowHeadPairs.Key().KeyNode
+					h.ValueNode = lowHeadPairs.Value().ValueNode
+					break
+				}
+			}
+			v := headerPairs.Value()
+			h.NodeParent = e
 			wg.Go(func() { h.Walk(ctx, v) })
-			headers.Set(encodingPairs.Key(), h)
+			headers.Set(headerPairs.Key(), h)
 		}
 		e.Headers = headers
 	}

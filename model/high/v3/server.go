@@ -23,6 +23,7 @@ func (s *Server) Walk(ctx context.Context, server *v3.Server) {
 
 	s.Value = server
 	s.PathSegment = "servers"
+	s.BuildNodesAndEdges(ctx, s.Value.URL, "server", server, s)
 
 	if server.Variables != nil {
 		s.Variables = orderedmap.New[string, *ServerVariable]()

@@ -5,6 +5,7 @@ package base
 
 import (
 	"context"
+	"fmt"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 )
 
@@ -38,12 +39,15 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) 
 
 	sch := schemaProxy.Schema()
 	if sch != nil {
+
 		if schemaProxy.IsReference() {
 			if sp.IsCircular(ctx) {
 				newSchema := &Schema{}
 				newSchema.Parent = sp
+				newSchema.NodeParent = sp.NodeParent
 				sp.Schema = newSchema
 				newSchema.Value = sch
+				newSchema.Name = sp.Key
 				drCtx.SkippedSchemaChan <- &WalkedSchema{
 					Schema:     newSchema,
 					SchemaNode: schemaProxy.GetSchemaKeyNode(),
@@ -53,12 +57,37 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) 
 		}
 		newSchema := &Schema{}
 		newSchema.Parent = sp
+		newSchema.NodeParent = sp.NodeParent
 		sp.Schema = newSchema
-		newSchema.Walk(ctx, sch)
+		newSchema.Name = sp.Key
+		newSchema.ValueNode = sp.ValueNode
+		newSchema.KeyNode = sp.KeyNode
+
 		if !schemaProxy.IsReference() {
+			newSchema.Walk(ctx, sch)
 			drCtx.SchemaChan <- &WalkedSchema{
 				Schema:     newSchema,
 				SchemaNode: schemaProxy.GetSchemaKeyNode(),
+			}
+		} else {
+
+			if sp.NodeParent == nil {
+				return
+			}
+			if sp.GetNodeParent().GetNode() == nil {
+				// no follow
+				return
+			} else {
+				// follow!
+				if schemaProxy.GoLow().GetValueNode() != nil {
+					sourceId := fmt.Sprintf("%s", sp.GetNodeParent().GetNode().Id)
+					target := fmt.Sprintf("%d", schemaProxy.GoLow().GetValueNode().Line)
+					poly := ""
+					if sp.PathSegment == "allOf" || sp.PathSegment == "oneOf" || sp.PathSegment == "anyOf" {
+						poly = sp.PathSegment
+					}
+					sp.BuildReferenceEdge(ctx, sourceId, target, schemaProxy.GetReference(), poly)
+				}
 			}
 		}
 	} else {
@@ -70,6 +99,13 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) 
 			}
 		}
 	}
+}
+
+func wipe(n Foundational) {
+	if n.GetNodeParent() != nil {
+		wipe(n.GetNodeParent())
+	}
+	n.SetNode(nil)
 }
 
 func (sp *SchemaProxy) GetValue() any {

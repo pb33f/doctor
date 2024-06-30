@@ -10,8 +10,10 @@ import (
 	"github.com/pb33f/libopenapi/datamodel/low"
 	lowV3 "github.com/pb33f/libopenapi/datamodel/low/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"net/http"
 	"reflect"
 	"slices"
+	"strings"
 )
 
 type PathItem struct {
@@ -32,7 +34,37 @@ type PathItem struct {
 func (p *PathItem) buildOperation(method string) *Operation {
 	op := &Operation{}
 	op.Parent = p
+	//op.Key = method
+	op.NodeParent = p
 	op.PathSegment = method
+
+	switch strings.ToUpper(method) {
+	case http.MethodGet:
+		op.ValueNode = p.Value.GoLow().Get.ValueNode
+		op.KeyNode = p.Value.GoLow().Get.KeyNode
+	case http.MethodPost:
+		op.ValueNode = p.Value.GoLow().Post.ValueNode
+		op.KeyNode = p.Value.GoLow().Post.KeyNode
+	case http.MethodPut:
+		op.ValueNode = p.Value.GoLow().Put.ValueNode
+		op.KeyNode = p.Value.GoLow().Put.KeyNode
+	case http.MethodDelete:
+		op.ValueNode = p.Value.GoLow().Delete.ValueNode
+		op.KeyNode = p.Value.GoLow().Delete.KeyNode
+	case http.MethodOptions:
+		op.ValueNode = p.Value.GoLow().Options.ValueNode
+		op.KeyNode = p.Value.GoLow().Options.KeyNode
+	case http.MethodHead:
+		op.ValueNode = p.Value.GoLow().Head.ValueNode
+		op.KeyNode = p.Value.GoLow().Head.KeyNode
+	case http.MethodPatch:
+		op.ValueNode = p.Value.GoLow().Patch.ValueNode
+		op.KeyNode = p.Value.GoLow().Patch.KeyNode
+	case http.MethodTrace:
+		op.ValueNode = p.Value.GoLow().Trace.ValueNode
+		op.KeyNode = p.Value.GoLow().Trace.KeyNode
+	}
+
 	return op
 }
 
@@ -42,6 +74,7 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 	wg := drCtx.WaitGroup
 
 	p.Value = pathItem
+	p.BuildNodesAndEdges(ctx, p.Key, "pathItem", pathItem, p)
 
 	if pathItem.Get != nil {
 		op := p.buildOperation("get")
@@ -51,8 +84,11 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 
 	if pathItem.Post != nil {
 		op := p.buildOperation("post")
-		wg.Go(func() { op.Walk(ctx, pathItem.Post) })
 		p.Post = op
+		wg.Go(func() {
+			op.Walk(ctx, pathItem.Post)
+		})
+
 	}
 
 	if pathItem.Put != nil {
@@ -93,25 +129,29 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 
 	if pathItem.Servers != nil {
 		for i, server := range pathItem.Servers {
-			server := server
+			srvr := server
 			s := &Server{}
 			s.Parent = p
 			s.IsIndexed = true
 			s.Index = i
-			wg.Go(func() { s.Walk(ctx, server) })
+			s.NodeParent = p
+			wg.Go(func() { s.Walk(ctx, srvr) })
 			p.Servers = append(p.Servers, s)
 		}
 	}
 
 	if pathItem.Parameters != nil {
 		for i, parameter := range pathItem.Parameters {
-			parameter := parameter
+			param := parameter
 			para := &Parameter{}
+			para.KeyNode = param.GoLow().KeyNode
+			para.ValueNode = param.GoLow().RootNode
 			para.PathSegment = "parameters"
 			para.Parent = p
 			para.IsIndexed = true
 			para.Index = i
-			wg.Go(func() { para.Walk(ctx, parameter) })
+			para.NodeParent = p
+			wg.Go(func() { para.Walk(ctx, param) })
 			p.Parameters = append(p.Parameters, para)
 		}
 	}
