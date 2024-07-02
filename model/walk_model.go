@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // https://pb33f.io
 
-// Code may be used for internal projects only and may not be distributed.
+// Code may be used for internal and open source projects only and may not be distributed commercially.
 // If you wish to use this code in a competitive or commercial product, please contact sales@pb33f.io
 package model
 
