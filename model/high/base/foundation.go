@@ -357,6 +357,7 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		"valueLine": n.ValueLine,
 		"hash":      n.Hash,
 	}
+
 	if !n.RenderProps {
 		if n.Children != nil && len(n.Children) > 0 {
 			propMap["nodes"] = n.Children
@@ -551,6 +552,11 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		//	propMap["instanceProperties"] = instancePropMap
 		//}
 		if n.RenderProps {
+			if n.DrInstance != nil {
+				if f, ok := n.DrInstance.(AcceptsRuleResults); ok {
+					propMap["results"] = f.GetRuleFunctionResults()
+				}
+			}
 			propMap["instance"] = n.Instance
 			if gl, ok := n.Instance.(high.GoesLowUntyped); ok {
 

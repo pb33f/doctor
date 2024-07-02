@@ -62,6 +62,7 @@ func ConvertRuleResult(object any) *RuleFunctionResult {
 				result.RuleId = field.String()
 				continue
 			}
+
 			if fName == "RuleSeverity" {
 				result.RuleSeverity = field.String()
 				continue
@@ -80,6 +81,7 @@ func ConvertRuleResult(object any) *RuleFunctionResult {
 					if !rField.IsZero() {
 						if rfName == "Id" {
 							rule.Id = rField.String()
+							result.RuleId = rField.String()
 							continue
 						}
 						if rfName == "Description" {
@@ -96,6 +98,7 @@ func ConvertRuleResult(object any) *RuleFunctionResult {
 						}
 						if rfName == "Severity" {
 							rule.Severity = rField.String()
+							result.RuleSeverity = rField.String()
 							continue
 						}
 						if rfName == "HowToFix" {
