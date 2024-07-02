@@ -52,7 +52,8 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 		resp := &Response{}
 		resp.Parent = r
 		resp.NodeParent = r.NodeParent
-		resp.ValueNode = responses.Default.GoLow().KeyNode
+		resp.KeyNode = responses.Default.GoLow().KeyNode
+		resp.ValueNode = responses.GoLow().Default.ValueNode
 		resp.Key = "default"
 		wg.Go(func() {
 			resp.Walk(ctx, responses.Default)
