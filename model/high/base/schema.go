@@ -333,8 +333,10 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch := &SchemaProxy{}
 			sch.Parent = s
 			sch.PathSegment = "properties"
-			sch.Key = propertiesPairs.Key()
 			v := propertiesPairs.Value()
+			sch.Key = propertiesPairs.Key()
+			sch.Value = v
+			properties.Set(propertiesPairs.Key(), sch)
 			for lowSchPairs := schema.GoLow().Properties.Value.First(); lowSchPairs != nil; lowSchPairs = lowSchPairs.Next() {
 				if lowSchPairs.Key().Value == sch.Key {
 					sch.ValueNode = lowSchPairs.Value().ValueNode
@@ -350,7 +352,6 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 					sch.NodeParent = s
 				}
 			}
-			properties.Set(propertiesPairs.Key(), sch)
 			wg.Go(func() {
 				sch.Walk(ctx, v)
 			})

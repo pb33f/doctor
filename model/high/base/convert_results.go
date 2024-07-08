@@ -98,7 +98,9 @@ func ConvertRuleResult(object any) *RuleFunctionResult {
 						}
 						if rfName == "Severity" {
 							rule.Severity = rField.String()
-							result.RuleSeverity = rField.String()
+							if result.RuleSeverity == "" {
+								result.RuleSeverity = rField.String()
+							}
 							continue
 						}
 						if rfName == "HowToFix" {
