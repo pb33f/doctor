@@ -62,14 +62,23 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) 
 		newSchema.Name = sp.Key
 		newSchema.ValueNode = sp.ValueNode
 		newSchema.KeyNode = sp.KeyNode
+		newSchema.Value = sch
 
 		if !schemaProxy.IsReference() {
+
 			newSchema.Walk(ctx, sch)
 			drCtx.SchemaChan <- &WalkedSchema{
 				Schema:     newSchema,
 				SchemaNode: schemaProxy.GetSchemaKeyNode(),
 			}
 		} else {
+
+			// clone context
+			clonedCtx := *drCtx
+			clonedCtx.BuildGraph = false
+			newCtx := context.WithValue(ctx, "drCtx", &clonedCtx)
+			// walk, but don't continue with the graph down this path, as it's a reference
+			newSchema.Walk(newCtx, sch)
 
 			if sp.NodeParent == nil {
 				return
