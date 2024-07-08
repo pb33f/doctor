@@ -294,17 +294,16 @@ func (f *Foundation) SetNode(node *Node) {
 
 func (f *Foundation) AddEdge(edge *Edge) {
 	if f == nil {
-		panic("hweeeeeyyyyyy")
+		return
 	}
 	if edge == nil {
-		panic("hweeeeeyyyyyy")
+		return
 	}
 	if f.Edges == nil {
 		f.Edges = []*Edge{edge}
 	} else {
 		f.Edges = append(f.Edges, edge)
 	}
-
 }
 
 func (f *Foundation) GetNode() *Node {
