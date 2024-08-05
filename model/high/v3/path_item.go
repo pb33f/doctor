@@ -155,6 +155,12 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 			p.Parameters = append(p.Parameters, para)
 		}
 	}
+
+	if pathItem.GoLow().IsReference() {
+		base.BuildReference(drCtx, pathItem.GoLow())
+	}
+
+	drCtx.ObjectChan <- p
 }
 
 func (p *PathItem) GetOperations() *orderedmap.Map[string, *Operation] {

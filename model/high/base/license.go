@@ -16,11 +16,13 @@ type License struct {
 }
 
 func (l *License) Walk(ctx context.Context, license *base.License) {
+	drCtx := GetDrContext(ctx)
 	l.PathSegment = "license"
 	l.Value = license
 	l.ValueNode = license.GoLow().RootNode
 	l.KeyNode = license.GoLow().KeyNode
 	l.BuildNodesAndEdges(ctx, cases.Title(language.English).String(l.PathSegment), l.PathSegment, license, l)
+	drCtx.ObjectChan <- l
 }
 
 func (l *License) GetValue() any {

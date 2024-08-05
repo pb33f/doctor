@@ -14,10 +14,12 @@ type ServerVariable struct {
 	base.Foundation
 }
 
-func (sv *ServerVariable) Walk(_ context.Context, serverVariable *v3.ServerVariable, key string) {
+func (sv *ServerVariable) Walk(ctx context.Context, serverVariable *v3.ServerVariable, key string) {
+	drCtx := base.GetDrContext(ctx)
 	sv.Value = serverVariable
 	sv.PathSegment = "variables"
 	sv.Key = key
+	drCtx.ObjectChan <- sv
 }
 
 func (sv *ServerVariable) GetValue() any {

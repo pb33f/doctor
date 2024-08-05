@@ -7,12 +7,45 @@ import (
 	"context"
 	"fmt"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/datamodel/low"
+	"gopkg.in/yaml.v3"
 )
 
 type SchemaProxy struct {
 	Value  *base.SchemaProxy
 	Schema *Schema
 	Foundation
+}
+
+type ObjectReference struct {
+	Reference string
+	Node      *yaml.Node
+}
+
+func (r *ObjectReference) GetValue() any {
+	return r
+}
+
+func (r *ObjectReference) GoLowUntyped() any {
+	return r
+}
+
+func (r *ObjectReference) GetNodes() map[int][]*yaml.Node {
+	return map[int][]*yaml.Node{
+		r.Node.Line: {r.Node},
+	}
+}
+
+func (r *ObjectReference) IsReference() bool {
+	return true
+}
+
+func (r *ObjectReference) GetReference() string {
+	return r.Reference
+}
+
+func (r *ObjectReference) GetReferenceNode() *yaml.Node {
+	return r.Node
 }
 
 func (sp *SchemaProxy) IsCircular(ctx context.Context) bool {
@@ -36,7 +69,6 @@ func (sp *SchemaProxy) IsCircular(ctx context.Context) bool {
 func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) {
 	sp.Value = schemaProxy
 	drCtx := ctx.Value("drCtx").(*DrContext)
-
 	sch := schemaProxy.Schema()
 	if sch != nil {
 
@@ -73,6 +105,12 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) 
 			}
 		} else {
 
+			// send up the reference
+			drCtx.ObjectChan <- &ObjectReference{
+				Reference: schemaProxy.GetReference(),
+				Node:      schemaProxy.GetReferenceNode(),
+			}
+
 			// clone context
 			clonedCtx := *drCtx
 			clonedCtx.BuildGraph = false
@@ -99,6 +137,7 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) 
 				}
 			}
 		}
+		//cache.Store(key, sp.Schema)
 	} else {
 		if schemaProxy.GetBuildError() != nil {
 			drCtx.ErrorChan <- &BuildError{
@@ -106,6 +145,17 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) 
 				DrSchemaProxy: sp,
 				Error:         schemaProxy.GetBuildError(),
 			}
+		}
+	}
+
+}
+
+func BuildReference(ctx *DrContext, ref low.IsReferenced) {
+	if ref.IsReference() {
+		refNode := ref.GetReferenceNode()
+		ctx.ObjectChan <- &ObjectReference{
+			Reference: ref.GetReference(),
+			Node:      refNode,
 		}
 	}
 }

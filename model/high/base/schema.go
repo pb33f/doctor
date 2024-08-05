@@ -42,11 +42,10 @@ type Schema struct {
 func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 
 	drCtx := GetDrContext(ctx)
+
 	wg := drCtx.WaitGroup
 
 	s.Value = schema
-	//s.KeyNode = schema.ParentProxy.GetSchemaKeyNode()
-	//s.ValueNode = schema.GoLow().GetRootNode()
 	s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
 
 	if schema.AllOf != nil {
@@ -64,9 +63,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.NodeParent = s
 			sch.Value = aOfItem
 			allOf = append(allOf, sch)
-			wg.Go(func() {
-				sch.Walk(ctx, aOfItem)
-			})
+			sch.Walk(ctx, aOfItem)
 		}
 		s.AllOf = allOf
 	}
@@ -85,7 +82,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.NodeParent = s
 			sch.Value = oOfItem
 			oneOf = append(oneOf, sch)
-			wg.Go(func() { sch.Walk(ctx, oOfItem) })
+			sch.Walk(ctx, oOfItem)
 		}
 		s.OneOf = oneOf
 	}
@@ -104,7 +101,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.NodeParent = s
 			sch.Value = aOfItem
 			anyOf = append(anyOf, sch)
-			wg.Go(func() { sch.Walk(ctx, aOfItem) })
+			sch.Walk(ctx, aOfItem)
 		}
 		s.AnyOf = anyOf
 	}
@@ -123,7 +120,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.PathSegment = "prefixItems"
 			sch.Value = pItem
 			prefixItems = append(prefixItems, sch)
-			wg.Go(func() { sch.Walk(ctx, pItem) })
+			sch.Walk(ctx, pItem)
 		}
 		s.PrefixItems = prefixItems
 	}
@@ -138,6 +135,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		d.NodeParent = s
 		d.BuildNodesAndEdges(ctx, cases.Title(language.English).String(d.PathSegment), d.PathSegment, schema.Discriminator, d)
 		s.Discriminator = d
+		drCtx.ObjectChan <- d
 	}
 
 	if schema.Contains != nil {
@@ -392,6 +390,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		xml.NodeParent = s
 		xml.BuildNodesAndEdges(ctx, "xml", "xml", schema.XML, schema.XML)
 		s.XML = xml
+		drCtx.ObjectChan <- xml
 	}
 
 	if schema.ExternalDocs != nil {
@@ -404,7 +403,11 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		externalDocs.NodeParent = s
 		//externalDocs.BuildNodesAndEdges(ctx, externalDocs.PathSegment)
 		s.ExternalDocs = externalDocs
+		drCtx.ObjectChan <- externalDocs
 	}
+
+	drCtx.ObjectChan <- s
+
 }
 
 func (s *Schema) GetValue() any {

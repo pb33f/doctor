@@ -94,7 +94,9 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			r.NodeParent = respNode
 			r.Key = k
 			r.PathSegment = "responses"
-			wg.Go(func() { r.Walk(ctx, v) })
+			wg.Go(func() {
+				r.Walk(ctx, v)
+			})
 			c.Responses.Set(k, r)
 		}
 	}
@@ -193,6 +195,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			rb.NodeParent = reqNode
 			rb.Key = k
 			rb.PathSegment = "requestBodies"
+			rb.InstanceType = "requestBody"
 			wg.Go(func() {
 				rb.Walk(ctx, v)
 			})
@@ -331,6 +334,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			c.Callbacks.Set(k, cb)
 		}
 	}
+	drCtx.ObjectChan <- c
 }
 
 func (c *Components) GetValue() any {

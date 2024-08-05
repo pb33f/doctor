@@ -128,6 +128,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		ed.PathSegment = "externalDocs"
 		ed.Value = doc.ExternalDocs
 		d.ExternalDocs = ed
+		drCtx.ObjectChan <- ed
 	}
 
 	if doc.Tags != nil {
@@ -152,6 +153,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			t.ValueNode = doc.GoLow().Tags.Value[i].ValueNode
 			t.KeyNode = tag.GoLow().RootNode
 			t.BuildNodesAndEdges(ctx, tag.Name, "tag", tag, t)
+			t.Walk(ctx, tag)
 			d.Tags = append(d.Tags, t)
 		}
 
@@ -192,4 +194,11 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		d.Webhooks = webhooks
 	}
 	wg.Wait()
+	drCtx.ObjectChan <- d
+	close(drCtx.ObjectChan)
+}
+
+// GetValue returns a pointer to its self, because it is the root and it is the value
+func (d *Document) GetValue() any {
+	return d.Document
 }

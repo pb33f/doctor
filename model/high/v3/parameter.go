@@ -26,6 +26,7 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 	p.Value = param
 
 	p.BuildNodesAndEdges(ctx, p.Key, "parameter", param, p)
+
 	if param.Schema != nil {
 		s := &drBase.SchemaProxy{}
 		s.ValueNode = param.Schema.GoLow().GetValueNode()
@@ -85,6 +86,12 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 		Param:     p,
 		ParamNode: param.GoLow().RootNode,
 	}
+
+	if param.GoLow().IsReference() {
+		drBase.BuildReference(drCtx, param.GoLow())
+	}
+
+	drCtx.ObjectChan <- p
 }
 
 func (p *Parameter) GetValue() any {

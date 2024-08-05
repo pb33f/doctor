@@ -30,6 +30,12 @@ func (l *Link) Walk(ctx context.Context, link *v3.Link) {
 		wg.Go(func() { s.Walk(ctx, link.Server) })
 		l.Server = s
 	}
+
+	if link.GoLow().IsReference() {
+		base.BuildReference(drCtx, link.GoLow())
+	}
+
+	drCtx.ObjectChan <- l
 }
 
 func (l *Link) GetValue() any {

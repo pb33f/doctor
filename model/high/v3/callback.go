@@ -37,6 +37,12 @@ func (c *Callback) Walk(ctx context.Context, callback *v3.Callback) {
 		}
 		c.Expression = expression
 	}
+
+	if callback.GoLow().IsReference() {
+		base.BuildReference(drCtx, callback.GoLow())
+	}
+
+	drCtx.ObjectChan <- c
 }
 
 func (c *Callback) GetValue() any {

@@ -171,6 +171,12 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			o.Servers = append(o.Servers, s)
 		}
 	}
+
+	if operation.GoLow().IsReference() {
+		drBase.BuildReference(drCtx, operation.GoLow())
+	}
+
+	drCtx.ObjectChan <- o
 }
 
 func (o *Operation) GetValue() any {

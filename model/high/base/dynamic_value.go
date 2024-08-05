@@ -29,6 +29,7 @@ func (d *DynamicValue[A, R, S, E]) Walk(ctx context.Context) {
 			wg.Go(func() { v.Walk(ctx, p) })
 		}
 	}
+	drCtx.ObjectChan <- d
 	// there are no models that use the B value for walkable structures.
 }
 

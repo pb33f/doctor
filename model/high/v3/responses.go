@@ -60,6 +60,12 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 		})
 		r.Default = resp
 	}
+
+	if responses.GoLow().IsReference() {
+		base.BuildReference(drCtx, responses.GoLow())
+	}
+
+	drCtx.ObjectChan <- r
 }
 
 func (r *Responses) GetValue() any {

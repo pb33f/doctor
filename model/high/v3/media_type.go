@@ -55,7 +55,9 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 			}
 			e.Value = v
 			e.NodeParent = m
-			wg.Go(func() { e.Walk(ctx, v) })
+			wg.Go(func() {
+				e.Walk(ctx, v)
+			})
 			examples.Set(mediaTypePairs.Key(), e)
 		}
 		m.Examples = examples
@@ -85,6 +87,12 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 		MediaType:     m,
 		MediaTypeNode: mediaType.GoLow().RootNode,
 	}
+
+	if mediaType.GoLow().IsReference() {
+		drBase.BuildReference(drCtx, mediaType.GoLow())
+	}
+
+	drCtx.ObjectChan <- m
 }
 
 func (m *MediaType) GetValue() any {

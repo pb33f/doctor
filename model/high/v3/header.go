@@ -24,8 +24,8 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 	drCtx := base.GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 	h.BuildNodesAndEdges(ctx, h.Key, "header", header, h)
-
 	h.Value = header
+
 	if header.Schema != nil {
 		c := &base.SchemaProxy{}
 		c.ValueNode = header.GoLow().RootNode
@@ -87,6 +87,12 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 		Header:     h,
 		HeaderNode: header.GoLow().RootNode,
 	}
+
+	if header.GoLow().IsReference() {
+		drBase.BuildReference(drCtx, header.GoLow())
+	}
+
+	drCtx.ObjectChan <- h
 }
 
 func (h *Header) GetValue() any {

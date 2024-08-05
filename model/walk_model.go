@@ -17,7 +17,9 @@ import (
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/sourcegraph/conc"
+	"gopkg.in/yaml.v3"
 	"sort"
+	"sync"
 )
 
 // DrDocument is a turbo charged version of the libopenapi Document model. The doctor
@@ -38,6 +40,11 @@ type DrDocument struct {
 	Nodes          []*drBase.Node
 	Edges          []*drBase.Edge
 	index          *index.SpecIndex
+	lineObjects    map[int]any
+}
+
+type HasValue interface {
+	GetValue() interface{}
 }
 
 // NewDrDocument Create a new DrDocument from an OpenAPI v3+ document
@@ -49,13 +56,44 @@ func NewDrDocument(document *libopenapi.DocumentModel[v3.Document]) *DrDocument 
 	return doc
 }
 
-// NewDrDocument Create a new DrDocument from an OpenAPI v3+ document, and create a graph of the model.
+// NewDrDocumentAndGraph Create a new DrDocument from an OpenAPI v3+ document, and create a graph of the model.
 func NewDrDocumentAndGraph(document *libopenapi.DocumentModel[v3.Document]) *DrDocument {
 	doc := &DrDocument{
 		index: document.Index,
 	}
 	doc.walkV3(&document.Model, true)
 	return doc
+}
+
+// LocateModel finds the model represented by the line number of the supplied node.
+func (w *DrDocument) LocateModel(node *yaml.Node) (drBase.Foundational, error) {
+	if node == nil {
+		return nil, fmt.Errorf("node is nil, cannot locate model")
+	}
+	if node.Line == 0 {
+		return nil, fmt.Errorf("node line is 0, cannot locate model")
+	}
+	if w == nil {
+		return nil, fmt.Errorf("DrDocument is nil, cannot locate model")
+	}
+	if w.lineObjects[node.Line] == nil {
+		return nil, fmt.Errorf("model not found at line %d", node.Line)
+	}
+	return w.lineObjects[node.Line].(drBase.Foundational), nil
+}
+
+// LocateModelByLine finds the model represented by the line number of the supplied node.
+func (w *DrDocument) LocateModelByLine(line int) (drBase.Foundational, error) {
+	if line == 0 {
+		return nil, fmt.Errorf("line is 0, cannot locate model")
+	}
+	if w == nil {
+		return nil, fmt.Errorf("DrDocument is nil, cannot locate model")
+	}
+	if w.lineObjects[line] == nil {
+		return nil, fmt.Errorf("model not found at line %d", line)
+	}
+	return w.lineObjects[line].(drBase.Foundational), nil
 }
 
 func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
@@ -66,8 +104,10 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 	headerChan := make(chan *drBase.WalkedHeader)
 	mediaTypeChan := make(chan *drBase.WalkedMediaType)
 	buildErrorChan := make(chan *drBase.BuildError)
+	objectChan := make(chan any)
 	nodeChan := make(chan *drBase.Node)
 	edgeChan := make(chan *drBase.Edge)
+	var schemaCache sync.Map
 
 	dctx := &drBase.DrContext{
 		SchemaChan:        schemaChan,
@@ -80,8 +120,10 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 		ErrorChan:         buildErrorChan,
 		NodeChan:          nodeChan,
 		EdgeChan:          edgeChan,
+		ObjectChan:        objectChan,
 		V3Document:        doc,
 		BuildGraph:        buildGraph,
+		SchemaCache:       &schemaCache,
 	}
 
 	drCtx := context.WithValue(context.Background(), "drCtx", dctx)
@@ -104,12 +146,14 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 	seenParametersState := make(map[string]bool)
 	seenHeadersState := make(map[string]bool)
 	seenMediaTypesState := make(map[string]bool)
+	w.lineObjects = make(map[int]any)
 
 	done := make(chan bool)
 	complete := make(chan bool)
 
 	targets := make(map[string]*drBase.Edge)
 	sources := make(map[string]*drBase.Edge)
+	ln := make([]any, doc.Rolodex.GetConfig().SpecInfo.NumLines+1)
 
 	go func(sChan chan *drBase.WalkedSchema, skippedChan chan *drBase.WalkedSchema, done chan bool) {
 		for {
@@ -204,6 +248,11 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 					}
 				}
 
+			case obj := <-objectChan:
+				if obj != nil {
+					w.processObject(obj, ln)
+				}
+
 			case buildError := <-buildErrorChan:
 				if buildError != nil {
 					buildErrors = append(buildErrors, buildError)
@@ -217,6 +266,11 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 
 	done <- true
 	<-complete
+
+	// wait for any straggling objects
+	for val := range objectChan {
+		w.processObject(val, ln)
+	}
 
 	w.Schemas = schemas
 	w.SkippedSchemas = skippedSchemas
@@ -283,4 +337,20 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 	}
 
 	return drDoc
+}
+
+func (w *DrDocument) processObject(obj any, ln []any) {
+	if hv, ok := obj.(HasValue); ok {
+		if gl, ll := hv.GetValue().(high.GoesLowUntyped); ll {
+			if nm, ko := gl.GoLowUntyped().(low.HasNodes); ko {
+				no := nm.GetNodes()
+				for k, _ := range no {
+					if w.lineObjects[k] == nil {
+						w.lineObjects[k] = obj
+						ln[k] = w.lineObjects[k]
+					}
+				}
+			}
+		}
+	}
 }

@@ -16,11 +16,17 @@ type Contact struct {
 }
 
 func (c *Contact) Walk(ctx context.Context, contact *base.Contact) {
+	drCtx := GetDrContext(ctx)
 	c.Value = contact
 	c.PathSegment = "contact"
 	c.ValueNode = contact.GoLow().RootNode
 	c.KeyNode = contact.GoLow().KeyNode
 	c.BuildNodesAndEdges(ctx, cases.Title(language.English).String(c.PathSegment), c.PathSegment, contact, c)
+
+	if contact.GoLow().IsReference() {
+		BuildReference(drCtx, contact.GoLow())
+	}
+	drCtx.ObjectChan <- c
 }
 
 func (c *Contact) GetValue() any {

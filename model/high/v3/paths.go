@@ -48,6 +48,12 @@ func (p *Paths) Walk(ctx context.Context, paths *v3.Paths) {
 			p.PathItems.Set(k, pi)
 		}
 	}
+
+	if paths.GoLow().IsReference() {
+		base.BuildReference(drCtx, paths.GoLow())
+	}
+
+	drCtx.ObjectChan <- p
 }
 
 func (p *Paths) GetValue() any {

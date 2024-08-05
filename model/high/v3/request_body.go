@@ -20,14 +20,17 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 
 	drCtx := base.GetDrContext(ctx)
 	wg := drCtx.WaitGroup
-
 	r.Value = requestBody
 	if r.PathSegment == "" {
 		r.PathSegment = "requestBody"
 	}
+	instanceType := r.PathSegment
+	if r.InstanceType != "" {
+		instanceType = r.InstanceType
+	}
 	label := r.Key
 
-	r.BuildNodesAndEdges(ctx, label, r.PathSegment, requestBody, r)
+	r.BuildNodesAndEdges(ctx, label, instanceType, requestBody, r)
 
 	if requestBody.Content != nil {
 		content := orderedmap.New[string, *MediaType]()
@@ -54,6 +57,12 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 		}
 		r.Content = content
 	}
+
+	if requestBody.GoLow().IsReference() {
+		base.BuildReference(drCtx, requestBody.GoLow())
+	}
+
+	drCtx.ObjectChan <- r
 }
 
 func (r *RequestBody) GetValue() any {

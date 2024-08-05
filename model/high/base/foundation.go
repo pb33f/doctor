@@ -26,6 +26,7 @@ type AcceptsRuleResults interface {
 	GetRuleFunctionResults() []*RuleFunctionResult
 }
 
+// Foundational is the base interface for all models in the doctor. It provides a way to navigate the model
 type Foundational interface {
 	GetParent() Foundational
 	GetNodeParent() Foundational
@@ -39,22 +40,29 @@ type Foundational interface {
 	GetEdges() []*Edge
 	GetKeyNode() *yaml.Node
 	GetValueNode() *yaml.Node
+	GetInstanceType() string
 }
 
 type Foundation struct {
-	PathSegment string
-	IsIndexed   bool
-	Index       int
-	Key         string
-	Parent      any
-	NodeParent  any
-	RuleResults []*RuleFunctionResult
-	JSONPath    string
-	Mutex       sync.Mutex
-	Node        *Node
-	Edges       []*Edge
-	KeyNode     *yaml.Node
-	ValueNode   *yaml.Node
+	PathSegment  string
+	InstanceType string
+	IsIndexed    bool
+	Index        int
+	Key          string
+	Parent       any
+	NodeParent   any
+	RuleResults  []*RuleFunctionResult
+	JSONPath     string
+	Mutex        sync.Mutex
+	Node         *Node
+	Edges        []*Edge
+	KeyNode      *yaml.Node
+	ValueNode    *yaml.Node
+	CacheSplit   bool
+}
+
+func (f *Foundation) GetInstanceType() string {
+	return f.InstanceType
 }
 
 func (f *Foundation) GetKeyNode() *yaml.Node {
@@ -279,6 +287,9 @@ func (f *Foundation) GenerateJSONPathWithLevel(level int) string {
 			//}
 			return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment + "[" + fmt.Sprint(f.Index) + "]"
 		}
+		if f.CacheSplit {
+			return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment + "CACHE-SPLIT[" + fmt.Sprint(f.Index) + "]--"
+		}
 		if f.PathSegment == "" {
 			sep = ""
 		}
@@ -366,192 +377,14 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 	//instancePropMap := make(map[string]interface{})
 
 	if n.Instance != nil {
-		//v := reflect.ValueOf(n.Instance).Elem()
-		//num := v.NumField()
-		//for i := 0; i < num; i++ {
-		//	field := v.Type().Field(i)
-		//	if field.Name == "low" {
-		//		continue
-		//	}
-		//
-		//	tag := field.Tag.Get("json")
-		//	tagName := strings.Split(tag, ",")[0]
-		//
-		//	if tag == "-" {
-		//		continue // ignore this field
-		//	}
-		//
-		//	var fv reflect.Value
-		//	if n.Type == "schema" {
-		//		fv = v.Field(i)
-		//		if sp, ok := n.Instance.(*base.SchemaProxy); ok {
-		//			v = reflect.ValueOf(sp.Schema()).Elem()
-		//		}
-		//
-		//		//if field.Type == reflect.TypeOf(&base.SchemaProxy{}) {
-		//		//fmt.Println("schema proxy")
-		//
-		//		//reflect.ValueOf(n).Elem()
-		//		//}
-		//
-		//	}
-		//
-		//	fv = v.Field(i)
-		//	fmt.Println(field.Name + " -- " + n.Id)
-		//	var value reflect.Value
-		//	if !fv.IsZero() {
-		//		fieldValue := fv.Interface()
-		//		value = reflect.ValueOf(fieldValue)
-		//		fmt.Println(value.Kind().String())
-		//	} else {
-		//		fmt.Println("zero my man!")
-		//		continue
-		//	}
-		//	switch value.Kind() {
-		//	case reflect.Float64, reflect.Float32:
-		//		//nodeEntry.Value = value.Float()
-		//		//x := float64(int(value.Float()*100)) / 100 // trim this down
-		//		//nodeEntry.StringValue = strconv.FormatFloat(x, 'f', -1, 64)
-		//		instancePropMap[tagName] = value.Float()
-		//	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		//		//nodeEntry.Value = value.Int()
-		//		//nodeEntry.StringValue = value.String()
-		//		instancePropMap[tagName] = value.Int()
-		//
-		//	case reflect.String:
-		//
-		//		instancePropMap[tagName] = value.String()
-		//		//nodeEntry.Value = value.String()
-		//	case reflect.Bool:
-		//		//nodeEntry.Value = value.Bool()
-		//		instancePropMap[tagName] = value.Bool()
-		//	case reflect.Slice:
-		//		fmt.Println("deng")
-		//
-		//		// check if this is a string slice
-		//		r := value.Interface()
-		//		t := reflect.ValueOf(r)
-		//
-		//		switch t.Type() {
-		//
-		//		case reflect.TypeOf([]int{}):
-		//		case reflect.TypeOf([]string{}):
-		//		case reflect.TypeOf([]int32{}):
-		//		case reflect.TypeOf([]int64{}):
-		//			instancePropMap[tagName] = r
-		//			continue
-		//
-		//		case reflect.TypeOf([]*base.SchemaProxy{}):
-		//			var schemaPropMap []interface{}
-		//			for _, sv := range r.([]*base.SchemaProxy) {
-		//				if sv.IsReference() {
-		//					_, ref := utils.ConvertComponentIdIntoFriendlyPathSearch(sv.GetReference())
-		//					schemaPropMap = append(schemaPropMap, fmt.Sprintf("$ref:%s", ref))
-		//				} else {
-		//					schemaPropMap = append(schemaPropMap, sv.Schema())
-		//				}
-		//			}
-		//			instancePropMap[tagName] = schemaPropMap
-		//		}
-		//
-		//	case reflect.Ptr:
-		//
-		//		r := value.Interface()
-		//		t := reflect.ValueOf(r)
-		//
-		//		switch t.Type() {
-		//
-		//		case reflect.TypeOf(&orderedmap.Map[string, *base.SchemaProxy]{}):
-		//			schemaMap := t.Interface().(*orderedmap.Map[string, *base.SchemaProxy])
-		//			schemaPropMap := make(map[string]interface{})
-		//			for pairs := schemaMap.First(); pairs != nil; pairs = pairs.Next() {
-		//				k := pairs.Key()
-		//				sv := pairs.Value()
-		//				if sv.IsReference() {
-		//					_, ref := utils.ConvertComponentIdIntoFriendlyPathSearch(sv.GetReference())
-		//					schemaPropMap[k] = fmt.Sprintf("$ref:%s", ref)
-		//				} else {
-		//					schemaPropMap[k] = sv.Schema()
-		//				}
-		//			}
-		//			instancePropMap[tagName] = schemaPropMap
-		//
-		//		}
-		//
-		//		//fmt.Println("drig")
-		//		//if !value.IsNil() {
-		//		//	nodeEntry.Value = f
-		//		//}
-		//	default:
-		//		r := value.Interface()
-		//		instancePropMap[tagName] = r
-		//	}
-		//
-		//	/*
-		//
-		//		// extract the value of the field
-		//			fieldValue := reflect.ValueOf(n.High).Elem().FieldByName(key)
-		//			f := fieldValue.Interface()
-		//			value := reflect.ValueOf(f)
-		//			var isZero bool
-		//			if (value.Kind() == reflect.Interface || value.Kind() == reflect.Ptr) && value.IsNil() {
-		//				isZero = true
-		//			} else if zeroer, ok := f.(yaml.IsZeroer); ok && zeroer.IsZero() {
-		//				isZero = true
-		//			} else if f == nil || value.IsZero() {
-		//				isZero = true
-		//			}
-		//			if !renderZeroFlag && isZero || omitEmptyFlag && isZero {
-		//				return
-		//			}
-		//
-		//			// create a new node entry
-		//			nodeEntry := &nodes.NodeEntry{Tag: tagName, Key: key}
-		//			nodeEntry.RenderZero = renderZeroFlag
-		//			switch value.Kind() {
-		//			case reflect.Float64, reflect.Float32:
-		//				nodeEntry.Value = value.Float()
-		//				x := float64(int(value.Float()*100)) / 100 // trim this down
-		//				nodeEntry.StringValue = strconv.FormatFloat(x, 'f', -1, 64)
-		//			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		//				nodeEntry.Value = value.Int()
-		//				nodeEntry.StringValue = value.String()
-		//			case reflect.String:
-		//				nodeEntry.Value = value.String()
-		//			case reflect.Bool:
-		//				nodeEntry.Value = value.Bool()
-		//			case reflect.Slice:
-		//				if tagName == "type" {
-		//					if value.Len() == 1 {
-		//						nodeEntry.Value = value.Index(0).String()
-		//					} else {
-		//						nodeEntry.Value = f
-		//					}
-		//				} else {
-		//					if renderZeroFlag || (!value.IsNil() && !isZero) {
-		//						nodeEntry.Value = f
-		//					}
-		//				}
-		//			case reflect.Ptr:
-		//				if !value.IsNil() {
-		//					nodeEntry.Value = f
-		//				}
-		//			default:
-		//				nodeEntry.Value = f
-		//			}
-		//
-		//
-		//	*/
-		//
-		//	// check is value is a pointer, if so, ignore
-		//
-		//}
 
-		//if len(instancePropMap) > 0 {
-		//	propMap["instanceProperties"] = instancePropMap
-		//}
 		if n.RenderProps {
 			if n.DrInstance != nil {
+				if it, ok := n.DrInstance.(Foundational); ok {
+					if it != nil && it.GetInstanceType() != "" {
+						propMap["instanceType"] = it.GetInstanceType()
+					}
+				}
 				if f, ok := n.DrInstance.(AcceptsRuleResults); ok {
 					propMap["results"] = f.GetRuleFunctionResults()
 				}

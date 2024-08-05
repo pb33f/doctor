@@ -39,6 +39,8 @@ func (i *Info) Walk(ctx context.Context, info *base.Info) {
 		i.License.NodeParent = i
 		wg.Go(func() { i.License.Walk(ctx, info.License) })
 	}
+
+	drCtx.ObjectChan <- i
 }
 
 func (i *Info) GetValue() any {

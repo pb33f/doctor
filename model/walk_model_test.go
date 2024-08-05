@@ -4,8 +4,11 @@
 package model
 
 import (
+	"fmt"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/pb33f/doctor/model/high/base"
 	"github.com/pb33f/libopenapi"
@@ -16,15 +19,72 @@ import (
 func TestWalker_TestStripe(t *testing.T) {
 
 	// create a libopenapi document
-	bytes, _ := os.ReadFile("../test_specs/stripe.yaml")
-	newDoc, _ := libopenapi.NewDocument(bytes)
-	v3Doc, _ := newDoc.BuildV3Model()
+	var bytes []byte
+	var newDoc libopenapi.Document
+	measureExecutionTime("load", func() {
+		bytes, _ = os.ReadFile("../test_specs/stripe.yaml")
+	})
 
-	walker := NewDrDocument(v3Doc)
+	measureExecutionTime("new doc", func() {
+		newDoc, _ = libopenapi.NewDocument(bytes)
+	})
+
+	var v3Docs *libopenapi.DocumentModel[v3.Document]
+	measureExecutionTime("build model", func() {
+		v3Docs, _ = newDoc.BuildV3Model()
+	})
+
+	var walker *DrDocument
+	measureExecutionTime("new walker", func() {
+		walker = NewDrDocument(v3Docs)
+	})
 
 	assert.Equal(t, 15360, len(walker.Schemas))
 	assert.Equal(t, 186, len(walker.SkippedSchemas))
 
+}
+
+func TestWalker_TestBurgers(t *testing.T) {
+
+	// create a libopenapi document
+	var bytes []byte
+	var newDoc libopenapi.Document
+	measureExecutionTime("load", func() {
+		bytes, _ = os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	})
+
+	measureExecutionTime("new doc", func() {
+		newDoc, _ = libopenapi.NewDocument(bytes)
+	})
+
+	var v3Docs *libopenapi.DocumentModel[v3.Document]
+	measureExecutionTime("build model", func() {
+		v3Docs, _ = newDoc.BuildV3Model()
+	})
+
+	var walker *DrDocument
+	measureExecutionTime("new walker", func() {
+		walker = NewDrDocument(v3Docs)
+	})
+
+	assert.Equal(t, 31, len(walker.Schemas))
+	assert.Equal(t, 0, len(walker.SkippedSchemas))
+
+}
+
+func BenchmarkWalker_TestBurgers(b *testing.B) {
+
+	// create a libopenapi document
+	bytes, _ := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	newDoc, _ := libopenapi.NewDocument(bytes)
+	v3Doc, _ := newDoc.BuildV3Model()
+
+	for n := 0; n < b.N; n++ {
+		walker := NewDrDocument(v3Doc)
+
+		assert.Equal(b, 31, len(walker.Schemas))
+		assert.Equal(b, 0, len(walker.SkippedSchemas))
+	}
 }
 
 func BenchmarkWalker_TestStripe(b *testing.B) {
@@ -36,9 +96,55 @@ func BenchmarkWalker_TestStripe(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		walker := NewDrDocument(v3Doc)
+		assert.Equal(b, 15360, len(walker.Schemas))
+		assert.Equal(b, 186, len(walker.SkippedSchemas))
+	}
+}
 
-		assert.Equal(b, 15538, len(walker.Schemas))
-		assert.Equal(b, 26, len(walker.SkippedSchemas))
+func BenchmarkWalker_TestCountedSchemas(b *testing.B) {
+
+	// create a libopenapi document
+	bytes := []byte(`openapi: 3.1.0
+paths:
+  /ping:
+    get:
+      responses:
+        '200':
+           content:
+             mapplication/pizza:
+               schema:
+                 type: object
+                 description: "A ping response"
+                 properties:
+                   message:
+                     type: string
+                   chooper:
+                     $ref: "#/components/schemas/Three"
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/Two"
+components:
+  schemas:
+    One:
+      type: string
+    Two: 
+      type: string
+    Three:
+      type: object
+      properties:
+        prop2: 
+          type: string
+        prop1:
+           $ref: "#/components/schemas/One"
+`)
+
+	newDoc, _ := libopenapi.NewDocument(bytes)
+	v3Doc, _ := newDoc.BuildV3Model()
+
+	for n := 0; n < b.N; n++ {
+		walker := NewDrDocument(v3Doc)
+		assert.Equal(b, 6, len(walker.Schemas))
+		assert.Equal(b, 0, len(walker.SkippedSchemas))
 	}
 
 }
@@ -46,40 +152,131 @@ func BenchmarkWalker_TestStripe(b *testing.B) {
 func TestWalker_TestStripe_Old(t *testing.T) {
 
 	// create a libopenapi document
-	bytes, _ := os.ReadFile("../test_specs/stripe-old.yaml")
-	newDoc, _ := libopenapi.NewDocument(bytes)
-	v3Doc, _ := newDoc.BuildV3Model()
+	var bytes []byte
+	var newDoc libopenapi.Document
+	measureExecutionTime("load", func() {
+		bytes, _ = os.ReadFile("../test_specs/stripe-old.yaml")
+	})
 
-	walker := NewDrDocument(v3Doc)
+	measureExecutionTime("new doc", func() {
+		newDoc, _ = libopenapi.NewDocument(bytes)
+	})
+
+	var v3Docs *libopenapi.DocumentModel[v3.Document]
+	measureExecutionTime("build model", func() {
+		v3Docs, _ = newDoc.BuildV3Model()
+	})
+
+	var walker *DrDocument
+	measureExecutionTime("new walker", func() {
+		walker = NewDrDocument(v3Docs)
+	})
 
 	assert.Equal(t, 11112, len(walker.Schemas))
 	assert.Equal(t, 153, len(walker.SkippedSchemas))
 
 }
 
-func TestWalker_TestAsana(t *testing.T) {
+func BenchmarkWalker_TestStripeOld(b *testing.B) {
 
 	// create a libopenapi document
-	bytes, _ := os.ReadFile("../test_specs/asana.yaml")
+	bytes, _ := os.ReadFile("../test_specs/stripe-old.yaml")
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocument(v3Doc)
+	for n := 0; n < b.N; n++ {
+		walker := NewDrDocument(v3Doc)
+		assert.NotNil(b, walker)
+	}
+
+}
+
+func TestWalker_TestAsana(t *testing.T) {
+
+	// create a libopenapi document
+	var bytes []byte
+	var newDoc libopenapi.Document
+	measureExecutionTime("load", func() {
+		bytes, _ = os.ReadFile("../test_specs/asana.yaml")
+	})
+
+	measureExecutionTime("new doc", func() {
+		newDoc, _ = libopenapi.NewDocument(bytes)
+	})
+
+	var v3Docs *libopenapi.DocumentModel[v3.Document]
+	measureExecutionTime("build model", func() {
+		v3Docs, _ = newDoc.BuildV3Model()
+	})
+
+	var walker *DrDocument
+	measureExecutionTime("new walker", func() {
+		walker = NewDrDocument(v3Docs)
+	})
 
 	assert.Equal(t, 874, len(walker.Schemas))
 	assert.Equal(t, 0, len(walker.SkippedSchemas))
 
 }
 
+//func TestWalker_TestGraph(t *testing.T) {
+//
+//	// create a libopenapi document
+//	var bytes []byte
+//	var newDoc libopenapi.Document
+//	measureExecutionTime("load", func() {
+//		bytes, _ = os.ReadFile("../test_specs/graph.yaml")
+//	})
+//
+//	measureExecutionTime("new doc", func() {
+//		newDoc, _ = libopenapi.NewDocument(bytes)
+//	})
+//
+//	var v3Docs *libopenapi.DocumentModel[v3.Document]
+//	measureExecutionTime("build model", func() {
+//		v3Docs, _ = newDoc.BuildV3Model()
+//	})
+//
+//	var walker *DrDocument
+//	measureExecutionTime("new walker", func() {
+//		walker = NewDrDocument(v3Docs)
+//	})
+//
+//	assert.Equal(t, 70181, len(walker.Schemas))
+//	assert.Equal(t, 2270, len(walker.SkippedSchemas))
+//
+//}
+
+// Function to measure the execution time of another function
+func measureExecutionTime(name string, fn func()) {
+	start := time.Now()           // Record the start time
+	fn()                          // Execute the function
+	duration := time.Since(start) // Calculate the elapsed time
+	fmt.Printf("\n'%s' took %v\n", name, duration)
+}
+
 func TestWalker_TestSquare(t *testing.T) {
 
 	// create a libopenapi document
-	bytes, _ := os.ReadFile("../test_specs/square.json")
-	newDoc, _ := libopenapi.NewDocument(bytes)
-	v3Doc, _ := newDoc.BuildV3Model()
+	var bytes []byte
+	var newDoc libopenapi.Document
+	measureExecutionTime("load", func() {
+		bytes, _ = os.ReadFile("../test_specs/square.json")
+	})
 
-	walker := NewDrDocument(v3Doc)
+	measureExecutionTime("new doc", func() {
+		newDoc, _ = libopenapi.NewDocument(bytes)
+	})
 
+	var v3Docs *libopenapi.DocumentModel[v3.Document]
+	measureExecutionTime("build model", func() {
+		v3Docs, _ = newDoc.BuildV3Model()
+	})
+
+	var walker *DrDocument
+	measureExecutionTime("new walker", func() {
+		walker = NewDrDocument(v3Docs)
+	})
 	assert.Equal(t, 3065, len(walker.Schemas))
 	assert.Equal(t, 15, len(walker.SkippedSchemas))
 
@@ -143,6 +340,8 @@ func TestWalker_WalkV3_PathItem(t *testing.T) {
 
 	pathItem = walked.Paths.PathItems.GetOrZero("/burgers/{burgerId}").Get.Parameters[0].SchemaProxy.Schema.GenerateJSONPath()
 	assert.Equal(t, "$.paths['/burgers/{burgerId}'].get.parameters[0].schema", pathItem)
+
+	assert.Equal(t, 552, len(walker.lineObjects))
 
 }
 
@@ -887,5 +1086,64 @@ components:
 	walked := walker.V3Document
 
 	assert.Equal(t, "object", walked.Components.Schemas.GetOrZero("B").Schema.Value.Type[0])
+
+}
+
+func TestWalker_WalkV3_ExtractTagNodes(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+tags:
+  - name: hello
+    description: world
+  - name: foo
+    description: bar`
+
+	newDoc, dErr := libopenapi.NewDocument([]byte(yml))
+	if dErr != nil {
+		t.Error(dErr)
+	}
+	v3Doc, _ := newDoc.BuildV3Model()
+
+	walker := NewDrDocument(v3Doc)
+
+	f := walker.lineObjects[3].(*base.Tag)
+
+	assert.Equal(t, "hello", f.Value.Name)
+	assert.Equal(t, "$.tags[0]", f.GenerateJSONPath())
+
+	// test the locate methods
+	l, e := walker.LocateModelByLine(3)
+	assert.NoError(t, e)
+	assert.Equal(t, f, l)
+
+	// test the locate methods
+	l, e = walker.LocateModel(l.(*base.Tag).ValueNode)
+	assert.NoError(t, e)
+	assert.Equal(t, f, l)
+
+}
+
+func TestWalker_WalkV3_ExtractSecurity(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+security:
+  - OAuthScheme:
+      - read:burgers
+      - write:burgers
+  - ChewyBurgers:
+      - read:cakes
+      - write:candy
+`
+
+	newDoc, dErr := libopenapi.NewDocument([]byte(yml))
+	if dErr != nil {
+		t.Error(dErr)
+	}
+	v3Doc, _ := newDoc.BuildV3Model()
+
+	walker := NewDrDocument(v3Doc)
+
+	assert.Equal(t, "OAuthScheme", walker.lineObjects[3].(*base.SecurityRequirement).Value.Requirements.First().Key())
+	assert.Equal(t, "$.security[0]", walker.lineObjects[3].(*base.SecurityRequirement).GenerateJSONPath())
 
 }

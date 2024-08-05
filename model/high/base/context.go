@@ -10,6 +10,7 @@ import (
 	"github.com/sourcegraph/conc"
 	"golang.org/x/net/context"
 	"gopkg.in/yaml.v3"
+	"sync"
 )
 
 type BuildError struct {
@@ -40,6 +41,7 @@ type WalkedMediaType struct {
 
 type DrContext struct {
 	SchemaChan        chan *WalkedSchema
+	ObjectChan        chan any
 	SkippedSchemaChan chan *WalkedSchema
 	ParameterChan     chan *WalkedParam
 	HeaderChan        chan *WalkedHeader
@@ -52,6 +54,7 @@ type DrContext struct {
 	V3Document        *v3.Document
 	WaitGroup         *conc.WaitGroup
 	BuildGraph        bool
+	SchemaCache       *sync.Map
 }
 
 func GetDrContext(ctx context.Context) *DrContext {

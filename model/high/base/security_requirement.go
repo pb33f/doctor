@@ -13,9 +13,11 @@ type SecurityRequirement struct {
 	Foundation
 }
 
-func (s *SecurityRequirement) Walk(_ context.Context, securityRequirement *base.SecurityRequirement) {
+func (s *SecurityRequirement) Walk(ctx context.Context, securityRequirement *base.SecurityRequirement) {
+	drCtx := GetDrContext(ctx)
 	s.Value = securityRequirement
 	s.PathSegment = "security"
+	drCtx.ObjectChan <- s
 }
 
 func (s *SecurityRequirement) GetValue() any {

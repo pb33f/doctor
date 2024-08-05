@@ -31,6 +31,7 @@ func (s *SecurityScheme) Walk(ctx context.Context, securityScheme *v3.SecuritySc
 		wg.Go(func() { f.Walk(ctx, securityScheme.Flows) })
 		s.Flows = f
 	}
+	drCtx.ObjectChan <- s
 }
 
 func (s *SecurityScheme) GetValue() any {

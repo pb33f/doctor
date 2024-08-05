@@ -14,10 +14,15 @@ type Example struct {
 }
 
 func (e *Example) Walk(ctx context.Context, example *base.Example) {
+	drCtx := GetDrContext(ctx)
 	e.BuildNodesAndEdges(ctx, e.Key, "example", example, e)
 	e.Value = example
+	if example.GoLow().IsReference() {
+		BuildReference(drCtx, example.GoLow())
+	}
+	drCtx.ObjectChan <- e
 }
 
-func (e *Example) GetValue() *base.Example {
+func (e *Example) GetValue() any {
 	return e.Value
 }

@@ -36,6 +36,12 @@ func (s *Server) Walk(ctx context.Context, server *v3.Server) {
 			s.Variables.Set(k, sv)
 		}
 	}
+
+	if server.GoLow().IsReference() {
+		base.BuildReference(drCtx, server.GoLow())
+	}
+
+	drCtx.ObjectChan <- s
 }
 
 func (s *Server) GetValue() any {

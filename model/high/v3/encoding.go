@@ -44,6 +44,7 @@ func (e *Encoding) Walk(ctx context.Context, encoding *v3.Encoding) {
 		}
 		e.Headers = headers
 	}
+	drCtx.ObjectChan <- e
 }
 
 func (e *Encoding) GetValue() any {
