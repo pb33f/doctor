@@ -346,8 +346,10 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			if v.IsReference() {
 				sch.NodeParent = s
 			} else {
-				if slices.Contains(v.Schema().Type, "object") {
-					sch.NodeParent = s
+				if v.Schema() != nil {
+					if slices.Contains(v.Schema().Type, "object") {
+						sch.NodeParent = s
+					}
 				}
 			}
 			wg.Go(func() {

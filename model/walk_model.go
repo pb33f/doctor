@@ -343,11 +343,13 @@ func (w *DrDocument) processObject(obj any, ln []any) {
 	if hv, ok := obj.(HasValue); ok {
 		if gl, ll := hv.GetValue().(high.GoesLowUntyped); ll {
 			if nm, ko := gl.GoLowUntyped().(low.HasNodes); ko {
-				no := nm.GetNodes()
-				for k, _ := range no {
-					if w.lineObjects[k] == nil {
-						w.lineObjects[k] = obj
-						ln[k] = w.lineObjects[k]
+				if nm != nil {
+					no := nm.GetNodes()
+					for k, _ := range no {
+						if w.lineObjects[k] == nil {
+							w.lineObjects[k] = obj
+							ln[k] = w.lineObjects[k]
+						}
 					}
 				}
 			}

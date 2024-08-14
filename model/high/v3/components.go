@@ -23,6 +23,7 @@ type Components struct {
 	SecuritySchemes *orderedmap.Map[string, *SecurityScheme]
 	Links           *orderedmap.Map[string, *Link]
 	Callbacks       *orderedmap.Map[string, *Callback]
+	PathItems       *orderedmap.Map[string, *PathItem]
 	drBase.Foundation
 }
 
@@ -334,6 +335,40 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			c.Callbacks.Set(k, cb)
 		}
 	}
+
+	if components.PathItems != nil && components.PathItems.Len() > 0 {
+
+		piNode := &drBase.Foundation{
+			Parent:      c,
+			NodeParent:  c,
+			PathSegment: "pathItems",
+			Index:       c.Index,
+			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().PathItems),
+			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().PathItems),
+		}
+		piNode.BuildNodesAndEdges(ctx, cases.Title(language.English).String(piNode.PathSegment), piNode.PathSegment, nil, c)
+
+		c.PathItems = orderedmap.New[string, *PathItem]()
+		for pathItemPairs := components.PathItems.First(); pathItemPairs != nil; pathItemPairs = pathItemPairs.Next() {
+			k := pathItemPairs.Key()
+			v := pathItemPairs.Value()
+			pi := &PathItem{}
+			for lowPiPairs := components.GoLow().PathItems.Value.First(); lowPiPairs != nil; lowPiPairs = lowPiPairs.Next() {
+				if lowPiPairs.Key().Value == k {
+					pi.KeyNode = lowPiPairs.Key().KeyNode
+					pi.ValueNode = lowPiPairs.Value().ValueNode
+					break
+				}
+			}
+			pi.Parent = c
+			pi.NodeParent = piNode
+			pi.Key = k
+			pi.PathSegment = "pathItems"
+			wg.Go(func() { pi.Walk(ctx, v) })
+			c.PathItems.Set(k, pi)
+		}
+	}
+
 	drCtx.ObjectChan <- c
 }
 
