@@ -153,7 +153,10 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 
 	targets := make(map[string]*drBase.Edge)
 	sources := make(map[string]*drBase.Edge)
-	ln := make([]any, doc.Rolodex.GetConfig().SpecInfo.NumLines+1)
+
+	// ln is part of debug code, it is not used when not initialized
+	//ln := make([]any, doc.Rolodex.GetFullLineCount())
+	var ln []any
 
 	go func(sChan chan *drBase.WalkedSchema, skippedChan chan *drBase.WalkedSchema, done chan bool) {
 		for {
@@ -348,7 +351,11 @@ func (w *DrDocument) processObject(obj any, ln []any) {
 					for k, _ := range no {
 						if w.lineObjects[k] == nil {
 							w.lineObjects[k] = obj
-							ln[k] = w.lineObjects[k]
+
+							// Debug code, only use when initialized
+							if ln != nil {
+								ln[k] = w.lineObjects[k]
+							}
 						}
 					}
 				}
