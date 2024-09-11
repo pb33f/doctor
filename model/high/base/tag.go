@@ -34,3 +34,21 @@ func (t *Tag) Walk(ctx context.Context, tag *libopenapibase.Tag) {
 func (t *Tag) GetValue() any {
 	return t.Value
 }
+
+func (t *Tag) GetSize() (height, width int) {
+	width = WIDTH - 75
+	height = HEIGHT
+	if t.Value.Name != "" {
+		height += HEIGHT
+		if len(t.Value.Name) > HEIGHT {
+			width += (len(t.Value.Name) - HEIGHT) * 10
+		}
+	}
+	if t.Value.Extensions != nil && t.Value.Extensions.Len() > 0 {
+		height += HEIGHT
+		if width < 170 {
+			width = 170
+		}
+	}
+	return height, width
+}

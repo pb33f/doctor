@@ -17,6 +17,7 @@ func (s *SecurityRequirement) Walk(ctx context.Context, securityRequirement *bas
 	drCtx := GetDrContext(ctx)
 	s.Value = securityRequirement
 	s.PathSegment = "security"
+	//s.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(s.PathSegment), s.PathSegment, securityRequirement, s, false, -1, s.Index)
 	drCtx.ObjectChan <- s
 }
 

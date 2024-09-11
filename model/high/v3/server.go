@@ -23,7 +23,7 @@ func (s *Server) Walk(ctx context.Context, server *v3.Server) {
 
 	s.Value = server
 	s.PathSegment = "servers"
-	s.BuildNodesAndEdges(ctx, s.Value.URL, "server", server, s)
+	s.BuildNodesAndEdgesWithArray(ctx, s.Value.URL, "server", server, s, false, 0, s.Index)
 
 	if server.Variables != nil {
 		s.Variables = orderedmap.New[string, *ServerVariable]()
@@ -46,4 +46,22 @@ func (s *Server) Walk(ctx context.Context, server *v3.Server) {
 
 func (s *Server) GetValue() any {
 	return s.Value
+}
+
+func (s *Server) GetSize() (height, width int) {
+	width = base.WIDTH
+	height = base.HEIGHT
+	if s.Value.URL != "" {
+		height += base.HEIGHT
+		if len(s.Value.URL) > base.HEIGHT-10 {
+			width += (len(s.Value.URL) - (base.HEIGHT - 10)) * 10
+		}
+	}
+	if s.Variables != nil && s.Variables.Len() > 0 {
+		height += base.HEIGHT
+	}
+	if s.Value.Extensions != nil && s.Value.Extensions.Len() > 0 {
+		height += base.HEIGHT
+	}
+	return height, width
 }

@@ -26,7 +26,7 @@ func (d *DynamicValue[A, R, S, E]) Walk(ctx context.Context) {
 	if d.Value.IsA() {
 		if v, ok := any(d.A).(*SchemaProxy); ok {
 			p := any(d.Value.A).(*base.SchemaProxy)
-			wg.Go(func() { v.Walk(ctx, p) })
+			wg.Go(func() { v.Walk(ctx, p, 0) })
 		}
 	}
 	drCtx.ObjectChan <- d

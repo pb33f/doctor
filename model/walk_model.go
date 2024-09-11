@@ -124,6 +124,7 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 		V3Document:        doc,
 		BuildGraph:        buildGraph,
 		SchemaCache:       &schemaCache,
+		Logger:            doc.Index.GetLogger(),
 	}
 
 	drCtx := context.WithValue(context.Background(), "drCtx", dctx)
@@ -343,6 +344,15 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 }
 
 func (w *DrDocument) processObject(obj any, ln []any) {
+	if hs, ll := obj.(drBase.HasSize); ll {
+		if f, lt := obj.(drBase.Foundational); lt {
+			he, wi := hs.GetSize()
+			if f.GetNode() != nil {
+				f.GetNode().Width = wi
+				f.GetNode().Height = he
+			}
+		}
+	}
 	if hv, ok := obj.(HasValue); ok {
 		if gl, ll := hv.GetValue().(high.GoesLowUntyped); ll {
 			if nm, ko := gl.GoLowUntyped().(low.HasNodes); ko {
