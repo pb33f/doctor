@@ -34,7 +34,7 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 		s.Parent = p
 		s.PathSegment = "schema"
 		s.NodeParent = p
-		wg.Go(func() { s.Walk(ctx, param.Schema) })
+		wg.Go(func() { s.Walk(ctx, param.Schema, 0) })
 		p.SchemaProxy = s
 	}
 
@@ -96,4 +96,48 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 
 func (p *Parameter) GetValue() any {
 	return p.Value
+}
+
+func (p *Parameter) GetSize() (height, width int) {
+	width = drBase.WIDTH
+	height = drBase.HEIGHT
+
+	if p.Key != "" {
+		if len(p.Key) > drBase.HEIGHT {
+			width += (len(p.Key) - drBase.HEIGHT) * 10
+		}
+	}
+
+	if p.Value.Name != "" {
+		height += drBase.HEIGHT
+		if len(p.Value.Name) > drBase.HEIGHT {
+			width += (len(p.Value.Name) - drBase.HEIGHT) * 22
+		}
+	}
+
+	if p.Value.In != "" {
+		height += drBase.HEIGHT
+	}
+
+	if p.Value.Deprecated {
+		height += drBase.HEIGHT
+	}
+
+	if p.Value.Required != nil && *p.Value.Required {
+		height += drBase.HEIGHT
+	}
+
+	if p.Value.Content != nil && p.Value.Content.Len() > 0 {
+		height += drBase.HEIGHT
+	}
+
+	if p.Value.Extensions != nil && p.Value.Extensions.Len() > 0 {
+		height += drBase.HEIGHT
+	}
+
+	if p.Value.Schema != nil && len(p.Value.Schema.Schema().Type) > 0 {
+		width += 40 * len(p.Value.Schema.Schema().Type)
+	}
+
+	return height, width
 }

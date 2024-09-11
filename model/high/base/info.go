@@ -46,3 +46,22 @@ func (i *Info) Walk(ctx context.Context, info *base.Info) {
 func (i *Info) GetValue() any {
 	return i.Value
 }
+
+func (i *Info) GetSize() (height, width int) {
+	width = WIDTH
+	height = HEIGHT
+	if i.Value.Version != "" {
+		height += HEIGHT
+	}
+	if i.Value.Title != "" {
+		height += HEIGHT
+		if len(i.Value.Title) > HEIGHT {
+			width += (len(i.Value.Title) - HEIGHT) * 10
+		}
+	}
+	if i.Value.Extensions != nil && i.Value.Extensions.Len() > 0 {
+		height += HEIGHT
+	}
+
+	return height, width
+}

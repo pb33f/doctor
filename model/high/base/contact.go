@@ -32,3 +32,18 @@ func (c *Contact) Walk(ctx context.Context, contact *base.Contact) {
 func (c *Contact) GetValue() any {
 	return c.Value
 }
+
+func (c *Contact) GetSize() (height, width int) {
+	width = WIDTH
+	height = HEIGHT
+	if c.Value.Name != "" {
+		height += HEIGHT
+		if len(c.Value.Name) > HEIGHT {
+			width += (len(c.Value.Name) - HEIGHT) * 10
+		}
+	}
+	if c.Value.Extensions != nil && c.Value.Extensions.Len() > 0 {
+		height += HEIGHT
+	}
+	return height, width
+}

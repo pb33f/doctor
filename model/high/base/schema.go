@@ -5,11 +5,13 @@ package base
 
 import (
 	"context"
+	"fmt"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"slices"
+	"strings"
 )
 
 type Schema struct {
@@ -39,11 +41,30 @@ type Schema struct {
 	Foundation
 }
 
-func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
+func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	drCtx := GetDrContext(ctx)
-
+	buf := strings.Builder{}
+	l := schema.GoLow()
+	buf.WriteString(l.Index.GetSpecAbsolutePath())
+	buf.WriteString(":")
+	buf.WriteString(fmt.Sprint(l.RootNode.Line))
+	buf.WriteString(":")
+	buf.WriteString(fmt.Sprint(l.RootNode.Column))
+	depth++
+	if depth > 500 {
+		// this schema is insane and we're going to bail
+		if drCtx.Logger != nil {
+			drCtx.Logger.Warn("schema is too deep, over 500 levels! - exiting build, model will be incomplete", "schema", schema)
+		}
+		return
+	}
 	wg := drCtx.WaitGroup
+	sm := drCtx.SchemaCache
+	if _, ok := sm.Load(buf.String()); ok {
+		// this schema path has already been walked, so we're going to bail
+		return
+	}
 
 	s.Value = schema
 	s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
@@ -63,7 +84,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.NodeParent = s
 			sch.Value = aOfItem
 			allOf = append(allOf, sch)
-			sch.Walk(ctx, aOfItem)
+			sch.Walk(ctx, aOfItem, depth)
 		}
 		s.AllOf = allOf
 	}
@@ -82,7 +103,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.NodeParent = s
 			sch.Value = oOfItem
 			oneOf = append(oneOf, sch)
-			sch.Walk(ctx, oOfItem)
+			sch.Walk(ctx, oOfItem, depth)
 		}
 		s.OneOf = oneOf
 	}
@@ -101,7 +122,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.NodeParent = s
 			sch.Value = aOfItem
 			anyOf = append(anyOf, sch)
-			sch.Walk(ctx, aOfItem)
+			sch.Walk(ctx, aOfItem, depth)
 		}
 		s.AnyOf = anyOf
 	}
@@ -120,7 +141,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.PathSegment = "prefixItems"
 			sch.Value = pItem
 			prefixItems = append(prefixItems, sch)
-			sch.Walk(ctx, pItem)
+			sch.Walk(ctx, pItem, depth)
 		}
 		s.PrefixItems = prefixItems
 	}
@@ -145,7 +166,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		sch.Parent = s
 		sch.PathSegment = "contains"
 		sch.NodeParent = s
-		wg.Go(func() { sch.Walk(ctx, schema.Contains) })
+		wg.Go(func() { sch.Walk(ctx, schema.Contains, depth) })
 		s.Contains = sch
 	}
 
@@ -156,7 +177,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		sch.Parent = s
 		sch.PathSegment = "if"
 		sch.NodeParent = s
-		wg.Go(func() { sch.Walk(ctx, schema.If) })
+		wg.Go(func() { sch.Walk(ctx, schema.If, depth) })
 		s.If = sch
 	}
 
@@ -167,7 +188,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		sch.Parent = s
 		sch.PathSegment = "else"
 		sch.NodeParent = s
-		wg.Go(func() { sch.Walk(ctx, schema.Else) })
+		wg.Go(func() { sch.Walk(ctx, schema.Else, depth) })
 		s.Else = sch
 	}
 
@@ -178,7 +199,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		sch.ValueNode = schema.GoLow().Then.ValueNode
 		sch.PathSegment = "then"
 		sch.NodeParent = s
-		wg.Go(func() { sch.Walk(ctx, schema.Then) })
+		wg.Go(func() { sch.Walk(ctx, schema.Then, depth) })
 		s.Then = sch
 	}
 
@@ -207,7 +228,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 					sch.NodeParent = s
 				}
 			}
-			wg.Go(func() { sch.Walk(ctx, v) })
+			wg.Go(func() { sch.Walk(ctx, v, depth) })
 		}
 		s.DependentSchemas = dependentSchemas
 	}
@@ -236,7 +257,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 					sch.NodeParent = s
 				}
 			}
-			wg.Go(func() { sch.Walk(ctx, v) })
+			wg.Go(func() { sch.Walk(ctx, v, depth) })
 		}
 		s.PatternProperties = patternProperties
 	}
@@ -250,7 +271,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		sch.Value = schema.PropertyNames
 		sch.NodeParent = s
 		s.PropertyNames = sch
-		wg.Go(func() { sch.Walk(ctx, s.PropertyNames.Value) })
+		wg.Go(func() { sch.Walk(ctx, s.PropertyNames.Value, depth) })
 	}
 
 	if schema.UnevaluatedItems != nil {
@@ -262,7 +283,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		sch.Value = schema.UnevaluatedItems
 		sch.NodeParent = s
 		s.UnevaluatedItems = sch
-		wg.Go(func() { sch.Walk(ctx, s.UnevaluatedItems.Value) })
+		wg.Go(func() { sch.Walk(ctx, s.UnevaluatedItems.Value, depth) })
 	}
 
 	if schema.UnevaluatedProperties != nil {
@@ -281,7 +302,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.ValueNode = schema.GoLow().UnevaluatedProperties.ValueNode
 			sch.KeyNode = schema.GoLow().UnevaluatedProperties.KeyNode
 			v := schema.UnevaluatedProperties.A
-			wg.Go(func() { sch.Walk(ctx, v) })
+			wg.Go(func() { sch.Walk(ctx, v, depth) })
 		} else {
 			dynamicValue.B = schema.UnevaluatedProperties.B
 		}
@@ -305,7 +326,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 			sch.KeyNode = schema.GoLow().Items.KeyNode
 			dynamicValue.A = sch
 			v := schema.Items.A
-			wg.Go(func() { sch.Walk(ctx, v) })
+			wg.Go(func() { sch.Walk(ctx, v, depth) })
 		} else {
 			dynamicValue.B = schema.Items.B
 		}
@@ -322,7 +343,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 		sch.NodeParent = s
 		s.Not = sch
 		v := schema.Not
-		wg.Go(func() { sch.Walk(ctx, v) })
+		wg.Go(func() { sch.Walk(ctx, v, depth) })
 	}
 
 	if schema.Properties != nil {
@@ -353,7 +374,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 				}
 			}
 			wg.Go(func() {
-				sch.Walk(ctx, v)
+				sch.Walk(ctx, v, depth)
 			})
 		}
 		s.Properties = properties
@@ -409,9 +430,52 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema) {
 	}
 
 	drCtx.ObjectChan <- s
+	sm.Store(buf.String(), true)
 
 }
 
 func (s *Schema) GetValue() any {
 	return s.Value
+}
+
+func (s *Schema) GetSize() (height, width int) {
+	width = WIDTH
+	height = HEIGHT * 2
+
+	if s.Value.Title != "" {
+		height += HEIGHT
+		if len(s.Value.Title) > HEIGHT {
+			width += (len(s.Value.Title) - HEIGHT) * 10
+		}
+	}
+
+	if len(s.Value.Type) > 1 {
+		width += len(s.Value.Type) * 50
+	}
+
+	if s.Value.Properties != nil && s.Value.Properties.Len() > 0 {
+		height += HEIGHT
+	}
+
+	if len(s.Value.AnyOf) > 0 || len(s.Value.OneOf) > 0 || len(s.Value.AllOf) > 0 {
+		height += HEIGHT
+		if len(s.Value.AnyOf) > 0 && width < WIDTH+50 {
+			width += 50
+		}
+		if len(s.Value.OneOf) > 0 && width < WIDTH+100 {
+			width += 50
+		}
+		if len(s.Value.AllOf) > 0 && width < WIDTH+150 {
+			width += 50
+		}
+	}
+	if s.Value.Extensions != nil && s.Value.Extensions.Len() > 0 {
+		height += HEIGHT
+	}
+
+	if len(s.Name) > HEIGHT/2 {
+		width += len(s.Name) * 8
+	}
+
+	return height, width
 }

@@ -10,8 +10,12 @@ import (
 	"github.com/sourcegraph/conc"
 	"golang.org/x/net/context"
 	"gopkg.in/yaml.v3"
+	"log/slog"
 	"sync"
 )
+
+const HEIGHT = 25
+const WIDTH = 200
 
 type BuildError struct {
 	Error         error
@@ -55,6 +59,7 @@ type DrContext struct {
 	WaitGroup         *conc.WaitGroup
 	BuildGraph        bool
 	SchemaCache       *sync.Map
+	Logger            *slog.Logger
 }
 
 func GetDrContext(ctx context.Context) *DrContext {

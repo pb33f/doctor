@@ -66,10 +66,11 @@ func (sp *SchemaProxy) IsCircular(ctx context.Context) bool {
 	return false
 }
 
-func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) {
+func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, depth int) {
 	sp.Value = schemaProxy
 	drCtx := ctx.Value("drCtx").(*DrContext)
 	sch := schemaProxy.Schema()
+
 	if sch != nil {
 
 		if schemaProxy.IsReference() {
@@ -98,7 +99,7 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) 
 
 		if !schemaProxy.IsReference() {
 
-			newSchema.Walk(ctx, sch)
+			newSchema.Walk(ctx, sch, depth)
 			drCtx.SchemaChan <- &WalkedSchema{
 				Schema:     newSchema,
 				SchemaNode: schemaProxy.GetSchemaKeyNode(),
@@ -116,7 +117,7 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy) 
 			clonedCtx.BuildGraph = false
 			newCtx := context.WithValue(ctx, "drCtx", &clonedCtx)
 			// walk, but don't continue with the graph down this path, as it's a reference
-			newSchema.Walk(newCtx, sch)
+			newSchema.Walk(newCtx, sch, depth)
 
 			if sp.NodeParent == nil {
 				return

@@ -35,7 +35,7 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 		c.PathSegment = "schema"
 		c.NodeParent = h
 		wg.Go(func() {
-			c.Walk(ctx, header.Schema)
+			c.Walk(ctx, header.Schema, 0)
 		})
 		h.SchemaProxy = c
 	}
@@ -97,4 +97,41 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 
 func (h *Header) GetValue() any {
 	return h.Value
+}
+
+func (h *Header) GetSize() (height, width int) {
+	width = drBase.WIDTH
+	height = drBase.HEIGHT
+
+	if h.Key != "" {
+		if len(h.Key) > drBase.HEIGHT {
+			width += (len(h.Key) - drBase.HEIGHT) * 12
+		}
+	}
+
+	if h.Value.Style != "" {
+		height += drBase.HEIGHT
+	}
+
+	if h.Value.Deprecated {
+		height += drBase.HEIGHT
+	}
+
+	if h.Value.Required {
+		height += drBase.HEIGHT
+	}
+
+	if h.Value.Content != nil && h.Value.Content.Len() > 0 {
+		height += drBase.HEIGHT
+	}
+
+	if h.Value.Extensions != nil && h.Value.Extensions.Len() > 0 {
+		height += drBase.HEIGHT
+	}
+
+	if h.Value.Schema != nil && len(h.Value.Schema.Schema().Type) > 0 {
+		width += 40 * len(h.Value.Schema.Schema().Type)
+	}
+
+	return height, width
 }

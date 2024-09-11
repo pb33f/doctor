@@ -35,7 +35,7 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 		s.Value = mediaType.Schema
 		s.NodeParent = m
 		m.SchemaProxy = s
-		wg.Go(func() { s.Walk(ctx, mediaType.Schema) })
+		wg.Go(func() { s.Walk(ctx, mediaType.Schema, 0) })
 	}
 
 	if mediaType.Examples != nil && mediaType.Examples.Len() > 0 {

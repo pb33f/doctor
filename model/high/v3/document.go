@@ -5,6 +5,7 @@ package v3
 
 import (
 	"context"
+	"fmt"
 	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
@@ -60,7 +61,9 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			ValueNode:   base.ExtractValueNodeForLowModel(doc.GoLow().Servers),
 			KeyNode:     base.ExtractKeyNodeForLowModel(doc.GoLow().Servers),
 		}
-		serversNode.BuildNodesAndEdges(ctx, cases.Title(language.English).String(serversNode.PathSegment), serversNode.PathSegment, nil, d)
+		serversNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(serversNode.PathSegment),
+			serversNode.PathSegment, nil, d, true, len(doc.Servers), -1)
+
 		for i, server := range doc.Servers {
 			srvr := server
 			s := &Server{}
@@ -105,7 +108,8 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			ValueNode:   base.ExtractValueNodeForLowModel(doc.GoLow().Security),
 			KeyNode:     base.ExtractKeyNodeForLowModel(doc.GoLow().Security),
 		}
-		secNode.BuildNodesAndEdges(ctx, cases.Title(language.English).String(secNode.PathSegment), secNode.PathSegment, nil, d)
+		secNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(secNode.PathSegment),
+			secNode.PathSegment, nil, d, true, len(doc.Security), -1)
 
 		for i, security := range doc.Security {
 			sec := security
@@ -115,6 +119,22 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			s.NodeParent = secNode
 			s.IsIndexed = true
 			s.Index = i
+
+			// check if the security requirement exists
+			if doc.Components != nil && doc.Components.SecuritySchemes != nil {
+				for k, _ := range security.Requirements.FromOldest() {
+					if css, ok := doc.Components.SecuritySchemes.Load(k); ok {
+						// create an edge from the secNode to the security scheme
+						if secNode.GetNode() != nil {
+							sourceId := fmt.Sprintf("%s", secNode.GetNode().Id)
+							target := fmt.Sprintf("%d", css.GoLow().GetRootNode().Line)
+							secNode.BuildReferenceEdge(ctx, sourceId, target,
+								fmt.Sprintf("#/components/securitySchemes/%s", k), "")
+						}
+					}
+				}
+			}
+
 			wg.Go(func() { s.Walk(ctx, sec) })
 			d.Security = append(d.Security, s)
 		}
@@ -140,7 +160,9 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			ValueNode:   base.ExtractValueNodeForLowModel(doc.GoLow().Tags),
 			KeyNode:     base.ExtractKeyNodeForLowModel(doc.GoLow().Tags),
 		}
-		tagsNode.BuildNodesAndEdges(ctx, cases.Title(language.English).String(tagsNode.PathSegment), tagsNode.PathSegment, nil, d)
+
+		tagsNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(tagsNode.PathSegment),
+			tagsNode.PathSegment, nil, d, true, len(doc.Tags), -1)
 
 		for i, tag := range doc.Tags {
 			t := &base.Tag{}
@@ -152,7 +174,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			t.Value = tag
 			t.ValueNode = doc.GoLow().Tags.Value[i].ValueNode
 			t.KeyNode = tag.GoLow().RootNode
-			t.BuildNodesAndEdges(ctx, tag.Name, "tag", tag, t)
+			t.BuildNodesAndEdgesWithArray(ctx, tag.Name, "tag", tag, t, false, 0, i)
 			t.Walk(ctx, tag)
 			d.Tags = append(d.Tags, t)
 		}
@@ -194,6 +216,12 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		d.Webhooks = webhooks
 	}
 	wg.Wait()
+	d.InstanceType = "document"
+	d.PathSegment = "document"
+	d.Node.Type = "document"
+	d.Node.Hash = "document (root)"
+	d.Node.DrInstance = d
+	d.buildRenderedNode()
 	drCtx.ObjectChan <- d
 	close(drCtx.ObjectChan)
 }
@@ -201,4 +229,82 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 // GetValue returns a pointer to its self, because it is the root and it is the value
 func (d *Document) GetValue() any {
 	return d.Document
+}
+
+func (d *Document) buildRenderedNode() {
+	m := make(map[string]any)
+
+	m["version"] = d.Document.Rolodex.GetConfig().SpecInfo.Version
+	if d.Document.Paths != nil && d.Document.Paths.PathItems != nil {
+		m["paths"] = d.Document.Paths.PathItems.Len()
+	}
+
+	if d.Components != nil {
+		c := 0
+		if d.Components.PathItems != nil {
+			c += d.Components.PathItems.Len()
+		}
+		if d.Components.Schemas != nil {
+			c += d.Components.Schemas.Len()
+		}
+		if d.Components.Responses != nil {
+			c += d.Components.Responses.Len()
+		}
+		if d.Components.Parameters != nil {
+			c += d.Components.Parameters.Len()
+		}
+		if d.Components.Examples != nil {
+			c += d.Components.Examples.Len()
+		}
+		if d.Components.RequestBodies != nil {
+			c += d.Components.RequestBodies.Len()
+		}
+		if d.Components.Headers != nil {
+			c += d.Components.Headers.Len()
+		}
+		if d.Components.SecuritySchemes != nil {
+			c += d.Components.SecuritySchemes.Len()
+		}
+		if d.Components.Links != nil {
+			c += d.Components.Links.Len()
+		}
+		if d.Components.Callbacks != nil {
+			c += d.Components.Callbacks.Len()
+		}
+		m["components"] = c
+	}
+	if d.Security != nil {
+		m["security"] = len(d.Security)
+	}
+	if d.Servers != nil && len(d.Servers) > 0 {
+		m["servers"] = len(d.Servers)
+	}
+	if d.Tags != nil {
+		m["tags"] = len(d.Tags)
+	}
+	if d.Document.GoLow().Extensions != nil {
+		if d.Document.GoLow().Extensions.Len() > 0 {
+			m["extensions"] = d.Document.GoLow().Extensions.Len()
+		}
+	}
+	d.Node.Instance = m
+}
+
+func (d *Document) GetSize() (height, width int) {
+	width = 250
+	height = base.HEIGHT * 2 // add another row for the label.
+	items := []any{
+		d.Servers,
+		d.Paths,
+		d.Components,
+		d.Security,
+		d.Tags,
+	}
+	for _, item := range items {
+		height = base.AddChunkDefaultHeight(item, height)
+	}
+	if d.Document.Extensions != nil && d.Document.Extensions.Len() > 0 {
+		height += base.HEIGHT
+	}
+	return height, width
 }

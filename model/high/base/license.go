@@ -28,3 +28,15 @@ func (l *License) Walk(ctx context.Context, license *base.License) {
 func (l *License) GetValue() any {
 	return l.Value
 }
+
+func (l *License) GetSize() (height, width int) {
+	width = WIDTH
+	height = HEIGHT
+	if l.Value.Identifier != "" || l.Value.URL != "" {
+		height += HEIGHT
+	}
+	if l.Value.Extensions != nil && l.Value.Extensions.Len() > 0 {
+		height += HEIGHT
+	}
+	return height, width
+}

@@ -68,3 +68,28 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 func (r *RequestBody) GetValue() any {
 	return r.Value
 }
+
+func (r *RequestBody) GetSize() (height, width int) {
+	width = base.WIDTH
+	height = base.HEIGHT
+
+	if r.Key != "" {
+		if len(r.Key) > base.HEIGHT {
+			width += (len(r.Key) - base.HEIGHT) * 20
+		}
+	}
+
+	if r.Value.Required != nil && *r.Value.Required {
+		height += base.HEIGHT
+	}
+
+	if r.Value.Content != nil && r.Value.Content.Len() > 0 {
+		height += base.HEIGHT
+	}
+
+	if r.Value.Extensions != nil && r.Value.Extensions.Len() > 0 {
+		height += base.HEIGHT
+	}
+
+	return height, width
+}

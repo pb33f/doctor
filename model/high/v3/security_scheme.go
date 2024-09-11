@@ -37,3 +37,24 @@ func (s *SecurityScheme) Walk(ctx context.Context, securityScheme *v3.SecuritySc
 func (s *SecurityScheme) GetValue() any {
 	return s.Value
 }
+
+func (s *SecurityScheme) GetSize() (height, width int) {
+	width = base.WIDTH
+	height = base.HEIGHT * 2
+
+	if s.Value.Name != "" {
+		if len(s.Value.Name) > base.HEIGHT {
+			width += (len(s.Value.Name) - base.HEIGHT) * 10
+		}
+	}
+
+	if s.Value.Flows != nil {
+		height += base.HEIGHT
+	}
+
+	if s.Value.Extensions != nil && s.Value.Extensions.Len() > 0 {
+		height += base.HEIGHT
+	}
+
+	return height, width
+}
