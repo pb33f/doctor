@@ -1,0 +1,43 @@
+x-winter-coat: warm
+get:
+  operationId: getDressing
+  tags:
+    - "Dressing"
+  summary:  Get a specific dressing - you can choose the dressing from our menu
+  description: Same as the summary, get a dressing, by its ID
+  x-runny-nose: runny.
+  parameters:
+    - in: path
+      name: dressingId
+      schema:
+        x-hot-cross-buns: bunny
+        type: string
+      example: cheese
+      description: This is the unique identifier for the dressing items.
+      required: true
+  responses:
+    x-toasty-roasty: hot
+    "200":
+      description: a dressing
+      content:
+        application/json:
+          schema:
+            $ref: '../burgershop.openapi.yaml#/components/schemas/Dressing'
+          example:
+            name: Butter Sauce
+    "404":
+      description: Cannot find your dressing, sorry.
+      content:
+        application/json:
+          schema:
+            $ref: '../burgershop.openapi.yaml#/components/schemas/Error'
+          example:
+            message: No such dressing as 'Pizza'
+    "500":
+      description: Unexpected error getting a dressing. Sorry.
+      content:
+        application/json:
+          schema:
+            $ref: '../burgershop.openapi.yaml#/components/schemas/Error'
+          example:
+            message: failed looking up dressing by ID, our server borked.

@@ -1,0 +1,34 @@
+get:
+  operationId: listBurgerDressings
+  tags:
+    - "Dressing"
+  summary:  Get a list of all dressings available
+  description: Same as the summary, look up a tasty burger, by its ID - the burger identifier
+  parameters:
+    - in: path
+      name: burgerId
+      schema:
+        type: string
+      example: big-mac
+      description: the name of the our fantastic burger. You can pick a name from our menu
+      required: true
+  responses:
+    "200":
+      $ref: '../burgershop.openapi.yaml#/components/responses/DressingResponse'
+    "404":
+      description: Cannot find your burger in which to list dressings. Sorry
+      content:
+        application/json:
+          x-nice: rice
+          schema:
+            $ref: '../burgershop.openapi.yaml#/components/schemas/Error'
+          example:
+            message: There is no burger here
+    "500":
+      description: Unexpected error listing dressings for burger. Sorry.
+      content:
+        application/json:
+          schema:
+            $ref: '../burgershop.openapi.yaml#/components/schemas/Error'
+          example:
+            message: computer says no dressings for this burger.

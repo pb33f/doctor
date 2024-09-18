@@ -1,0 +1,61 @@
+x-burger-meta: meaty
+post:
+  operationId: createBurger
+  tags:
+    - "Burgers"
+  summary:  Create a new burger
+  description: A new burger for our menu, yummy yum yum.
+  requestBody:
+    $ref: '../burgershop.openapi.yaml#/components/requestBodies/BurgerRequest'
+  responses:
+    "200":
+      headers:
+        UseOil:
+          $ref: '../burgershop.openapi.yaml#/components/headers/UseOil'
+      description: A tasty burger for you to eat.
+      content:
+        application/json:
+          schema:
+            $ref: '../burgershop.openapi.yaml#/components/schemas/Burger'
+          examples:
+            quarterPounder:
+              $ref: '../burgershop.openapi.yaml#/components/examples/QuarterPounder'
+            filetOFish:
+              summary: a cripsy fish sammich filled with ocean goodness.
+              value:
+                name: Filet-O-Fish
+                numPatties: 1
+      links:
+        LocateBurger:
+          $ref: '../burgershop.openapi.yaml#/components/links/LocateBurger'
+        AnotherLocateBurger:
+          $ref: '../burgershop.openapi.yaml#/components/links/AnotherLocateBurger'
+    "500":
+      description: Unexpected error creating a new burger. Sorry.
+      content:
+        application/json:
+          schema:
+            $ref: '../burgershop.openapi.yaml#/components/schemas/Error'
+          examples:
+            unexpectedError:
+              summary: oh my goodness
+              value:
+                message: something went terribly wrong my friend, no new burger for you.
+    "422":
+      description: Unprocessable entity
+      content:
+        application/json:
+          schema:
+            $ref: '../burgershop.openapi.yaml#/components/schemas/Error'
+          examples:
+            unexpectedError:
+              summary: invalid request
+              value:
+                message: unable to accept this request, looks bad, missing something.
+  security:
+    - OAuthScheme:
+        - read:burgers
+        - write:burgers
+  servers:
+    - url: https://pb33f.io
+      description: this is an alternative server for this operation.

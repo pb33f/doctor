@@ -1,0 +1,33 @@
+get:
+  operationId: getAllDressings
+  tags:
+    - "Dressing"
+  summary:  Get all dressings available in our store
+  description: Get all dressings and choose from them
+  responses:
+    "200":
+      description: an array of dressings
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '../burgershop.openapi.yaml#/components/schemas/Dressing'
+          example:
+            - name: Burger Sauce
+    "418":
+      description: I am a teapot.
+      content:
+        application/json:
+          schema:
+            $ref: '../burgershop.openapi.yaml#/components/schemas/Error'
+          example:
+            message: It's teapot time.
+    "500":
+      description: Something went wrong with getting dressings.
+      content:
+        application/json:
+          schema:
+            $ref: '../burgershop.openapi.yaml#/components/schemas/Error'
+          example:
+            message: "failed looking up all dressings, something went wrong."

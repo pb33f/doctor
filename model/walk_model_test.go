@@ -71,6 +71,40 @@ func TestWalker_TestBurgers(t *testing.T) {
 	assert.Equal(t, 0, len(walker.SkippedSchemas))
 
 }
+func TestWalker_TestNestedBurgers(t *testing.T) {
+
+	// create a libopenapi document
+	var bytes []byte
+	var newDoc libopenapi.Document
+	measureExecutionTime("load", func() {
+		bytes, _ = os.ReadFile("../test_specs/nested/burgershop.openapi.yaml")
+	})
+
+	measureExecutionTime("new doc", func() {
+		newDoc, _ = libopenapi.NewDocument(bytes)
+	})
+
+	var v3Docs *libopenapi.DocumentModel[v3.Document]
+	measureExecutionTime("build model", func() {
+		config := &datamodel.DocumentConfiguration{
+			AllowFileReferences:   false,
+			AllowRemoteReferences: false,
+			BasePath:              "../test_specs/nested",
+		}
+		newDoc.SetConfiguration(config)
+		v3Docs, _ = newDoc.BuildV3Model()
+	})
+
+	var walker *DrDocument
+	measureExecutionTime("new walker", func() {
+		walker = NewDrDocument(v3Docs)
+	})
+
+	assert.Equal(t, 0, walker.lineObjectMisMatches) // This is failing because of $ref's messing up the line counting
+	assert.Equal(t, 31, len(walker.Schemas))
+	assert.Equal(t, 0, len(walker.SkippedSchemas))
+
+}
 
 func BenchmarkWalker_TestBurgers(b *testing.B) {
 

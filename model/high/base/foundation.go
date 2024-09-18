@@ -264,7 +264,7 @@ func (f *Foundation) GenerateJSONPath() string {
 		return f.JSONPath
 	}
 	path := f.GenerateJSONPathWithLevel(0)
-	f.JSONPath = path
+	//f.JSONPath = path
 	return path
 }
 

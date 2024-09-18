@@ -1,0 +1,55 @@
+get:
+  callbacks:
+    burgerCallback:
+      $ref: '../burgershop.openapi.yaml#/components/callbacks/BurgerCallback'
+  operationId: locateBurger
+  tags:
+    - "Burgers"
+  summary: Search a burger by ID - returns the burger with that identifier
+  description: Look up a tasty burger take it and enjoy it
+  parameters:
+    - $ref: '../burgershop.openapi.yaml#/components/parameters/BurgerId'
+    - $ref: '../burgershop.openapi.yaml#/components/parameters/BurgerHeader'
+  responses:
+    "200":
+      description: A tasty burger for you to eat. Wide variety of products to choose from
+      content:
+        application/json:
+          schema:
+            $ref: '../burgershop.openapi.yaml#/components/schemas/Burger'
+          examples:
+            quarterPounder:
+              $ref: '../burgershop.openapi.yaml#/components/examples/QuarterPounder'
+            filetOFish:
+              summary: A tasty treat from the sea
+              value:
+                name: Filet-O-Fish
+                numPatties: 1
+      links:
+        ListBurgerDressings:
+          operationId: listBurgerDressings
+          parameters:
+            dressingId: 'something here'
+          description: 'Try the ketchup!'
+    "404":
+      description: Cannot find your burger. Sorry. We may have sold out of this type
+      content:
+        application/json:
+          schema:
+            $ref: '../burgershop.openapi.yaml#/components/schemas/Error'
+          examples:
+            notFound:
+              summary: burger missing
+              value:
+                message: can't find a burger with that ID, we may have sold out my friend.
+    "500":
+      description: Unexpected error. Sorry.
+      content:
+        application/json:
+          schema:
+            $ref: '../burgershop.openapi.yaml#/components/schemas/Error'
+          examples:
+            unexpectedError:
+              summary: oh my stars
+              value:
+                message: something went terribly wrong my friend, burger location crashed!

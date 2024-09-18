@@ -18,6 +18,7 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/sourcegraph/conc"
 	"gopkg.in/yaml.v3"
+	"reflect"
 	"sort"
 	"sync"
 )
@@ -41,6 +42,9 @@ type DrDocument struct {
 	Edges          []*drBase.Edge
 	index          *index.SpecIndex
 	lineObjects    map[int]any
+
+	// debugging code
+	lineObjectMisMatches int
 }
 
 type HasValue interface {
@@ -79,7 +83,8 @@ func (w *DrDocument) LocateModel(node *yaml.Node) (drBase.Foundational, error) {
 	if w.lineObjects[node.Line] == nil {
 		return nil, fmt.Errorf("model not found at line %d", node.Line)
 	}
-	return w.lineObjects[node.Line].(drBase.Foundational), nil
+	v := w.lineObjects[node.Line]
+	return v.(drBase.Foundational), nil
 }
 
 // LocateModelByLine finds the model represented by the line number of the supplied node.
@@ -342,6 +347,10 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 	return drDoc
 }
 
+func sameType(x, y interface{}) bool {
+	return reflect.TypeOf(x) == reflect.TypeOf(y)
+}
+
 func (w *DrDocument) processObject(obj any, ln []any) {
 	if hv, ok := obj.(HasValue); ok {
 		if gl, ll := hv.GetValue().(high.GoesLowUntyped); ll {
@@ -356,6 +365,11 @@ func (w *DrDocument) processObject(obj any, ln []any) {
 							if ln != nil {
 								ln[k] = w.lineObjects[k]
 							}
+						} else {
+							if !sameType(w.lineObjects[k], obj) {
+								w.lineObjectMisMatches++
+							}
+							fmt.Printf("Line object %d already exists: +%T (%p) vs %T (%p). Is Equal?: %v Is the same type?: %v \n", k, obj, obj, w.lineObjects[k], w.lineObjects[k], reflect.DeepEqual(w.lineObjects[k], obj), sameType(w.lineObjects[k], obj))
 						}
 					}
 				}
