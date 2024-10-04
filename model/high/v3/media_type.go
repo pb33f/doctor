@@ -35,7 +35,9 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 		s.Value = mediaType.Schema
 		s.NodeParent = m
 		m.SchemaProxy = s
-		wg.Go(func() { s.Walk(ctx, mediaType.Schema, 0) })
+		wg.Go(func() {
+			s.Walk(ctx, mediaType.Schema, 0)
+		})
 	}
 
 	if mediaType.Examples != nil && mediaType.Examples.Len() > 0 {
@@ -83,13 +85,14 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 			encoding.Set(encodingPairs.Key(), e)
 		}
 	}
-	drCtx.MediaTypeChan <- &drBase.WalkedMediaType{
-		MediaType:     m,
-		MediaTypeNode: mediaType.GoLow().RootNode,
-	}
 
 	if mediaType.GoLow().IsReference() {
 		drBase.BuildReference(drCtx, mediaType.GoLow())
+	}
+
+	drCtx.MediaTypeChan <- &drBase.WalkedMediaType{
+		MediaType:     m,
+		MediaTypeNode: mediaType.GoLow().RootNode,
 	}
 
 	drCtx.ObjectChan <- m
@@ -97,4 +100,34 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 
 func (m *MediaType) GetValue() any {
 	return m.Value
+}
+
+func (m *MediaType) GetSize() (height, width int) {
+	width = drBase.WIDTH
+	height = drBase.HEIGHT
+
+	if m.Key != "" {
+		if len(m.Key) > drBase.HEIGHT-15 {
+			width += (len(m.Key) - (drBase.HEIGHT - 15)) * 15
+		}
+	}
+
+	if m.Value.Encoding != nil && m.Value.Encoding.Len() > 0 {
+		height += drBase.HEIGHT
+	}
+
+	if m.Value.Extensions != nil && m.Value.Extensions.Len() > 0 {
+		height += drBase.HEIGHT
+	}
+
+	if m.Value.Schema != nil && len(m.Value.Schema.Schema().Type) > 0 {
+		width += len(m.Value.Schema.Schema().Type) * 50
+		sh, sw := drBase.ParseSchemaSize(m.Value.Schema.Schema())
+		height += sh
+		if width < sw {
+			width = sw
+		}
+	}
+
+	return height, width
 }

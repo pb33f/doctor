@@ -62,8 +62,12 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 	wg := drCtx.WaitGroup
 	sm := drCtx.SchemaCache
 	if _, ok := sm.Load(buf.String()); ok {
-		// this schema path has already been walked, so we're going to bail
-		return
+
+		// TODO: come back to this and investigate caching with references etc.
+		//this schema path has already been walked, so we're going to bail
+		//s.Value = schema
+		//s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
+		//return
 	}
 
 	s.Value = schema
@@ -316,17 +320,24 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		dynamicValue.Value = schema.Items
 		dynamicValue.ValueNode = schema.GoLow().Items.ValueNode
 		dynamicValue.KeyNode = schema.GoLow().Items.KeyNode
+		dynamicValue.Node = s.Node
 		//dynamicValue.BuildNodesAndEdges(ctx, dynamicValue.PathSegment)
 		if schema.Items.IsA() {
+
 			sch := &SchemaProxy{}
 			sch.Parent = dynamicValue
 			sch.Value = schema.Items.A
 			sch.NodeParent = s
+			//sch.Key = schema.
 			sch.ValueNode = schema.GoLow().Items.ValueNode
 			sch.KeyNode = schema.GoLow().Items.KeyNode
+			sch.Node = s.Node
 			dynamicValue.A = sch
+			dynamicValue.Node = s.Node
 			v := schema.Items.A
-			wg.Go(func() { sch.Walk(ctx, v, depth) })
+			wg.Go(func() {
+				sch.Walk(ctx, v, depth)
+			})
 		} else {
 			dynamicValue.B = schema.Items.B
 		}
@@ -356,10 +367,20 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.Key = propertiesPairs.Key()
 			sch.Value = v
 			properties.Set(propertiesPairs.Key(), sch)
+			walked := false
 			for lowSchPairs := schema.GoLow().Properties.Value.First(); lowSchPairs != nil; lowSchPairs = lowSchPairs.Next() {
 				if lowSchPairs.Key().Value == sch.Key {
 					sch.ValueNode = lowSchPairs.Value().ValueNode
 					sch.KeyNode = lowSchPairs.Key().KeyNode
+					//if slices.Contains(v.Schema().Type, "object") || slices.Contains(v.Schema().Type, "array") || v.Schema().Extensions.Len() > 0 || v.IsReference() {
+					// TODO: this needs to be updated to allow reference to access node, but prevent every sub schema from
+					// getting it's own node
+					sch.NodeParent = s
+					//}
+					walked = true
+					wg.Go(func() {
+						sch.Walk(ctx, v, depth)
+					})
 					break
 				}
 			}
@@ -368,14 +389,16 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 				sch.NodeParent = s
 			} else {
 				if v.Schema() != nil {
-					if slices.Contains(v.Schema().Type, "object") {
+					if slices.Contains(v.Schema().Type, "object") || slices.Contains(v.Schema().Type, "array") {
 						sch.NodeParent = s
 					}
 				}
 			}
-			wg.Go(func() {
-				sch.Walk(ctx, v, depth)
-			})
+			if !walked {
+				wg.Go(func() {
+					sch.Walk(ctx, v, depth)
+				})
+			}
 		}
 		s.Properties = properties
 	}
@@ -439,42 +462,53 @@ func (s *Schema) GetValue() any {
 }
 
 func (s *Schema) GetSize() (height, width int) {
+	h, w := ParseSchemaSize(s.Value)
+	if s.Key != "" {
+		if len(s.Key) > (HEIGHT - 15) {
+			w += (len(s.Key) - (HEIGHT - 15)) * 25
+		}
+	}
+	if s.Name != "" {
+		if len(s.Name) > (HEIGHT - 15) {
+			w += (len(s.Name) - (HEIGHT - 15)) * 25
+		}
+	}
+	return h, w
+}
+
+func ParseSchemaSize(schema *base.Schema) (height, width int) {
 	width = WIDTH
-	height = HEIGHT * 2
+	height = HEIGHT
 
-	if s.Value.Title != "" {
+	if schema.Title != "" {
 		height += HEIGHT
-		if len(s.Value.Title) > HEIGHT {
-			width += (len(s.Value.Title) - HEIGHT) * 10
+		if len(schema.Title) > (HEIGHT - 10) {
+			width += (len(schema.Title) - (HEIGHT - 10)) * 20
 		}
 	}
 
-	if len(s.Value.Type) > 1 {
-		width += len(s.Value.Type) * 50
+	if len(schema.Type) > 1 {
+		width += len(schema.Type) * 60
 	}
 
-	if s.Value.Properties != nil && s.Value.Properties.Len() > 0 {
+	if schema.Properties != nil && schema.Properties.Len() > 0 {
 		height += HEIGHT
 	}
 
-	if len(s.Value.AnyOf) > 0 || len(s.Value.OneOf) > 0 || len(s.Value.AllOf) > 0 {
+	if len(schema.AnyOf) > 0 || len(schema.OneOf) > 0 || len(schema.AllOf) > 0 {
 		height += HEIGHT
-		if len(s.Value.AnyOf) > 0 && width < WIDTH+50 {
+		if len(schema.AnyOf) > 0 && width < WIDTH+50 {
 			width += 50
 		}
-		if len(s.Value.OneOf) > 0 && width < WIDTH+100 {
+		if len(schema.OneOf) > 0 && width < WIDTH+100 {
 			width += 50
 		}
-		if len(s.Value.AllOf) > 0 && width < WIDTH+150 {
+		if len(schema.AllOf) > 0 && width < WIDTH+150 {
 			width += 50
 		}
 	}
-	if s.Value.Extensions != nil && s.Value.Extensions.Len() > 0 {
+	if schema.Extensions != nil && schema.Extensions.Len() > 0 {
 		height += HEIGHT
-	}
-
-	if len(s.Name) > HEIGHT/2 {
-		width += len(s.Name) * 8
 	}
 
 	return height, width

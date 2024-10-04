@@ -106,18 +106,18 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 			}
 		} else {
 
-			// send up the reference
-			drCtx.ObjectChan <- &ObjectReference{
-				Reference: schemaProxy.GetReference(),
-				Node:      schemaProxy.GetReferenceNode(),
-			}
-
 			// clone context
 			clonedCtx := *drCtx
 			clonedCtx.BuildGraph = false
 			newCtx := context.WithValue(ctx, "drCtx", &clonedCtx)
 			// walk, but don't continue with the graph down this path, as it's a reference
 			newSchema.Walk(newCtx, sch, depth)
+
+			// send up the reference
+			drCtx.ObjectChan <- &ObjectReference{
+				Reference: schemaProxy.GetReference(),
+				Node:      schemaProxy.GetReferenceNode(),
+			}
 
 			if sp.NodeParent == nil {
 				return
@@ -148,7 +148,6 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 			}
 		}
 	}
-
 }
 
 func BuildReference(ctx *DrContext, ref low.IsReferenced) {

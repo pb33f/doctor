@@ -48,3 +48,24 @@ func (c *Callback) Walk(ctx context.Context, callback *v3.Callback) {
 func (c *Callback) GetValue() any {
 	return c.Value
 }
+
+func (c *Callback) GetSize() (height, width int) {
+	width = base.WIDTH
+	height = base.HEIGHT
+
+	if c.Key != "" {
+		if len(c.Key) > base.HEIGHT-10 {
+			width += (len(c.Key) - (base.HEIGHT - 10)) * 20
+		}
+	}
+
+	if c.Value.Expression.Len() > 0 {
+		height += base.HEIGHT
+	}
+
+	if c.Value.Extensions.Len() > 0 {
+		height += base.HEIGHT
+	}
+
+	return height, width
+}
