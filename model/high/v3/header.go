@@ -12,10 +12,10 @@ import (
 )
 
 type Header struct {
-	Value       *v3.Header
-	SchemaProxy *base.SchemaProxy
-	Examples    *orderedmap.Map[string, *base.Example]
-	Content     *orderedmap.Map[string, *MediaType]
+	Value    *v3.Header
+	Schema   *base.SchemaProxy
+	Examples *orderedmap.Map[string, *base.Example]
+	Content  *orderedmap.Map[string, *MediaType]
 	base.Foundation
 }
 
@@ -37,7 +37,7 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 		wg.Go(func() {
 			c.Walk(ctx, header.Schema, 0)
 		})
-		h.SchemaProxy = c
+		h.Schema = c
 	}
 
 	if header.Examples != nil && header.Examples.Len() > 0 {
@@ -83,13 +83,14 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 			h.Content.Set(contentPairs.Key(), mt)
 		}
 	}
-	drCtx.HeaderChan <- &drBase.WalkedHeader{
-		Header:     h,
-		HeaderNode: header.GoLow().RootNode,
-	}
 
 	if header.GoLow().IsReference() {
 		drBase.BuildReference(drCtx, header.GoLow())
+	}
+
+	drCtx.HeaderChan <- &drBase.WalkedHeader{
+		Header:     h,
+		HeaderNode: header.GoLow().RootNode,
 	}
 
 	drCtx.ObjectChan <- h
@@ -101,11 +102,11 @@ func (h *Header) GetValue() any {
 
 func (h *Header) GetSize() (height, width int) {
 	width = drBase.WIDTH
-	height = drBase.HEIGHT
+	height = drBase.HEIGHT * 2
 
 	if h.Key != "" {
-		if len(h.Key) > drBase.HEIGHT {
-			width += (len(h.Key) - drBase.HEIGHT) * 12
+		if len(h.Key) > drBase.HEIGHT-10 {
+			width += (len(h.Key) - (drBase.HEIGHT - 10)) * 15
 		}
 	}
 
@@ -130,7 +131,12 @@ func (h *Header) GetSize() (height, width int) {
 	}
 
 	if h.Value.Schema != nil && len(h.Value.Schema.Schema().Type) > 0 {
-		width += 40 * len(h.Value.Schema.Schema().Type)
+		width += len(h.Value.Schema.Schema().Type) * 50
+		sh, sw := drBase.ParseSchemaSize(h.Value.Schema.Schema())
+		height += sh
+		if width < sw {
+			width = sw
+		}
 	}
 
 	return height, width

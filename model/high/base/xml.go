@@ -15,3 +15,15 @@ type XML struct {
 func (x *XML) GetValue() any {
 	return x.Value
 }
+
+func (x *XML) GetSize() (height, width int) {
+	width = WIDTH
+	height = HEIGHT
+	if x.Value.Name != "" {
+		height += HEIGHT
+	}
+	if x.Value.Extensions != nil && x.Value.Extensions.Len() > 0 {
+		height += HEIGHT
+	}
+	return height, width
+}

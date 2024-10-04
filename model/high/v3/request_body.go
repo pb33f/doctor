@@ -74,8 +74,8 @@ func (r *RequestBody) GetSize() (height, width int) {
 	height = base.HEIGHT
 
 	if r.Key != "" {
-		if len(r.Key) > base.HEIGHT {
-			width += (len(r.Key) - base.HEIGHT) * 20
+		if len(r.Key) > base.HEIGHT-10 {
+			width += (len(r.Key) - (base.HEIGHT - 10)) * 15
 		}
 	}
 

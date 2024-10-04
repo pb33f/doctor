@@ -777,7 +777,7 @@ components:
 	walker := NewDrDocument(v3Doc)
 	walked := walker.V3Document
 
-	pathItem := walked.Components.Headers.GetOrZero("MintyFresh").SchemaProxy.GenerateJSONPath()
+	pathItem := walked.Components.Headers.GetOrZero("MintyFresh").Schema.GenerateJSONPath()
 	assert.Equal(t, "$.components.headers['MintyFresh'].schema", pathItem)
 
 	pathItem = walked.Components.Headers.GetOrZero("MintyFresh").Examples.GetOrZero("test").GenerateJSONPath()

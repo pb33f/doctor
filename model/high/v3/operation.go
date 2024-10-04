@@ -182,3 +182,55 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 func (o *Operation) GetValue() any {
 	return o.Value
 }
+
+func (o *Operation) GetSize() (height, width int) {
+	width = drBase.WIDTH
+	height = drBase.HEIGHT
+
+	if o.Key != "" {
+		if len(o.Key) > drBase.HEIGHT-10 {
+			width += (len(o.Key) - (drBase.HEIGHT - 10)) * 15
+		}
+	}
+
+	if o.Value.OperationId != "" {
+		height += drBase.HEIGHT
+		if len(o.Value.OperationId) > drBase.HEIGHT-10 {
+			width += (len(o.Value.OperationId) - (drBase.HEIGHT - 10)) * 20
+		}
+	}
+
+	if o.Value.Callbacks != nil && o.Value.Callbacks.Len() > 0 {
+		height += drBase.HEIGHT
+	}
+
+	if len(o.Value.Parameters) > 0 {
+		height += drBase.HEIGHT
+	}
+
+	if o.Value.Deprecated != nil && *o.Value.Deprecated {
+		height += drBase.HEIGHT
+	}
+
+	if len(o.Value.Servers) > 0 {
+		height += drBase.HEIGHT
+	}
+
+	if o.Value.Responses != nil && o.Value.Responses.Codes.Len() > 0 {
+		height += drBase.HEIGHT
+	}
+
+	if len(o.Value.Security) > 0 {
+		height += drBase.HEIGHT
+	}
+
+	if len(o.Value.Tags) > 0 {
+		height += drBase.HEIGHT
+	}
+
+	if o.Value.Extensions != nil && o.Value.Extensions.Len() > 0 {
+		height += drBase.HEIGHT
+	}
+
+	return height, width
+}

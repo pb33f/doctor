@@ -79,7 +79,8 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().Responses),
 			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().Responses),
 		}
-		respNode.BuildNodesAndEdges(ctx, cases.Title(language.English).String(respNode.PathSegment), respNode.PathSegment, nil, c)
+		respNode.BuildNodesAndEdgesWithArray(ctx, "Responses",
+			respNode.PathSegment, nil, c, false, components.Responses.Len(), -1)
 
 		c.Responses = orderedmap.New[string, *Response]()
 		for responsesPairs := components.Responses.First(); responsesPairs != nil; responsesPairs = responsesPairs.Next() {
@@ -149,7 +150,9 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().Examples),
 			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().Examples),
 		}
-		expNode.BuildNodesAndEdges(ctx, cases.Title(language.English).String(expNode.PathSegment), expNode.PathSegment, nil, c)
+
+		expNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(expNode.PathSegment),
+			expNode.PathSegment, nil, c, false, components.Examples.Len(), -1)
 
 		c.Examples = orderedmap.New[string, *drBase.Example]()
 		for examplesPairs := components.Examples.First(); examplesPairs != nil; examplesPairs = examplesPairs.Next() {
@@ -290,7 +293,9 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().Links),
 			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().Links),
 		}
-		linkNode.BuildNodesAndEdges(ctx, cases.Title(language.English).String(linkNode.PathSegment), linkNode.PathSegment, nil, c)
+
+		linkNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(linkNode.PathSegment),
+			linkNode.PathSegment, nil, c, false, components.Links.Len(), -1)
 
 		c.Links = orderedmap.New[string, *Link]()
 		for linksPairs := components.Links.First(); linksPairs != nil; linksPairs = linksPairs.Next() {
@@ -323,7 +328,9 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().Callbacks),
 			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().Callbacks),
 		}
-		cbNode.BuildNodesAndEdges(ctx, cases.Title(language.English).String(cbNode.PathSegment), cbNode.PathSegment, nil, c)
+
+		cbNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(cbNode.PathSegment),
+			cbNode.PathSegment, nil, c, false, components.Callbacks.Len(), -1)
 
 		c.Callbacks = orderedmap.New[string, *Callback]()
 		for callbacksPairs := components.Callbacks.First(); callbacksPairs != nil; callbacksPairs = callbacksPairs.Next() {
@@ -356,7 +363,8 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().PathItems),
 			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().PathItems),
 		}
-		piNode.BuildNodesAndEdges(ctx, cases.Title(language.English).String(piNode.PathSegment), piNode.PathSegment, nil, c)
+		piNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(piNode.PathSegment),
+			piNode.PathSegment, nil, c, false, components.PathItems.Len(), -1)
 
 		c.PathItems = orderedmap.New[string, *PathItem]()
 		for pathItemPairs := components.PathItems.First(); pathItemPairs != nil; pathItemPairs = pathItemPairs.Next() {

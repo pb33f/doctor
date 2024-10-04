@@ -219,3 +219,60 @@ func (p *PathItem) GetOperations() *orderedmap.Map[string, *Operation] {
 func (p *PathItem) GetValue() any {
 	return p.Value
 }
+
+func (p *PathItem) GetSize() (height, width int) {
+	width = base.WIDTH
+	height = base.HEIGHT
+
+	if p.Key != "" {
+		if len(p.Key) > base.HEIGHT-10 {
+			width += (len(p.Key) - (base.HEIGHT - 10)) * 15
+		}
+	}
+
+	if p.Get != nil {
+		height += base.HEIGHT
+	}
+
+	if p.Put != nil {
+		height += base.HEIGHT
+	}
+
+	if p.Post != nil {
+		height += base.HEIGHT
+	}
+
+	if p.Delete != nil {
+		height += base.HEIGHT
+	}
+
+	if p.Options != nil {
+		height += base.HEIGHT
+	}
+
+	if p.Head != nil {
+		height += base.HEIGHT
+	}
+
+	if p.Patch != nil {
+		height += base.HEIGHT
+	}
+
+	if p.Trace != nil {
+		height += base.HEIGHT
+	}
+
+	if p.Servers != nil {
+		height += base.HEIGHT
+	}
+
+	if p.Parameters != nil {
+		height += base.HEIGHT
+	}
+
+	if p.Value.Extensions != nil && p.Value.Extensions.Len() > 0 {
+		height += base.HEIGHT
+	}
+
+	return height, width
+}

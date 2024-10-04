@@ -103,15 +103,15 @@ func (p *Parameter) GetSize() (height, width int) {
 	height = drBase.HEIGHT
 
 	if p.Key != "" {
-		if len(p.Key) > drBase.HEIGHT {
-			width += (len(p.Key) - drBase.HEIGHT) * 10
+		if len(p.Key) > drBase.HEIGHT-10 {
+			width += (len(p.Key) - (drBase.HEIGHT - 10)) * 15
 		}
 	}
 
 	if p.Value.Name != "" {
 		height += drBase.HEIGHT
-		if len(p.Value.Name) > drBase.HEIGHT {
-			width += (len(p.Value.Name) - drBase.HEIGHT) * 22
+		if len(p.Value.Name) > drBase.HEIGHT-10 {
+			width += (len(p.Value.Name) - (drBase.HEIGHT - 10)) * 22
 		}
 	}
 

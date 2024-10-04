@@ -35,6 +35,7 @@ type Foundational interface {
 	SetNode(node *Node)
 	AddEdge(edge *Edge)
 	GetNode() *Node
+	GetRefNode() *Node
 	GetEdges() []*Edge
 	GetKeyNode() *yaml.Node
 	GetValueNode() *yaml.Node
@@ -46,21 +47,22 @@ type HasSize interface {
 }
 
 type Foundation struct {
-	PathSegment  string
-	InstanceType string
-	IsIndexed    bool
-	Index        int
-	Key          string
-	Parent       any
-	NodeParent   any
-	RuleResults  []*RuleFunctionResult
-	JSONPath     string
-	Mutex        sync.Mutex
-	Node         *Node
-	Edges        []*Edge
-	KeyNode      *yaml.Node
-	ValueNode    *yaml.Node
-	CacheSplit   bool
+	PathSegment   string
+	InstanceType  string
+	IsIndexed     bool
+	Index         int
+	Key           string
+	Parent        any
+	NodeParent    any
+	RuleResults   []*RuleFunctionResult
+	JSONPath      string
+	Mutex         sync.Mutex
+	Node          *Node
+	NodeReference *Node // if the chain was broken, keep a reference
+	Edges         []*Edge
+	KeyNode       *yaml.Node
+	ValueNode     *yaml.Node
+	CacheSplit    bool
 }
 
 func (f *Foundation) GetInstanceType() string {
@@ -145,7 +147,13 @@ func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arra
 		if f.KeyNode != nil {
 			n.KeyLine = f.KeyNode.Line
 		}
+		if f.Node == nil {
+			panic("no node")
+		}
+
 		return n
+	} else {
+		panic("no parent node")
 	}
 	return nil
 }
@@ -161,6 +169,11 @@ func (f *Foundation) BuildNodesAndEdgesWithArray(ctx context.Context, label, nod
 		}
 		var n *Node
 		n = f.BuildNode(ctx, label, nodeType, arrayType, arrayCount, arrayIndex)
+
+		if f.GetNode() == nil {
+			panic("no node dude")
+		}
+
 		if drModel != nil {
 			n.DrInstance = drModel
 		}
@@ -216,6 +229,8 @@ func (f *Foundation) BuildNodesAndEdgesWithArray(ctx context.Context, label, nod
 							f.BuildReferenceEdge(ctx, sourceId, target, r.GetReference(), "")
 
 							// break the chain, no more rendering down this branch.
+							copyNode := *f.GetNode()
+							f.SetRefNode(&copyNode)
 							f.SetNode(nil)
 						}
 					} else {
@@ -228,13 +243,17 @@ func (f *Foundation) BuildNodesAndEdgesWithArray(ctx context.Context, label, nod
 								f.BuildReferenceEdge(ctx, sourceId, target, r.GetReference(), "")
 
 								// break the chain, no more rendering down this branch.
+								copyNode := *f.GetNode()
+								f.SetRefNode(&copyNode)
 								f.SetNode(nil)
+
 							}
 						}
 					}
 				}
 			}
 		}
+
 	}
 }
 
@@ -333,6 +352,10 @@ func (f *Foundation) SetNode(node *Node) {
 	f.Node = node
 }
 
+func (f *Foundation) SetRefNode(node *Node) {
+	f.NodeReference = node
+}
+
 func (f *Foundation) AddEdge(edge *Edge) {
 	if f == nil {
 		return
@@ -349,6 +372,10 @@ func (f *Foundation) AddEdge(edge *Edge) {
 
 func (f *Foundation) GetNode() *Node {
 	return f.Node
+}
+
+func (f *Foundation) GetRefNode() *Node {
+	return f.NodeReference
 }
 
 func (f *Foundation) GetEdges() []*Edge {

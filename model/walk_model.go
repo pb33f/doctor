@@ -19,6 +19,7 @@ import (
 	"github.com/sourcegraph/conc"
 	"gopkg.in/yaml.v3"
 	"sort"
+	"strconv"
 	"sync"
 )
 
@@ -158,7 +159,7 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 	// ln is part of debug code, it is not used when not initialized
 	//ln := make([]any, doc.Rolodex.GetFullLineCount())
 	var ln []any
-
+	drDoc := &drV3.Document{}
 	go func(sChan chan *drBase.WalkedSchema, skippedChan chan *drBase.WalkedSchema, done chan bool) {
 		for {
 			select {
@@ -265,7 +266,6 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 		}
 	}(schemaChan, skippedSchemaChan, done)
 
-	drDoc := &drV3.Document{}
 	drDoc.Walk(drCtx, doc)
 
 	done <- true
@@ -291,10 +291,28 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 	if buildGraph {
 		for _, edge := range refEdges {
 			//extract node id from line map
-			if n, ok := nodeMap[edge.Targets[0]]; ok {
-				edge.Targets[0] = n.Id
-				targets[edge.Targets[0]] = edge
-				sources[edge.Sources[0]] = edge
+
+			// check if the target is an int.
+			t, e := strconv.Atoi(edge.Targets[0])
+			if e == nil {
+				if n, ok := w.lineObjects[t]; ok {
+					r := n.(drBase.Foundational).GetNode()
+					if r != nil {
+						edge.Targets[0] = r.Id
+					} else {
+						if b, ko := nodeValueMap[edge.Targets[0]]; ko {
+							edge.Targets[0] = b.Id
+						}
+					}
+					targets[edge.Targets[0]] = edge
+					sources[edge.Sources[0]] = edge
+				} else {
+					if b, ko := nodeValueMap[edge.Targets[0]]; ko {
+						edge.Targets[0] = b.Id
+						targets[edge.Targets[0]] = edge
+						sources[edge.Sources[0]] = edge
+					}
+				}
 			} else {
 				if b, ko := nodeValueMap[edge.Targets[0]]; ko {
 					edge.Targets[0] = b.Id
