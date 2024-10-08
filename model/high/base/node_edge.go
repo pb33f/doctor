@@ -24,6 +24,8 @@ type Node struct {
 	Height        int        `json:"height"`
 	Children      []*Node    `json:"nodes,omitempty"`
 	IsArray       bool       `json:"isArray,omitempty"`
+	IsPoly        bool       `json:"isPoly,omitempty"`
+	PolyType      string     `json:"polyType,omitempty"`
 	PropertyCount int        `json:"propertyCount,omitempty"`
 	ArrayIndex    int        `json:"arrayIndex,omitempty"`
 	ArrayValues   int        `json:"arrayValues,omitempty"`
@@ -59,6 +61,11 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		"keyLine":   n.KeyLine,
 		"valueLine": n.ValueLine,
 		"hash":      n.Hash,
+	}
+
+	if n.IsPoly || n.PolyType != "" {
+		propMap["isPoly"] = n.IsPoly
+		propMap["polyType"] = n.PolyType
 	}
 
 	if n.IsArray {

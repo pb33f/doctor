@@ -35,6 +35,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 	c.Value = components
 	c.PathSegment = "components"
 	c.BuildNodesAndEdges(ctx, cases.Title(language.English).String(c.PathSegment), c.PathSegment, components, c)
+	negOne := -1
 
 	if components.Schemas != nil && components.Schemas.Len() > 0 {
 
@@ -48,7 +49,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 		}
 
 		schNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(schNode.PathSegment),
-			schNode.PathSegment, nil, c, false, components.Schemas.Len(), -1)
+			schNode.PathSegment, nil, c, false, components.Schemas.Len(), &negOne)
 
 		c.Schemas = orderedmap.New[string, *drBase.SchemaProxy]()
 		for schemasPairs := components.Schemas.First(); schemasPairs != nil; schemasPairs = schemasPairs.Next() {
@@ -80,7 +81,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().Responses),
 		}
 		respNode.BuildNodesAndEdgesWithArray(ctx, "Responses",
-			respNode.PathSegment, nil, c, false, components.Responses.Len(), -1)
+			respNode.PathSegment, nil, c, false, components.Responses.Len(), &negOne)
 
 		c.Responses = orderedmap.New[string, *Response]()
 		for responsesPairs := components.Responses.First(); responsesPairs != nil; responsesPairs = responsesPairs.Next() {
@@ -117,7 +118,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 		}
 
 		paramNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(paramNode.PathSegment),
-			paramNode.PathSegment, nil, c, false, components.Parameters.Len(), -1)
+			paramNode.PathSegment, nil, c, false, components.Parameters.Len(), &negOne)
 
 		c.Parameters = orderedmap.New[string, *Parameter]()
 		for parametersPairs := components.Parameters.First(); parametersPairs != nil; parametersPairs = parametersPairs.Next() {
@@ -152,7 +153,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 		}
 
 		expNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(expNode.PathSegment),
-			expNode.PathSegment, nil, c, false, components.Examples.Len(), -1)
+			expNode.PathSegment, nil, c, false, components.Examples.Len(), &negOne)
 
 		c.Examples = orderedmap.New[string, *drBase.Example]()
 		for examplesPairs := components.Examples.First(); examplesPairs != nil; examplesPairs = examplesPairs.Next() {
@@ -187,7 +188,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 		}
 
 		reqNode.BuildNodesAndEdgesWithArray(ctx, "Request Bodies",
-			reqNode.PathSegment, nil, c, false, components.RequestBodies.Len(), -1)
+			reqNode.PathSegment, nil, c, false, components.RequestBodies.Len(), &negOne)
 
 		c.RequestBodies = orderedmap.New[string, *RequestBody]()
 		for requestBodiesPairs := components.RequestBodies.First(); requestBodiesPairs != nil; requestBodiesPairs = requestBodiesPairs.Next() {
@@ -225,7 +226,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 		}
 
 		headerNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(headerNode.PathSegment),
-			headerNode.PathSegment, nil, c, false, components.Headers.Len(), -1)
+			headerNode.PathSegment, nil, c, false, components.Headers.Len(), &negOne)
 
 		c.Headers = orderedmap.New[string, *Header]()
 		for headersPairs := components.Headers.First(); headersPairs != nil; headersPairs = headersPairs.Next() {
@@ -260,7 +261,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 		}
 
 		secNode.BuildNodesAndEdgesWithArray(ctx, "Security Schemes",
-			secNode.PathSegment, nil, c, false, components.SecuritySchemes.Len(), -1)
+			secNode.PathSegment, nil, c, false, components.SecuritySchemes.Len(), &negOne)
 
 		c.SecuritySchemes = orderedmap.New[string, *SecurityScheme]()
 		for securitySchemesPairs := components.SecuritySchemes.First(); securitySchemesPairs != nil; securitySchemesPairs = securitySchemesPairs.Next() {
@@ -295,7 +296,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 		}
 
 		linkNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(linkNode.PathSegment),
-			linkNode.PathSegment, nil, c, false, components.Links.Len(), -1)
+			linkNode.PathSegment, nil, c, false, components.Links.Len(), &negOne)
 
 		c.Links = orderedmap.New[string, *Link]()
 		for linksPairs := components.Links.First(); linksPairs != nil; linksPairs = linksPairs.Next() {
@@ -330,7 +331,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 		}
 
 		cbNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(cbNode.PathSegment),
-			cbNode.PathSegment, nil, c, false, components.Callbacks.Len(), -1)
+			cbNode.PathSegment, nil, c, false, components.Callbacks.Len(), &negOne)
 
 		c.Callbacks = orderedmap.New[string, *Callback]()
 		for callbacksPairs := components.Callbacks.First(); callbacksPairs != nil; callbacksPairs = callbacksPairs.Next() {
@@ -364,7 +365,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().PathItems),
 		}
 		piNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(piNode.PathSegment),
-			piNode.PathSegment, nil, c, false, components.PathItems.Len(), -1)
+			piNode.PathSegment, nil, c, false, components.PathItems.Len(), &negOne)
 
 		c.PathItems = orderedmap.New[string, *PathItem]()
 		for pathItemPairs := components.PathItems.First(); pathItemPairs != nil; pathItemPairs = pathItemPairs.Next() {

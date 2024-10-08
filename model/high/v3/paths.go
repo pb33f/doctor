@@ -25,9 +25,10 @@ func (p *Paths) Walk(ctx context.Context, paths *v3.Paths) {
 
 	p.Value = paths
 	p.PathSegment = "paths"
+	negOne := -1
 
 	p.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(p.PathSegment),
-		p.PathSegment, nil, p, false, paths.PathItems.Len(), -1)
+		p.PathSegment, paths, p, false, paths.PathItems.Len(), &negOne)
 
 	if paths.PathItems != nil {
 		p.PathItems = orderedmap.New[string, *PathItem]()
@@ -46,7 +47,9 @@ func (p *Paths) Walk(ctx context.Context, paths *v3.Paths) {
 			pi.Parent = p
 			pi.NodeParent = p
 			pi.Key = k
-			wg.Go(func() { pi.Walk(ctx, v) })
+			wg.Go(func() {
+				pi.Walk(ctx, v)
+			})
 			p.PathItems.Set(k, pi)
 		}
 	}

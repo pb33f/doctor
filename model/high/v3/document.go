@@ -42,6 +42,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 	drCtx.NodeChan <- n
 
 	//d.BuildNodesAndEdges(ctx, "document")
+	negOne := -1
 
 	if doc.Info != nil {
 		d.Info = &base.Info{}
@@ -62,7 +63,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			KeyNode:     base.ExtractKeyNodeForLowModel(doc.GoLow().Servers),
 		}
 		serversNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(serversNode.PathSegment),
-			serversNode.PathSegment, nil, d, true, len(doc.Servers), -1)
+			serversNode.PathSegment, nil, d, true, len(doc.Servers), &negOne)
 
 		for i, server := range doc.Servers {
 			srvr := server
@@ -70,11 +71,13 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			s.Parent = d
 			s.NodeParent = serversNode
 			s.IsIndexed = true
-			s.Index = i
+			s.Index = &i
 			s.ValueNode = server.GoLow().RootNode
 			s.KeyNode = server.GoLow().KeyNode
 			d.Servers = append(d.Servers, s)
-			wg.Go(func() { s.Walk(ctx, srvr) })
+			wg.Go(func() {
+				s.Walk(ctx, srvr)
+			})
 		}
 	}
 
@@ -84,7 +87,9 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		p.NodeParent = d
 		p.ValueNode = base.ExtractValueNodeForLowModel(doc.GoLow().Paths)
 		p.KeyNode = base.ExtractKeyNodeForLowModel(doc.GoLow().Paths)
-		wg.Go(func() { p.Walk(ctx, doc.Paths) })
+		wg.Go(func() {
+			p.Walk(ctx, doc.Paths)
+		})
 		d.Paths = p
 	}
 
@@ -109,7 +114,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			KeyNode:     base.ExtractKeyNodeForLowModel(doc.GoLow().Security),
 		}
 		secNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(secNode.PathSegment),
-			secNode.PathSegment, nil, d, true, len(doc.Security), -1)
+			secNode.PathSegment, nil, d, true, len(doc.Security), &negOne)
 
 		for i, security := range doc.Security {
 			sec := security
@@ -118,7 +123,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			s.Parent = d
 			s.NodeParent = secNode
 			s.IsIndexed = true
-			s.Index = i
+			s.Index = &i
 
 			// check if the security requirement exists
 			if doc.Components != nil && doc.Components.SecuritySchemes != nil {
@@ -162,7 +167,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		}
 
 		tagsNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(tagsNode.PathSegment),
-			tagsNode.PathSegment, nil, d, true, len(doc.Tags), -1)
+			tagsNode.PathSegment, nil, d, true, len(doc.Tags), &negOne)
 
 		for i, tag := range doc.Tags {
 			t := &base.Tag{}
@@ -170,11 +175,11 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			t.NodeParent = tagsNode
 			t.PathSegment = "tags"
 			t.IsIndexed = true
-			t.Index = i
+			t.Index = &i
 			t.Value = tag
 			t.ValueNode = doc.GoLow().Tags.Value[i].ValueNode
 			t.KeyNode = tag.GoLow().RootNode
-			t.BuildNodesAndEdgesWithArray(ctx, tag.Name, "tag", tag, t, false, 0, i)
+			t.BuildNodesAndEdgesWithArray(ctx, tag.Name, "tag", tag, t, false, 0, &i)
 			t.Walk(ctx, tag)
 			d.Tags = append(d.Tags, t)
 		}
