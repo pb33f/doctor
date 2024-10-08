@@ -25,7 +25,15 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 
 	p.Value = param
 
-	p.BuildNodesAndEdges(ctx, p.Key, "parameter", param, p)
+	if p.Index != nil {
+		n := p.Value.Name
+		if n == "" {
+			n = p.Value.In
+		}
+		p.BuildNodesAndEdgesWithArray(ctx, n, "parameter", param, p, false, 0, p.Index)
+	} else {
+		p.BuildNodesAndEdges(ctx, p.Key, "parameter", param, p)
+	}
 
 	if param.Schema != nil {
 		s := &drBase.SchemaProxy{}
@@ -103,15 +111,15 @@ func (p *Parameter) GetSize() (height, width int) {
 	height = drBase.HEIGHT
 
 	if p.Key != "" {
-		if len(p.Key) > drBase.HEIGHT-10 {
-			width += (len(p.Key) - (drBase.HEIGHT - 10)) * 15
+		if len(p.Key) > drBase.HEIGHT-15 {
+			width += (len(p.Key) - (drBase.HEIGHT - 15)) * 20
 		}
 	}
 
 	if p.Value.Name != "" {
 		height += drBase.HEIGHT
-		if len(p.Value.Name) > drBase.HEIGHT-10 {
-			width += (len(p.Value.Name) - (drBase.HEIGHT - 10)) * 22
+		if len(p.Value.Name) > drBase.HEIGHT-15 {
+			width += (len(p.Value.Name) - (drBase.HEIGHT - 15)) * 30
 		}
 	}
 

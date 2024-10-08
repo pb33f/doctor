@@ -50,8 +50,9 @@ type Foundation struct {
 	PathSegment   string
 	InstanceType  string
 	IsIndexed     bool
-	Index         int
+	Index         *int
 	Key           string
+	PolyType      string
 	Parent        any
 	NodeParent    any
 	RuleResults   []*RuleFunctionResult
@@ -122,6 +123,11 @@ func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arra
 			n.PropertyCount = arrayCount
 		}
 
+		if f.PolyType != "" {
+			n.IsPoly = true
+			n.PolyType = f.PolyType
+		}
+
 		n.ArrayIndex = arrayIndex
 		n.Type = nodeType
 		n.Label = label
@@ -158,7 +164,7 @@ func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arra
 	return nil
 }
 
-func (f *Foundation) BuildNodesAndEdgesWithArray(ctx context.Context, label, nodeType string, model high.GoesLowUntyped, drModel any, arrayType bool, arrayCount, arrayIndex int) {
+func (f *Foundation) BuildNodesAndEdgesWithArray(ctx context.Context, label, nodeType string, model high.GoesLowUntyped, drModel any, arrayType bool, arrayCount int, arrayIndex *int) {
 	drCtx := GetDrContext(ctx)
 	parent := f.GetNodeParent()
 
@@ -168,7 +174,7 @@ func (f *Foundation) BuildNodesAndEdgesWithArray(ctx context.Context, label, nod
 			return
 		}
 		var n *Node
-		n = f.BuildNode(ctx, label, nodeType, arrayType, arrayCount, arrayIndex)
+		n = f.BuildNode(ctx, label, nodeType, arrayType, arrayCount, *arrayIndex)
 
 		if f.GetNode() == nil {
 			panic("no node dude")
@@ -187,14 +193,20 @@ func (f *Foundation) BuildNodesAndEdgesWithArray(ctx context.Context, label, nod
 		idHash := md5.Sum([]byte(n.Id))
 		n.IdHash = hex.EncodeToString(idHash[:])
 
+		//sent := false
 		if label != "" {
+			//sent = true
 			drCtx.NodeChan <- n
 		}
+
+		//if !sent && (arrayIndex != nil && *arrayIndex >= 0) {
+		//	drCtx.NodeChan <- n
+		//}
+
+		// if label == "" || (arrayIndex != nil && *arrayIndex >= 0) {
 		if label == "" {
 			parent = parent.GetNodeParent()
 			f.NodeParent = parent
-			n.Id = n.ParentId
-
 			if parent != nil && parent.GetNode() == nil {
 				//fmt.Println("no parent node")
 			} else {
@@ -203,13 +215,18 @@ func (f *Foundation) BuildNodesAndEdgesWithArray(ctx context.Context, label, nod
 				}
 			}
 		}
-
-		if label != "" && parent.GetNode() != nil {
+		//if (label != "" || (arrayIndex != nil && *arrayIndex >= 0)) && parent != nil && parent.GetNode() != nil {
+		if label != "" && parent != nil && parent.GetNode() != nil {
 			e := GenerateEdge([]string{
 				parent.GetNode().Id,
 			}, []string{
 				f.GetNode().Id,
 			})
+
+			if f.PolyType != "" {
+				e.Poly = f.PolyType
+			}
+
 			parent.AddEdge(e)
 			drCtx.EdgeChan <- e
 		}
@@ -253,12 +270,12 @@ func (f *Foundation) BuildNodesAndEdgesWithArray(ctx context.Context, label, nod
 				}
 			}
 		}
-
 	}
 }
 
 func (f *Foundation) BuildNodesAndEdges(ctx context.Context, label, nodeType string, model high.GoesLowUntyped, drModel any) {
-	f.BuildNodesAndEdgesWithArray(ctx, label, nodeType, model, drModel, false, 0, -1)
+	negOne := -1
+	f.BuildNodesAndEdgesWithArray(ctx, label, nodeType, model, drModel, false, 0, &negOne)
 }
 
 func (f *Foundation) AddRuleFunctionResult(result *RuleFunctionResult) {
@@ -334,10 +351,10 @@ func (f *Foundation) GenerateJSONPathWithLevel(level int) string {
 			//if f.PathSegment == "" {
 			//	sep = ""
 			//}
-			return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment + "[" + fmt.Sprint(f.Index) + "]"
+			return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment + "[" + fmt.Sprint(*f.Index) + "]"
 		}
 		if f.CacheSplit {
-			return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment + "CACHE-SPLIT[" + fmt.Sprint(f.Index) + "]--"
+			return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment + "CACHE-SPLIT[" + fmt.Sprint(*f.Index) + "]--"
 		}
 		if f.PathSegment == "" {
 			sep = ""

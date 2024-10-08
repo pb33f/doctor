@@ -9,6 +9,8 @@ import (
 	drBase "github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"strings"
 )
 
@@ -31,6 +33,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 
 	o.Value = operation
 	o.BuildNodesAndEdges(ctx, strings.ToUpper(o.PathSegment), "operation", operation, o)
+	negOne := -1
 
 	if operation.ExternalDocs != nil {
 		ed := &drBase.ExternalDoc{}
@@ -41,6 +44,19 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 	}
 
 	if operation.Parameters != nil && len(operation.Parameters) > 0 {
+
+		paramsNode := &drBase.Foundation{
+			Parent:      o,
+			NodeParent:  o,
+			PathSegment: "parameters",
+			Index:       o.Index,
+			ValueNode:   drBase.ExtractValueNodeForLowModel(operation.GoLow().Parameters),
+			KeyNode:     drBase.ExtractKeyNodeForLowModel(operation.GoLow().Parameters),
+		}
+
+		paramsNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(paramsNode.PathSegment),
+			paramsNode.PathSegment, nil, o, true, len(operation.Parameters), &negOne)
+
 		for i, parameter := range operation.Parameters {
 			param := parameter
 			p := &Parameter{}
@@ -48,9 +64,9 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			p.KeyNode = param.GoLow().KeyNode
 			p.PathSegment = "parameters"
 			p.Parent = o
-			p.NodeParent = o
+			p.NodeParent = paramsNode
 			p.IsIndexed = true
-			p.Index = i
+			p.Index = &i
 			wg.Go(func() { p.Walk(ctx, param) })
 			o.Parameters = append(o.Parameters, p)
 		}
@@ -129,7 +145,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			s := &drBase.SecurityRequirement{}
 			s.Parent = o
 			s.IsIndexed = true
-			s.Index = i
+			s.Index = &i
 			s.NodeParent = o
 			wg.Go(func() { s.Walk(ctx, sec) })
 			o.Security = append(o.Security, s)
@@ -166,7 +182,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			s.KeyNode = server.GoLow().KeyNode
 			s.Parent = o
 			s.IsIndexed = true
-			s.Index = i
+			s.Index = &i
 			wg.Go(func() { s.Walk(ctx, server) })
 			o.Servers = append(o.Servers, s)
 		}

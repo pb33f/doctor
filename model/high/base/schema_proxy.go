@@ -96,6 +96,8 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 		newSchema.ValueNode = sp.ValueNode
 		newSchema.KeyNode = sp.KeyNode
 		newSchema.Value = sch
+		newSchema.Index = sp.Index
+		newSchema.PolyType = sp.PolyType
 
 		if !schemaProxy.IsReference() {
 
