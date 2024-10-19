@@ -531,6 +531,16 @@ func (s *Schema) GetSize() (height, width int) {
 	return h, w
 }
 
+func hasSubSchemas(s *base.Schema) bool {
+	return len(s.AllOf) > 0 || len(s.OneOf) > 0 || len(s.AnyOf) > 0 ||
+		s.Not != nil || (s.Items != nil && s.Items.IsA()) || len(s.PrefixItems) > 0 ||
+		s.Contains != nil || s.If != nil || s.Else != nil || s.Then != nil ||
+		(s.DependentSchemas != nil && s.DependentSchemas.Len() > 0) ||
+		(s.PatternProperties != nil && s.PatternProperties.Len() > 0) ||
+		s.PropertyNames != nil ||
+		s.UnevaluatedItems != nil || (s.UnevaluatedProperties != nil && s.UnevaluatedProperties.IsA())
+}
+
 func ParseSchemaSize(schema *base.Schema) (height, width int) {
 	width = WIDTH
 	height = HEIGHT
@@ -543,7 +553,7 @@ func ParseSchemaSize(schema *base.Schema) (height, width int) {
 			}
 		}
 	} else {
-		if schema.HasSubSchemas() {
+		if hasSubSchemas(schema) {
 			height += HEIGHT
 		}
 	}
