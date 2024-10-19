@@ -47,7 +47,6 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 
 			mt.Parent = r
 			mt.PathSegment = "content"
-
 			mt.NodeParent = r
 			value := contentPairs.Value()
 			wg.Go(func() {

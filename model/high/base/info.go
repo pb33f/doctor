@@ -55,8 +55,8 @@ func (i *Info) GetSize() (height, width int) {
 	}
 	if i.Value.Title != "" {
 		height += HEIGHT
-		if len(i.Value.Title) > HEIGHT {
-			width += (len(i.Value.Title) - HEIGHT) * 10
+		if len(i.Value.Title) > (HEIGHT - 10) {
+			width += (len(i.Value.Title) - (HEIGHT - 10)) * 10
 		}
 	}
 	if i.Value.Extensions != nil && i.Value.Extensions.Len() > 0 {

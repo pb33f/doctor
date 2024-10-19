@@ -165,6 +165,10 @@ func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arra
 }
 
 func (f *Foundation) BuildNodesAndEdgesWithArray(ctx context.Context, label, nodeType string, model high.GoesLowUntyped, drModel any, arrayType bool, arrayCount int, arrayIndex *int) {
+	f.ProcessNodesAndEdges(ctx, label, nodeType, model, drModel, arrayType, arrayCount, arrayIndex, false)
+}
+
+func (f *Foundation) ProcessNodesAndEdges(ctx context.Context, label, nodeType string, model high.GoesLowUntyped, drModel any, arrayType bool, arrayCount int, arrayIndex *int, schema bool) {
 	drCtx := GetDrContext(ctx)
 	parent := f.GetNodeParent()
 
@@ -193,29 +197,19 @@ func (f *Foundation) BuildNodesAndEdgesWithArray(ctx context.Context, label, nod
 		idHash := md5.Sum([]byte(n.Id))
 		n.IdHash = hex.EncodeToString(idHash[:])
 
-		//sent := false
 		if label != "" {
-			//sent = true
 			drCtx.NodeChan <- n
 		}
 
-		//if !sent && (arrayIndex != nil && *arrayIndex >= 0) {
-		//	drCtx.NodeChan <- n
-		//}
-
-		// if label == "" || (arrayIndex != nil && *arrayIndex >= 0) {
 		if label == "" {
 			parent = parent.GetNodeParent()
+
 			f.NodeParent = parent
-			if parent != nil && parent.GetNode() == nil {
-				//fmt.Println("no parent node")
-			} else {
-				if parent != nil {
-					n.ParentId = parent.GetNode().Id
-				}
+			if parent != nil && parent.GetNode() != nil {
+				n.ParentId = parent.GetNode().Id
 			}
 		}
-		//if (label != "" || (arrayIndex != nil && *arrayIndex >= 0)) && parent != nil && parent.GetNode() != nil {
+
 		if label != "" && parent != nil && parent.GetNode() != nil {
 			e := GenerateEdge([]string{
 				parent.GetNode().Id,
@@ -271,6 +265,11 @@ func (f *Foundation) BuildNodesAndEdgesWithArray(ctx context.Context, label, nod
 			}
 		}
 	}
+}
+
+func (f *Foundation) BuildSchemaNodeAndEdge(ctx context.Context, label string, model high.GoesLowUntyped, drModel any) {
+	negOne := -1
+	f.ProcessNodesAndEdges(ctx, label, "schema", model, drModel, false, 0, &negOne, true)
 }
 
 func (f *Foundation) BuildNodesAndEdges(ctx context.Context, label, nodeType string, model high.GoesLowUntyped, drModel any) {
@@ -348,9 +347,6 @@ func (f *Foundation) GenerateJSONPathWithLevel(level int) string {
 			return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment + "['" + f.Key + "']"
 		}
 		if f.IsIndexed {
-			//if f.PathSegment == "" {
-			//	sep = ""
-			//}
 			return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment + "[" + fmt.Sprint(*f.Index) + "]"
 		}
 		if f.CacheSplit {
@@ -361,6 +357,9 @@ func (f *Foundation) GenerateJSONPathWithLevel(level int) string {
 		}
 		return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment
 
+	}
+	if f.PathSegment == "document" {
+		return "$"
 	}
 	return f.PathSegment
 }
@@ -383,7 +382,9 @@ func (f *Foundation) AddEdge(edge *Edge) {
 	if f.Edges == nil {
 		f.Edges = []*Edge{edge}
 	} else {
+		f.Mutex.Lock()
 		f.Edges = append(f.Edges, edge)
+		f.Mutex.Unlock()
 	}
 }
 

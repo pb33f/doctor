@@ -140,7 +140,7 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 				}
 			}
 		}
-		//cache.Store(key, sp.Schema)
+
 	} else {
 		if schemaProxy.GetBuildError() != nil {
 			drCtx.ErrorChan <- &BuildError{

@@ -1,0 +1,9 @@
+TestAccountV3:
+  type: object
+  properties:
+    parentAccount:
+      $ref: "schemas.yaml#/TestAccountV3"
+    liveAccount:
+      $ref: "schemas.yaml#/TestAccountV3"
+    provisionedForAccount:
+      $ref: "schemas.yaml#/TestAccountV3"

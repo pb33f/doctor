@@ -4,11 +4,11 @@
 package base
 
 import (
+	"context"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/sourcegraph/conc"
-	"golang.org/x/net/context"
 	"gopkg.in/yaml.v3"
 	"log/slog"
 	"sync"

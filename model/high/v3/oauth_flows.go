@@ -22,13 +22,11 @@ type OAuthFlows struct {
 func (o *OAuthFlows) Walk(ctx context.Context, flows *v3.OAuthFlows) {
 	o.Value = flows
 	drCtx := drBase.GetDrContext(ctx)
-	//o.BuildNodesAndEdges(ctx, "oAuthFlows")
 
 	if flows.Implicit != nil {
 		i := &OAuthFlow{}
 		i.Parent = o
 		i.PathSegment = "implicit"
-		//i.BuildNodesAndEdges(ctx, "implicit")
 		o.Implicit = i
 		i.Value = flows.Implicit
 		drCtx.ObjectChan <- i
@@ -38,7 +36,6 @@ func (o *OAuthFlows) Walk(ctx context.Context, flows *v3.OAuthFlows) {
 		p := &OAuthFlow{}
 		p.Parent = o
 		p.PathSegment = "password"
-		//p.BuildNodesAndEdges(ctx, "password")
 		o.Password = p
 		p.Value = flows.Password
 		drCtx.ObjectChan <- p
@@ -48,7 +45,6 @@ func (o *OAuthFlows) Walk(ctx context.Context, flows *v3.OAuthFlows) {
 		c := &OAuthFlow{}
 		c.Parent = o
 		c.PathSegment = "clientCredentials"
-		//c.BuildNodesAndEdges(ctx, "clientCredentials")
 		o.ClientCredentials = c
 		c.Value = flows.ClientCredentials
 		drCtx.ObjectChan <- c
@@ -58,7 +54,6 @@ func (o *OAuthFlows) Walk(ctx context.Context, flows *v3.OAuthFlows) {
 		a := &OAuthFlow{}
 		a.Parent = o
 		a.PathSegment = "authorizationCode"
-		//a.BuildNodesAndEdges(ctx, "authorizationCode")
 		o.AuthorizationCode = a
 		a.Value = flows.AuthorizationCode
 		drCtx.ObjectChan <- a

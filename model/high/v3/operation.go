@@ -73,12 +73,26 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 	}
 
 	if operation.RequestBody != nil {
+
+		rbNode := &drBase.Foundation{
+			Parent:      o,
+			NodeParent:  o,
+			PathSegment: "requestBody",
+			Index:       o.Index,
+			ValueNode:   drBase.ExtractValueNodeForLowModel(operation.GoLow().RequestBody),
+			KeyNode:     drBase.ExtractKeyNodeForLowModel(operation.GoLow().RequestBody),
+		}
+
+		rbNode.BuildNodesAndEdges(ctx, "Request Body",
+			rbNode.PathSegment, operation.RequestBody, o)
+
 		rb := &RequestBody{}
 		rb.Parent = o
-		rb.PathSegment = "requestBody"
-		rb.NodeParent = o
+		rb.PathSegment = rbNode.PathSegment
+		rb.NodeParent = rbNode
 		rb.ValueNode = operation.RequestBody.GoLow().RootNode
 		rb.KeyNode = operation.RequestBody.GoLow().KeyNode
+
 		wg.Go(func() {
 			rb.Walk(ctx, operation.RequestBody)
 		})

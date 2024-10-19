@@ -6,6 +6,7 @@ package model
 import (
 	"fmt"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 	"time"
@@ -15,6 +16,47 @@ import (
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestWalker_TestSelfReferences(t *testing.T) {
+
+	// create a libopenapi document
+	var bytes []byte
+	var newDoc libopenapi.Document
+	measureExecutionTime("load", func() {
+		bytes, _ = os.ReadFile("../test_specs/root.yaml")
+	})
+
+	var err error
+	var errs []error
+	measureExecutionTime("new doc", func() {
+
+		docConfig := datamodel.DocumentConfiguration{
+			BasePath:            "../test_specs",
+			AllowFileReferences: true,
+		}
+
+		newDoc, err = libopenapi.NewDocumentWithConfiguration(bytes, &docConfig)
+		require.NoError(t, err)
+	})
+
+	var v3Docs *libopenapi.DocumentModel[v3.Document]
+	measureExecutionTime("build model", func() {
+		v3Docs, errs = newDoc.BuildV3Model()
+		require.Empty(t, errs)
+	})
+
+	var walker *DrDocument
+	measureExecutionTime("new walker", func() {
+		walker = NewDrDocument(v3Docs)
+	})
+
+	assert.Equal(t, 0, len(walker.Schemas))
+	assert.Equal(t, "Success", walker.V3Document.Paths.PathItems.GetOrZero("/v3/test").Get.Responses.Codes.GetOrZero("200").Value.Description)
+
+	// this is a self reference, it will be empty.
+	assert.Empty(t, walker.V3Document.Paths.PathItems.GetOrZero("/v3/test").Get.Responses.Codes.GetOrZero("200").Content.GetOrZero("application/json").SchemaProxy.Schema.Value.Description)
+
+}
 
 func TestWalker_TestStripe(t *testing.T) {
 

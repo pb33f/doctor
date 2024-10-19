@@ -24,7 +24,6 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 
 	r.Value = responses
 	r.PathSegment = "responses"
-	//r.BuildNodesAndEdges(ctx, cases.Title(language.English).String(r.PathSegment), r.PathSegment, responses, r)
 
 	if responses.Codes != nil {
 		r.Codes = orderedmap.New[string, *Response]()

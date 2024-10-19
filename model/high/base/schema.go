@@ -63,15 +63,33 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 	sm := drCtx.SchemaCache
 	if _, ok := sm.Load(buf.String()); ok {
 
-		// TODO: come back to this and investigate caching with references etc.
-		//this schema path has already been walked, so we're going to bail
-		//s.Value = schema
-		//s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
-		//return
+		// cached! we don't need to re-walk this.
+		s.Value = schema
+		s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
+		return
 	}
 
 	s.Value = schema
-	s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
+
+	if s.Index != nil {
+		n := ""
+		if len(s.Value.Type) > 0 {
+			n = s.Value.Type[0]
+		}
+		if s.Value.Title != "" {
+			n = s.Value.Title
+		}
+		if n == "" {
+			n = "schema"
+		}
+		s.ProcessNodesAndEdges(ctx, n, "schema", schema, s, false, 0, s.Index, true)
+	} else {
+		negone := -1
+		if s.Name == "" {
+			s.Name = "schema"
+		}
+		s.ProcessNodesAndEdges(ctx, s.Name, "schema", schema, s, false, 0, &negone, true)
+	}
 
 	if schema.AllOf != nil {
 		var allOf []*SchemaProxy
@@ -83,12 +101,14 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.ValueNode = schema.GoLow().AllOf.ValueNode
 			sch.Parent = s
 			sch.IsIndexed = true
-			sch.Index = i
+			sch.Index = &i
 			sch.PathSegment = "allOf"
+			sch.PolyType = sch.PathSegment
 			sch.NodeParent = s
 			sch.Value = aOfItem
 			allOf = append(allOf, sch)
-			sch.Walk(ctx, aOfItem, depth)
+			wg.Go(func() { sch.Walk(ctx, aOfItem, depth) })
+
 		}
 		s.AllOf = allOf
 	}
@@ -102,12 +122,13 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.ValueNode = schema.GoLow().OneOf.ValueNode
 			sch.Parent = s
 			sch.IsIndexed = true
-			sch.Index = i
+			sch.Index = &i
 			sch.PathSegment = "oneOf"
+			sch.PolyType = sch.PathSegment
 			sch.NodeParent = s
 			sch.Value = oOfItem
 			oneOf = append(oneOf, sch)
-			sch.Walk(ctx, oOfItem, depth)
+			wg.Go(func() { sch.Walk(ctx, oOfItem, depth) })
 		}
 		s.OneOf = oneOf
 	}
@@ -121,12 +142,13 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.ValueNode = schema.GoLow().AnyOf.ValueNode
 			sch.Parent = s
 			sch.IsIndexed = true
-			sch.Index = i
+			sch.Index = &i
 			sch.PathSegment = "anyOf"
+			sch.PolyType = sch.PathSegment
 			sch.NodeParent = s
 			sch.Value = aOfItem
 			anyOf = append(anyOf, sch)
-			sch.Walk(ctx, aOfItem, depth)
+			wg.Go(func() { sch.Walk(ctx, aOfItem, depth) })
 		}
 		s.AnyOf = anyOf
 	}
@@ -140,12 +162,12 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.ValueNode = schema.GoLow().PrefixItems.ValueNode
 			sch.Parent = s
 			sch.IsIndexed = true
-			sch.Index = i
+			sch.Index = &i
 			sch.NodeParent = s
 			sch.PathSegment = "prefixItems"
 			sch.Value = pItem
 			prefixItems = append(prefixItems, sch)
-			sch.Walk(ctx, pItem, depth)
+			wg.Go(func() { sch.Walk(ctx, pItem, depth) })
 		}
 		s.PrefixItems = prefixItems
 	}
@@ -244,10 +266,25 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.Parent = s
 			sch.PathSegment = "patternProperties"
 			sch.Key = patternPropertiesPairs.Key()
+			walked := false
 			for lowPPPairs := schema.GoLow().PatternProperties.Value.First(); lowPPPairs != nil; lowPPPairs = lowPPPairs.Next() {
 				if lowPPPairs.Key().Value == sch.Key {
 					sch.KeyNode = lowPPPairs.Key().KeyNode
 					sch.ValueNode = lowPPPairs.Value().ValueNode
+
+					g := patternPropertiesPairs.Value().Schema()
+					if g != nil {
+						if !slices.Contains(g.Type, "string") &&
+							!slices.Contains(g.Type, "boolean") &&
+							!slices.Contains(g.Type, "integer") &&
+							!slices.Contains(g.Type, "number") {
+							sch.NodeParent = s
+						}
+					}
+					walked = true
+					wg.Go(func() {
+						sch.Walk(ctx, patternPropertiesPairs.Value(), depth)
+					})
 					break
 				}
 			}
@@ -261,7 +298,16 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 					sch.NodeParent = s
 				}
 			}
-			wg.Go(func() { sch.Walk(ctx, v, depth) })
+			if !walked {
+				g := patternPropertiesPairs.Value().Schema()
+				if !slices.Contains(g.Type, "string") &&
+					!slices.Contains(g.Type, "boolean") &&
+					!slices.Contains(g.Type, "integer") &&
+					!slices.Contains(g.Type, "number") {
+					sch.NodeParent = s
+				}
+				wg.Go(func() { sch.Walk(ctx, v, depth) })
+			}
 		}
 		s.PatternProperties = patternProperties
 	}
@@ -297,7 +343,6 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		dynamicValue.Value = schema.UnevaluatedProperties
 		dynamicValue.ValueNode = schema.GoLow().UnevaluatedProperties.ValueNode
 		dynamicValue.KeyNode = schema.GoLow().UnevaluatedProperties.KeyNode
-		//dynamicValue.BuildNodesAndEdges(ctx, dynamicValue.PathSegment)
 		if schema.UnevaluatedProperties.IsA() {
 			sch := &SchemaProxy{}
 			sch.Parent = s
@@ -321,14 +366,12 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		dynamicValue.ValueNode = schema.GoLow().Items.ValueNode
 		dynamicValue.KeyNode = schema.GoLow().Items.KeyNode
 		dynamicValue.Node = s.Node
-		//dynamicValue.BuildNodesAndEdges(ctx, dynamicValue.PathSegment)
 		if schema.Items.IsA() {
 
 			sch := &SchemaProxy{}
 			sch.Parent = dynamicValue
 			sch.Value = schema.Items.A
 			sch.NodeParent = s
-			//sch.Key = schema.
 			sch.ValueNode = schema.GoLow().Items.ValueNode
 			sch.KeyNode = schema.GoLow().Items.KeyNode
 			sch.Node = s.Node
@@ -372,11 +415,15 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 				if lowSchPairs.Key().Value == sch.Key {
 					sch.ValueNode = lowSchPairs.Value().ValueNode
 					sch.KeyNode = lowSchPairs.Key().KeyNode
-					//if slices.Contains(v.Schema().Type, "object") || slices.Contains(v.Schema().Type, "array") || v.Schema().Extensions.Len() > 0 || v.IsReference() {
-					// TODO: this needs to be updated to allow reference to access node, but prevent every sub schema from
-					// getting it's own node
-					sch.NodeParent = s
-					//}
+					g := v.Schema()
+					if g != nil {
+						if !slices.Contains(g.Type, "string") &&
+							!slices.Contains(g.Type, "boolean") &&
+							!slices.Contains(g.Type, "integer") &&
+							!slices.Contains(g.Type, "number") {
+							sch.NodeParent = s
+						}
+					}
 					walked = true
 					wg.Go(func() {
 						sch.Walk(ctx, v, depth)
@@ -388,8 +435,12 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			if v.IsReference() {
 				sch.NodeParent = s
 			} else {
-				if v.Schema() != nil {
-					if slices.Contains(v.Schema().Type, "object") || slices.Contains(v.Schema().Type, "array") {
+				g := v.Schema()
+				if g != nil {
+					if !slices.Contains(g.Type, "string") &&
+						!slices.Contains(g.Type, "boolean") &&
+						!slices.Contains(g.Type, "integer") &&
+						!slices.Contains(g.Type, "number") {
 						sch.NodeParent = s
 					}
 				}
@@ -447,7 +498,6 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		externalDocs.PathSegment = "externalDocs"
 		externalDocs.Value = schema.ExternalDocs
 		externalDocs.NodeParent = s
-		//externalDocs.BuildNodesAndEdges(ctx, externalDocs.PathSegment)
 		s.ExternalDocs = externalDocs
 		drCtx.ObjectChan <- externalDocs
 	}
@@ -473,17 +523,35 @@ func (s *Schema) GetSize() (height, width int) {
 			w += (len(s.Name) - (HEIGHT - 15)) * 25
 		}
 	}
+	if len(s.AnyOf) <= 0 && len(s.OneOf) <= 0 && len(s.AllOf) <= 0 {
+		if s.PolyType != "" {
+			h += HEIGHT // parent is poly, add new row for schema to render this.
+		}
+	}
 	return h, w
 }
 
 func ParseSchemaSize(schema *base.Schema) (height, width int) {
 	width = WIDTH
 	height = HEIGHT
+	if schema.Type != nil {
+		strArr := []string{"object", "array"}
+		for _, t := range strArr {
+			if slices.Contains(schema.Type, t) {
+				height += HEIGHT
+				break
+			}
+		}
+	} else {
+		if schema.HasSubSchemas() {
+			height += HEIGHT
+		}
+	}
 
 	if schema.Title != "" {
 		height += HEIGHT
 		if len(schema.Title) > (HEIGHT - 10) {
-			width += (len(schema.Title) - (HEIGHT - 10)) * 20
+			width += (len(schema.Title) - (HEIGHT)) * 20
 		}
 	}
 
