@@ -97,6 +97,15 @@ func (w *DrDocument) LocateModelByLine(line int) (drBase.Foundational, error) {
 	return w.lineObjects[line].(drBase.Foundational), nil
 }
 
+// BuildObjectLocationMap builds a map of line numbers to models in the document.
+func (w *DrDocument) BuildObjectLocationMap() map[int]any {
+	objectMap := make(map[int]any)
+	for k, v := range w.lineObjects {
+		objectMap[k] = v
+	}
+	return objectMap
+}
+
 func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 
 	schemaChan := make(chan *drBase.WalkedSchema)

@@ -8,6 +8,7 @@ import (
 	drBase "github.com/pb33f/doctor/model/high/base"
 	"github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"slices"
 )
 
 type Parameter struct {
@@ -41,7 +42,15 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 		s.KeyNode = param.Schema.GetSchemaKeyNode()
 		s.Parent = p
 		s.PathSegment = "schema"
-		s.NodeParent = p
+		g := param.Schema.Schema()
+		if g != nil {
+			if !slices.Contains(g.Type, "string") &&
+				!slices.Contains(g.Type, "boolean") &&
+				!slices.Contains(g.Type, "integer") &&
+				!slices.Contains(g.Type, "number") {
+				s.NodeParent = p
+			}
+		}
 		wg.Go(func() { s.Walk(ctx, param.Schema, 0) })
 		p.SchemaProxy = s
 	}

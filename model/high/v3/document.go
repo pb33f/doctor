@@ -225,6 +225,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 	d.PathSegment = "document"
 	d.Node.Type = "document"
 	d.Node.Hash = "document (root)"
+	d.Node.IdHash = "root"
 	d.Node.DrInstance = d
 	d.buildRenderedNode()
 	drCtx.ObjectChan <- d
@@ -242,6 +243,9 @@ func (d *Document) buildRenderedNode() {
 	m["version"] = d.Document.Rolodex.GetConfig().SpecInfo.Version
 	if d.Document.Paths != nil && d.Document.Paths.PathItems != nil {
 		m["paths"] = d.Document.Paths.PathItems.Len()
+		if d.Paths != nil && d.Paths.Node != nil {
+			m["paths_idhash"] = d.Paths.Node.IdHash
+		}
 	}
 
 	if d.Components != nil {
@@ -277,20 +281,44 @@ func (d *Document) buildRenderedNode() {
 			c += d.Components.Callbacks.Len()
 		}
 		m["components"] = c
+		if d.Components.Node != nil {
+			m["components_idhash"] = d.Components.Node.IdHash
+		}
 	}
 	if d.Security != nil {
 		m["security"] = len(d.Security)
+		if d.Security[0].NodeParent != nil {
+			if x, ok := d.Security[0].NodeParent.(base.Foundational); ok {
+				if x.GetNode() != nil {
+					m["security_idhash"] = x.GetNode().IdHash
+				}
+			}
+		}
 	}
 	if d.Servers != nil && len(d.Servers) > 0 {
 		m["servers"] = len(d.Servers)
+
+		if d.Servers[0].NodeParent != nil {
+			if x, ok := d.Servers[0].NodeParent.(base.Foundational); ok {
+				if x.GetNode() != nil {
+					m["servers_idhash"] = x.GetNode().IdHash
+				}
+			}
+		}
 	}
 	if d.Tags != nil {
 		m["tags"] = len(d.Tags)
-	}
-	if d.Document.GoLow().Extensions != nil {
-		if d.Document.GoLow().Extensions.Len() > 0 {
-			m["extensions"] = d.Document.GoLow().Extensions.Len()
+		if d.Tags[0].NodeParent != nil {
+			if x, ok := d.Tags[0].NodeParent.(base.Foundational); ok {
+				if x.GetNode() != nil {
+					m["tags_idhash"] = x.GetNode().IdHash
+				}
+			}
 		}
+	}
+
+	if d.Document.GoLow().Extensions != nil {
+		m["extensions"] = d.Document.GoLow().Extensions.Len()
 	}
 	d.Node.Instance = m
 }
@@ -301,6 +329,7 @@ func (d *Document) GetSize() (height, width int) {
 	items := []any{
 		d.Servers,
 		d.Paths,
+
 		d.Components,
 		d.Security,
 		d.Tags,

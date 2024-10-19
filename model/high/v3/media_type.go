@@ -120,12 +120,14 @@ func (m *MediaType) GetSize() (height, width int) {
 		height += drBase.HEIGHT
 	}
 
-	if m.Value.Schema != nil && len(m.Value.Schema.Schema().Type) > 0 {
-		width += len(m.Value.Schema.Schema().Type) * 50
-		sh, sw := drBase.ParseSchemaSize(m.Value.Schema.Schema())
-		height += sh
-		if width < sw {
-			width = sw
+	if m.Value.Schema != nil && m.Value.Schema.Schema() != nil && len(m.Value.Schema.Schema().Type) > 0 {
+		if !m.Value.Schema.IsReference() {
+			width += len(m.Value.Schema.Schema().Type) * 50
+			sh, sw := drBase.ParseSchemaSize(m.Value.Schema.Schema())
+			height += sh
+			if width < sw {
+				width = sw
+			}
 		}
 	}
 

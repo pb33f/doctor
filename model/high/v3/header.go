@@ -9,6 +9,7 @@ import (
 	drBase "github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"slices"
 )
 
 type Header struct {
@@ -33,7 +34,16 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 		c.Parent = h
 		c.Value = header.Schema
 		c.PathSegment = "schema"
-		c.NodeParent = h
+		g := header.Schema.Schema()
+		if g != nil {
+			if !slices.Contains(g.Type, "string") &&
+				!slices.Contains(g.Type, "boolean") &&
+				!slices.Contains(g.Type, "integer") &&
+				!slices.Contains(g.Type, "number") {
+				c.NodeParent = h
+			}
+		}
+
 		wg.Go(func() {
 			c.Walk(ctx, header.Schema, 0)
 		})

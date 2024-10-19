@@ -10,6 +10,8 @@ import (
 	"github.com/pb33f/libopenapi/datamodel/low"
 	lowV3 "github.com/pb33f/libopenapi/datamodel/low/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"net/http"
 	"reflect"
 	"slices"
@@ -76,6 +78,8 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 	p.Value = pathItem
 	p.BuildNodesAndEdges(ctx, p.Key, "pathItem", pathItem, p)
 
+	negOne := -1
+
 	if pathItem.Get != nil {
 		op := p.buildOperation("get")
 		wg.Go(func() { op.Walk(ctx, pathItem.Get) })
@@ -133,7 +137,7 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 			s := &Server{}
 			s.Parent = p
 			s.IsIndexed = true
-			s.Index = i
+			s.Index = &i
 			s.NodeParent = p
 			wg.Go(func() { s.Walk(ctx, srvr) })
 			p.Servers = append(p.Servers, s)
@@ -141,6 +145,19 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 	}
 
 	if pathItem.Parameters != nil {
+
+		paramsNode := &base.Foundation{
+			Parent:      p,
+			NodeParent:  p,
+			PathSegment: "parameters",
+			Index:       p.Index,
+			ValueNode:   base.ExtractValueNodeForLowModel(pathItem.GoLow().Parameters),
+			KeyNode:     base.ExtractKeyNodeForLowModel(pathItem.GoLow().Parameters),
+		}
+
+		paramsNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(paramsNode.PathSegment),
+			paramsNode.PathSegment, nil, p, true, len(pathItem.Parameters), &negOne)
+
 		for i, parameter := range pathItem.Parameters {
 			param := parameter
 			para := &Parameter{}
@@ -149,9 +166,11 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 			para.PathSegment = "parameters"
 			para.Parent = p
 			para.IsIndexed = true
-			para.Index = i
-			para.NodeParent = p
-			wg.Go(func() { para.Walk(ctx, param) })
+			para.Index = &i
+			para.NodeParent = paramsNode
+			wg.Go(func() {
+				para.Walk(ctx, param)
+			})
 			p.Parameters = append(p.Parameters, para)
 		}
 	}

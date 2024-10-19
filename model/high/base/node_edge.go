@@ -118,7 +118,7 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 								enc = make(map[string]interface{})
 								enc["$ref"] = r.GetReference()
 							} else {
-								rn.GetRootNode().Decode(&enc)
+								_ = rn.GetRootNode().Decode(&enc)
 							}
 						}
 						propMap["instance"] = enc
@@ -142,32 +142,16 @@ func GenerateNode(parentId string, instance any) *Node {
 	// check if instance can go low
 	var uuidValue string
 	line := 1
-	//if instance != nil {
-	//	if goesLow, ok := instance.(high.GoesLowUntyped); ok {
-	//		low := goesLow.GoLowUntyped()
-	//		// check if hashable
-	//		if hashable, ko := low.(lowModel.Hashable); ko {
-	//			uuidValue = fmt.Sprintf("%x", hashable.Hash())
-	//		}
-	//	}
-	//	if foundational, ok := instance.(Foundational); ok {
-	//		if foundational.GetKeyNode() != nil {
-	//			line = foundational.GetKeyNode().Line
-	//		}
-	//	}
-	//}
-	if uuidValue == "" {
-		if instance != nil {
-			uuidValue = instance.(Foundational).GenerateJSONPath()
-		} else {
-			uuidValue = uuid.New().String()
-		}
+
+	if instance != nil {
+		uuidValue = instance.(Foundational).GenerateJSONPath()
+	} else {
+		uuidValue = uuid.New().String()
 	}
 
 	return &Node{
-		Id:       uuidValue,
-		ParentId: parentId,
-		//Instance: instance,
+		Id:        uuidValue,
+		ParentId:  parentId,
 		KeyLine:   line,
 		ValueLine: line,
 	}
