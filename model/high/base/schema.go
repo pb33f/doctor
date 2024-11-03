@@ -561,7 +561,7 @@ func ParseSchemaSize(schema *base.Schema) (height, width int) {
 	if schema.Title != "" {
 		height += HEIGHT
 		if len(schema.Title) > (HEIGHT - 10) {
-			width += (len(schema.Title) - (HEIGHT)) * 20
+			width += ((len(schema.Title) * 10) - HEIGHT)
 		}
 	}
 

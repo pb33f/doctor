@@ -367,6 +367,9 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 		sort.Slice(w.BuildErrors, orderedFunc)
 	}
 
+	// clear schema cache
+	drDoc.Document.Rolodex.ClearIndexCaches()
+
 	return drDoc
 }
 
