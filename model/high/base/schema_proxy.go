@@ -20,6 +20,7 @@ type SchemaProxy struct {
 type ObjectReference struct {
 	Reference string
 	Node      *yaml.Node
+	Foundation
 }
 
 func (r *ObjectReference) GetValue() any {
