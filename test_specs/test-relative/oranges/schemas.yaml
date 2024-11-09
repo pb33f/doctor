@@ -1,0 +1,12 @@
+openapi: 3.1.0
+components:
+  schemas:
+    Orange:
+        type: object
+        properties:
+            seeds:
+              type: integer
+            color:
+              $ref: "../colors/schemas.yaml#/Orange"
+            subtype:
+              $ref: "subtypes/types.yaml#/components/schemas/BloodOrange"

@@ -1,0 +1,7 @@
+LemonThing:
+  type: object
+  properties:
+    seeds:
+        type: integer
+    color:
+      $ref: "../colors/schemas.yaml#/Yellow"

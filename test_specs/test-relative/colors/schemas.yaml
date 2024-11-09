@@ -1,0 +1,12 @@
+Yellow:
+  type: string
+  const: "yellow"
+Orange:
+  type: string
+  const: "orange"
+OrangeRed:
+  type: string
+  const: "orange-red"
+Purple:
+  type: string
+  const: "purple"

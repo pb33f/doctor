@@ -1,0 +1,23 @@
+openapi: 3.1.0
+paths:
+  /v3/test:
+    get:
+      summary: test
+      operationId: test
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "lemons/schemas.yaml#/LemonThing"
+schemas:
+  User:
+    $ref: "all_shared.yaml#/User"
+  Fruit:
+    type: object
+    properties:
+      lemon:
+        $ref: "lemons/schemas.yaml#/LemonThing"
+      orange:
+        $ref: "oranges/schemas.yaml#/components/schemas/Orange"
