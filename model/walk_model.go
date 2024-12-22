@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: BUSL-1.1
 // https://pb33f.io
 
+package model
+
 // Code may be used for internal and open source projects only and may not be distributed commercially.
 // If you wish to use this code in a competitive or commercial product, please contact sales@pb33f.io
-package model
 
 import (
 	"context"
@@ -18,12 +19,13 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/sourcegraph/conc"
 	"gopkg.in/yaml.v3"
+	"os"
 	"sort"
 	"strconv"
 	"sync"
 )
 
-// DrDocument is a turbo charged version of the libopenapi Document model. The doctor
+// DrDocument is a turbocharged version of the libopenapi Document model. The doctor
 // provides a much more powerful way to navigate an OpenAPI document.
 //
 // DrDocument also absorbs results from vacuum rules, and allows them to be attached contextually
@@ -40,6 +42,7 @@ type DrDocument struct {
 	V3Document     *drV3.Document
 	Nodes          []*drBase.Node
 	Edges          []*drBase.Edge
+	StorageRoot    string
 	index          *index.SpecIndex
 	lineObjects    map[int]any
 }
@@ -106,6 +109,10 @@ func (w *DrDocument) BuildObjectLocationMap() map[int]any {
 	return objectMap
 }
 
+func (w *DrDocument) GetIndex() *index.SpecIndex {
+	return w.index
+}
+
 func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 
 	schemaChan := make(chan *drBase.WalkedSchema)
@@ -118,6 +125,8 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 	nodeChan := make(chan *drBase.Node)
 	edgeChan := make(chan *drBase.Edge)
 	var schemaCache sync.Map
+
+	wd, _ := os.Getwd()
 
 	dctx := &drBase.DrContext{
 		SchemaChan:        schemaChan,
@@ -134,8 +143,11 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 		V3Document:        doc,
 		BuildGraph:        buildGraph,
 		SchemaCache:       &schemaCache,
+		StorageRoot:       doc.GoLow().StorageRoot,
 		Logger:            doc.Index.GetLogger(),
+		WorkingDirectory:  wd,
 	}
+	w.StorageRoot = doc.GoLow().StorageRoot
 
 	drCtx := context.WithValue(context.Background(), "drCtx", dctx)
 
@@ -177,10 +189,6 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 				return
 			case s := <-sChan:
 				if s != nil {
-					if s.Schema.Value != nil && len(s.Schema.Value.Type) == 0 {
-						continue
-					}
-
 					key := fmt.Sprintf("%d:%d", s.SchemaNode.Line,
 						s.SchemaNode.Column)
 
@@ -356,6 +364,12 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 		for _, n := range w.Nodes {
 			if p, ok := nodeIdMap[n.ParentId]; ok {
 				p.Children = append(p.Children, n)
+				if n.Origin == nil {
+					origin := doc.Index.GetRolodex().FindNodeOrigin(n.Value)
+					if origin != nil {
+						n.Origin = origin
+					}
+				}
 			}
 		}
 	}
