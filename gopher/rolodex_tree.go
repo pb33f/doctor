@@ -5,7 +5,6 @@ package gopher
 
 import (
 	"fmt"
-	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"path/filepath"
@@ -133,7 +132,7 @@ func (rt *RolodexTree) BuildTree(base string, baseUrl string) *Node {
 					case datamodel.OAS31:
 						currentNode.IsOpenApi = true
 					}
-					currentNode.Statistics = &reports.ReportStatistics{
+					currentNode.Statistics = &ReportStatistics{
 						References: len(currentNode.Index.GetAllReferences()),
 						Schemas:    len(currentNode.Index.GetAllSchemas()),
 						Parameters: len(currentNode.Index.GetAllParameters()),
