@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/cespare/xxhash/v2"
-	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/pb33f/libopenapi/index"
 	"net/url"
 	"path/filepath"
@@ -40,7 +39,7 @@ type Node struct {
 	IsOpenApi     bool
 	IsFile        bool
 	Index         *index.SpecIndex
-	Statistics    *reports.ReportStatistics
+	Statistics    *ReportStatistics
 	hasContent    bool
 	showContent   bool
 	contentBuffer strings.Builder
