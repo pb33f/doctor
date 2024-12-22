@@ -8,34 +8,39 @@ import (
 	"github.com/google/uuid"
 	"github.com/pb33f/libopenapi/datamodel/high"
 	"github.com/pb33f/libopenapi/datamodel/low"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
+	"reflect"
+	"strings"
 )
 
 type Node struct {
-	Value         *yaml.Node `json:"-"`
-	Id            string     `json:"id"`
-	IdHash        string     `json:"idHash,omitempty"`
-	ParentId      string     `json:"parentId"`
-	Type          string     `json:"type"`
-	Label         string     `json:"label"`
-	Width         int        `json:"width"`
-	Height        int        `json:"height"`
-	Children      []*Node    `json:"nodes,omitempty"`
-	IsArray       bool       `json:"isArray,omitempty"`
-	IsPoly        bool       `json:"isPoly,omitempty"`
-	PolyType      string     `json:"polyType,omitempty"`
-	PropertyCount int        `json:"propertyCount,omitempty"`
-	ArrayIndex    int        `json:"arrayIndex,omitempty"`
-	ArrayValues   int        `json:"arrayValues,omitempty"`
-	Extensions    int        `json:"extensions,omitempty"`
-	Hash          string     `json:"hash,omitempty"`
-	KeyLine       int        `json:"-"`
-	ValueLine     int        `json:"valueLine"`
-	Instance      any        `json:"-"`
-	DrInstance    any        `json:"-"`
-	RenderProps   bool       `json:"-"`
+	Value         *yaml.Node        `json:"-"`
+	Id            string            `json:"id"`
+	IdHash        string            `json:"idHash,omitempty"`
+	ParentId      string            `json:"parentId"`
+	Type          string            `json:"type"`
+	Label         string            `json:"label"`
+	Width         int               `json:"width"`
+	Height        int               `json:"height"`
+	Children      []*Node           `json:"nodes,omitempty"`
+	IsArray       bool              `json:"isArray,omitempty"`
+	IsPoly        bool              `json:"isPoly,omitempty"`
+	PolyType      string            `json:"polyType,omitempty"`
+	PropertyCount int               `json:"propertyCount,omitempty"`
+	ArrayIndex    int               `json:"arrayIndex,omitempty"`
+	ArrayValues   int               `json:"arrayValues,omitempty"`
+	Extensions    int               `json:"extensions,omitempty"`
+	Hash          string            `json:"hash,omitempty"`
+	Origin        *index.NodeOrigin `json:"origin,omitempty"`
+	drModel       any               `json:"-"`
+	KeyLine       int               `json:"-"`
+	ValueLine     int               `json:"valueLine"`
+	Instance      any               `json:"-"`
+	DrInstance    any               `json:"-"`
+	RenderProps   bool              `json:"-"`
 }
 
 type Edge struct {
@@ -62,6 +67,9 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		"valueLine": n.ValueLine,
 		"hash":      n.Hash,
 	}
+	if n.Origin != nil {
+		propMap["origin"] = n.Origin.AbsoluteLocation
+	}
 
 	if n.IsPoly || n.PolyType != "" {
 		propMap["isPoly"] = n.IsPoly
@@ -83,16 +91,7 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	if !n.RenderProps {
-		if n.Children != nil && len(n.Children) > 0 {
-			propMap["nodes"] = n.Children
-		}
-	}
-
-	//instancePropMap := make(map[string]interface{})
-
 	if n.Instance != nil {
-
 		if n.RenderProps {
 			if n.DrInstance != nil {
 				if it, ok := n.DrInstance.(Foundational); ok {
@@ -126,8 +125,8 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 				}
 			}
 		}
-
 	}
+
 	if n.ArrayIndex >= 0 {
 		propMap["arrayIndex"] = n.ArrayIndex
 	}
@@ -135,18 +134,70 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		propMap["propertyCount"] = n.PropertyCount
 	}
 
+	if !n.RenderProps {
+		if n.Children != nil && len(n.Children) > 0 {
+			propMap["nodes"] = n.Children
+		}
+	}
+
 	return json.Marshal(propMap)
 }
 
-func GenerateNode(parentId string, instance any) *Node {
+func GenerateNode(parentId string, instance any, drModel any, ctx *DrContext) *Node {
 	// check if instance can go low
 	var uuidValue string
 	line := 1
 
+	var nodeOrigin *index.NodeOrigin
 	if instance != nil {
 		uuidValue = instance.(Foundational).GenerateJSONPath()
+
+		if hv, ok := drModel.(HasValue); ok {
+			if gl, kk := hv.GetValue().(high.GoesLowUntyped); kk {
+				if gl != nil && !reflect.ValueOf(gl).IsNil() {
+					l := gl.GoLowUntyped()
+					if l != nil {
+						if hi, ko := l.(HasIndex); ko {
+							idx := hi.GetIndex()
+							if idx != nil {
+
+								// check if this has a reference
+								var refValue string
+								var refNode *yaml.Node
+								if ref, kt := l.(low.IsReferenced); kt {
+									if ref.IsReference() {
+										refValue = ref.GetReference()
+										refNode = ref.GetReferenceNode()
+									}
+								}
+
+								// locate the node origin using the rolodex
+								kn := instance.(Foundational).GetKeyNode()
+								vn := instance.(Foundational).GetValueNode()
+								no := idx.GetRolodex().FindNodeOriginWithValue(kn, vn, refNode, refValue)
+
+								if no != nil {
+									// sanitize the absolute location.
+									abs := no.AbsoluteLocation
+									no.AbsoluteLocation = strings.Replace(abs, ctx.StorageRoot, "", 1)
+									no.AbsoluteLocation = strings.Replace(abs, ctx.WorkingDirectory, "", 1)
+									nodeOrigin = no
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
 	} else {
 		uuidValue = uuid.New().String()
+	}
+
+	if nodeOrigin == nil {
+		nodeOrigin = &index.NodeOrigin{
+			AbsoluteLocation: "",
+		}
 	}
 
 	return &Node{
@@ -154,6 +205,8 @@ func GenerateNode(parentId string, instance any) *Node {
 		ParentId:  parentId,
 		KeyLine:   line,
 		ValueLine: line,
+		drModel:   drModel,
+		Origin:    nodeOrigin,
 	}
 }
 
@@ -163,26 +216,6 @@ func GenerateEdge(sources []string, targets []string) *Edge {
 		Sources: sources,
 		Targets: targets,
 	}
-}
-
-func ExtractRootNodeForHighModel(obj high.GoesLowUntyped) *yaml.Node {
-	if obj != nil {
-		if ref, ok := obj.GoLowUntyped().(low.IsReferenced); ok {
-			if ref.IsReference() {
-				if hkn, ko := ref.(low.HasKeyNode); ko {
-					if hkn.GetKeyNode() != nil {
-						return hkn.GetKeyNode()
-					}
-				}
-			}
-		}
-		if hvn, ok := obj.GoLowUntyped().(low.HasValueNodeUntyped); ok {
-			if hvn.GetValueNode() != nil {
-				return hvn.GetValueNode()
-			}
-		}
-	}
-	return nil
 }
 
 func ExtractKeyNodeForLowModel(obj any) *yaml.Node {

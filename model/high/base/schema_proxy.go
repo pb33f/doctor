@@ -17,6 +17,12 @@ type SchemaProxy struct {
 	Foundation
 }
 
+type IsObjectReference interface {
+	IsReference() bool
+	GetReference() string
+	GetReferenceNode() *yaml.Node
+}
+
 type ObjectReference struct {
 	Reference string
 	Node      *yaml.Node

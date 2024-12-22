@@ -24,8 +24,8 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 
 	drCtx := base.GetDrContext(ctx)
 	wg := drCtx.WaitGroup
-	h.BuildNodesAndEdges(ctx, h.Key, "header", header, h)
 	h.Value = header
+	h.BuildNodesAndEdges(ctx, h.Key, "header", header, h)
 
 	if header.Schema != nil {
 		c := &base.SchemaProxy{}

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/pb33f/libopenapi/datamodel/high"
 	"github.com/pb33f/libopenapi/datamodel/low"
+	"github.com/pb33f/libopenapi/index"
 	"gopkg.in/yaml.v3"
 	"reflect"
 	"sync"
@@ -17,6 +18,9 @@ import (
 
 type HasValue interface {
 	GetValue() any
+}
+type HasIndex interface {
+	GetIndex() *index.SpecIndex
 }
 
 type AcceptsRuleResults interface {
@@ -107,14 +111,14 @@ func AddChunkDefaultHeight(element any, height int) int {
 	return height
 }
 
-func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arrayType bool, arrayCount, arrayIndex int) *Node {
+func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arrayType bool, arrayCount, arrayIndex int, drModel any) *Node {
 	drCtx := GetDrContext(ctx)
 	if drCtx != nil && f != nil && f.NodeParent != nil && f.GetNodeParent().GetNode() != nil {
 		if !drCtx.BuildGraph {
 			return nil
 		}
 		minWidth := 170
-		n := GenerateNode(f.GetNodeParent().GetNode().Id, f)
+		n := GenerateNode(f.GetNodeParent().GetNode().Id, f, drModel, drCtx)
 		f.SetNode(n)
 		if arrayType {
 			n.IsArray = true
@@ -178,7 +182,7 @@ func (f *Foundation) ProcessNodesAndEdges(ctx context.Context, label, nodeType s
 			return
 		}
 		var n *Node
-		n = f.BuildNode(ctx, label, nodeType, arrayType, arrayCount, *arrayIndex)
+		n = f.BuildNode(ctx, label, nodeType, arrayType, arrayCount, *arrayIndex, drModel)
 
 		if f.GetNode() == nil {
 			panic("no node dude")
