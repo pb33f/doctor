@@ -34,7 +34,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 	d.Document = doc
 	d.PathSegment = "$"
 
-	n := base.GenerateNode("document", nil)
+	n := base.GenerateNode("document", nil, nil, drCtx)
 	d.SetNode(n)
 	n.Width = 50
 	n.Height = 50
@@ -73,7 +73,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			s.IsIndexed = true
 			s.Index = &i
 			s.ValueNode = server.GoLow().RootNode
-			s.KeyNode = server.GoLow().KeyNode
+			s.KeyNode = s.ValueNode
 			d.Servers = append(d.Servers, s)
 			wg.Go(func() {
 				s.Walk(ctx, srvr)

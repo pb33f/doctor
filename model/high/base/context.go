@@ -59,6 +59,8 @@ type DrContext struct {
 	WaitGroup         *conc.WaitGroup
 	BuildGraph        bool
 	SchemaCache       *sync.Map
+	StorageRoot       string
+	WorkingDirectory  string
 	Logger            *slog.Logger
 }
 
