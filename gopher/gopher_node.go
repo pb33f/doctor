@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/cespare/xxhash/v2"
 	"github.com/daveshanley/vacuum/model/reports"
-	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"net/url"
 	"path/filepath"
@@ -27,9 +26,14 @@ func intern(s string) string {
 	return s
 }
 
+func HashString(s string) string {
+	return intern(fmt.Sprintf("%x", xxhash.Sum64String(s)))
+}
+
 type Node struct {
 	Children      map[string]*Node
 	FullPath      string
+	Parent        *Node
 	StringValue   string
 	Id            string
 	NumericId     int
@@ -53,8 +57,8 @@ func (n *Node) SetShowContent(show bool) {
 func (n *Node) MarshalJSON() ([]byte, error) {
 	m := make(map[string]interface{})
 	m["label"] = n.StringValue
+	m["idHash"] = n.Id
 	if n.hasContent {
-		m["idHash"] = n.Id
 		m["type"] = "rolodex-file"
 	} else {
 		m["type"] = "rolodex-dir"
@@ -65,6 +69,9 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 	}
 	if n.FullPath != "" {
 		m["path"] = n.FullPath
+	}
+	if n.Parent != nil {
+		m["parentId"] = n.Parent.Id
 	}
 	if n.IsOpenApi {
 		m["openapi"] = true
@@ -95,8 +102,15 @@ func (n *Node) Cleanup() {
 	n.contentBuffer.Reset()
 }
 
+func (n *Node) SetContent(content string) string {
+	n.hasContent = true
+	n.contentBuffer.Reset()
+	n.contentBuffer.WriteString(content)
+	return n.contentBuffer.String()
+}
+
 // AddChild adds a new child node with the given value
-func (n *Node) AddChild(value string, content string) *Node {
+func (n *Node) AddChild(value string, content string, fullPath string) *Node {
 	value = intern(value)
 	if n.Children == nil {
 		n.Children = make(map[string]*Node)
@@ -111,13 +125,11 @@ func (n *Node) AddChild(value string, content string) *Node {
 	hasContent := buffer.Len() > 0
 	child := &Node{
 		StringValue:   value,
+		Parent:        n,
 		contentBuffer: buffer,
 		hasContent:    hasContent,
 	}
-	if buffer.Len() > 0 {
-		child.Id = intern(fmt.Sprintf("%x", xxhash.Sum64String(content)))
-	}
-
+	child.Id = intern(HashString(fullPath))
 	n.Children[value] = child
 	return child
 }
@@ -134,7 +146,7 @@ func SplitPath(path string, base string) []string {
 	}
 
 	// Get the nip point from the last segment of the base path
-	nip := filepath.Base(base)
+	//nip := filepath.Base(base)
 
 	// Check if it's an HTTP URL
 	u, err := url.Parse(path)
@@ -154,29 +166,22 @@ func SplitPath(path string, base string) []string {
 	}
 
 	var result []string
-	skip := true
+	//skip := true
 	for _, c := range components {
 		if c == "" {
 			continue
 		}
-		if nip != "" && c == nip {
-			skip = false
-			continue // Skip the nip point itself
-		}
-		if !skip {
-			result = append(result, c)
-			continue
-		}
+		//if nip != "" && c == nip {
+		//	skip = false
+		//	continue // Skip the nip point itself
+		//}
+		//if !skip {
+		//			result = append(result, c)
+		//			continue
+		//		}
 		result = append(result, c)
 	}
 	return result
-}
-
-type RolodexTree struct {
-	Root        *Node
-	Children    []*Node
-	Rolodex     *index.Rolodex
-	indexConfig *index.SpecIndexConfig
 }
 
 // SortChildren returns a slice of child nodes sorted by StringValue alphabetically
@@ -191,89 +196,8 @@ func (n *Node) SortChildren() []*Node {
 	return childrenSlice
 }
 
-func NewRolodexTree(rolodex *index.Rolodex) *RolodexTree {
-	return &RolodexTree{
-		Rolodex:     rolodex,
-		indexConfig: rolodex.GetConfig(),
-	}
-}
-
 func isFile(path string) bool {
 	return filepath.Ext(path) != ""
-}
-
-// BuildTree constructs the tree from the given paths
-func (rt *RolodexTree) BuildTree() *Node {
-	root := &Node{
-		StringValue: "/", // Root node represents the root directory
-	}
-
-	rootIndex := rt.Rolodex.GetRootIndex()
-	indexes := rt.Rolodex.GetIndexes()
-
-	paths := []string{rootIndex.GetSpecAbsolutePath()}
-	indexMap := make(map[string]*index.SpecIndex)
-	indexMap[rootIndex.GetSpecAbsolutePath()] = rootIndex
-
-	for _, index := range indexes {
-		paths = append(paths, index.GetSpecAbsolutePath())
-		indexMap[index.GetSpecAbsolutePath()] = index
-	}
-
-	var absPath = rt.indexConfig.BasePath
-	if !filepath.IsAbs(rt.indexConfig.BasePath) {
-		absPath, _ = filepath.Abs(rt.indexConfig.BasePath)
-	}
-
-	xid := 0
-	for _, path := range paths {
-		components := SplitPath(path, absPath)
-		currentNode := root
-		rolodexFile, _ := rt.Rolodex.Open(path)
-		for _, component := range components {
-			fl := isFile(component)
-			f := ""
-			if fl {
-				if rolodexFile != nil {
-					f = intern(rolodexFile.GetContent())
-				}
-			}
-			xid++
-			currentNode = currentNode.AddChild(component, f)
-			currentNode.NumericId = xid
-			if fl && rolodexFile != nil {
-				currentNode.IsFile = true
-				currentNode.Index = rolodexFile.GetIndex()
-				info := currentNode.Index.GetConfig().SpecInfo
-				if info != nil {
-					switch info.SpecFormat {
-					case datamodel.OAS3:
-					case datamodel.OAS2:
-					case datamodel.OAS31:
-						currentNode.IsOpenApi = true
-					}
-					currentNode.Statistics = &reports.ReportStatistics{
-						FilesizeKB:    len(*info.SpecBytes) / 1024,
-						FilesizeBytes: len(*info.SpecBytes),
-						SpecType:      info.SpecType,
-						SpecFormat:    info.SpecFormat,
-						Version:       info.Version,
-						References:    len(currentNode.Index.GetAllReferences()),
-						Schemas:       len(currentNode.Index.GetAllSchemas()),
-						Parameters:    len(currentNode.Index.GetAllParameters()),
-						Links:         len(currentNode.Index.GetAllLinks()),
-						Paths:         len(currentNode.Index.GetAllPaths()),
-					}
-				}
-			}
-			if currentNode.IsFile {
-				p, _ := filepath.Abs(filepath.Join(absPath, strings.Join(components, "/")))
-				currentNode.FullPath = strings.ReplaceAll(p, fmt.Sprintf("%s/", absPath), "")
-			}
-		}
-	}
-	rt.Root = root
-	return root
 }
 
 func searchForNode(node *Node, nodeId string) *Node {
@@ -291,18 +215,23 @@ func searchForNode(node *Node, nodeId string) *Node {
 	return nil
 }
 
-func (rt *RolodexTree) SearchForNode(nodeId string) (*Node, bool) {
-	n := searchForNode(rt.Root, nodeId)
-	if n != nil {
-		return n, true
+func searchForNodeByPath(node *Node, path string) *Node {
+	if node == nil {
+		return nil
 	}
-	return nil, false
-}
 
-func (rt *RolodexTree) GetRoot() *Node {
-	return rt.Root
-}
+	// split the full definition path into components and check the path
+	if node.FullPath == path {
+		return node
+	}
+	if (node.FullPath == fmt.Sprintf("/%s", path)) || node.FullPath == path {
+		return node
+	}
 
-func (rt *RolodexTree) Cleanup() {
-	rt.Root.Cleanup()
+	for _, child := range node.Children {
+		if found := searchForNodeByPath(child, path); found != nil {
+			return found
+		}
+	}
+	return nil
 }
