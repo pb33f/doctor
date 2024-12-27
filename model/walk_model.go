@@ -69,7 +69,9 @@ func NewDrDocumentAndGraph(document *libopenapi.DocumentModel[v3.Document]) *DrD
 	return doc
 }
 
-// LocateModelsByKeyAndValue finds the model represented by the line number of the supplied node.
+// LocateModelsByKeyAndValue finds the model represented by the line number of the supplied node. This method will
+// locate every model that points to the supplied key and value node. There could be many models that point to the same
+// key and value node, so this method will return a slice of models.
 func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drBase.Foundational, error) {
 	if key == nil {
 		return nil, fmt.Errorf("key is nil, cannot locate model")
