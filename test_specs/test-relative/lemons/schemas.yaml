@@ -1,3 +1,6 @@
+Yellow:
+  type: number
+  const: 23
 LemonThing:
   type: object
   properties:

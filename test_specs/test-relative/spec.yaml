@@ -11,13 +11,14 @@ paths:
             application/json:
               schema:
                 $ref: "lemons/schemas.yaml#/LemonThing"
-schemas:
-  User:
-    $ref: "all_shared.yaml#/User"
-  Fruit:
-    type: object
-    properties:
-      lemon:
-        $ref: "lemons/schemas.yaml#/LemonThing"
-      orange:
-        $ref: "oranges/schemas.yaml#/components/schemas/Orange"
+components:
+  schemas:
+    User:
+      $ref: "all_shared.yaml#/User"
+    Fruit:
+      type: object
+      properties:
+        lemon:
+          $ref: "lemons/schemas.yaml#/LemonThing"
+        orange:
+          $ref: "oranges/schemas.yaml#/components/schemas/Orange"
