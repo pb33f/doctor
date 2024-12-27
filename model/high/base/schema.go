@@ -60,14 +60,24 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		return
 	}
 	wg := drCtx.WaitGroup
-	sm := drCtx.SchemaCache
-	if _, ok := sm.Load(buf.String()); ok {
 
-		// cached! we don't need to re-walk this.
-		s.Value = schema
-		s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
-		return
-	}
+	//sm := drCtx.SchemaCache
+	//if h, ok := sm.Load(buf.String()); ok {
+	//
+	//	// cached! we don't need to re-walk this.
+	//	s.Value = schema
+	//
+	//	rnHash := index.HashNode(schema.GoLow().RootNode)
+	//	hash := h.(string)
+	//	if rnHash == hash {
+	//		s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
+	//		drCtx.ObjectChan <- s
+	//		return
+	//
+	//	}
+	//}
+	//
+	//sm.Store(buf.String(), index.HashNode(schema.GoLow().RootNode))
 
 	s.Value = schema
 
@@ -503,7 +513,6 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 	}
 
 	drCtx.ObjectChan <- s
-	sm.Store(buf.String(), true)
 
 }
 
