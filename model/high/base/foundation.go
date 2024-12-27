@@ -314,6 +314,9 @@ func (f *Foundation) GetRuleFunctionResults() []*RuleFunctionResult {
 }
 
 func (f *Foundation) GetParent() Foundational {
+	if f.Parent == nil {
+		return nil
+	}
 	return f.Parent.(Foundational)
 }
 
