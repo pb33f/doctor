@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
+	"github.com/pb33f/libopenapi/index"
 	"gopkg.in/yaml.v3"
 )
 
@@ -119,6 +120,22 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 			clonedCtx := *drCtx
 			clonedCtx.BuildGraph = false
 			newCtx := context.WithValue(ctx, "drCtx", &clonedCtx)
+
+			// check if this is a circular ref.
+			allCircs := schemaProxy.GoLow().GetIndex().GetRolodex().GetRootIndex().GetCircularReferences()
+			safeCircularRefs := schemaProxy.GoLow().GetIndex().GetRolodex().GetSafeCircularReferences()
+			ignoredCircularRefs := schemaProxy.GoLow().GetIndex().GetRolodex().GetIgnoredCircularReferences()
+			combinedCircularRefs := append(safeCircularRefs, ignoredCircularRefs...)
+			combinedCircularRefs = append(combinedCircularRefs, allCircs...)
+			for _, ref := range combinedCircularRefs {
+				// hash the root node of the schema reference
+				rh := index.HashNode(sch.GoLow().RootNode)
+				lph := index.HashNode(ref.LoopPoint.Node)
+				if rh == lph {
+					return // nope
+				}
+			}
+
 			// walk, but don't continue with the graph down this path, as it's a reference
 			newSchema.Walk(newCtx, sch, depth)
 
