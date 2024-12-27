@@ -80,7 +80,7 @@ func TestGopher_BuildRolodexTree_TestRelativeFiles(t *testing.T) {
 	assert.Len(t, sorted[1].SortChildren()[0].GetString(), 170)
 	assert.True(t, sorted[1].SortChildren()[0].hasContent)
 
-	assert.Len(t, sorted[2].SortChildren()[0].GetString(), 129)
+	assert.Len(t, sorted[2].SortChildren()[0].GetString(), 164)
 	assert.True(t, sorted[2].SortChildren()[0].hasContent)
 
 	assert.Equal(t, "subtypes", sorted[3].SortChildren()[1].StringValue)
