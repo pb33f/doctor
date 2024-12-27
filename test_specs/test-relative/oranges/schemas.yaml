@@ -3,10 +3,11 @@ components:
   schemas:
     Orange:
         type: object
+        description: this is a test schema for an Orange
         properties:
             seeds:
               type: integer
-#            color:
-#              $ref: "../colors/schemas.yaml#/Orange"
+            color:
+              $ref: "../colors/schemas.yaml#/Orange"
             subtype:
               $ref: "subtypes/types.yaml#/components/schemas/BloodOrange"

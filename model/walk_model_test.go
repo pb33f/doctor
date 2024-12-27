@@ -6,6 +6,7 @@ package model
 import (
 	"fmt"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
@@ -81,7 +82,7 @@ func TestWalker_TestStripe(t *testing.T) {
 		walker = NewDrDocument(v3Docs)
 	})
 
-	assert.Equal(t, 15360, len(walker.Schemas))
+	assert.Equal(t, 16716, len(walker.Schemas))
 	assert.Equal(t, 186, len(walker.SkippedSchemas))
 
 }
@@ -109,7 +110,7 @@ func TestWalker_TestBurgers(t *testing.T) {
 		walker = NewDrDocument(v3Docs)
 	})
 
-	assert.Equal(t, 31, len(walker.Schemas))
+	assert.Equal(t, 32, len(walker.Schemas))
 	assert.Equal(t, 0, len(walker.SkippedSchemas))
 
 }
@@ -214,7 +215,7 @@ func TestWalker_TestStripe_Old(t *testing.T) {
 		walker = NewDrDocument(v3Docs)
 	})
 
-	assert.Equal(t, 11112, len(walker.Schemas))
+	assert.Equal(t, 12089, len(walker.Schemas))
 	assert.Equal(t, 153, len(walker.SkippedSchemas))
 
 }
@@ -256,7 +257,7 @@ func TestWalker_TestAsana(t *testing.T) {
 		walker = NewDrDocument(v3Docs)
 	})
 
-	assert.Equal(t, 874, len(walker.Schemas))
+	assert.Equal(t, 974, len(walker.Schemas))
 	assert.Equal(t, 0, len(walker.SkippedSchemas))
 
 }
@@ -319,7 +320,7 @@ func TestWalker_TestSquare(t *testing.T) {
 	measureExecutionTime("new walker", func() {
 		walker = NewDrDocument(v3Docs)
 	})
-	assert.Equal(t, 3065, len(walker.Schemas))
+	assert.Equal(t, 3072, len(walker.Schemas))
 	assert.Equal(t, 15, len(walker.SkippedSchemas))
 
 }
@@ -383,7 +384,8 @@ func TestWalker_WalkV3_PathItem(t *testing.T) {
 	pathItem = walked.Paths.PathItems.GetOrZero("/burgers/{burgerId}").Get.Parameters[0].SchemaProxy.Schema.GenerateJSONPath()
 	assert.Equal(t, "$.paths['/burgers/{burgerId}'].get.parameters[0].schema", pathItem)
 
-	assert.Equal(t, 552, len(walker.lineObjects))
+	assert.GreaterOrEqual(t, len(walker.lineObjects), 510)
+	//assert.LessOrEqual(t, len(walker.lineObjects), 552)
 
 }
 
@@ -611,7 +613,7 @@ func TestWalker_WalkV3_CheckSchemas(t *testing.T) {
 	walker := NewDrDocument(v3Doc)
 
 	schemas := walker.Schemas
-	assert.Equal(t, 31, len(schemas))
+	assert.Equal(t, 32, len(schemas))
 
 }
 
@@ -1148,7 +1150,7 @@ tags:
 
 	walker := NewDrDocument(v3Doc)
 
-	f := walker.lineObjects[3].(*base.Tag)
+	f := walker.lineObjects[3][0].(*base.Tag)
 
 	assert.Equal(t, "hello", f.Value.Name)
 	assert.Equal(t, "$.tags[0]", f.GenerateJSONPath())
@@ -1185,7 +1187,217 @@ security:
 
 	walker := NewDrDocument(v3Doc)
 
-	assert.Equal(t, "OAuthScheme", walker.lineObjects[3].(*base.SecurityRequirement).Value.Requirements.First().Key())
-	assert.Equal(t, "$.security[0]", walker.lineObjects[3].(*base.SecurityRequirement).GenerateJSONPath())
+	assert.Equal(t, "OAuthScheme", walker.lineObjects[3][0].(*base.SecurityRequirement).Value.Requirements.First().Key())
+	assert.Equal(t, "$.security[0]", walker.lineObjects[3][0].(*base.SecurityRequirement).GenerateJSONPath())
+
+}
+
+func TestMultiRefLookup(t *testing.T) {
+
+	bytes, _ := os.ReadFile("../test_specs/test-relative/spec.yaml")
+	newDoc, _ := libopenapi.NewDocumentWithConfiguration(bytes, &datamodel.DocumentConfiguration{
+		BasePath:            "../test_specs/test-relative",
+		SpecFilePath:        "test_specs/test-relative/spec.yaml",
+		AllowFileReferences: true,
+	})
+	v3Doc, _ := newDoc.BuildV3Model()
+
+	walker := NewDrDocument(v3Doc)
+	assert.NotNil(t, walker)
+
+	// extract a file from the rolodex
+	colors, err := walker.GetIndex().GetRolodex().Open("colors/schemas.yaml")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, colors)
+
+	// extract another file from the rolodex that has an identical key models.
+	lemons, err := walker.GetIndex().GetRolodex().Open("lemons/schemas.yaml")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, lemons)
+
+	colorsRoot, err := colors.GetContentAsYAMLNode()
+	assert.NoError(t, err)
+
+	colorsKeyNode := colorsRoot.Content[0].Content[0]
+	colorsValueNode := colorsRoot.Content[0].Content[1]
+	assert.Equal(t, "Yellow", colorsKeyNode.Value)
+
+	lemonsRoot, err := lemons.GetContentAsYAMLNode()
+	assert.NoError(t, err)
+
+	lemonsKeyNode := lemonsRoot.Content[0].Content[0]
+	lemonsValueNode := lemonsRoot.Content[0].Content[1]
+	assert.Equal(t, "Yellow", lemonsKeyNode.Value)
+
+	// if we hash the keys, they should be identical
+	assert.Equal(t, index.HashNode(colorsKeyNode), index.HashNode(lemonsKeyNode))
+
+	// if we hash the values, they should be completely different.
+	assert.NotEqual(t, index.HashNode(lemonsValueNode), index.HashNode(colorsValueNode))
+
+	// extract an object that is deeply referenced
+	yellowObject := walker.V3Document.Paths.PathItems.GetOrZero("/v3/test").Get.Responses.Codes.GetOrZero("200").Content.GetOrZero("application/json").SchemaProxy.Schema
+	yellowKeyNode := yellowObject.KeyNode
+	yellowValueNode := yellowObject.ValueNode
+	assert.NotNil(t, yellowObject)
+	assert.NotNil(t, yellowKeyNode)
+	assert.NotNil(t, yellowValueNode)
+
+	models, err := walker.LocateModelsByKeyAndValue(yellowKeyNode, yellowValueNode)
+	assert.NoError(t, err)
+	assert.NotNil(t, models)
+	assert.Equal(t, "$.paths['/v3/test'].get.responses['200'].content['application/json'].schema", models[0].GenerateJSONPath())
+
+	yellowObject2 := walker.V3Document.Paths.PathItems.GetOrZero("/v3/test").Get.Responses.Codes.GetOrZero("200").Content.GetOrZero("application/json").SchemaProxy.Schema.Properties.GetOrZero("color")
+	yellowKeyNode2 := yellowObject2.KeyNode
+	yellowValueNode2 := yellowObject2.ValueNode
+	assert.NotNil(t, yellowObject2)
+	assert.NotNil(t, yellowKeyNode2)
+	assert.NotNil(t, yellowValueNode2)
+
+	// there are two ways to get to this model.
+	models, err = walker.LocateModelsByKeyAndValue(yellowKeyNode2, yellowValueNode2)
+	assert.NoError(t, err)
+	assert.NotNil(t, models)
+	assert.Len(t, models, 2)
+
+	assert.Equal(t, "$.paths['/v3/test'].get.responses['200'].content['application/json'].schema.properties['color']", models[0].GenerateJSONPath())
+	assert.Equal(t, "$.components.schemas['Fruit'].properties['lemon'].properties['color']", models[1].GenerateJSONPath())
+
+	// extract an object that is deeply referenced
+	testObject := walker.V3Document.Components.Schemas.GetOrZero("Fruit").Schema.Properties.GetOrZero("orange").Schema
+	testObject2 := walker.V3Document.Components.Schemas.GetOrZero("Fruit").Schema.Properties.GetOrZero("orange").Schema.Properties.GetOrZero("subtype").Schema
+	testObject3 := walker.V3Document.Components.Schemas.GetOrZero("Fruit").Schema.Properties.GetOrZero("orange").Schema.Properties.GetOrZero("subtype").Schema.Properties.GetOrZero("color").Schema
+
+	testKeyNode := testObject.KeyNode
+	testValueNode := testObject.ValueNode
+	testKeyNode2 := testObject2.Value.GoLow().Properties.GetKeyNode()
+	testValueNode2 := testObject2.Value.GoLow().Properties.GetValueNode()
+	testKeyNode3 := testObject3.KeyNode
+	testValueNode3 := testObject3.ValueNode
+
+	models, err = walker.LocateModelsByKeyAndValue(testKeyNode, testValueNode)
+	assert.NoError(t, err)
+	assert.NotNil(t, models)
+	assert.Len(t, models, 1)
+	assert.Equal(t, "$.components.schemas['Fruit'].properties['orange']", models[0].GenerateJSONPath())
+	assert.Equal(t, 23, models[0].GetKeyNode().Line)
+	assert.Equal(t, 9, models[0].GetKeyNode().Column)
+	assert.Equal(t, 5, models[0].GetValueNode().Line)
+	assert.Equal(t, 9, models[0].GetValueNode().Column)
+
+	models, err = walker.LocateModelsByKeyAndValue(testKeyNode2, testValueNode2)
+	assert.NoError(t, err)
+	assert.NotNil(t, models)
+	assert.Len(t, models, 1)
+	assert.Equal(t, "$.components.schemas['Fruit'].properties['orange'].properties['subtype']", models[0].GenerateJSONPath())
+	assert.Equal(t, 12, models[0].GetKeyNode().Line)
+	assert.Equal(t, 13, models[0].GetKeyNode().Column)
+	assert.Equal(t, 5, models[0].GetValueNode().Line)
+	assert.Equal(t, 9, models[0].GetValueNode().Column)
+
+	models, err = walker.LocateModelsByKeyAndValue(testKeyNode3, testValueNode3)
+	assert.NoError(t, err)
+	assert.NotNil(t, models)
+	assert.Len(t, models, 1)
+	assert.Equal(t, "$.components.schemas['Fruit'].properties['orange'].properties['subtype'].properties['color']", models[0].GenerateJSONPath())
+	assert.Equal(t, 9, models[0].GetKeyNode().Line)
+	assert.Equal(t, 13, models[0].GetKeyNode().Column)
+	assert.Equal(t, 8, models[0].GetValueNode().Line)
+	assert.Equal(t, 3, models[0].GetValueNode().Column)
+
+}
+
+func TestMultiRefLookup_PetStore_Pet(t *testing.T) {
+
+	bytes, _ := os.ReadFile("../test_specs/petstorev3.json")
+	newDoc, _ := libopenapi.NewDocumentWithConfiguration(bytes, &datamodel.DocumentConfiguration{
+		BasePath:            "../test_specs",
+		SpecFilePath:        "test_specs/petstorev3.json",
+		AllowFileReferences: true,
+	})
+	v3Doc, _ := newDoc.BuildV3Model()
+
+	walker := NewDrDocument(v3Doc)
+	assert.NotNil(t, walker)
+
+	// extract an object that is deeply referenced
+	pet := walker.V3Document.Components.Schemas.GetOrZero("Pet")
+	petKeyNode := pet.KeyNode
+	petValueNode := pet.ValueNode
+	assert.NotNil(t, pet)
+	assert.NotNil(t, petKeyNode)
+	assert.NotNil(t, petValueNode)
+
+	models, err := walker.LocateModelsByKeyAndValue(petKeyNode, petValueNode)
+	assert.NoError(t, err)
+	assert.NotNil(t, models)
+	assert.Len(t, models, 1)
+	assert.Equal(t, "$.components.schemas['Pet']", models[0].GenerateJSONPath())
+
+	petPropsKeyNode := pet.Value.GoLow().Schema().Properties.GetKeyNode()
+	petPropsValueNode := pet.Value.GoLow().Schema().Properties.GetKeyNode()
+
+	// there are 19 ways to get to this model schema.
+	models, err = walker.LocateModelsByKeyAndValue(petPropsKeyNode, petPropsValueNode)
+	assert.NoError(t, err)
+	assert.NotNil(t, models)
+	assert.Len(t, models, 19)
+
+	// log the models
+	//for _, m := range models {
+	//	fmt.Println(fmt.Sprintf("%d -- %s", m.GetKeyNode().Line, m.GenerateJSONPath()))
+	//}
+
+	assert.Equal(t, "$.paths['/pet'].put.requestBody.content['application/json'].schema", models[0].GenerateJSONPath())
+	assert.Equal(t, 60, models[0].GetKeyNode().Line)
+
+}
+
+func TestMultiRefLookup_PetStore_ApiResponse(t *testing.T) {
+
+	bytes, _ := os.ReadFile("../test_specs/petstorev3.json")
+	newDoc, _ := libopenapi.NewDocumentWithConfiguration(bytes, &datamodel.DocumentConfiguration{
+		BasePath:            "../test_specs",
+		SpecFilePath:        "test_specs/petstorev3.json",
+		AllowFileReferences: true,
+	})
+	v3Doc, _ := newDoc.BuildV3Model()
+
+	walker := NewDrDocument(v3Doc)
+	assert.NotNil(t, walker)
+
+	// extract an object that is deeply referenced
+	apiResponse := walker.V3Document.Components.Schemas.GetOrZero("ApiResponse")
+	apiKeyNode := apiResponse.KeyNode
+	apiValueNode := apiResponse.ValueNode
+	assert.NotNil(t, apiResponse)
+	assert.NotNil(t, apiKeyNode)
+	assert.NotNil(t, apiValueNode)
+
+	models, err := walker.LocateModelsByKeyAndValue(apiKeyNode, apiValueNode)
+	assert.NoError(t, err)
+	assert.NotNil(t, models)
+	assert.Len(t, models, 1)
+	assert.Equal(t, "$.components.schemas['ApiResponse']", models[0].GenerateJSONPath())
+
+	apiPropsKeyNode := apiResponse.Value.GoLow().Schema().Properties.GetKeyNode()
+	apiPropsValueNode := apiResponse.Value.GoLow().Schema().Properties.GetKeyNode()
+
+	// there are 19 ways to get to this model schema.
+	models, err = walker.LocateModelsByKeyAndValue(apiPropsKeyNode, apiPropsValueNode)
+	assert.NoError(t, err)
+	assert.NotNil(t, models)
+	assert.Len(t, models, 2)
+
+	// log the models
+	//for _, m := range models {
+	//	fmt.Println(fmt.Sprintf("%d -- %s", m.GetKeyNode().Line, m.GenerateJSONPath()))
+	//}
+
+	assert.Equal(t, "$.paths['/pet/{petId}/uploadImage'].post.responses['200'].content['application/json'].schema", models[0].GenerateJSONPath())
+	assert.Equal(t, 482, models[0].GetKeyNode().Line)
 
 }

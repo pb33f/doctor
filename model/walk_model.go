@@ -44,7 +44,7 @@ type DrDocument struct {
 	Edges          []*drBase.Edge
 	StorageRoot    string
 	index          *index.SpecIndex
-	lineObjects    map[int]any
+	lineObjects    map[int][]any
 }
 
 type HasValue interface {
@@ -69,6 +69,136 @@ func NewDrDocumentAndGraph(document *libopenapi.DocumentModel[v3.Document]) *DrD
 	return doc
 }
 
+// LocateModelsByKeyAndValue finds the model represented by the line number of the supplied node.
+func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drBase.Foundational, error) {
+	if key == nil {
+		return nil, fmt.Errorf("key is nil, cannot locate model")
+	}
+	if key.Line == 0 {
+		return nil, fmt.Errorf("key line is 0, cannot locate model")
+	}
+	if w == nil {
+		return nil, fmt.Errorf("DrDocument is nil, cannot locate model")
+	}
+
+	// now we have an origin, we can locate that model.
+	if w.lineObjects[key.Line] == nil {
+		return nil, fmt.Errorf("model not found at line %d", key.Line)
+	}
+
+	// find the origin of the node
+	origin := w.index.GetRolodex().FindNodeOriginWithValue(key, value, nil, "")
+	if origin == nil {
+		return nil, fmt.Errorf("origin not found for key node")
+	}
+
+	if origin.AbsoluteLocationValue != "" { // if the key and value have different origins (external refs)
+		// extract objects from line
+		objects := w.lineObjects[origin.LineValue]
+		if objects == nil {
+			return nil, fmt.Errorf("model not found at line %d", origin.LineValue)
+		}
+
+		if len(objects) > 0 {
+			var filteredObjects []drBase.Foundational
+			for _, o := range objects {
+				if hv, ok := o.(drBase.HasValue); ok {
+					if gl, ll := hv.GetValue().(high.GoesLowUntyped); ll {
+						if hi, kk := gl.GoLowUntyped().(drBase.HasIndex); kk {
+							idx := hi.GetIndex()
+							if idx != nil {
+								if idx.GetSpecAbsolutePath() == origin.AbsoluteLocationValue {
+									// check the parents match.
+									if o.(drBase.Foundational).GetParent().GetKeyNode().Line == key.Line {
+										filteredObjects = append(filteredObjects, o.(drBase.Foundational))
+										continue
+									}
+								}
+							}
+						}
+
+						if hrn, ko := gl.GoLowUntyped().(low.HasRootNode); ko {
+							rn := hrn.GetRootNode()
+							if rn != nil {
+								// check root node from low value against parent node
+
+								if o.(drBase.Foundational).GetParent().GetKeyNode() != nil &&
+									o.(drBase.Foundational).GetParent().GetKeyNode().Line == key.Line {
+									if value == rn { // check if the nodes match
+										filteredObjects = append(filteredObjects, o.(drBase.Foundational))
+										continue
+									}
+									// check hash
+									if index.HashNode(value) == index.HashNode(rn) {
+										filteredObjects = append(filteredObjects, o.(drBase.Foundational))
+										continue
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			sort.Slice(filteredObjects, func(i, j int) bool {
+				return filteredObjects[i].GetKeyNode().Line < filteredObjects[j].GetKeyNode().Line
+			})
+			if len(filteredObjects) > 0 {
+				return filteredObjects, nil
+			}
+		}
+		return nil, fmt.Errorf("model not found at line %d", origin.LineValue)
+
+	} else { // key and value are in the same origin
+
+		objects := w.lineObjects[origin.Line]
+		if objects == nil {
+			return nil, fmt.Errorf("model not found at line %d", origin.Line)
+		}
+		var filteredObjects []drBase.Foundational
+
+		if len(objects) > 0 {
+
+			for _, o := range objects {
+				if hv, ok := o.(drBase.HasValue); ok {
+					if gl, ll := hv.GetValue().(high.GoesLowUntyped); ll {
+						if hi, kk := gl.GoLowUntyped().(drBase.HasIndex); kk {
+							idx := hi.GetIndex()
+							if idx != nil {
+								if idx.GetSpecAbsolutePath() == origin.AbsoluteLocation {
+									filteredObjects = append(filteredObjects, o.(drBase.Foundational))
+									continue
+								}
+							}
+						}
+						if hrn, ko := gl.GoLowUntyped().(low.HasRootNode); ko {
+							rn := hrn.GetRootNode()
+							if rn != nil {
+
+								if value == rn { // check if the nodes match
+									filteredObjects = append(filteredObjects, o.(drBase.Foundational))
+									continue
+								}
+								// check hash
+								if index.HashNode(value) == index.HashNode(rn) {
+									filteredObjects = append(filteredObjects, o.(drBase.Foundational))
+									continue
+								}
+							}
+						}
+					}
+				}
+			}
+			sort.Slice(filteredObjects, func(i, j int) bool {
+				return filteredObjects[i].GetKeyNode().Line < filteredObjects[j].GetKeyNode().Line
+			})
+			if len(filteredObjects) > 0 {
+				return filteredObjects, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("model not found at line %d", key.Line)
+}
+
 // LocateModel finds the model represented by the line number of the supplied node.
 func (w *DrDocument) LocateModel(node *yaml.Node) (drBase.Foundational, error) {
 	if node == nil {
@@ -83,7 +213,10 @@ func (w *DrDocument) LocateModel(node *yaml.Node) (drBase.Foundational, error) {
 	if w.lineObjects[node.Line] == nil {
 		return nil, fmt.Errorf("model not found at line %d", node.Line)
 	}
-	return w.lineObjects[node.Line].(drBase.Foundational), nil
+	if len(w.lineObjects[node.Line]) > 0 {
+		return w.lineObjects[node.Line][0].(drBase.Foundational), nil
+	}
+	return nil, fmt.Errorf("model not found at line %d", node.Line)
 }
 
 // LocateModelByLine finds the model represented by the line number of the supplied node.
@@ -97,7 +230,10 @@ func (w *DrDocument) LocateModelByLine(line int) (drBase.Foundational, error) {
 	if w.lineObjects[line] == nil {
 		return nil, fmt.Errorf("model not found at line %d", line)
 	}
-	return w.lineObjects[line].(drBase.Foundational), nil
+	if len(w.lineObjects[line]) > 0 {
+		return w.lineObjects[line][0].(drBase.Foundational), nil
+	}
+	return nil, fmt.Errorf("model not found at line %d", line)
 }
 
 // BuildObjectLocationMap builds a map of line numbers to models in the document.
@@ -169,7 +305,7 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 	seenParametersState := make(map[string]bool)
 	seenHeadersState := make(map[string]bool)
 	seenMediaTypesState := make(map[string]bool)
-	w.lineObjects = make(map[int]any)
+	w.lineObjects = make(map[int][]any)
 
 	done := make(chan bool)
 	complete := make(chan bool)
@@ -178,7 +314,7 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 	sources := make(map[string]*drBase.Edge)
 
 	// ln is part of debug code, it is not used when not initialized
-	//ln := make([]any, doc.Rolodex.GetFullLineCount())
+	//ln := make([]any, doc.Rolodex.GetFullLineCount()+1)
 	var ln []any
 	drDoc := &drV3.Document{}
 	go func(sChan chan *drBase.WalkedSchema, skippedChan chan *drBase.WalkedSchema, done chan bool) {
@@ -308,21 +444,23 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 	if buildGraph {
 		for _, edge := range refEdges {
 			//extract node id from line map
-
 			// check if the target is an int.
 			t, e := strconv.Atoi(edge.Targets[0])
 			if e == nil {
 				if n, ok := w.lineObjects[t]; ok {
-					r := n.(drBase.Foundational).GetNode()
-					if r != nil {
-						edge.Targets[0] = r.Id
-					} else {
-						if b, ko := nodeValueMap[edge.Targets[0]]; ko {
-							edge.Targets[0] = b.Id
+					// iterate through objects in slice,
+					for _, o := range n {
+						r := o.(drBase.Foundational).GetNode()
+						if r != nil {
+							edge.Targets[0] = r.Id
+						} else {
+							if b, ko := nodeValueMap[edge.Targets[0]]; ko {
+								edge.Targets[0] = b.Id
+							}
 						}
+						targets[edge.Targets[0]] = edge
+						sources[edge.Sources[0]] = edge
 					}
-					targets[edge.Targets[0]] = edge
-					sources[edge.Sources[0]] = edge
 				} else {
 					if b, ko := nodeValueMap[edge.Targets[0]]; ko {
 						edge.Targets[0] = b.Id
@@ -403,13 +541,66 @@ func (w *DrDocument) processObject(obj any, ln []any) {
 				if nm != nil {
 					no := nm.GetNodes()
 					for k, _ := range no {
+						if ir, hj := gl.GoLowUntyped().(low.IsReferenced); hj {
+							if ir.IsReference() {
+								continue
+							}
+						}
+
 						if w.lineObjects[k] == nil {
-							w.lineObjects[k] = obj
+
+							w.lineObjects[k] = []any{obj}
 
 							// Debug code, only use when initialized
 							if ln != nil {
 								ln[k] = w.lineObjects[k]
 							}
+						} else {
+
+							// check if the object is already in the line objects
+							var found bool
+							b := obj.(drBase.Foundational).GenerateJSONPath()
+							lo := w.lineObjects[k]
+							for _, o := range lo {
+								a := o.(drBase.Foundational).GenerateJSONPath()
+								if a == b {
+									found = true
+									break
+								}
+							}
+							if !found {
+								w.lineObjects[k] = append(w.lineObjects[k], obj)
+							}
+						}
+					}
+				}
+			}
+		} else {
+			if fn, ko := obj.(drBase.Foundational); ko {
+				kn := fn.GetKeyNode()
+				if kn != nil {
+
+					if w.lineObjects[kn.Line] == nil {
+						w.lineObjects[kn.Line] = []any{obj}
+
+						// Debug code, only use when initialized
+						if ln != nil {
+							ln[kn.Line] = w.lineObjects[kn.Line]
+						}
+					} else {
+						// check if the object is already in the line objects
+						var found bool
+						b := obj.(drBase.Foundational).GenerateJSONPath()
+						lo := w.lineObjects[kn.Line]
+						for _, o := range lo {
+							a := o.(drBase.Foundational).GenerateJSONPath()
+							if a == b {
+								found = true
+								break
+							}
+						}
+						if !found {
+							w.lineObjects[kn.Line] = append(w.lineObjects[kn.Line], obj)
 						}
 					}
 				}
