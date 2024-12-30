@@ -1158,12 +1158,13 @@ tags:
 	// test the locate methods
 	l, e := walker.LocateModelByLine(3)
 	assert.NoError(t, e)
-	assert.Equal(t, f, l)
+	assert.Equal(t, f, l[0])
 
 	// test the locate methods
-	l, e = walker.LocateModel(l.(*base.Tag).ValueNode)
+	ll, e := walker.LocateModel(l[0].(*base.Tag).ValueNode)
 	assert.NoError(t, e)
-	assert.Equal(t, f, l)
+	assert.Len(t, ll, 1)
+	assert.Equal(t, f, ll[0])
 
 }
 
