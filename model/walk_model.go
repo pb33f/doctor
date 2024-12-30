@@ -190,10 +190,21 @@ func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drBase.
 					}
 				}
 			}
-			sort.Slice(filteredObjects, func(i, j int) bool {
-				return filteredObjects[i].GetKeyNode().Line < filteredObjects[j].GetKeyNode().Line
-			})
-			if len(filteredObjects) > 0 {
+			foLen := len(filteredObjects)
+			if foLen > 0 {
+				sort.Slice(filteredObjects, func(i, j int) bool {
+					ka := filteredObjects[i].GetKeyNode()
+					kb := filteredObjects[j].GetKeyNode()
+					if ka != nil && kb != nil {
+						return filteredObjects[i].GetKeyNode().Line < filteredObjects[j].GetKeyNode().Line
+					}
+					if ka == nil && kb != nil {
+						return false
+					}
+					return true
+				})
+			}
+			if foLen > 0 {
 				return filteredObjects, nil
 			}
 		}
@@ -202,7 +213,7 @@ func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drBase.
 }
 
 // LocateModel finds the model represented by the line number of the supplied node.
-func (w *DrDocument) LocateModel(node *yaml.Node) (drBase.Foundational, error) {
+func (w *DrDocument) LocateModel(node *yaml.Node) ([]drBase.Foundational, error) {
 	if node == nil {
 		return nil, fmt.Errorf("node is nil, cannot locate model")
 	}
@@ -216,13 +227,20 @@ func (w *DrDocument) LocateModel(node *yaml.Node) (drBase.Foundational, error) {
 		return nil, fmt.Errorf("model not found at line %d", node.Line)
 	}
 	if len(w.lineObjects[node.Line]) > 0 {
-		return w.lineObjects[node.Line][0].(drBase.Foundational), nil
+		r := w.lineObjects[node.Line]
+		result := make([]drBase.Foundational, 0, len(r))
+		for _, item := range r {
+			if f, ok := item.(drBase.Foundational); ok {
+				result = append(result, f)
+			}
+		}
+		return result, nil
 	}
 	return nil, fmt.Errorf("model not found at line %d", node.Line)
 }
 
 // LocateModelByLine finds the model represented by the line number of the supplied node.
-func (w *DrDocument) LocateModelByLine(line int) (drBase.Foundational, error) {
+func (w *DrDocument) LocateModelByLine(line int) ([]drBase.Foundational, error) {
 	if line == 0 {
 		return nil, fmt.Errorf("line is 0, cannot locate model")
 	}
@@ -233,7 +251,26 @@ func (w *DrDocument) LocateModelByLine(line int) (drBase.Foundational, error) {
 		return nil, fmt.Errorf("model not found at line %d", line)
 	}
 	if len(w.lineObjects[line]) > 0 {
-		return w.lineObjects[line][0].(drBase.Foundational), nil
+		r := w.lineObjects[line]
+		result := make([]drBase.Foundational, 0, len(r))
+		for _, item := range r {
+			if f, ok := item.(drBase.Foundational); ok {
+				result = append(result, f)
+			}
+		}
+		// order by line number
+		sort.Slice(result, func(i, j int) bool {
+			knA := result[i].GetKeyNode()
+			knB := result[j].GetKeyNode()
+			if knA != nil && knB != nil {
+				return result[i].GetKeyNode().Line < result[j].GetKeyNode().Line
+			}
+			if knA == nil && knB != nil {
+				return false
+			}
+			return true
+		})
+		return result, nil
 	}
 	return nil, fmt.Errorf("model not found at line %d", line)
 }
