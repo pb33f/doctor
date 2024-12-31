@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -61,23 +62,25 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 	}
 	wg := drCtx.WaitGroup
 
-	//sm := drCtx.SchemaCache
-	//if h, ok := sm.Load(buf.String()); ok {
-	//
-	//	// cached! we don't need to re-walk this.
-	//	s.Value = schema
-	//
-	//	rnHash := index.HashNode(schema.GoLow().RootNode)
-	//	hash := h.(string)
-	//	if rnHash == hash {
-	//		s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
-	//		drCtx.ObjectChan <- s
-	//		return
-	//
-	//	}
-	//}
-	//
-	//sm.Store(buf.String(), index.HashNode(schema.GoLow().RootNode))
+	sm := drCtx.SchemaCache
+	if drCtx.UseSchemaCache {
+		if h, ok := sm.Load(buf.String()); ok {
+
+			// cached! we don't need to re-walk this.
+			s.Value = schema
+
+			rnHash := index.HashNode(schema.GoLow().RootNode)
+			hash := h.(string)
+			if rnHash == hash {
+				s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
+				drCtx.ObjectChan <- s
+				return
+
+			}
+		}
+
+		sm.Store(buf.String(), index.HashNode(schema.GoLow().RootNode))
+	}
 
 	s.Value = schema
 
@@ -435,9 +438,9 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 						}
 					}
 					walked = true
-					wg.Go(func() {
-						sch.Walk(ctx, v, depth)
-					})
+					//wg.Go(func() {
+					sch.Walk(ctx, v, depth)
+					//})
 					break
 				}
 			}

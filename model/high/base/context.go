@@ -58,6 +58,7 @@ type DrContext struct {
 	V3Document        *v3.Document
 	WaitGroup         *conc.WaitGroup
 	BuildGraph        bool
+	UseSchemaCache    bool
 	SchemaCache       *sync.Map
 	StorageRoot       string
 	WorkingDirectory  string

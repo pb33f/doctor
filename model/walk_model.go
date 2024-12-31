@@ -47,6 +47,11 @@ type DrDocument struct {
 	lineObjects    map[int][]any
 }
 
+type DrConfig struct {
+	BuildGraph bool
+	UseCache   bool
+}
+
 type HasValue interface {
 	GetValue() interface{}
 }
@@ -56,7 +61,16 @@ func NewDrDocument(document *libopenapi.DocumentModel[v3.Document]) *DrDocument 
 	doc := &DrDocument{
 		index: document.Index,
 	}
-	doc.walkV3(&document.Model, false)
+	doc.walkV3(&document.Model, false, true)
+	return doc
+}
+
+// NewDrDocumentWithConfig Create a new DrDocument from an OpenAPI v3+ document and a configuration struct
+func NewDrDocumentWithConfig(document *libopenapi.DocumentModel[v3.Document], config *DrConfig) *DrDocument {
+	doc := &DrDocument{
+		index: document.Index,
+	}
+	doc.walkV3(&document.Model, config.BuildGraph, config.UseCache)
 	return doc
 }
 
@@ -65,7 +79,7 @@ func NewDrDocumentAndGraph(document *libopenapi.DocumentModel[v3.Document]) *DrD
 	doc := &DrDocument{
 		index: document.Index,
 	}
-	doc.walkV3(&document.Model, true)
+	doc.walkV3(&document.Model, true, true)
 	return doc
 }
 
@@ -288,7 +302,7 @@ func (w *DrDocument) GetIndex() *index.SpecIndex {
 	return w.index
 }
 
-func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
+func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool, useCache bool) *drV3.Document {
 
 	schemaChan := make(chan *drBase.WalkedSchema)
 	skippedSchemaChan := make(chan *drBase.WalkedSchema)
@@ -320,6 +334,7 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 		SchemaCache:       &schemaCache,
 		StorageRoot:       doc.GoLow().StorageRoot,
 		Logger:            doc.Index.GetLogger(),
+		UseSchemaCache:    useCache,
 		WorkingDirectory:  wd,
 	}
 	w.StorageRoot = doc.GoLow().StorageRoot
@@ -467,6 +482,20 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool) *drV3.Document {
 	for val := range objectChan {
 		w.processObject(val, ln)
 	}
+
+	// sort schemas by line number
+	orderedFunc := func(i, j int) bool {
+		return schemas[i].GetKeyNode().Line < schemas[j].GetKeyNode().Line
+	}
+	// same for parameters
+	orderedFuncParam := func(i, j int) bool {
+		return parameters[i].GetKeyNode().Line < parameters[j].GetKeyNode().Line
+	}
+	// same for headers
+	sort.Slice(schemas, orderedFunc)
+	sort.Slice(skippedSchemas, orderedFunc)
+	sort.Slice(parameters, orderedFuncParam)
+	sort.Slice(headers, orderedFuncParam)
 
 	w.Schemas = schemas
 	w.SkippedSchemas = skippedSchemas
