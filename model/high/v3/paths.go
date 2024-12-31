@@ -21,7 +21,7 @@ type Paths struct {
 func (p *Paths) Walk(ctx context.Context, paths *v3.Paths) {
 
 	drCtx := base.GetDrContext(ctx)
-	wg := drCtx.WaitGroup
+	//wg := drCtx.WaitGroup
 
 	p.Value = paths
 	p.PathSegment = "paths"
@@ -47,9 +47,9 @@ func (p *Paths) Walk(ctx context.Context, paths *v3.Paths) {
 			pi.Parent = p
 			pi.NodeParent = p
 			pi.Key = k
-			wg.Go(func() {
-				pi.Walk(ctx, v)
-			})
+			//wg.Go(func() {
+			pi.Walk(ctx, v)
+			//})
 			p.PathItems.Set(k, pi)
 		}
 	}
