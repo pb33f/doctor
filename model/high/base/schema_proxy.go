@@ -108,7 +108,6 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 		newSchema.PolyType = sp.PolyType
 
 		if !schemaProxy.IsReference() {
-
 			newSchema.Walk(ctx, sch, depth)
 			drCtx.SchemaChan <- &WalkedSchema{
 				Schema:     newSchema,

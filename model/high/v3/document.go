@@ -119,11 +119,24 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		for i, security := range doc.Security {
 			sec := security
 			s := &base.SecurityRequirement{}
-
 			s.Parent = d
 			s.NodeParent = secNode
+			s.PathSegment = "security"
 			s.IsIndexed = true
 			s.Index = &i
+			s.Value = sec
+			s.ValueNode = doc.GoLow().Security.Value[i].ValueNode
+			s.KeyNode = security.GoLow().RootNode
+
+			// extract requirement name from the security requirement
+			// and use it as the key for the security requirement
+			label := ""
+			for k, _ := range sec.Requirements.FromOldest() {
+				label = k
+				break
+			}
+
+			s.BuildNodesAndEdgesWithArray(ctx, label, "security", sec, s, false, 0, &i)
 
 			// check if the security requirement exists
 			if doc.Components != nil && doc.Components.SecuritySchemes != nil {
@@ -139,8 +152,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 					}
 				}
 			}
-
-			wg.Go(func() { s.Walk(ctx, sec) })
+			s.Walk(ctx, sec)
 			d.Security = append(d.Security, s)
 		}
 	}

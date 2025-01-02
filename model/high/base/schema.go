@@ -84,6 +84,15 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	s.Value = schema
 
+	process := true
+	if schema.Type != nil {
+		if slices.Contains(schema.Type, "boolean") ||
+			slices.Contains(schema.Type, "number") ||
+			slices.Contains(schema.Type, "string") {
+			process = false
+		}
+	}
+
 	if s.Index != nil {
 		n := ""
 		if len(s.Value.Type) > 0 {
@@ -95,13 +104,17 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		if n == "" {
 			n = "schema"
 		}
-		s.ProcessNodesAndEdges(ctx, n, "schema", schema, s, false, 0, s.Index, true)
+		if process {
+			s.ProcessNodesAndEdges(ctx, n, "schema", schema, s, false, 0, s.Index, true)
+		}
 	} else {
 		negone := -1
 		if s.Name == "" {
 			s.Name = "schema"
 		}
-		s.ProcessNodesAndEdges(ctx, s.Name, "schema", schema, s, false, 0, &negone, true)
+		if process {
+			s.ProcessNodesAndEdges(ctx, s.Name, "schema", schema, s, false, 0, &negone, true)
+		}
 	}
 
 	if schema.AllOf != nil {
