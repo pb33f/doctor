@@ -1264,8 +1264,8 @@ func TestMultiRefLookup(t *testing.T) {
 	assert.NotNil(t, models)
 	assert.Len(t, models, 2)
 
-	assert.Equal(t, "$.paths['/v3/test'].get.responses['200'].content['application/json'].schema.properties['color']", models[0].GenerateJSONPath())
-	assert.Equal(t, "$.components.schemas['Fruit'].properties['lemon'].properties['color']", models[1].GenerateJSONPath())
+	assert.Equal(t, "$.paths['/v3/test'].get.responses['200'].content['application/json'].schema.properties['color']", models[1].GenerateJSONPath())
+	assert.Equal(t, "$.components.schemas['Fruit'].properties['lemon'].properties['color']", models[0].GenerateJSONPath())
 
 	// extract an object that is deeply referenced
 	testObject := walker.V3Document.Components.Schemas.GetOrZero("Fruit").Schema.Properties.GetOrZero("orange").Schema
@@ -1352,8 +1352,9 @@ func TestMultiRefLookup_PetStore_Pet(t *testing.T) {
 	//	fmt.Println(fmt.Sprintf("%d -- %s", m.GetKeyNode().Line, m.GenerateJSONPath()))
 	//}
 
-	assert.Equal(t, "$.paths['/pet'].put.requestBody.content['application/json'].schema", models[0].GenerateJSONPath())
-	assert.Equal(t, 60, models[0].GetKeyNode().Line)
+	assert.Equal(t, "$.components.requestBodies['Pet'].content['application/xml'].schema", models[1].GenerateJSONPath())
+	assert.Equal(t, "$.components.requestBodies['Pet'].content['application/json'].schema", models[0].GenerateJSONPath())
+	assert.Equal(t, 1180, models[0].GetKeyNode().Line)
 
 }
 
@@ -1398,7 +1399,8 @@ func TestMultiRefLookup_PetStore_ApiResponse(t *testing.T) {
 	//	fmt.Println(fmt.Sprintf("%d -- %s", m.GetKeyNode().Line, m.GenerateJSONPath()))
 	//}
 
-	assert.Equal(t, "$.paths['/pet/{petId}/uploadImage'].post.responses['200'].content['application/json'].schema", models[0].GenerateJSONPath())
-	assert.Equal(t, 482, models[0].GetKeyNode().Line)
+	assert.Equal(t, "$.paths['/pet/{petId}/uploadImage'].post.responses['200'].content['application/json'].schema", models[1].GenerateJSONPath())
+	assert.Equal(t, "$.components.schemas['ApiResponse']", models[0].GenerateJSONPath())
+	assert.Equal(t, 1156, models[0].GetKeyNode().Line)
 
 }
