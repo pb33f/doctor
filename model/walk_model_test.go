@@ -438,7 +438,7 @@ func TestWalker_WalkV3_Responses(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocumentWithConfig(v3Doc, &DrConfig{BuildGraph: false, UseCache: false})
+	walker := NewDrDocumentWithConfig(v3Doc, &DrConfig{BuildGraph: false, UseSchemaCache: false})
 	walked := walker.V3Document
 
 	responses := walked.Paths.PathItems.GetOrZero("/burgers").Post.Responses.GenerateJSONPath()
@@ -528,7 +528,7 @@ func TestWalker_WalkV3_Servers(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocumentWithConfig(v3Doc, &DrConfig{BuildGraph: false, UseCache: false})
+	walker := NewDrDocumentWithConfig(v3Doc, &DrConfig{BuildGraph: false, UseSchemaCache: false})
 	walked := walker.V3Document
 
 	servers := walked.Paths.PathItems.GetOrZero("/burgers").
@@ -543,7 +543,7 @@ func TestWalker_WalkV3_Components(t *testing.T) {
 	newDoc, _ := libopenapi.NewDocument(bytes)
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocumentWithConfig(v3Doc, &DrConfig{BuildGraph: false, UseCache: false})
+	walker := NewDrDocumentWithConfig(v3Doc, &DrConfig{BuildGraph: false, UseSchemaCache: false})
 	walked := walker.V3Document
 
 	components := walked.Components.Schemas.GetOrZero("Burger").GenerateJSONPath()
@@ -1203,7 +1203,7 @@ func TestMultiRefLookup(t *testing.T) {
 	})
 	v3Doc, _ := newDoc.BuildV3Model()
 
-	walker := NewDrDocumentWithConfig(v3Doc, &DrConfig{BuildGraph: false, UseCache: false})
+	walker := NewDrDocumentWithConfig(v3Doc, &DrConfig{BuildGraph: false, UseSchemaCache: false})
 	assert.NotNil(t, walker)
 
 	// extract a file from the rolodex

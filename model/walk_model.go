@@ -48,8 +48,8 @@ type DrDocument struct {
 }
 
 type DrConfig struct {
-	BuildGraph bool
-	UseCache   bool
+	BuildGraph     bool
+	UseSchemaCache bool
 }
 
 type HasValue interface {
@@ -70,7 +70,7 @@ func NewDrDocumentWithConfig(document *libopenapi.DocumentModel[v3.Document], co
 	doc := &DrDocument{
 		index: document.Index,
 	}
-	doc.walkV3(&document.Model, config.BuildGraph, config.UseCache)
+	doc.walkV3(&document.Model, config.BuildGraph, config.UseSchemaCache)
 	return doc
 }
 
@@ -492,10 +492,21 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool, useCache bool) *d
 		return parameters[i].GetKeyNode().Line < parameters[j].GetKeyNode().Line
 	}
 	// same for headers
-	sort.Slice(schemas, orderedFunc)
-	sort.Slice(skippedSchemas, orderedFunc)
-	sort.Slice(parameters, orderedFuncParam)
-	sort.Slice(headers, orderedFuncParam)
+	orderedFuncHeader := func(i, j int) bool {
+		return headers[i].GetKeyNode().Line < headers[j].GetKeyNode().Line
+	}
+	if len(schemas) > 0 {
+		sort.Slice(schemas, orderedFunc)
+	}
+	if len(skippedSchemas) > 0 {
+		sort.Slice(skippedSchemas, orderedFunc)
+	}
+	if len(parameters) > 0 {
+		sort.Slice(parameters, orderedFuncParam)
+	}
+	if len(headers) > 0 {
+		sort.Slice(headers, orderedFuncHeader)
+	}
 
 	w.Schemas = schemas
 	w.SkippedSchemas = skippedSchemas
