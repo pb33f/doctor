@@ -5,7 +5,7 @@ go 1.23.0
 require (
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/google/uuid v1.6.0
-	github.com/pb33f/libopenapi v0.18.7
+	github.com/pb33f/libopenapi v0.19.1
 	github.com/sourcegraph/conc v0.3.0
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/text v0.21.0

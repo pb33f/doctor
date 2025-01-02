@@ -156,7 +156,7 @@ func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drBase.
 				}
 			}
 			sort.Slice(filteredObjects, func(i, j int) bool {
-				return filteredObjects[i].GetKeyNode().Line < filteredObjects[j].GetKeyNode().Line
+				return filteredObjects[i].GenerateJSONPath() < filteredObjects[j].GenerateJSONPath()
 			})
 			if len(filteredObjects) > 0 {
 				return filteredObjects, nil
@@ -207,15 +207,7 @@ func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drBase.
 			foLen := len(filteredObjects)
 			if foLen > 0 {
 				sort.Slice(filteredObjects, func(i, j int) bool {
-					ka := filteredObjects[i].GetKeyNode()
-					kb := filteredObjects[j].GetKeyNode()
-					if ka != nil && kb != nil {
-						return filteredObjects[i].GetKeyNode().Line < filteredObjects[j].GetKeyNode().Line
-					}
-					if ka == nil && kb != nil {
-						return false
-					}
-					return true
+					return filteredObjects[i].GenerateJSONPath() < filteredObjects[j].GenerateJSONPath()
 				})
 			}
 			if foLen > 0 {
