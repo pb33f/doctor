@@ -179,8 +179,12 @@ func GenerateNode(parentId string, instance any, drModel any, ctx *DrContext) *N
 								if no != nil {
 									// sanitize the absolute location.
 									abs := no.AbsoluteLocation
-									no.AbsoluteLocation = strings.Replace(abs, ctx.StorageRoot, "", 1)
-									no.AbsoluteLocation = strings.Replace(abs, ctx.WorkingDirectory, "", 1)
+									if ctx.StorageRoot != "" {
+										no.AbsoluteLocation = strings.Replace(abs, ctx.StorageRoot, "", 1)
+									}
+									if ctx.WorkingDirectory != "" {
+										no.AbsoluteLocation = strings.Replace(abs, ctx.WorkingDirectory, "", 1)
+									}
 									nodeOrigin = no
 								}
 							}

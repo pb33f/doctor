@@ -308,6 +308,9 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool, useCache bool) *d
 	var schemaCache sync.Map
 
 	wd, _ := os.Getwd()
+	if wd == "/" {
+		wd = ""
+	}
 
 	dctx := &drBase.DrContext{
 		SchemaChan:        schemaChan,
