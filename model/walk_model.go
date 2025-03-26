@@ -10,11 +10,10 @@ package model
 import (
 	"context"
 	"fmt"
-	drBase "github.com/pb33f/doctor/model/high/base"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel/high"
-	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/sourcegraph/conc"
@@ -33,15 +32,15 @@ import (
 //
 // The doctor is the library we wanted all along. The doctor is the library we deserve.
 type DrDocument struct {
-	BuildErrors    []*drBase.BuildError
-	Schemas        []*drBase.Schema
-	SkippedSchemas []*drBase.Schema
+	BuildErrors    []*drV3.BuildError
+	Schemas        []*drV3.Schema
+	SkippedSchemas []*drV3.Schema
 	Parameters     []*drV3.Parameter
 	Headers        []*drV3.Header
 	MediaTypes     []*drV3.MediaType
 	V3Document     *drV3.Document
-	Nodes          []*drBase.Node
-	Edges          []*drBase.Edge
+	Nodes          []*drV3.Node
+	Edges          []*drV3.Edge
 	StorageRoot    string
 	index          *index.SpecIndex
 	lineObjects    map[int][]any
@@ -49,6 +48,7 @@ type DrDocument struct {
 
 type DrConfig struct {
 	BuildGraph     bool
+	RenderChanges  bool
 	UseSchemaCache bool
 }
 
@@ -61,7 +61,7 @@ func NewDrDocument(document *libopenapi.DocumentModel[v3.Document]) *DrDocument 
 	doc := &DrDocument{
 		index: document.Index,
 	}
-	doc.walkV3(&document.Model, false, true)
+	doc.walkV3(&document.Model, false, true, false)
 	return doc
 }
 
@@ -70,7 +70,7 @@ func NewDrDocumentWithConfig(document *libopenapi.DocumentModel[v3.Document], co
 	doc := &DrDocument{
 		index: document.Index,
 	}
-	doc.walkV3(&document.Model, config.BuildGraph, config.UseSchemaCache)
+	doc.walkV3(&document.Model, config.BuildGraph, config.UseSchemaCache, config.RenderChanges)
 	return doc
 }
 
@@ -79,14 +79,14 @@ func NewDrDocumentAndGraph(document *libopenapi.DocumentModel[v3.Document]) *DrD
 	doc := &DrDocument{
 		index: document.Index,
 	}
-	doc.walkV3(&document.Model, true, true)
+	doc.walkV3(&document.Model, true, true, true)
 	return doc
 }
 
 // LocateModelsByKeyAndValue finds the model represented by the line number of the supplied node. This method will
 // locate every model that points to the supplied key and value node. There could be many models that point to the same
 // key and value node, so this method will return a slice of models.
-func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drBase.Foundational, error) {
+func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drV3.Foundational, error) {
 	if key == nil {
 		return nil, fmt.Errorf("key is nil, cannot locate model")
 	}
@@ -116,17 +116,17 @@ func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drBase.
 		}
 
 		if len(objects) > 0 {
-			var filteredObjects []drBase.Foundational
+			var filteredObjects []drV3.Foundational
 			for _, o := range objects {
-				if hv, ok := o.(drBase.HasValue); ok {
+				if hv, ok := o.(drV3.HasValue); ok {
 					if gl, ll := hv.GetValue().(high.GoesLowUntyped); ll {
-						if hi, kk := gl.GoLowUntyped().(drBase.HasIndex); kk {
+						if hi, kk := gl.GoLowUntyped().(drV3.HasIndex); kk {
 							idx := hi.GetIndex()
 							if idx != nil {
 								if idx.GetSpecAbsolutePath() == origin.AbsoluteLocationValue {
 									// check the parents match.
-									if o.(drBase.Foundational).GetParent().GetKeyNode().Line == key.Line {
-										filteredObjects = append(filteredObjects, o.(drBase.Foundational))
+									if o.(drV3.Foundational).GetParent().GetKeyNode().Line == key.Line {
+										filteredObjects = append(filteredObjects, o.(drV3.Foundational))
 										continue
 									}
 								}
@@ -138,15 +138,15 @@ func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drBase.
 							if rn != nil {
 								// check root node from low value against parent node
 
-								if o.(drBase.Foundational).GetParent().GetKeyNode() != nil &&
-									o.(drBase.Foundational).GetParent().GetKeyNode().Line == key.Line {
+								if o.(drV3.Foundational).GetParent().GetKeyNode() != nil &&
+									o.(drV3.Foundational).GetParent().GetKeyNode().Line == key.Line {
 									if value == rn { // check if the nodes match
-										filteredObjects = append(filteredObjects, o.(drBase.Foundational))
+										filteredObjects = append(filteredObjects, o.(drV3.Foundational))
 										continue
 									}
 									// check hash
 									if index.HashNode(value) == index.HashNode(rn) {
-										filteredObjects = append(filteredObjects, o.(drBase.Foundational))
+										filteredObjects = append(filteredObjects, o.(drV3.Foundational))
 										continue
 									}
 								}
@@ -170,18 +170,18 @@ func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drBase.
 		if objects == nil {
 			return nil, fmt.Errorf("model not found at line %d", origin.Line)
 		}
-		var filteredObjects []drBase.Foundational
+		var filteredObjects []drV3.Foundational
 
 		if len(objects) > 0 {
 
 			for _, o := range objects {
-				if hv, ok := o.(drBase.HasValue); ok {
+				if hv, ok := o.(drV3.HasValue); ok {
 					if gl, ll := hv.GetValue().(high.GoesLowUntyped); ll {
-						if hi, kk := gl.GoLowUntyped().(drBase.HasIndex); kk {
+						if hi, kk := gl.GoLowUntyped().(drV3.HasIndex); kk {
 							idx := hi.GetIndex()
 							if idx != nil {
 								if idx.GetSpecAbsolutePath() == origin.AbsoluteLocation {
-									filteredObjects = append(filteredObjects, o.(drBase.Foundational))
+									filteredObjects = append(filteredObjects, o.(drV3.Foundational))
 									continue
 								}
 							}
@@ -191,12 +191,12 @@ func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drBase.
 							if rn != nil {
 
 								if value == rn { // check if the nodes match
-									filteredObjects = append(filteredObjects, o.(drBase.Foundational))
+									filteredObjects = append(filteredObjects, o.(drV3.Foundational))
 									continue
 								}
 								// check hash
 								if index.HashNode(value) == index.HashNode(rn) {
-									filteredObjects = append(filteredObjects, o.(drBase.Foundational))
+									filteredObjects = append(filteredObjects, o.(drV3.Foundational))
 									continue
 								}
 							}
@@ -219,7 +219,7 @@ func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drBase.
 }
 
 // LocateModel finds the model represented by the line number of the supplied node.
-func (w *DrDocument) LocateModel(node *yaml.Node) ([]drBase.Foundational, error) {
+func (w *DrDocument) LocateModel(node *yaml.Node) ([]drV3.Foundational, error) {
 	if node == nil {
 		return nil, fmt.Errorf("node is nil, cannot locate model")
 	}
@@ -234,9 +234,9 @@ func (w *DrDocument) LocateModel(node *yaml.Node) ([]drBase.Foundational, error)
 	}
 	if len(w.lineObjects[node.Line]) > 0 {
 		r := w.lineObjects[node.Line]
-		result := make([]drBase.Foundational, 0, len(r))
+		result := make([]drV3.Foundational, 0, len(r))
 		for _, item := range r {
-			if f, ok := item.(drBase.Foundational); ok {
+			if f, ok := item.(drV3.Foundational); ok {
 				result = append(result, f)
 			}
 		}
@@ -246,7 +246,7 @@ func (w *DrDocument) LocateModel(node *yaml.Node) ([]drBase.Foundational, error)
 }
 
 // LocateModelByLine finds the model represented by the line number of the supplied node.
-func (w *DrDocument) LocateModelByLine(line int) ([]drBase.Foundational, error) {
+func (w *DrDocument) LocateModelByLine(line int) ([]drV3.Foundational, error) {
 	if line == 0 {
 		return nil, fmt.Errorf("line is 0, cannot locate model")
 	}
@@ -258,9 +258,9 @@ func (w *DrDocument) LocateModelByLine(line int) ([]drBase.Foundational, error) 
 	}
 	if len(w.lineObjects[line]) > 0 {
 		r := w.lineObjects[line]
-		result := make([]drBase.Foundational, 0, len(r))
+		result := make([]drV3.Foundational, 0, len(r))
 		for _, item := range r {
-			if f, ok := item.(drBase.Foundational); ok {
+			if f, ok := item.(drV3.Foundational); ok {
 				result = append(result, f)
 			}
 		}
@@ -294,17 +294,17 @@ func (w *DrDocument) GetIndex() *index.SpecIndex {
 	return w.index
 }
 
-func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool, useCache bool) *drV3.Document {
+func (w *DrDocument) walkV3(doc *v3.Document, buildGraph, useCache, renderChanges bool) *drV3.Document {
 
-	schemaChan := make(chan *drBase.WalkedSchema)
-	skippedSchemaChan := make(chan *drBase.WalkedSchema)
-	parameterChan := make(chan *drBase.WalkedParam)
-	headerChan := make(chan *drBase.WalkedHeader)
-	mediaTypeChan := make(chan *drBase.WalkedMediaType)
-	buildErrorChan := make(chan *drBase.BuildError)
+	schemaChan := make(chan *drV3.WalkedSchema)
+	skippedSchemaChan := make(chan *drV3.WalkedSchema)
+	parameterChan := make(chan *drV3.WalkedParam)
+	headerChan := make(chan *drV3.WalkedHeader)
+	mediaTypeChan := make(chan *drV3.WalkedMediaType)
+	buildErrorChan := make(chan *drV3.BuildError)
 	objectChan := make(chan any)
-	nodeChan := make(chan *drBase.Node)
-	edgeChan := make(chan *drBase.Edge)
+	nodeChan := make(chan *drV3.Node)
+	edgeChan := make(chan *drV3.Edge)
 	var schemaCache sync.Map
 
 	wd, _ := os.Getwd()
@@ -312,7 +312,7 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool, useCache bool) *d
 		wd = ""
 	}
 
-	dctx := &drBase.DrContext{
+	dctx := &drV3.DrContext{
 		SchemaChan:        schemaChan,
 		SkippedSchemaChan: skippedSchemaChan,
 		ParameterChan:     parameterChan,
@@ -326,6 +326,7 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool, useCache bool) *d
 		ObjectChan:        objectChan,
 		V3Document:        doc,
 		BuildGraph:        buildGraph,
+		RenderChanges:     renderChanges,
 		SchemaCache:       &schemaCache,
 		StorageRoot:       doc.GoLow().StorageRoot,
 		Logger:            doc.Index.GetLogger(),
@@ -336,18 +337,18 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool, useCache bool) *d
 
 	drCtx := context.WithValue(context.Background(), "drCtx", dctx)
 
-	var schemas []*drBase.Schema
-	var skippedSchemas []*drBase.Schema
+	var schemas []*drV3.Schema
+	var skippedSchemas []*drV3.Schema
 	var parameters []*drV3.Parameter
 	var headers []*drV3.Header
 	var mediaTypes []*drV3.MediaType
-	var buildErrors []*drBase.BuildError
-	var nodes []*drBase.Node
-	var edges []*drBase.Edge
-	var refEdges []*drBase.Edge
-	var nodeMap = make(map[string]*drBase.Node)
-	var nodeValueMap = make(map[string]*drBase.Node)
-	var nodeIdMap = make(map[string]*drBase.Node)
+	var buildErrors []*drV3.BuildError
+	var nodes []*drV3.Node
+	var edges []*drV3.Edge
+	var refEdges []*drV3.Edge
+	var nodeMap = make(map[string]*drV3.Node)
+	var nodeValueMap = make(map[string]*drV3.Node)
+	var nodeIdMap = make(map[string]*drV3.Node)
 
 	skippedSchemasState := make(map[string]bool)
 	seenSchemasState := make(map[string]bool)
@@ -359,14 +360,14 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool, useCache bool) *d
 	done := make(chan bool)
 	complete := make(chan bool)
 
-	targets := make(map[string]*drBase.Edge)
-	sources := make(map[string]*drBase.Edge)
+	targets := make(map[string]*drV3.Edge)
+	sources := make(map[string]*drV3.Edge)
 
 	// ln is part of debug code, it is not used when not initialized
 	//ln := make([]any, doc.Rolodex.GetFullLineCount()+1)
 	var ln []any
 	drDoc := &drV3.Document{}
-	go func(sChan chan *drBase.WalkedSchema, skippedChan chan *drBase.WalkedSchema, done chan bool) {
+	go func(sChan chan *drV3.WalkedSchema, skippedChan chan *drV3.WalkedSchema, done chan bool) {
 		for {
 			select {
 			case <-done:
@@ -513,7 +514,7 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool, useCache bool) *d
 	w.BuildErrors = buildErrors
 
 	roughEdges := edges
-	var cleanedEdges []*drBase.Edge
+	var cleanedEdges []*drV3.Edge
 
 	if buildGraph {
 		for _, edge := range refEdges {
@@ -524,7 +525,7 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool, useCache bool) *d
 				if n, ok := w.lineObjects[t]; ok {
 					// iterate through objects in slice,
 					for _, o := range n {
-						r := o.(drBase.Foundational).GetNode()
+						r := o.(drV3.Foundational).GetNode()
 						if r != nil {
 							edge.Targets[0] = r.Id
 						} else {
@@ -600,8 +601,8 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool, useCache bool) *d
 }
 
 func (w *DrDocument) processObject(obj any, ln []any) {
-	if hs, ll := obj.(drBase.HasSize); ll {
-		if f, lt := obj.(drBase.Foundational); lt {
+	if hs, ll := obj.(drV3.HasSize); ll {
+		if f, lt := obj.(drV3.Foundational); lt {
 			he, wi := hs.GetSize()
 			if f.GetNode() != nil {
 				f.GetNode().Width = wi
@@ -633,10 +634,10 @@ func (w *DrDocument) processObject(obj any, ln []any) {
 
 							// check if the object is already in the line objects
 							var found bool
-							b := obj.(drBase.Foundational).GenerateJSONPath()
+							b := obj.(drV3.Foundational).GenerateJSONPath()
 							lo := w.lineObjects[k]
 							for _, o := range lo {
-								a := o.(drBase.Foundational).GenerateJSONPath()
+								a := o.(drV3.Foundational).GenerateJSONPath()
 								if a == b {
 									found = true
 									break
@@ -650,7 +651,7 @@ func (w *DrDocument) processObject(obj any, ln []any) {
 				}
 			}
 		} else {
-			if fn, ko := obj.(drBase.Foundational); ko {
+			if fn, ko := obj.(drV3.Foundational); ko {
 				kn := fn.GetKeyNode()
 				if kn != nil {
 
@@ -664,10 +665,10 @@ func (w *DrDocument) processObject(obj any, ln []any) {
 					} else {
 						// check if the object is already in the line objects
 						var found bool
-						b := obj.(drBase.Foundational).GenerateJSONPath()
+						b := obj.(drV3.Foundational).GenerateJSONPath()
 						lo := w.lineObjects[kn.Line]
 						for _, o := range lo {
-							a := o.(drBase.Foundational).GenerateJSONPath()
+							a := o.(drV3.Foundational).GenerateJSONPath()
 							if a == b {
 								found = true
 								break

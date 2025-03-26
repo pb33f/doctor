@@ -1,9 +1,10 @@
 // Copyright 2024 Princess B33f Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: BUSL-1.1
 
-package base
+package v3
 
 import (
+	"context"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 )
 
@@ -26,4 +27,8 @@ func (x *XML) GetSize() (height, width int) {
 		height += HEIGHT
 	}
 	return height, width
+}
+
+func (x *XML) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, x)
 }

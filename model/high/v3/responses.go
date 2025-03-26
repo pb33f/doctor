@@ -5,7 +5,6 @@ package v3
 
 import (
 	"context"
-	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
@@ -14,12 +13,12 @@ type Responses struct {
 	Value   *v3.Responses
 	Codes   *orderedmap.Map[string, *Response]
 	Default *Response
-	base.Foundation
+	Foundation
 }
 
 func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 
-	drCtx := base.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 
 	r.Value = responses
@@ -61,7 +60,7 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 	}
 
 	if responses.GoLow().IsReference() {
-		base.BuildReference(drCtx, responses.GoLow())
+		BuildReference(drCtx, responses.GoLow())
 	}
 
 	drCtx.ObjectChan <- r
@@ -69,4 +68,8 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 
 func (r *Responses) GetValue() any {
 	return r.Value
+}
+
+func (r *Responses) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, r)
 }

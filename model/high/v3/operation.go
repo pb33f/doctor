@@ -6,7 +6,6 @@ package v3
 import (
 	"context"
 	"fmt"
-	drBase "github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"golang.org/x/text/cases"
@@ -16,19 +15,19 @@ import (
 
 type Operation struct {
 	Value        *v3.Operation
-	ExternalDocs *drBase.ExternalDoc
+	ExternalDocs *ExternalDoc
 	Parameters   []*Parameter
 	RequestBody  *RequestBody
 	Responses    *Responses
 	Callbacks    *orderedmap.Map[string, *Callback]
-	Security     []*drBase.SecurityRequirement
+	Security     []*SecurityRequirement
 	Servers      []*Server
-	drBase.Foundation
+	Foundation
 }
 
 func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 
-	drCtx := drBase.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 
 	o.Value = operation
@@ -36,7 +35,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 	negOne := -1
 
 	if operation.ExternalDocs != nil {
-		ed := &drBase.ExternalDoc{}
+		ed := &ExternalDoc{}
 		ed.Parent = o
 		ed.PathSegment = "externalDocs"
 		ed.Value = operation.ExternalDocs
@@ -45,13 +44,13 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 
 	if operation.Parameters != nil && len(operation.Parameters) > 0 {
 
-		paramsNode := &drBase.Foundation{
+		paramsNode := &Foundation{
 			Parent:      o,
 			NodeParent:  o,
 			PathSegment: "parameters",
 			Index:       o.Index,
-			ValueNode:   drBase.ExtractValueNodeForLowModel(operation.GoLow().Parameters),
-			KeyNode:     drBase.ExtractKeyNodeForLowModel(operation.GoLow().Parameters),
+			ValueNode:   ExtractValueNodeForLowModel(operation.GoLow().Parameters),
+			KeyNode:     ExtractKeyNodeForLowModel(operation.GoLow().Parameters),
 		}
 
 		paramsNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(paramsNode.PathSegment),
@@ -74,13 +73,13 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 
 	if operation.RequestBody != nil {
 
-		rbNode := &drBase.Foundation{
+		rbNode := &Foundation{
 			Parent:      o,
 			NodeParent:  o,
 			PathSegment: "requestBody",
 			Index:       o.Index,
-			ValueNode:   drBase.ExtractValueNodeForLowModel(operation.GoLow().RequestBody),
-			KeyNode:     drBase.ExtractKeyNodeForLowModel(operation.GoLow().RequestBody),
+			ValueNode:   ExtractValueNodeForLowModel(operation.GoLow().RequestBody),
+			KeyNode:     ExtractKeyNodeForLowModel(operation.GoLow().RequestBody),
 		}
 
 		rbNode.BuildNodesAndEdges(ctx, "Request Body",
@@ -134,7 +133,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 	}
 
 	if operation.Security != nil {
-		o.Security = []*drBase.SecurityRequirement{}
+		o.Security = []*SecurityRequirement{}
 		for i, security := range operation.Security {
 			sec := security
 
@@ -156,7 +155,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 				}
 			}
 
-			s := &drBase.SecurityRequirement{}
+			s := &SecurityRequirement{}
 			s.Parent = o
 			s.IsIndexed = true
 			s.Index = &i
@@ -203,7 +202,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 	}
 
 	if operation.GoLow().IsReference() {
-		drBase.BuildReference(drCtx, operation.GoLow())
+		BuildReference(drCtx, operation.GoLow())
 	}
 
 	drCtx.ObjectChan <- o
@@ -214,53 +213,57 @@ func (o *Operation) GetValue() any {
 }
 
 func (o *Operation) GetSize() (height, width int) {
-	width = drBase.WIDTH
-	height = drBase.HEIGHT
+	width = WIDTH
+	height = HEIGHT
 
 	if o.Key != "" {
-		if len(o.Key) > drBase.HEIGHT-10 {
-			width += (len(o.Key) - (drBase.HEIGHT - 10)) * 15
+		if len(o.Key) > HEIGHT-10 {
+			width += (len(o.Key) - (HEIGHT - 10)) * 15
 		}
 	}
 
 	if o.Value.OperationId != "" {
-		height += drBase.HEIGHT
-		if len(o.Value.OperationId) > drBase.HEIGHT-10 {
-			width += (len(o.Value.OperationId) - (drBase.HEIGHT - 10)) * 20
+		height += HEIGHT
+		if len(o.Value.OperationId) > HEIGHT-10 {
+			width += (len(o.Value.OperationId) - (HEIGHT - 10)) * 20
 		}
 	}
 
 	if o.Value.Callbacks != nil && o.Value.Callbacks.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if len(o.Value.Parameters) > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if o.Value.Deprecated != nil && *o.Value.Deprecated {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if len(o.Value.Servers) > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if o.Value.Responses != nil && o.Value.Responses.Codes.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if len(o.Value.Security) > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if len(o.Value.Tags) > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if o.Value.Extensions != nil && o.Value.Extensions.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	return height, width
+}
+
+func (o *Operation) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, o)
 }

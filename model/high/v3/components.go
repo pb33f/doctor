@@ -5,7 +5,6 @@ package v3
 
 import (
 	"context"
-	drBase "github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"golang.org/x/text/cases"
@@ -14,22 +13,22 @@ import (
 
 type Components struct {
 	Value           *v3.Components
-	Schemas         *orderedmap.Map[string, *drBase.SchemaProxy]
+	Schemas         *orderedmap.Map[string, *SchemaProxy]
 	Responses       *orderedmap.Map[string, *Response]
 	Parameters      *orderedmap.Map[string, *Parameter]
-	Examples        *orderedmap.Map[string, *drBase.Example]
+	Examples        *orderedmap.Map[string, *Example]
 	RequestBodies   *orderedmap.Map[string, *RequestBody]
 	Headers         *orderedmap.Map[string, *Header]
 	SecuritySchemes *orderedmap.Map[string, *SecurityScheme]
 	Links           *orderedmap.Map[string, *Link]
 	Callbacks       *orderedmap.Map[string, *Callback]
 	PathItems       *orderedmap.Map[string, *PathItem]
-	drBase.Foundation
+	Foundation
 }
 
 func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 
-	drCtx := drBase.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 
 	c.Value = components
@@ -39,23 +38,23 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 
 	if components.Schemas != nil && components.Schemas.Len() > 0 {
 
-		schNode := &drBase.Foundation{
+		schNode := &Foundation{
 			Parent:      c,
 			NodeParent:  c,
 			PathSegment: "schemas",
 			Index:       c.Index,
-			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().Schemas),
-			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().Schemas),
+			ValueNode:   ExtractValueNodeForLowModel(components.GoLow().Schemas),
+			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().Schemas),
 		}
 
 		schNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(schNode.PathSegment),
 			schNode.PathSegment, nil, c, false, components.Schemas.Len(), &negOne)
 
-		c.Schemas = orderedmap.New[string, *drBase.SchemaProxy]()
+		c.Schemas = orderedmap.New[string, *SchemaProxy]()
 		for schemasPairs := components.Schemas.First(); schemasPairs != nil; schemasPairs = schemasPairs.Next() {
 			k := schemasPairs.Key()
 			v := schemasPairs.Value()
-			sp := &drBase.SchemaProxy{}
+			sp := &SchemaProxy{}
 			sp.Parent = c
 			for lowSchPairs := components.GoLow().Schemas.Value.First(); lowSchPairs != nil; lowSchPairs = lowSchPairs.Next() {
 				if lowSchPairs.Key().Value == k {
@@ -72,13 +71,13 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 	}
 
 	if components.Responses != nil && components.Responses.Len() > 0 {
-		respNode := &drBase.Foundation{
+		respNode := &Foundation{
 			Parent:      c,
 			NodeParent:  c,
 			PathSegment: "responses",
 			Index:       c.Index,
-			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().Responses),
-			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().Responses),
+			ValueNode:   ExtractValueNodeForLowModel(components.GoLow().Responses),
+			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().Responses),
 		}
 		respNode.BuildNodesAndEdgesWithArray(ctx, "Responses",
 			respNode.PathSegment, nil, c, false, components.Responses.Len(), &negOne)
@@ -108,13 +107,13 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 
 	if components.Parameters != nil && components.Parameters.Len() > 0 {
 
-		paramNode := &drBase.Foundation{
+		paramNode := &Foundation{
 			Parent:      c,
 			NodeParent:  c,
 			PathSegment: "parameters",
 			Index:       c.Index,
-			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().Parameters),
-			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().Parameters),
+			ValueNode:   ExtractValueNodeForLowModel(components.GoLow().Parameters),
+			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().Parameters),
 		}
 
 		paramNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(paramNode.PathSegment),
@@ -143,23 +142,23 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 
 	if components.Examples != nil && components.Examples.Len() > 0 {
 
-		expNode := &drBase.Foundation{
+		expNode := &Foundation{
 			Parent:      c,
 			NodeParent:  c,
 			PathSegment: "examples",
 			Index:       c.Index,
-			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().Examples),
-			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().Examples),
+			ValueNode:   ExtractValueNodeForLowModel(components.GoLow().Examples),
+			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().Examples),
 		}
 
 		expNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(expNode.PathSegment),
 			expNode.PathSegment, nil, c, false, components.Examples.Len(), &negOne)
 
-		c.Examples = orderedmap.New[string, *drBase.Example]()
+		c.Examples = orderedmap.New[string, *Example]()
 		for examplesPairs := components.Examples.First(); examplesPairs != nil; examplesPairs = examplesPairs.Next() {
 			k := examplesPairs.Key()
 			v := examplesPairs.Value()
-			e := &drBase.Example{}
+			e := &Example{}
 			for lowExpPairs := components.GoLow().Examples.Value.First(); lowExpPairs != nil; lowExpPairs = lowExpPairs.Next() {
 				if lowExpPairs.Key().Value == k {
 					e.KeyNode = lowExpPairs.Key().KeyNode
@@ -178,13 +177,13 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 
 	if components.RequestBodies != nil && components.RequestBodies.Len() > 0 {
 
-		reqNode := &drBase.Foundation{
+		reqNode := &Foundation{
 			Parent:      c,
 			NodeParent:  c,
 			PathSegment: "requestBodies",
 			Index:       c.Index,
-			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().RequestBodies),
-			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().RequestBodies),
+			ValueNode:   ExtractValueNodeForLowModel(components.GoLow().RequestBodies),
+			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().RequestBodies),
 		}
 
 		reqNode.BuildNodesAndEdgesWithArray(ctx, "Request Bodies",
@@ -216,13 +215,13 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 
 	if components.Headers != nil && components.Headers.Len() > 0 {
 
-		headerNode := &drBase.Foundation{
+		headerNode := &Foundation{
 			Parent:      c,
 			NodeParent:  c,
 			PathSegment: "headers",
 			Index:       c.Index,
-			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().Headers),
-			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().Headers),
+			ValueNode:   ExtractValueNodeForLowModel(components.GoLow().Headers),
+			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().Headers),
 		}
 
 		headerNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(headerNode.PathSegment),
@@ -251,13 +250,13 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 
 	if components.SecuritySchemes != nil && components.SecuritySchemes.Len() > 0 {
 
-		secNode := &drBase.Foundation{
+		secNode := &Foundation{
 			Parent:      c,
 			NodeParent:  c,
 			PathSegment: "securitySchemes",
 			Index:       c.Index,
-			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().SecuritySchemes),
-			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().SecuritySchemes),
+			ValueNode:   ExtractValueNodeForLowModel(components.GoLow().SecuritySchemes),
+			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().SecuritySchemes),
 		}
 
 		secNode.BuildNodesAndEdgesWithArray(ctx, "Security Schemes",
@@ -286,13 +285,13 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 
 	if components.Links != nil && components.Links.Len() > 0 {
 
-		linkNode := &drBase.Foundation{
+		linkNode := &Foundation{
 			Parent:      c,
 			NodeParent:  c,
 			PathSegment: "links",
 			Index:       c.Index,
-			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().Links),
-			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().Links),
+			ValueNode:   ExtractValueNodeForLowModel(components.GoLow().Links),
+			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().Links),
 		}
 
 		linkNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(linkNode.PathSegment),
@@ -321,13 +320,13 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 
 	if components.Callbacks != nil && components.Callbacks.Len() > 0 {
 
-		cbNode := &drBase.Foundation{
+		cbNode := &Foundation{
 			Parent:      c,
 			NodeParent:  c,
 			PathSegment: "callbacks",
 			Index:       c.Index,
-			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().Callbacks),
-			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().Callbacks),
+			ValueNode:   ExtractValueNodeForLowModel(components.GoLow().Callbacks),
+			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().Callbacks),
 		}
 
 		cbNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(cbNode.PathSegment),
@@ -356,13 +355,13 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 
 	if components.PathItems != nil && components.PathItems.Len() > 0 {
 
-		piNode := &drBase.Foundation{
+		piNode := &Foundation{
 			Parent:      c,
 			NodeParent:  c,
 			PathSegment: "pathItems",
 			Index:       c.Index,
-			ValueNode:   drBase.ExtractValueNodeForLowModel(components.GoLow().PathItems),
-			KeyNode:     drBase.ExtractKeyNodeForLowModel(components.GoLow().PathItems),
+			ValueNode:   ExtractValueNodeForLowModel(components.GoLow().PathItems),
+			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().PathItems),
 		}
 		piNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(piNode.PathSegment),
 			piNode.PathSegment, nil, c, false, components.PathItems.Len(), &negOne)
@@ -380,6 +379,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 				}
 			}
 			pi.Parent = c
+
 			pi.NodeParent = piNode
 			pi.Key = k
 			pi.PathSegment = "pathItems"
@@ -396,45 +396,49 @@ func (c *Components) GetValue() any {
 }
 
 func (c *Components) GetSize() (height, width int) {
-	width = drBase.WIDTH
-	height = drBase.HEIGHT
+	width = WIDTH
+	height = HEIGHT
 	if c.PathItems != nil && c.PathItems.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 	if c.Callbacks != nil && c.Callbacks.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 	if c.Examples != nil && c.Examples.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 	if c.Headers != nil && c.Headers.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 	if c.Links != nil && c.Links.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 	if c.Parameters != nil && c.Parameters.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 	if c.RequestBodies != nil && c.RequestBodies.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 		width += 20
 	}
 	if c.Responses != nil && c.Responses.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 	if c.Schemas != nil && c.Schemas.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 	if c.SecuritySchemes != nil && c.SecuritySchemes.Len() > 0 {
-		height += drBase.HEIGHT
-		if width < drBase.WIDTH+20 {
+		height += HEIGHT
+		if width < WIDTH+20 {
 			width += 20
 		}
 	}
 	if c.Value.Extensions != nil && c.Value.Extensions.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	return height, width
+}
+
+func (c *Components) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, c)
 }

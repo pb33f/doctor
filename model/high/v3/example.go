@@ -1,7 +1,7 @@
 // Copyright 2024 Princess B33f Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: BUSL-1.1
 
-package base
+package v3
 
 import (
 	"context"
@@ -25,4 +25,8 @@ func (e *Example) Walk(ctx context.Context, example *base.Example) {
 
 func (e *Example) GetValue() any {
 	return e.Value
+}
+
+func (e *Example) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, e)
 }

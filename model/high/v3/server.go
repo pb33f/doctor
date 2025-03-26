@@ -5,7 +5,6 @@ package v3
 
 import (
 	"context"
-	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
@@ -13,12 +12,12 @@ import (
 type Server struct {
 	Value     *v3.Server
 	Variables *orderedmap.Map[string, *ServerVariable]
-	base.Foundation
+	Foundation
 }
 
 func (s *Server) Walk(ctx context.Context, server *v3.Server) {
 
-	drCtx := base.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 
 	s.Value = server
@@ -38,7 +37,7 @@ func (s *Server) Walk(ctx context.Context, server *v3.Server) {
 	}
 
 	if server.GoLow().IsReference() {
-		base.BuildReference(drCtx, server.GoLow())
+		BuildReference(drCtx, server.GoLow())
 	}
 
 	drCtx.ObjectChan <- s
@@ -49,19 +48,23 @@ func (s *Server) GetValue() any {
 }
 
 func (s *Server) GetSize() (height, width int) {
-	width = base.WIDTH
-	height = base.HEIGHT
+	width = WIDTH
+	height = HEIGHT
 	if s.Value.URL != "" {
-		height += base.HEIGHT
-		if len(s.Value.URL) > base.HEIGHT-10 {
-			width += (len(s.Value.URL) - (base.HEIGHT - 10)) * 10
+		height += HEIGHT
+		if len(s.Value.URL) > HEIGHT-10 {
+			width += (len(s.Value.URL) - (HEIGHT - 10)) * 10
 		}
 	}
 	if s.Variables != nil && s.Variables.Len() > 0 {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 	if s.Value.Extensions != nil && s.Value.Extensions.Len() > 0 {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 	return height, width
+}
+
+func (s *Server) Travel(ctx context.Context, traveler Tardis) {
+	traveler.Visit(ctx, s)
 }

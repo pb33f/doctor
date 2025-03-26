@@ -5,7 +5,6 @@ package v3
 
 import (
 	"context"
-	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
@@ -13,12 +12,12 @@ import (
 type Encoding struct {
 	Value   *v3.Encoding
 	Headers *orderedmap.Map[string, *Header]
-	base.Foundation
+	Foundation
 }
 
 func (e *Encoding) Walk(ctx context.Context, encoding *v3.Encoding) {
 
-	drCtx := base.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 
 	e.Value = encoding
@@ -49,4 +48,8 @@ func (e *Encoding) Walk(ctx context.Context, encoding *v3.Encoding) {
 
 func (e *Encoding) GetValue() any {
 	return e.Value
+}
+
+func (e *Encoding) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, e)
 }

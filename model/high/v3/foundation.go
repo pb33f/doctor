@@ -1,7 +1,7 @@
 // Copyright 2024 Princess B33f Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: BUSL-1.1
 
-package base
+package v3
 
 import (
 	"context"
@@ -44,6 +44,9 @@ type Foundational interface {
 	GetKeyNode() *yaml.Node
 	GetValueNode() *yaml.Node
 	GetInstanceType() string
+	GetChanges() []*NodeChange
+	AddChanges(changes []*NodeChange)
+	AddChange(changes *NodeChange)
 }
 
 type HasSize interface {
@@ -67,7 +70,20 @@ type Foundation struct {
 	Edges         []*Edge
 	KeyNode       *yaml.Node
 	ValueNode     *yaml.Node
+	Changes       []*NodeChange
 	CacheSplit    bool
+}
+
+func (f *Foundation) GetChanges() []*NodeChange {
+	return f.Changes
+}
+
+func (f *Foundation) AddChanges(changes []*NodeChange) {
+	f.Changes = append(f.Changes, changes...)
+}
+
+func (f *Foundation) AddChange(change *NodeChange) {
+	f.Changes = append(f.Changes, change)
 }
 
 func (f *Foundation) GetInstanceType() string {
@@ -132,6 +148,7 @@ func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arra
 			n.PolyType = f.PolyType
 		}
 
+		n.RenderChanges = drCtx.RenderChanges
 		n.ArrayIndex = arrayIndex
 		n.Type = nodeType
 		n.Label = label
