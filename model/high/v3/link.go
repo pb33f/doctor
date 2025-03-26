@@ -5,14 +5,13 @@ package v3
 
 import (
 	"context"
-	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
 type Link struct {
 	Value  *v3.Link
 	Server *Server
-	base.Foundation
+	Foundation
 }
 
 func (l *Link) Walk(ctx context.Context, link *v3.Link) {
@@ -20,7 +19,7 @@ func (l *Link) Walk(ctx context.Context, link *v3.Link) {
 	l.Value = link
 	l.PathSegment = "links"
 
-	drCtx := base.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 	l.BuildNodesAndEdges(ctx, l.Key, "link", link, l)
 
@@ -32,7 +31,7 @@ func (l *Link) Walk(ctx context.Context, link *v3.Link) {
 	}
 
 	if link.GoLow().IsReference() {
-		base.BuildReference(drCtx, link.GoLow())
+		BuildReference(drCtx, link.GoLow())
 	}
 
 	drCtx.ObjectChan <- l
@@ -43,40 +42,44 @@ func (l *Link) GetValue() any {
 }
 
 func (l *Link) GetSize() (height, width int) {
-	width = base.WIDTH
-	height = base.HEIGHT
+	width = WIDTH
+	height = HEIGHT
 
 	if l.Key != "" {
-		if len(l.Key) > base.HEIGHT {
-			width += (len(l.Key) - (base.HEIGHT)) * 15
+		if len(l.Key) > HEIGHT {
+			width += (len(l.Key) - (HEIGHT)) * 15
 		}
 	}
 
 	if l.Value.Parameters.Len() > 0 {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if l.Value.OperationRef != "" {
-		height += base.HEIGHT
-		if len(l.Value.OperationRef) > base.HEIGHT {
-			width += (len(l.Value.OperationRef) - (base.HEIGHT)) * 20
+		height += HEIGHT
+		if len(l.Value.OperationRef) > HEIGHT {
+			width += (len(l.Value.OperationRef) - (HEIGHT)) * 20
 		}
 	}
 
 	if l.Value.OperationId != "" {
-		height += base.HEIGHT
-		if len(l.Value.OperationId) > base.HEIGHT {
-			width += (len(l.Value.OperationId) - (base.HEIGHT)) * 20
+		height += HEIGHT
+		if len(l.Value.OperationId) > HEIGHT {
+			width += (len(l.Value.OperationId) - (HEIGHT)) * 20
 		}
 	}
 
 	if l.Value.Server != nil {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if l.Value.Extensions != nil && l.Value.Extensions.Len() > 0 {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	return height, width
+}
+
+func (l *Link) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, l)
 }

@@ -5,19 +5,18 @@ package v3
 
 import (
 	"context"
-	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
 type SecurityScheme struct {
 	Value *v3.SecurityScheme
 	Flows *OAuthFlows
-	base.Foundation
+	Foundation
 }
 
 func (s *SecurityScheme) Walk(ctx context.Context, securityScheme *v3.SecurityScheme) {
 
-	drCtx := base.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 
 	s.Value = securityScheme
@@ -39,22 +38,26 @@ func (s *SecurityScheme) GetValue() any {
 }
 
 func (s *SecurityScheme) GetSize() (height, width int) {
-	width = base.WIDTH
-	height = base.HEIGHT * 2
+	width = WIDTH
+	height = HEIGHT * 2
 
 	if s.Value.Name != "" {
-		if len(s.Value.Name) > base.HEIGHT {
-			width += (len(s.Value.Name) - base.HEIGHT) * 10
+		if len(s.Value.Name) > HEIGHT {
+			width += (len(s.Value.Name) - HEIGHT) * 10
 		}
 	}
 
 	if s.Value.Flows != nil {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if s.Value.Extensions != nil && s.Value.Extensions.Len() > 0 {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	return height, width
+}
+
+func (s *SecurityScheme) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, s)
 }

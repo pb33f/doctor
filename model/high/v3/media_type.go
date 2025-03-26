@@ -5,29 +5,28 @@ package v3
 
 import (
 	"context"
-	drBase "github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
 
 type MediaType struct {
 	Value       *v3.MediaType
-	SchemaProxy *drBase.SchemaProxy
-	Examples    *orderedmap.Map[string, *drBase.Example]
+	SchemaProxy *SchemaProxy
+	Examples    *orderedmap.Map[string, *Example]
 	Encoding    *orderedmap.Map[string, *Encoding]
-	drBase.Foundation
+	Foundation
 }
 
 func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 
-	drCtx := drBase.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 
 	m.Value = mediaType
 	m.BuildNodesAndEdges(ctx, m.Key, "mediaType", mediaType, m)
 
 	if mediaType.Schema != nil {
-		s := &drBase.SchemaProxy{}
+		s := &SchemaProxy{}
 		s.ValueNode = mediaType.Schema.GoLow().GetValueNode()
 		s.KeyNode = mediaType.Schema.GetSchemaKeyNode()
 		s.Parent = m
@@ -41,9 +40,9 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 	}
 
 	if mediaType.Examples != nil && mediaType.Examples.Len() > 0 {
-		examples := orderedmap.New[string, *drBase.Example]()
+		examples := orderedmap.New[string, *Example]()
 		for mediaTypePairs := mediaType.Examples.First(); mediaTypePairs != nil; mediaTypePairs = mediaTypePairs.Next() {
-			e := &drBase.Example{}
+			e := &Example{}
 			e.Parent = m
 			e.PathSegment = "examples"
 			e.Key = mediaTypePairs.Key()
@@ -87,10 +86,10 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 	}
 
 	if mediaType.GoLow().IsReference() {
-		drBase.BuildReference(drCtx, mediaType.GoLow())
+		BuildReference(drCtx, mediaType.GoLow())
 	}
 
-	drCtx.MediaTypeChan <- &drBase.WalkedMediaType{
+	drCtx.MediaTypeChan <- &WalkedMediaType{
 		MediaType:     m,
 		MediaTypeNode: mediaType.GoLow().RootNode,
 	}
@@ -103,27 +102,27 @@ func (m *MediaType) GetValue() any {
 }
 
 func (m *MediaType) GetSize() (height, width int) {
-	width = drBase.WIDTH
-	height = drBase.HEIGHT
+	width = WIDTH
+	height = HEIGHT
 
 	if m.Key != "" {
-		if len(m.Key) > drBase.HEIGHT-15 {
-			width += (len(m.Key) - (drBase.HEIGHT - 15)) * 15
+		if len(m.Key) > HEIGHT-15 {
+			width += (len(m.Key) - (HEIGHT - 15)) * 15
 		}
 	}
 
 	if m.Value.Encoding != nil && m.Value.Encoding.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if m.Value.Extensions != nil && m.Value.Extensions.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if m.Value.Schema != nil && m.Value.Schema.Schema() != nil && len(m.Value.Schema.Schema().Type) > 0 {
 		if !m.Value.Schema.IsReference() {
 			width += len(m.Value.Schema.Schema().Type) * 50
-			sh, sw := drBase.ParseSchemaSize(m.Value.Schema.Schema())
+			sh, sw := ParseSchemaSize(m.Value.Schema.Schema())
 			height += sh
 			if width < sw {
 				width = sw
@@ -132,4 +131,8 @@ func (m *MediaType) GetSize() (height, width int) {
 	}
 
 	return height, width
+}
+
+func (m *MediaType) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, m)
 }

@@ -5,7 +5,6 @@ package v3
 
 import (
 	"context"
-	drBase "github.com/pb33f/doctor/model/high/base"
 	"github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"slices"
@@ -13,15 +12,15 @@ import (
 
 type Parameter struct {
 	Value       *v3.Parameter
-	SchemaProxy *drBase.SchemaProxy
-	Examples    *orderedmap.Map[string, *drBase.Example]
+	SchemaProxy *SchemaProxy
+	Examples    *orderedmap.Map[string, *Example]
 	Content     *orderedmap.Map[string, *MediaType]
-	drBase.Foundation
+	Foundation
 }
 
 func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 
-	drCtx := drBase.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 
 	p.Value = param
@@ -37,7 +36,7 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 	}
 
 	if param.Schema != nil {
-		s := &drBase.SchemaProxy{}
+		s := &SchemaProxy{}
 		s.ValueNode = param.Schema.GoLow().GetValueNode()
 		s.KeyNode = param.Schema.GetSchemaKeyNode()
 		s.Parent = p
@@ -56,9 +55,9 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 	}
 
 	if param.Examples != nil && param.Examples.Len() > 0 {
-		examples := orderedmap.New[string, *drBase.Example]()
+		examples := orderedmap.New[string, *Example]()
 		for paramPairs := param.Examples.First(); paramPairs != nil; paramPairs = paramPairs.Next() {
-			e := &drBase.Example{}
+			e := &Example{}
 			e.Key = paramPairs.Key()
 			for lowExpPairs := param.GoLow().Examples.Value.First(); lowExpPairs != nil; lowExpPairs = lowExpPairs.Next() {
 				if lowExpPairs.Key().Value == e.Key {
@@ -99,13 +98,13 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 		p.Content = content
 	}
 
-	drCtx.ParameterChan <- &drBase.WalkedParam{
+	drCtx.ParameterChan <- &WalkedParam{
 		Param:     p,
 		ParamNode: param.GoLow().RootNode,
 	}
 
 	if param.GoLow().IsReference() {
-		drBase.BuildReference(drCtx, param.GoLow())
+		BuildReference(drCtx, param.GoLow())
 	}
 
 	drCtx.ObjectChan <- p
@@ -116,40 +115,40 @@ func (p *Parameter) GetValue() any {
 }
 
 func (p *Parameter) GetSize() (height, width int) {
-	width = drBase.WIDTH
-	height = drBase.HEIGHT
+	width = WIDTH
+	height = HEIGHT
 
 	if p.Key != "" {
-		if len(p.Key) > drBase.HEIGHT-15 {
-			width += (len(p.Key) - (drBase.HEIGHT - 15)) * 20
+		if len(p.Key) > HEIGHT-15 {
+			width += (len(p.Key) - (HEIGHT - 15)) * 20
 		}
 	}
 
 	if p.Value.Name != "" {
-		height += drBase.HEIGHT
-		if len(p.Value.Name) > drBase.HEIGHT-15 {
-			width += (len(p.Value.Name) - (drBase.HEIGHT - 15)) * 30
+		height += HEIGHT
+		if len(p.Value.Name) > HEIGHT-15 {
+			width += (len(p.Value.Name) - (HEIGHT - 15)) * 30
 		}
 	}
 
 	if p.Value.In != "" {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if p.Value.Deprecated {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if p.Value.Required != nil && *p.Value.Required {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if p.Value.Content != nil && p.Value.Content.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if p.Value.Extensions != nil && p.Value.Extensions.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if p.Value.Schema != nil && len(p.Value.Schema.Schema().Type) > 0 {
@@ -157,4 +156,8 @@ func (p *Parameter) GetSize() (height, width int) {
 	}
 
 	return height, width
+}
+
+func (p *Parameter) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, p)
 }

@@ -5,7 +5,6 @@ package v3
 
 import (
 	"context"
-	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	lowV3 "github.com/pb33f/libopenapi/datamodel/low/v3"
@@ -30,7 +29,7 @@ type PathItem struct {
 	Trace      *Operation
 	Servers    []*Server
 	Parameters []*Parameter
-	base.Foundation
+	Foundation
 }
 
 func (p *PathItem) buildOperation(method string) *Operation {
@@ -72,7 +71,7 @@ func (p *PathItem) buildOperation(method string) *Operation {
 
 func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 
-	drCtx := base.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 
 	p.Value = pathItem
@@ -146,13 +145,13 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 
 	if pathItem.Parameters != nil {
 
-		paramsNode := &base.Foundation{
+		paramsNode := &Foundation{
 			Parent:      p,
 			NodeParent:  p,
 			PathSegment: "parameters",
 			Index:       p.Index,
-			ValueNode:   base.ExtractValueNodeForLowModel(pathItem.GoLow().Parameters),
-			KeyNode:     base.ExtractKeyNodeForLowModel(pathItem.GoLow().Parameters),
+			ValueNode:   ExtractValueNodeForLowModel(pathItem.GoLow().Parameters),
+			KeyNode:     ExtractKeyNodeForLowModel(pathItem.GoLow().Parameters),
 		}
 
 		paramsNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(paramsNode.PathSegment),
@@ -176,7 +175,7 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 	}
 
 	if pathItem.GoLow().IsReference() {
-		base.BuildReference(drCtx, pathItem.GoLow())
+		BuildReference(drCtx, pathItem.GoLow())
 	}
 
 	drCtx.ObjectChan <- p
@@ -240,58 +239,62 @@ func (p *PathItem) GetValue() any {
 }
 
 func (p *PathItem) GetSize() (height, width int) {
-	width = base.WIDTH
-	height = base.HEIGHT
+	width = WIDTH
+	height = HEIGHT
 
 	if p.Key != "" {
-		if len(p.Key) > base.HEIGHT-10 {
-			width += (len(p.Key) - (base.HEIGHT - 10)) * 15
+		if len(p.Key) > HEIGHT-10 {
+			width += (len(p.Key) - (HEIGHT - 10)) * 15
 		}
 	}
 
 	if p.Get != nil {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if p.Put != nil {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if p.Post != nil {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if p.Delete != nil {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if p.Options != nil {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if p.Head != nil {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if p.Patch != nil {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if p.Trace != nil {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if p.Servers != nil {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if p.Parameters != nil {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if p.Value.Extensions != nil && p.Value.Extensions.Len() > 0 {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	return height, width
+}
+
+func (p *PathItem) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, p)
 }

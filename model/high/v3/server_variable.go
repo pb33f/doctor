@@ -5,17 +5,16 @@ package v3
 
 import (
 	"context"
-	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
 type ServerVariable struct {
 	Value *v3.ServerVariable
-	base.Foundation
+	Foundation
 }
 
 func (sv *ServerVariable) Walk(ctx context.Context, serverVariable *v3.ServerVariable, key string) {
-	drCtx := base.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	sv.Value = serverVariable
 	sv.PathSegment = "variables"
 	sv.Key = key

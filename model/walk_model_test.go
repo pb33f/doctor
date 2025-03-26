@@ -5,14 +5,14 @@ package model
 
 import (
 	"fmt"
-	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	drV3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/pb33f/doctor/model/high/base"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
@@ -1065,7 +1065,7 @@ paths:
 	walker := NewDrDocument(v3Doc)
 	walked := walker.V3Document
 
-	assert.Equal(t, []*base.SecurityRequirement{}, walked.Paths.PathItems.GetOrZero("/hello").Get.Security)
+	assert.Equal(t, []*drV3.SecurityRequirement{}, walked.Paths.PathItems.GetOrZero("/hello").Get.Security)
 }
 
 func TestWalker_WalkV3_Path_With_No_Security(t *testing.T) {
@@ -1088,7 +1088,7 @@ paths:
 	walker := NewDrDocument(v3Doc)
 	walked := walker.V3Document
 
-	assert.Equal(t, []*base.SecurityRequirement(nil), walked.Paths.PathItems.GetOrZero("/hello").Get.Security)
+	assert.Equal(t, []*drV3.SecurityRequirement(nil), walked.Paths.PathItems.GetOrZero("/hello").Get.Security)
 }
 
 func TestWalker_WalkV3_Path_With_Security(t *testing.T) {
@@ -1150,7 +1150,7 @@ tags:
 
 	walker := NewDrDocument(v3Doc)
 
-	f := walker.lineObjects[3][0].(*base.Tag)
+	f := walker.lineObjects[3][0].(*drV3.Tag)
 
 	assert.Equal(t, "hello", f.Value.Name)
 	assert.Equal(t, "$.tags[0]", f.GenerateJSONPath())
@@ -1161,7 +1161,7 @@ tags:
 	assert.Equal(t, f, l[0])
 
 	// test the locate methods
-	ll, e := walker.LocateModel(l[0].(*base.Tag).ValueNode)
+	ll, e := walker.LocateModel(l[0].(*drV3.Tag).ValueNode)
 	assert.NoError(t, e)
 	assert.Len(t, ll, 1)
 	assert.Equal(t, f, ll[0])
@@ -1188,8 +1188,8 @@ security:
 
 	walker := NewDrDocument(v3Doc)
 
-	assert.Equal(t, "OAuthScheme", walker.lineObjects[3][0].(*base.SecurityRequirement).Value.Requirements.First().Key())
-	assert.Equal(t, "$.security[0]", walker.lineObjects[3][0].(*base.SecurityRequirement).GenerateJSONPath())
+	assert.Equal(t, "OAuthScheme", walker.lineObjects[3][0].(*drV3.SecurityRequirement).Value.Requirements.First().Key())
+	assert.Equal(t, "$.security[0]", walker.lineObjects[3][0].(*drV3.SecurityRequirement).GenerateJSONPath())
 
 }
 
