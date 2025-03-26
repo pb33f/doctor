@@ -1,0 +1,107 @@
+// Copyright 2023-2025 Princess Beef Heavy Industries, LLC / Dave Shanley
+// https://pb33f.io
+
+package changerator
+
+import (
+	"fmt"
+	"github.com/mitchellh/mapstructure"
+	v3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi/what-changed/model"
+)
+
+func (t *Changerator) Cleaneromatic(nodes []*v3.Node) []*v3.Node {
+	seen := make(map[string]*model.Change)
+	var clean []*v3.Node
+	if len(nodes) > 0 {
+		for i := range nodes {
+			if nodes[i].Changes != nil {
+				ch := nodes[i].Changes.GetAllChanges()
+				for n := range ch {
+					ctx := ch[n].Context
+					var hash string
+					if ctx != nil {
+						hash = fmt.Sprintf("%d:%d:%d:%d", ctx.OriginalColumn, ctx.NewColumn, ctx.OriginalLine, ctx.OriginalColumn)
+					}
+					_, ok := seen[hash]
+
+					if hash != "" && ok {
+						continue // seen
+					}
+
+					clean = append(clean, nodes[i])
+				}
+			}
+		}
+	}
+	return clean
+}
+
+func (t *Changerator) TurnOnChangedTree(root *v3.Node) {
+	root.RenderProps = true
+	root.RenderChanges = true
+	for _, n := range root.Children {
+		t.TurnOnChangedTree(n)
+	}
+}
+
+func (t *Changerator) BuildNodeChangeTree(root *v3.Node) {
+	t.Changerify([]*v3.Node{root})
+}
+
+func (t *Changerator) Changerify(n any) []*v3.Node {
+	if nodes, ok := n.([]*v3.Node); ok {
+		var filtered []*v3.Node
+		for i := range nodes {
+			// Process children recursively first
+			if len(nodes[i].Children) > 0 {
+				nodes[i].Children = t.Changerify(nodes[i].Children)
+			}
+
+			// Check if the current node has changes or rendered changes
+			hasOwnChanges := nodes[i].Changes != nil || len(nodes[i].RenderedChanges) > 0
+			hasChildChanges := len(nodes[i].Children) > 0
+
+			// Include node only if it has changes or children with changes
+			if hasOwnChanges || hasChildChanges {
+				nodes[i].RenderChanges = true
+				nodes[i].Instance = nil
+				nodes[i].DrInstance = nil
+				nodes[i].RenderProps = true
+				filtered = append(filtered, nodes[i])
+			}
+		}
+		return filtered
+	}
+
+	// Handle alternate type ([]any) from your original implementation if required
+	if uNodes, ok := n.([]any); ok {
+		var rn []*v3.Node
+		for i := range uNodes {
+			var b v3.Node
+			if err := mapstructure.Decode(uNodes[i], &b); err != nil {
+				continue
+			}
+
+			// Process children recursively
+			if len(b.Children) > 0 {
+				b.Children = t.Changerify(b.Children)
+			}
+
+			// Check if node has changes or child changes
+			hasOwnChanges := b.Changes != nil || len(b.RenderedChanges) > 0
+			hasChildChanges := len(b.Children) > 0
+
+			if hasOwnChanges || hasChildChanges {
+				b.RenderChanges = true
+				b.RenderProps = true
+				b.Instance = nil
+				b.DrInstance = nil
+				rn = append(rn, &b)
+			}
+		}
+		return rn
+	}
+
+	return nil
+}
