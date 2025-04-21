@@ -20,29 +20,31 @@ func (t *Changerator) Calculatoratron() *ChangeStatistics {
 	if len(t.ChangedNodes) > 0 {
 		for i := range t.ChangedNodes {
 
-			ch := t.ChangedNodes[i].Changes.GetAllChanges()
-			for n := range ch {
-				ctx := ch[n].Context
-				var hash string
-				if ctx != nil {
-					hash = fmt.Sprintf("%d:%d:%d:%d", ctx.OriginalColumn, ctx.NewColumn, ctx.OriginalLine, ctx.OriginalColumn)
-				}
-				_, ok := seen[hash]
+			c := t.ChangedNodes[i].Changes
+			for _, cw := range c {
+				for _, ch := range cw.GetAllChanges() {
+					ctx := ch.Context
+					var hash string
+					if ctx != nil {
+						hash = fmt.Sprintf("%d:%d:%d:%d", ctx.OriginalColumn, ctx.NewColumn, ctx.OriginalLine, ctx.OriginalColumn)
+					}
+					_, ok := seen[hash]
 
-				if hash != "" && ok {
-					continue // seen
-				}
+					if hash != "" && ok {
+						continue // seen
+					}
 
-				switch ch[n].ChangeType {
-				case model.Modified:
-					stats.Modifications++
-				case model.ObjectRemoved, model.PropertyRemoved:
-					stats.Deletions++
-				case model.ObjectAdded, model.PropertyAdded:
-					stats.Additions++
-				}
-				if hash != "" {
-					seen[hash] = ch[n]
+					switch ch.ChangeType {
+					case model.Modified:
+						stats.Modifications++
+					case model.ObjectRemoved, model.PropertyRemoved:
+						stats.Deletions++
+					case model.ObjectAdded, model.PropertyAdded:
+						stats.Additions++
+					}
+					if hash != "" {
+						seen[hash] = ch
+					}
 				}
 			}
 		}

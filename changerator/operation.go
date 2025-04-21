@@ -14,27 +14,42 @@ func (t *Changerator) VisitOperation(ctx context.Context, obj *v3.Operation) {
 		PushChanges(ctx, obj, &model.OperationChanges{})
 		nCtx := ctx
 
-		if obj.Parameters != nil && len(changes.ParameterChanges) > 0 {
-			for _, ch := range changes.ParameterChanges {
-				ProcessSlice(ctx, ch, t)
+		if changes == nil {
+			return
+		}
+
+		if len(changes.ParameterChanges) > 0 {
+			if len(obj.Parameters) > 0 {
+				for i := range changes.ParameterChanges {
+					nCtx = context.WithValue(ctx, v3.Context, changes.ParameterChanges[i])
+					obj.Parameters[i].Travel(nCtx, t)
+				}
+			} else {
+				nCtx = context.WithValue(ctx, v3.Context, changes.ParameterChanges)
+				PushChangesFromSlice(nCtx, obj, []*model.ParameterChanges{}, "", "")
 			}
 		}
 
-		if obj.Servers != nil && len(changes.ServerChanges) > 0 {
-			for i := range obj.Servers {
-				nCtx = context.WithValue(ctx, v3.Context, changes.ServerChanges[i])
-				obj.Servers[i].Travel(nCtx, t)
+		if len(changes.ServerChanges) > 0 {
+			if len(obj.Servers) > 0 {
+				for i := range obj.Servers {
+					nCtx = context.WithValue(ctx, v3.Context, changes.ServerChanges[i])
+					obj.Servers[i].Travel(nCtx, t)
+				}
+			} else {
+				nCtx = context.WithValue(ctx, v3.Context, changes.ServerChanges)
+				PushChangesFromSlice(nCtx, obj, []*model.ServerChanges{}, "", "")
 			}
 		}
 
 		if obj.Security != nil && len(changes.SecurityRequirementChanges) > 0 {
 			nCtx = context.WithValue(ctx, v3.Context, changes.SecurityRequirementChanges)
-			PushChangesFromSlice(nCtx, obj, []*model.SecurityRequirementChanges{})
+			PushChangesFromSlice(nCtx, obj, []*model.SecurityRequirementChanges{}, "", "")
 		}
 
 		if changes.ExternalDocChanges != nil && obj.ExternalDocs != nil {
 			nCtx = context.WithValue(ctx, v3.Context, changes.ExternalDocChanges)
-			PushChanges(ctx, obj, &model.ExternalDocChanges{})
+			obj.ExternalDocs.Travel(nCtx, t)
 		}
 
 		if changes.RequestBodyChanges != nil && obj.RequestBody != nil {
@@ -47,5 +62,16 @@ func (t *Changerator) VisitOperation(ctx context.Context, obj *v3.Operation) {
 			obj.Responses.Travel(nCtx, t)
 		}
 
+		if obj.Callbacks != nil && obj.Callbacks.Len() > 0 {
+			if changes.CallbackChanges != nil {
+				for key, change := range changes.CallbackChanges {
+					nCtx = context.WithValue(ctx, v3.Context, change)
+					if obj.Callbacks.GetOrZero(key) != nil {
+						callback := obj.Callbacks.GetOrZero(key)
+						callback.Travel(nCtx, t)
+					}
+				}
+			}
+		}
 	}
 }

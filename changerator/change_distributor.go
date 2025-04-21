@@ -21,24 +21,23 @@ type ChangeratorChange whatChangedModel.Change
 
 type Changerator struct {
 	Config       *ChangeratorConfig
-	NodeChan     chan *v3.Node
+	NodeChan     chan *modelChange
 	ChangedNodes []*v3.Node
-	Changes      []any
+	ChangedEdges []*v3.Edge
+	Changes      []*whatChangedModel.Change
+	tmpEdges     []*v3.Edge
+	tmpNodes     []*v3.Node
 	seen         map[string]*whatChangedModel.Change
 }
 
+type modelChange struct {
+	model             v3.Foundational
+	node              *v3.Node
+	referenceJSONPath string
+	change            whatChanged.Changed
+}
+
 const NodeChannel string = "node-channel"
-
-/*
-	// GetAllChanges returns all top level changes made to properties in this object
-	GetAllChanges() []*model.Change
-
-	// TotalChanges returns a count of all changes made on the object, including all children
-	TotalChanges() int
-
-	// TotalBreakingChanges returns a count of all breaking changes on this object
-	TotalBreakingChanges() int
-*/
 
 func NewChangerator(config *ChangeratorConfig) *Changerator {
 	seen := make(map[string]*whatChangedModel.Change)
@@ -58,66 +57,118 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 	}
 
 	t.Config.DocumentChanges = docChanges
-	t.NodeChan = make(chan *v3.Node)
+	t.NodeChan = make(chan *modelChange)
+
+	var referenceNodeeChanges []*modelChange
+
 	doneChan := make(chan struct{})
 	go func() {
 		for val := range t.NodeChan {
 
-			//aux := &NodeChange{
-			//	Id:                val.Id,
-			//	IdHash:            val.IdHash,
-			//	Type:              val.Type,
-			//	Label:             val.Label,
-			//	ArrayIndex:        val.ArrayIndex,
-			//}
-
-			for _, ch := range val.Changes.GetAllChanges() {
-				ctx := ch.Context
-				var hash string
-				if ctx != nil {
-					hash = fmt.Sprintf("%d:%d:%d:%d", ctx.OriginalLine, ctx.OriginalColumn,
-						ctx.NewLine, ctx.NewColumn)
-				}
-				_, ok := t.seen[hash]
-
-				if hash != "" && ok {
-					continue
-				}
-
-				//var original map[string]any
-				//var modified map[string]any
-				//
-				//// HERE <----- marshal nodes into ready to go maps.
-				//
-				//if ch.OriginalObject != nil {
-				//	if rn, kk := ch.OriginalObject.(low.HasRootNode); kk {
-				//		orig := rn.GetRootNode()
-				//		if orig != nil {
-				//			orig.Decode(&original)
-				//		}
-				//	}
-				//}
-				//
-				//if ch.NewObject != nil {
-				//	if rn, kk := ch.NewObject.(low.HasRootNode); kk {
-				//		mod := rn.GetRootNode()
-				//		if mod != nil {
-				//			mod.Decode(&modified)
-				//		}
-				//	}
-				//}
-
-				t.Changes = append(t.Changes, ch)
+			if val.referenceJSONPath != "" {
+				referenceNodeeChanges = append(referenceNodeeChanges, val)
+				continue
 			}
-			t.ChangedNodes = append(t.ChangedNodes, val)
+
+			for _, c := range val.node.Changes {
+				for _, ch := range c.GetAllChanges() {
+					ctx := ch.Context
+					var hash string
+					if ctx != nil {
+
+						var a, b, c, d int
+						if ctx.OriginalLine != nil {
+							a = *ctx.OriginalLine
+						}
+						if ctx.OriginalColumn != nil {
+							b = *ctx.OriginalColumn
+						}
+						if ctx.NewLine != nil {
+							c = *ctx.NewLine
+						}
+						if ctx.NewColumn != nil {
+							d = *ctx.NewColumn
+						}
+
+						hash = fmt.Sprintf("%d:%d:%d:%d", a, b, c, d)
+					}
+					_, ok := t.seen[hash]
+
+					if hash != "" && ok {
+						continue
+					}
+					t.seen[hash] = ch
+					t.Changes = append(t.Changes, ch)
+				}
+			}
+			t.ChangedNodes = append(t.ChangedNodes, val.node)
 		}
 		doneChan <- struct{}{}
 	}()
 
 	chCtx := context.WithValue(context.Background(), NodeChannel, t.NodeChan)
-	ctx := context.WithValue(chCtx, v3.Context, docChanges)
-	go t.Config.RightDrDoc.Travel(ctx, t)
+	cctx := context.WithValue(chCtx, v3.Context, docChanges)
+	go t.Config.RightDrDoc.Travel(cctx, t)
 	<-doneChan
+
+	if len(referenceNodeeChanges) > 0 {
+		t.NodeChan = make(chan *modelChange)
+		chCtx = context.WithValue(context.Background(), NodeChannel, t.NodeChan)
+		doneChan = make(chan struct{})
+		// process referenced nodes with changes
+		go func() {
+			for val := range t.NodeChan {
+				if val.node != nil && len(val.node.Changes) > 0 {
+					for _, q := range val.node.Changes {
+						for _, ch := range q.GetAllChanges() {
+							ctx := ch.Context
+							var hash string
+							if ctx != nil {
+
+								var a, b, c, d int
+								if ctx.OriginalLine != nil {
+									a = *ctx.OriginalLine
+								}
+								if ctx.OriginalColumn != nil {
+									b = *ctx.OriginalColumn
+								}
+								if ctx.NewLine != nil {
+									c = *ctx.NewLine
+								}
+								if ctx.NewColumn != nil {
+									d = *ctx.NewColumn
+								}
+
+								hash = fmt.Sprintf("%d:%d:%d:%d", a, b, c, d)
+							}
+							_, ok := t.seen[hash]
+
+							if hash != "" && ok {
+								continue
+							}
+
+							t.seen[hash] = ch
+							t.Changes = append(t.Changes, ch)
+						}
+					}
+					t.ChangedNodes = append(t.ChangedNodes, val.node)
+				}
+			}
+		}()
+		nCtx := chCtx
+		for _, rn := range referenceNodeeChanges {
+			for _, n := range t.Config.Doctor.Nodes {
+				if n.Id == rn.referenceJSONPath {
+					if tr, ok := n.DrInstance.(v3.Companion); ok {
+						nCtx = context.WithValue(nCtx, v3.Context, rn.change)
+						tr.Travel(nCtx, t)
+					}
+				}
+			}
+		}
+		close(t.NodeChan)
+	}
+
 	return docChanges
 
 }
@@ -134,13 +185,15 @@ func (t *Changerator) Visit(ctx context.Context, object any) {
 	case *v3.Info:
 		t.VisitInfo(ctx, obj)
 	case *v3.Server:
-		PushChanges(ctx, obj, &whatChangedModel.ServerChanges{})
+		t.VisitServer(ctx, obj)
+	case *v3.ServerVariable:
+		PushChanges(ctx, obj, &whatChangedModel.ServerVariableChanges{})
 	case *v3.Contact:
 		PushChanges(ctx, obj, &whatChangedModel.ContactChanges{})
 	case *v3.License:
 		PushChanges(ctx, obj, &whatChangedModel.LicenseChanges{})
 	case *v3.Tag:
-		PushChanges(ctx, obj, &whatChangedModel.TagChanges{})
+		t.VisitTag(ctx, obj)
 	case *v3.SecurityRequirement:
 		PushChanges(ctx, obj, &whatChangedModel.SecurityRequirementChanges{})
 	case *v3.Paths:
