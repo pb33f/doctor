@@ -86,11 +86,11 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	process := true
 	if schema.Type != nil {
-		if slices.Contains(schema.Type, "boolean") ||
-			slices.Contains(schema.Type, "number") ||
-			slices.Contains(schema.Type, "string") {
-			process = false
-		}
+		//if slices.Contains(schema.Type, "boolean") ||
+		//	slices.Contains(schema.Type, "number") ||
+		//	slices.Contains(schema.Type, "string") {
+		//	process = false
+		//}
 	}
 
 	if s.Index != nil {
@@ -443,12 +443,12 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 					sch.KeyNode = lowSchPairs.Key().KeyNode
 					g := v.Schema()
 					if g != nil {
-						if !slices.Contains(g.Type, "string") &&
-							!slices.Contains(g.Type, "boolean") &&
-							!slices.Contains(g.Type, "integer") &&
-							!slices.Contains(g.Type, "number") {
-							sch.NodeParent = s
-						}
+						//if !slices.Contains(g.Type, "string") &&
+						//	!slices.Contains(g.Type, "boolean") &&
+						//	!slices.Contains(g.Type, "integer") &&
+						//	!slices.Contains(g.Type, "number") {
+						sch.NodeParent = s
+						//}
 					}
 					walked = true
 					//wg.Go(func() {
@@ -463,12 +463,12 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			} else {
 				g := v.Schema()
 				if g != nil {
-					if !slices.Contains(g.Type, "string") &&
-						!slices.Contains(g.Type, "boolean") &&
-						!slices.Contains(g.Type, "integer") &&
-						!slices.Contains(g.Type, "number") {
-						sch.NodeParent = s
-					}
+					//if !slices.Contains(g.Type, "string") &&
+					//	!slices.Contains(g.Type, "boolean") &&
+					//	!slices.Contains(g.Type, "integer") &&
+					//	!slices.Contains(g.Type, "number") {
+					sch.NodeParent = s
+					//}
 				}
 			}
 			if !walked {
@@ -553,6 +553,12 @@ func (s *Schema) GetSize() (height, width int) {
 			h += HEIGHT // parent is poly, add new row for schema to render this.
 		}
 	}
+	for _, change := range s.Changes {
+		if len(change.GetPropertyChanges()) > 0 || len(change.GetAllChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
 	return h, w
 }
 
@@ -570,13 +576,14 @@ func ParseSchemaSize(schema *base.Schema) (height, width int) {
 	width = WIDTH
 	height = HEIGHT
 	if schema.Type != nil {
-		strArr := []string{"object", "array"}
-		for _, t := range strArr {
-			if slices.Contains(schema.Type, t) {
-				height += HEIGHT
-				break
-			}
-		}
+		//strArr := []string{"object", "array"}
+		//for _, t := range strArr {
+		//	if slices.Contains(schema.Type, t) {
+		//		height += HEIGHT
+		//		break
+		//	}
+		//}
+		height += HEIGHT
 	} else {
 		if hasSubSchemas(schema) {
 			height += HEIGHT
@@ -610,10 +617,13 @@ func ParseSchemaSize(schema *base.Schema) (height, width int) {
 			width += 50
 		}
 	}
-	if schema.Extensions != nil && schema.Extensions.Len() > 0 {
+	if len(schema.Examples) <= 0 || schema.Example == nil {
 		height += HEIGHT
 	}
 
+	if schema.Extensions != nil && schema.Extensions.Len() > 0 {
+		height += HEIGHT
+	}
 	return height, width
 }
 
