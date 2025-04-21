@@ -17,6 +17,14 @@ func (ed *ExternalDoc) GetValue() any {
 	return ed.Value
 }
 
+func (ed *ExternalDoc) Walk(ctx context.Context, externalDoc *base.ExternalDoc) {
+	drCtx := GetDrContext(ctx)
+	ed.ValueNode = externalDoc.GoLow().RootNode
+	ed.KeyNode = externalDoc.GoLow().KeyNode
+	ed.BuildNodesAndEdges(ctx, "External Docs", ed.PathSegment, externalDoc, ed)
+	drCtx.ObjectChan <- ed
+}
+
 func (ed *ExternalDoc) Travel(ctx context.Context, tardis Tardis) {
 	tardis.Visit(ctx, ed)
 }

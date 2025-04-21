@@ -5,6 +5,7 @@ package gopher
 
 import (
 	"fmt"
+	"github.com/pb33f/doctor/helpers"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"path/filepath"
@@ -98,7 +99,7 @@ func (rt *RolodexTree) BuildTree(base string, baseUrl string) *Node {
 			f := ""
 			if fl {
 				if rolodexFile != nil {
-					f = intern(rolodexFile.GetContent())
+					f = helpers.Intern(rolodexFile.GetContent())
 				}
 			}
 			xid++

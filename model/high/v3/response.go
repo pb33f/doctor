@@ -127,6 +127,12 @@ func (r *Response) GetSize() (height, width int) {
 		height += HEIGHT
 	}
 
+	for _, change := range r.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
 	return height, width
 }
 
