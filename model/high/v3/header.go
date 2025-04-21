@@ -147,6 +147,15 @@ func (h *Header) GetSize() (height, width int) {
 		}
 	}
 
+	if len(h.Changes) > 0 {
+		for _, change := range h.Changes {
+			if len(change.GetPropertyChanges()) > 0 {
+				height += HEIGHT
+				break
+			}
+		}
+	}
+
 	return height, width
 }
 

@@ -50,6 +50,14 @@ func (t *Tag) GetSize() (height, width int) {
 			width = 170
 		}
 	}
+	if len(t.Changes) > 0 {
+		for _, change := range t.Changes {
+			if len(change.GetPropertyChanges()) > 0 {
+				height += HEIGHT
+				break
+			}
+		}
+	}
 	return height, width
 }
 

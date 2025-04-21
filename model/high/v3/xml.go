@@ -26,6 +26,14 @@ func (x *XML) GetSize() (height, width int) {
 	if x.Value.Extensions != nil && x.Value.Extensions.Len() > 0 {
 		height += HEIGHT
 	}
+	if len(x.Changes) > 0 {
+		for _, change := range x.Changes {
+			if len(change.GetPropertyChanges()) > 0 {
+				height += HEIGHT
+				break
+			}
+		}
+	}
 	return height, width
 }
 

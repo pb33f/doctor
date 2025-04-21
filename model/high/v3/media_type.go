@@ -130,6 +130,15 @@ func (m *MediaType) GetSize() (height, width int) {
 		}
 	}
 
+	if len(m.Changes) > 0 {
+		for _, change := range m.Changes {
+			if len(change.GetPropertyChanges()) > 0 {
+				height += HEIGHT
+				break
+			}
+		}
+	}
+
 	return height, width
 }
 

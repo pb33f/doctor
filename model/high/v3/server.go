@@ -62,6 +62,12 @@ func (s *Server) GetSize() (height, width int) {
 	if s.Value.Extensions != nil && s.Value.Extensions.Len() > 0 {
 		height += HEIGHT
 	}
+	for _, change := range s.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
 	return height, width
 }
 

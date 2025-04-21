@@ -45,6 +45,12 @@ func (c *Contact) GetSize() (height, width int) {
 	if c.Value.Extensions != nil && c.Value.Extensions.Len() > 0 {
 		height += HEIGHT
 	}
+	for _, change := range c.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
 	return height, width
 }
 

@@ -27,7 +27,7 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 	if r.InstanceType != "" {
 		instanceType = r.InstanceType
 	}
-	label := r.Key
+	label := "Request Body"
 
 	r.BuildNodesAndEdges(ctx, label, instanceType, requestBody, r)
 
@@ -88,7 +88,12 @@ func (r *RequestBody) GetSize() (height, width int) {
 	if r.Value.Extensions != nil && r.Value.Extensions.Len() > 0 {
 		height += HEIGHT
 	}
-
+	for _, change := range r.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
 	return height, width
 }
 
