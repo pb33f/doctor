@@ -355,5 +355,11 @@ func (d *Document) GetSize() (height, width int) {
 	if d.Document.Extensions != nil && d.Document.Extensions.Len() > 0 {
 		height += HEIGHT
 	}
+	for _, change := range d.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
 	return height, width
 }

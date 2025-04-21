@@ -38,6 +38,13 @@ func (l *License) GetSize() (height, width int) {
 	if l.Value.Extensions != nil && l.Value.Extensions.Len() > 0 {
 		height += HEIGHT
 	}
+	for _, change := range l.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
+
 	return height, width
 }
 

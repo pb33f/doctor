@@ -77,6 +77,13 @@ func (l *Link) GetSize() (height, width int) {
 		height += HEIGHT
 	}
 
+	for _, change := range l.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
+
 	return height, width
 }
 

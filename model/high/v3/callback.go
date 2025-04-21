@@ -31,7 +31,9 @@ func (c *Callback) Walk(ctx context.Context, callback *v3.Callback) {
 			p.Key = expressionPairs.Key()
 			p.NodeParent = c
 			v := expressionPairs.Value()
-			wg.Go(func() { p.Walk(ctx, v) })
+			wg.Go(func() {
+				p.Walk(ctx, v)
+			})
 			expression.Set(expressionPairs.Key(), p)
 		}
 		c.Expression = expression
@@ -65,6 +67,15 @@ func (c *Callback) GetSize() (height, width int) {
 	if c.Value.Extensions.Len() > 0 {
 		height += HEIGHT
 	}
-
+	for _, change := range c.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
 	return height, width
+}
+
+func (c *Callback) Travel(ctx context.Context, traveller Tardis) {
+	traveller.Visit(ctx, c)
 }

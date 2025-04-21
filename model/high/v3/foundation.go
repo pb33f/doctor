@@ -33,6 +33,8 @@ type Foundational interface {
 	GetParent() Foundational
 	GetNodeParent() Foundational
 	GetPathSegment() string
+	GetKeyValue() string
+	GetIndexValue() *int
 	GenerateJSONPath() string
 	GenerateJSONPathWithLevel(level int) string
 	GetRoot() Foundational
@@ -84,6 +86,14 @@ func (f *Foundation) AddChanges(changes []*NodeChange) {
 
 func (f *Foundation) AddChange(change *NodeChange) {
 	f.Changes = append(f.Changes, change)
+}
+
+func (f *Foundation) GetKeyValue() string {
+	return f.Key
+}
+
+func (f *Foundation) GetIndexValue() *int {
+	return f.Index
 }
 
 func (f *Foundation) GetInstanceType() string {
@@ -243,6 +253,8 @@ func (f *Foundation) ProcessNodesAndEdges(ctx context.Context, label, nodeType s
 			}
 
 			parent.AddEdge(e)
+			f.AddEdge(e)
+
 			drCtx.EdgeChan <- e
 		}
 
