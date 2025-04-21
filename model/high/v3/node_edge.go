@@ -19,45 +19,69 @@ import (
 )
 
 type Node struct {
-	Value           *yaml.Node           `json:"-"`
-	Id              string               `json:"id"`
-	IdHash          string               `json:"idHash,omitempty"`
-	ParentId        string               `json:"parentId"`
-	Type            string               `json:"type"`
-	Label           string               `json:"label"`
-	Width           int                  `json:"width"`
-	Height          int                  `json:"height"`
-	Children        []*Node              `json:"nodes,omitempty"`
-	IsArray         bool                 `json:"isArray,omitempty"`
-	IsPoly          bool                 `json:"isPoly,omitempty"`
-	PolyType        string               `json:"polyType,omitempty"`
-	PropertyCount   int                  `json:"propertyCount,omitempty"`
-	ArrayIndex      int                  `json:"arrayIndex,omitempty"`
-	ArrayValues     int                  `json:"arrayValues,omitempty"`
-	Extensions      int                  `json:"extensions,omitempty"`
-	Hash            string               `json:"hash,omitempty"`
-	OriginLocation  string               `json:"originLocation,omitempty"`
-	Origin          *index.NodeOrigin    `json:"nodeOrigin,omitempty"`
-	drModel         any                  `json:"-"`
-	KeyLine         int                  `json:"-"`
-	ValueLine       int                  `json:"valueLine"`
-	Instance        any                  `json:"instance"`
-	DrInstance      any                  `json:"-"`
-	Changes         what_changed.Changed `json:"-"`
-	RenderedChanges []*model.Change      `json:"timeline,omitempty"`
-	CleanedChanged  []*model.Change      `json:"cleanedChanges,omitempty"`
-	RenderProps     bool                 `json:"-"`
-	RenderChanges   bool                 `json:"-"`
+	Value           *yaml.Node             `json:"-"`
+	Id              string                 `json:"id"`
+	IdHash          string                 `json:"idHash,omitempty"`
+	ParentId        string                 `json:"parentId"`
+	Type            string                 `json:"type"`
+	Label           string                 `json:"label"`
+	Width           int                    `json:"width"`
+	Height          int                    `json:"height"`
+	Children        []*Node                `json:"nodes,omitempty"`
+	IsArray         bool                   `json:"isArray,omitempty"`
+	IsPoly          bool                   `json:"isPoly,omitempty"`
+	PolyType        string                 `json:"polyType,omitempty"`
+	PropertyCount   int                    `json:"propertyCount,omitempty"`
+	ArrayIndex      int                    `json:"arrayIndex,omitempty"`
+	ArrayValues     int                    `json:"arrayValues,omitempty"`
+	Extensions      int                    `json:"extensions,omitempty"`
+	Hash            string                 `json:"hash,omitempty"`
+	OriginLocation  string                 `json:"originLocation,omitempty"`
+	Origin          *index.NodeOrigin      `json:"nodeOrigin,omitempty"`
+	drModel         any                    `json:"-"`
+	KeyLine         int                    `json:"-"`
+	ValueLine       int                    `json:"valueLine"`
+	Instance        any                    `json:"instance"`
+	DrInstance      any                    `json:"-"`
+	Changes         []what_changed.Changed `json:"-"`
+	RenderedChanges []*model.Change        `json:"timeline,omitempty"`
+	CleanedChanged  []*model.Change        `json:"cleanedChanges,omitempty"`
+	RenderProps     bool                   `json:"-"`
+	RenderChanges   bool                   `json:"-"`
+}
+
+type NodeChangeable interface {
+	GetType() string
+	GetLabel() string
+	GetHash() string
+	GetPath() string
 }
 
 type NodeChange struct {
-	Id         string               `json:"id"`
+	Id         string               `json:"id,omitempty"`
 	IdHash     string               `json:"idHash,omitempty"`
-	Type       string               `json:"type"`
-	Label      string               `json:"label"`
+	Type       string               `json:"type,omitempty"`
+	Label      string               `json:"label,omitempty"`
+	Path       string               `json:"path,omitempty"`
 	Children   []*Node              `json:"nodes,omitempty"`
 	ArrayIndex int                  `json:"arrayIndex,omitempty"`
 	Changes    what_changed.Changed `json:"timeline,omitempty"`
+}
+
+func (n *NodeChange) GetType() string {
+	return n.Type
+}
+
+func (n *NodeChange) GetLabel() string {
+	return n.Label
+}
+
+func (n *NodeChange) GetHash() string {
+	return n.IdHash
+}
+
+func (n *NodeChange) GetPath() string {
+	return n.IdHash
 }
 
 func (n *NodeChange) GetAllChanges() []*model.Change {
@@ -192,8 +216,15 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 	}
 
 	if n.RenderChanges {
-		if n.Changes != nil && len(n.Changes.GetAllChanges()) > 0 {
-			propMap["timeline"] = n.Changes.GetPropertyChanges()
+		if n.Changes != nil && len(n.Changes) > 0 {
+
+			var changes []*model.Change
+			for _, ch := range n.Changes {
+				changes = append(changes, ch.GetPropertyChanges()...)
+			}
+			if len(changes) > 0 {
+				propMap["timeline"] = changes
+			}
 		}
 
 		if n.RenderedChanges != nil {

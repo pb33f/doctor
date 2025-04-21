@@ -37,8 +37,10 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 	if operation.ExternalDocs != nil {
 		ed := &ExternalDoc{}
 		ed.Parent = o
+		ed.NodeParent = o
 		ed.PathSegment = "externalDocs"
 		ed.Value = operation.ExternalDocs
+		ed.Walk(ctx, operation.ExternalDocs)
 		o.ExternalDocs = ed
 	}
 
@@ -72,26 +74,12 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 	}
 
 	if operation.RequestBody != nil {
-
-		rbNode := &Foundation{
-			Parent:      o,
-			NodeParent:  o,
-			PathSegment: "requestBody",
-			Index:       o.Index,
-			ValueNode:   ExtractValueNodeForLowModel(operation.GoLow().RequestBody),
-			KeyNode:     ExtractKeyNodeForLowModel(operation.GoLow().RequestBody),
-		}
-
-		rbNode.BuildNodesAndEdges(ctx, "Request Body",
-			rbNode.PathSegment, operation.RequestBody, o)
-
 		rb := &RequestBody{}
 		rb.Parent = o
-		rb.PathSegment = rbNode.PathSegment
-		rb.NodeParent = rbNode
+		rb.PathSegment = "requestBody"
+		rb.NodeParent = o
 		rb.ValueNode = operation.RequestBody.GoLow().RootNode
 		rb.KeyNode = operation.RequestBody.GoLow().KeyNode
-
 		wg.Go(func() {
 			rb.Walk(ctx, operation.RequestBody)
 		})
@@ -102,10 +90,13 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 		r := &Responses{}
 		r.Parent = o
 		r.NodeParent = o
+		r.Key = "responses"
 		r.PathSegment = "responses"
 		r.KeyNode = operation.Responses.GoLow().KeyNode
 		r.ValueNode = operation.Responses.GoLow().RootNode
-		wg.Go(func() { r.Walk(ctx, operation.Responses) })
+		wg.Go(func() {
+			r.Walk(ctx, operation.Responses)
+		})
 		o.Responses = r
 	}
 
@@ -194,6 +185,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			s.ValueNode = server.GoLow().RootNode
 			s.KeyNode = server.GoLow().KeyNode
 			s.Parent = o
+			s.NodeParent = o
 			s.IsIndexed = true
 			s.Index = &i
 			wg.Go(func() { s.Walk(ctx, server) })
@@ -259,6 +251,13 @@ func (o *Operation) GetSize() (height, width int) {
 
 	if o.Value.Extensions != nil && o.Value.Extensions.Len() > 0 {
 		height += HEIGHT
+	}
+
+	for _, change := range o.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
 	}
 
 	return height, width
