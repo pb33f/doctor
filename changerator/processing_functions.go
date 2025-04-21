@@ -6,71 +6,202 @@ package changerator
 import (
 	"context"
 	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi/datamodel/high"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"github.com/pb33f/libopenapi/utils"
 	"github.com/pb33f/libopenapi/what-changed"
+	"reflect"
 )
 
-func PushChanges[N v3.Foundational, R what_changed.Changed](ctx context.Context, model N, _ R) {
-	if ch, ok := ctx.Value(v3.Context).(R); ok {
-		var aux *v3.NodeChange
-		if model.GetNode() != nil {
-			ch.PropertiesOnly()
-			aux = &v3.NodeChange{
-				Id:         model.GetNode().Id,
-				IdHash:     model.GetNode().IdHash,
-				Type:       model.GetNode().Type,
-				Label:      model.GetNode().Label,
-				ArrayIndex: model.GetNode().ArrayIndex,
-				Changes:    ch,
-			}
+func handleChanges[N v3.Foundational](node *v3.Node, ch what_changed.Changed, mo N, nType, nPath string) *v3.NodeChange {
+	var q any
+	q = ch
+	var aux *v3.NodeChange
+	if q != nil && !reflect.ValueOf(q).IsNil() {
+		ch.PropertiesOnly()
+		// flesh out the node path and type on the change.
+		for _, c := range ch.GetPropertyChanges() {
 
-			model.GetNode().Changes = aux
-			nChan := ctx.Value(NodeChannel)
-			if nChan != nil {
-				nChan.(chan *v3.Node) <- model.GetNode()
+			if nType != "" {
+				c.Type = nType
+			} else {
+				c.Type = node.Type
+			}
+			if nPath != "" {
+				c.Path = nPath
+			} else {
+				c.Path = mo.GenerateJSONPath()
 			}
 		}
-		model.AddChange(aux)
 
+		aux = &v3.NodeChange{
+			Id:         node.Id,
+			IdHash:     node.IdHash,
+			Type:       node.Type,
+			Path:       mo.GenerateJSONPath(),
+			ArrayIndex: node.ArrayIndex,
+			Changes:    ch,
+		}
+	}
+
+	if aux != nil {
+
+		// check if this node already has this change (seen when used as a reference)
+		addChange := true
+		for _, nch := range node.Changes {
+
+			for _, chg := range nch.GetPropertyChanges() {
+				if chg.Path == aux.Path && chg.Type == aux.Type && chg.Property == chg.Property {
+					// found a match, so we can skip this change
+					addChange = false
+				}
+			}
+		}
+
+		if addChange {
+			node.Changes = append(node.Changes, aux)
+			mo.AddChange(aux)
+		}
+	}
+	var m interface{}
+	m = mo
+	if hs, kk := m.(v3.HasSize); kk {
+		if !reflect.ValueOf(hs).IsNil() {
+			h, w := hs.GetSize()
+			if node.Height <= 0 {
+				node.Height = h
+			}
+			if node.Width <= 0 {
+				node.Width = w
+			}
+		}
+	}
+	return aux
+}
+
+func PushChangesWithOverride[N v3.Foundational, R what_changed.Changed](ctx context.Context, model N, y R, nType, nPath string) {
+
+	if ch, ok := ctx.Value(v3.Context).(R); ok {
+		nChan := ctx.Value(NodeChannel)
+		if model.GetNode() != nil {
+
+			var node *v3.Node
+
+			node = model.GetNode()
+			//} else {
+			//	node = model.GetNodeParent().GetNode()
+			//}
+			handleChanges(node, ch, model, nType, nPath)
+
+			if nChan != nil {
+				nChan.(chan *modelChange) <- &modelChange{
+					model: model,
+					node:  node,
+				}
+			}
+		} else {
+
+			// check if this is a reference
+			// send the
+
+			var q any
+			q = model
+			if wf, kq := q.(v3.HasValue); kq {
+				if c, kk := wf.GetValue().(high.GoesLowUntyped); kk {
+					gl := c.GoLowUntyped()
+					if is, kp := gl.(low.IsReferenced); kp {
+						if is.IsReference() {
+							if nChan != nil {
+								_, u := utils.ConvertComponentIdIntoFriendlyPathSearch(is.GetReference())
+								//handleChanges(model.GetNodeParent().GetNode(), ch, model, nType, nPath)
+								nChan.(chan *modelChange) <- &modelChange{
+									referenceJSONPath: u,
+									model:             model,
+									change:            ch,
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
-func PushChangesFromSlice[N v3.Foundational, T what_changed.Changed](ctx context.Context, model N, _ []T) {
+func PushChanges[N v3.Foundational, R what_changed.Changed](ctx context.Context, model N, r R) {
+	PushChangesWithOverride[N, R](ctx, model, r, "", "")
+}
+
+func PushChangesFromSlice[N v3.Foundational, T what_changed.Changed](ctx context.Context, model N, _ []T, nType, nPath string) {
 	if ch, ok := ctx.Value(v3.Context).([]T); ok {
-		var aux *v3.NodeChange
-		if node := model.GetNode(); node != nil {
+
+		nChan := ctx.Value(NodeChannel)
+		var node *v3.Node
+		if model.GetNode() != nil {
+			node = model.GetNode()
+
 			for _, change := range ch {
-				change.PropertiesOnly()
-				aux = &v3.NodeChange{
-					Id:         model.GetNode().Id,
-					IdHash:     model.GetNode().IdHash,
-					Type:       model.GetNode().Type,
-					Label:      model.GetNode().Label,
-					ArrayIndex: model.GetNode().ArrayIndex,
-					Changes:    change,
-				}
-
-				node.Changes = aux
+				handleChanges(node, change, model, nType, nPath)
 			}
-			nChan := ctx.Value(NodeChannel)
+
 			if nChan != nil {
-				nChan.(chan *v3.Node) <- model.GetNode()
-			}
-		}
 
-		for _, change := range ch {
-			change.PropertiesOnly()
-			aux = &v3.NodeChange{
-				Id:         model.GetNode().Id,
-				IdHash:     model.GetNode().IdHash,
-				Type:       model.GetNode().Type,
-				Label:      model.GetNode().Label,
-				ArrayIndex: model.GetNode().ArrayIndex,
-				Changes:    change,
+				nChan.(chan *modelChange) <- &modelChange{
+					model: model,
+					node:  node,
+				}
 			}
 
-			model.AddChange(aux)
+			//for _, change := range ch {
+			//	change.PropertiesOnly()
+			//	for _, c := range change.GetPropertyChanges() {
+			//		if nType != "" {
+			//			c.Type = nType
+			//		} else {
+			//			c.Type = node.Type
+			//		}
+			//		if nPath != "" {
+			//			c.Path = nPath
+			//		} else {
+			//			c.Path = model.GenerateJSONPath()
+			//		}
+			//	}
+			//	aux = &v3.NodeChange{
+			//		Id:         node.Id,
+			//		IdHash:     node.IdHash,
+			//		Type:       node.Type,
+			//		Label:      node.Label,
+			//		ArrayIndex: node.ArrayIndex,
+			//		Changes:    change,
+			//	}
+
+			//m
+		} else {
+			// check if this is a reference
+
+			var q any
+			q = model
+			if wf, kq := q.(v3.HasValue); kq {
+				if c, kk := wf.GetValue().(high.GoesLowUntyped); kk {
+					gl := c.GoLowUntyped()
+					if is, kp := gl.(low.IsReferenced); kp {
+						if is.IsReference() {
+							if nChan != nil {
+								_, u := utils.ConvertComponentIdIntoFriendlyPathSearch(is.GetReference())
+								for _, change := range ch {
+									handleChanges(model.GetNodeParent().GetNode(), change, model, nType, nPath)
+									nChan.(chan *modelChange) <- &modelChange{
+										referenceJSONPath: u,
+										model:             model,
+										change:            change,
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 }

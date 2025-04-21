@@ -26,7 +26,16 @@ func (t *Changerator) VisitComponents(ctx context.Context, obj *v3.Components) {
 		}
 
 		if changes.SecuritySchemeChanges != nil && obj.SecuritySchemes != nil && obj.SecuritySchemes.Len() > 0 {
-			ProcessMaps(ctx, changes.SecuritySchemeChanges, obj.SecuritySchemes, t)
+
+			for k, v := range changes.SecuritySchemeChanges {
+				if obj.SecuritySchemes.GetOrZero(k) != nil {
+					nCtx = context.WithValue(ctx, v3.Context, v)
+					if !obj.SecuritySchemes.GetOrZero(k).Value.GoLow().IsReference() {
+						obj.SecuritySchemes.GetOrZero(k).Travel(nCtx, t)
+					}
+				}
+			}
+			//ProcessMaps(ctx, changes.SecuritySchemeChanges, obj.SecuritySchemes, t)
 		}
 	}
 }
