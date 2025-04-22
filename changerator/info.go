@@ -25,5 +25,11 @@ func (t *Changerator) VisitInfo(ctx context.Context, obj *v3.Info) {
 			}
 			obj.License.Travel(nCtx, t)
 		}
+		if obj.Value.Extensions != nil && obj.Value.Extensions.Len() > 0 {
+			if changes != nil && changes.ExtensionChanges != nil {
+				nCtx = context.WithValue(ctx, v3.Context, changes.ExtensionChanges)
+				PushChangesWithOverride(nCtx, obj, &model.ExtensionChanges{}, "extension", "")
+			}
+		}
 	}
 }

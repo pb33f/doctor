@@ -16,5 +16,11 @@ func (t *Changerator) VisitSecurityScheme(ctx context.Context, obj *v3.SecurityS
 			nCtx := context.WithValue(ctx, v3.Context, changes.OAuthFlowChanges)
 			obj.Flows.Travel(nCtx, t)
 		}
+		if obj.Value.Extensions != nil && obj.Value.Extensions.Len() > 0 {
+			if changes.ExtensionChanges != nil {
+				nCtx := context.WithValue(ctx, v3.Context, changes.ExtensionChanges)
+				PushChangesWithOverride(nCtx, obj, &model.ExtensionChanges{}, "extension", "")
+			}
+		}
 	}
 }

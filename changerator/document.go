@@ -51,10 +51,8 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 										server.Travel(nCtx, t)
 									}
 								}
-
 							}
 						}
-
 					}
 				}
 
@@ -99,6 +97,8 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 	if doc.Tags != nil && len(docChanges.TagChanges) > 0 {
 		nCtx := context.WithValue(ctx, v3.Context, docChanges.TagChanges)
 		for _, tc := range docChanges.TagChanges {
+
+			// TODO: we need to perform extensions checks for tags and for servers.
 
 			// iterate through the tags and find the one that matches this tag
 			for _, ch := range tc.GetAllChanges() {
@@ -165,6 +165,11 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 	}
 	if doc.Webhooks != nil && doc.Webhooks.Len() > 0 && docChanges.WebhookChanges != nil {
 		ProcessMaps(ctx, docChanges.WebhookChanges, doc.Webhooks, t)
+	}
+
+	if doc.Document.Extensions != nil && doc.Document.Extensions.Len() > 0 && docChanges.ExtensionChanges != nil {
+		nCtx := context.WithValue(ctx, v3.Context, docChanges.ExtensionChanges)
+		PushChangesWithOverride(nCtx, doc, &model.ExtensionChanges{}, "extension", "")
 	}
 	close(t.NodeChan)
 }

@@ -177,5 +177,11 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 				PushChanges(nCtx, schema, &model.SchemaChanges{})
 			}
 		}
+		if schema.Value.Extensions != nil && schema.Value.Extensions.Len() > 0 {
+			if changes.ExtensionChanges != nil {
+				nCtx = context.WithValue(ctx, v3.Context, changes.ExtensionChanges)
+				PushChangesWithOverride(nCtx, schema, &model.ExtensionChanges{}, "extension", "")
+			}
+		}
 	}
 }
