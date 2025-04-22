@@ -25,5 +25,11 @@ func (t *Changerator) VisitParameter(ctx context.Context, obj *v3.Parameter) {
 			nCtx = context.WithValue(ctx, v3.Context, changes.SchemaChanges)
 			obj.SchemaProxy.Schema.Travel(nCtx, t)
 		}
+		if obj.Value.Extensions != nil && obj.Value.Extensions.Len() > 0 {
+			if changes.ExtensionChanges != nil {
+				nCtx = context.WithValue(ctx, v3.Context, changes.ExtensionChanges)
+				PushChangesWithOverride(nCtx, obj, &model.ExtensionChanges{}, "extension", "")
+			}
+		}
 	}
 }

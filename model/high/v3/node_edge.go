@@ -48,6 +48,7 @@ type Node struct {
 	CleanedChanged  []*model.Change        `json:"cleanedChanges,omitempty"`
 	RenderProps     bool                   `json:"-"`
 	RenderChanges   bool                   `json:"-"`
+	RenderProblems  bool                   `json:"-"`
 }
 
 type NodeChangeable interface {
@@ -175,7 +176,9 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 					}
 				}
 				if f, ok := n.DrInstance.(AcceptsRuleResults); ok {
-					propMap["results"] = f.GetRuleFunctionResults()
+					if n.RenderProblems && len(f.GetRuleFunctionResults()) > 0 {
+						propMap["results"] = f.GetRuleFunctionResults()
+					}
 				}
 			}
 			propMap["instance"] = n.Instance
@@ -299,13 +302,14 @@ func GenerateNode(parentId string, instance any, drModel any, ctx *DrContext) *N
 	}
 
 	return &Node{
-		Id:            uuidValue,
-		ParentId:      parentId,
-		KeyLine:       line,
-		ValueLine:     line,
-		drModel:       drModel,
-		Origin:        nodeOrigin,
-		RenderChanges: ctx.RenderChanges,
+		Id:             uuidValue,
+		ParentId:       parentId,
+		KeyLine:        line,
+		ValueLine:      line,
+		drModel:        drModel,
+		Origin:         nodeOrigin,
+		RenderChanges:  ctx.RenderChanges,
+		RenderProblems: true,
 	}
 }
 

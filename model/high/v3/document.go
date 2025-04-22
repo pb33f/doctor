@@ -333,8 +333,21 @@ func (d *Document) buildRenderedNode() {
 	}
 
 	if d.Document.GoLow().Extensions != nil {
-		m["extensions"] = d.Document.GoLow().Extensions.Len()
+		if d.Document.GoLow().Extensions.Len() > 0 {
+			ext := make(map[string]any)
+			for k, v := range d.Document.GoLow().Extensions.FromOldest() {
+				var decoded map[string]any
+				if v.Value != nil {
+					if err := v.Value.Decode(&decoded); err == nil {
+						ext[k.Value] = decoded
+					}
+				}
+			}
+			m["extensions"] = len(ext)
+			m["extensionData"] = ext
+		}
 	}
+
 	d.Node.Instance = m
 }
 
