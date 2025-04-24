@@ -60,6 +60,24 @@ func (p *Paths) Walk(ctx context.Context, paths *v3.Paths) {
 	drCtx.ObjectChan <- p
 }
 
+func (p *Paths) GetSize() (height, width int) {
+	width = WIDTH
+	height = HEIGHT
+
+	if p.Value.Extensions != nil && p.Value.Extensions.Len() > 0 {
+		height += HEIGHT
+	}
+
+	for _, change := range p.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
+
+	return height, width
+}
+
 func (p *Paths) GetValue() any {
 	return p.Value
 }

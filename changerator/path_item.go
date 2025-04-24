@@ -32,11 +32,8 @@ func (t *Changerator) VisitPathItem(ctx context.Context, obj *v3.PathItem) {
 			}
 		}
 
-		if obj.Value.Extensions != nil && obj.Value.Extensions.Len() > 0 {
-			if changes.ExtensionChanges != nil {
-				nCtx = context.WithValue(ctx, v3.Context, changes.ExtensionChanges)
-				PushChangesWithOverride(nCtx, obj, &model.ExtensionChanges{}, "extension", "")
-			}
+		if changes.ExtensionChanges != nil {
+			HandleExtensions(ctx, obj, changes.ExtensionChanges)
 		}
 
 		checkOperation(obj.Get, changes.GetChanges)

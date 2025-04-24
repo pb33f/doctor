@@ -35,6 +35,14 @@ func (l *License) GetSize() (height, width int) {
 	if l.Value.Identifier != "" || l.Value.URL != "" {
 		height += HEIGHT
 	}
+
+	if l.Value.Name != "" {
+		height += HEIGHT
+		if len(l.Value.Name) > HEIGHT-15 {
+			width += (len(l.Value.Name) - (HEIGHT - 15)) * 5
+		}
+	}
+
 	if l.Value.Extensions != nil && l.Value.Extensions.Len() > 0 {
 		height += HEIGHT
 	}

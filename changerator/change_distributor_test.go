@@ -765,3 +765,48 @@ components:
 	assert.NoError(t, err)
 
 }
+
+func TestTardis_ExtensionTesting(t *testing.T) {
+
+	ymlLeft := `openapi: "3.1"
+`
+
+	ymlRight := `openapi: "3.1"
+x-burp: hello`
+
+	l, _ := libopenapi.NewDocument([]byte(ymlLeft))
+	leftModel, _ := l.BuildV3Model()
+	leftDoc := model.NewDrDocumentAndGraph(leftModel)
+
+	r, _ := libopenapi.NewDocument([]byte(ymlRight))
+	rightModel, _ := r.BuildV3Model()
+	rightDoc := model.NewDrDocumentAndGraph(rightModel)
+
+	assert.NotNil(t, leftDoc)
+	assert.NotNil(t, rightDoc)
+
+	// build a changeDistributor
+	cd := NewChangerator(&ChangeratorConfig{
+		LeftDrDoc:  leftDoc.V3Document,
+		RightDrDoc: rightDoc.V3Document,
+		Doctor:     rightDoc,
+	})
+
+	cd.Changerate()
+
+	var fings []*v3.Node
+	fings = append(fings, rightDoc.V3Document.Node)
+
+	cd.Changerify(fings)
+
+	cd.BuildNodeChangeTree(rightDoc.V3Document.Node)
+
+	assert.NotNil(t, cd)
+
+	b, _ := json.MarshalIndent(rightDoc.V3Document.Node, "", "  ")
+	assert.NotNil(t, b)
+	var n v3.Node
+	err := json.Unmarshal(b, &n)
+	assert.NoError(t, err)
+
+}

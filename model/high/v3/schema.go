@@ -576,14 +576,14 @@ func ParseSchemaSize(schema *base.Schema) (height, width int) {
 	width = WIDTH
 	height = HEIGHT
 	if schema.Type != nil {
-		//strArr := []string{"object", "array"}
-		//for _, t := range strArr {
-		//	if slices.Contains(schema.Type, t) {
-		//		height += HEIGHT
-		//		break
-		//	}
-		//}
-		height += HEIGHT
+		strArr := []string{"object", "array"}
+		for _, t := range strArr {
+			if slices.Contains(schema.Type, t) {
+				height += HEIGHT
+				break
+			}
+		}
+		//height += HEIGHT
 	} else {
 		if hasSubSchemas(schema) {
 			height += HEIGHT

@@ -73,6 +73,24 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 	drCtx.ObjectChan <- r
 }
 
+func (r *Responses) GetSize() (height, width int) {
+	width = WIDTH
+	height = HEIGHT
+
+	if r.Value.Extensions != nil && r.Value.Extensions.Len() > 0 {
+		height += HEIGHT
+	}
+
+	for _, change := range r.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
+
+	return height, width
+}
+
 func (r *Responses) GetValue() any {
 	return r.Value
 }

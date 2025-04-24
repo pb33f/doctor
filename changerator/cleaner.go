@@ -43,6 +43,7 @@ func (t *Changerator) Cleaneromatic(nodes []*v3.Node) []*v3.Node {
 func (t *Changerator) TurnOnChangedTree(root *v3.Node) {
 	root.RenderProps = true
 	root.RenderChanges = true
+	root.RenderProblems = false
 	for _, n := range root.Children {
 		t.TurnOnChangedTree(n)
 	}
@@ -51,6 +52,7 @@ func (t *Changerator) TurnOnChangedTree(root *v3.Node) {
 func (t *Changerator) PrepareNodesForGraph(root *v3.Node) {
 	root.RenderProps = true
 	root.RenderChanges = true
+	root.RenderProblems = false
 	for _, n := range root.Children {
 		t.TurnOnChangedTree(n)
 	}
@@ -94,6 +96,8 @@ func (t *Changerator) Changerify(n any) []*v3.Node {
 				nodes[i].Children = t.Changerify(nodes[i].Children)
 			}
 
+			nodes[i].RenderProblems = false
+
 			// Check if the current node has changes or rendered changes
 			hasOwnChanges := nodes[i].Changes != nil || len(nodes[i].RenderedChanges) > 0
 			hasChildChanges := len(nodes[i].Children) > 0
@@ -110,7 +114,6 @@ func (t *Changerator) Changerify(n any) []*v3.Node {
 					t.tmpEdges = append(t.tmpEdges, nodes[i].DrInstance.(v3.Foundational).GetEdges()...)
 				}
 				nodes[i].RenderChanges = true
-
 				nodes[i].Instance = nil
 				nodes[i].DrInstance = nil
 				nodes[i].RenderProps = true

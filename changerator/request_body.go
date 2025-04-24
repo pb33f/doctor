@@ -15,11 +15,8 @@ func (t *Changerator) VisitRequestBody(ctx context.Context, obj *v3.RequestBody)
 		if obj.Content != nil && obj.Content.Len() > 0 && len(changes.ContentChanges) > 0 {
 			ProcessMaps(ctx, changes.ContentChanges, obj.Content, t)
 		}
-		if obj.Value.Extensions != nil && obj.Value.Extensions.Len() > 0 {
-			if changes.ExtensionChanges != nil {
-				nCtx := context.WithValue(ctx, v3.Context, changes.ExtensionChanges)
-				PushChangesWithOverride(nCtx, obj, &model.ExtensionChanges{}, "extension", "")
-			}
+		if changes != nil && changes.ExtensionChanges != nil {
+			HandleExtensions(ctx, obj, changes.ExtensionChanges)
 		}
 	}
 }

@@ -13,11 +13,11 @@ import (
 func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 	docChanges := ctx.Value(v3.Context).(*model.DocumentChanges)
 	PushChanges(ctx, doc, &model.DocumentChanges{})
-	if doc.Info != nil && docChanges.InfoChanges != nil {
+	if docChanges != nil && docChanges.InfoChanges != nil {
 		nCtx := context.WithValue(ctx, v3.Context, docChanges.InfoChanges)
 		doc.Info.Travel(nCtx, t)
 	}
-	if doc.Servers != nil && len(docChanges.ServerChanges) > 0 {
+	if docChanges != nil && len(docChanges.ServerChanges) > 0 {
 		nCtx := context.WithValue(ctx, v3.Context, docChanges.ServerChanges)
 
 		for _, sc := range docChanges.ServerChanges {
@@ -29,29 +29,35 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 				visit := func() {
 					modifiedObject := ch.NewObject
 					originalObject := ch.OriginalObject
-					if modifiedObject != nil {
-
-						hash := sc.Server.Hash()
-						seen := false
-						for _, server = range doc.Servers {
-							if server.Value.GoLow().Hash() == hash {
-								nCtx = context.WithValue(ctx, v3.Context, sc)
-								server.Travel(nCtx, t)
-								seen = true
-							}
-						}
-						if !seen {
-							// do the same for the original object
-							if originalObject != nil {
-
-								hash = sc.Server.Hash()
-								for _, server = range doc.Servers {
-									if server.Value.GoLow().Hash() == hash {
-										nCtx = context.WithValue(ctx, v3.Context, sc)
-										server.Travel(nCtx, t)
-									}
+					if modifiedObject != nil || originalObject != nil {
+						if sc.Server != nil {
+							hash := sc.Server.Hash()
+							seen := false
+							for _, server = range doc.Servers {
+								if server.Value.GoLow().Hash() == hash {
+									nCtx = context.WithValue(ctx, v3.Context, sc)
+									server.Travel(nCtx, t)
+									seen = true
 								}
 							}
+
+							if !seen {
+								// do the same for the original object
+								if originalObject != nil {
+
+									hash = sc.Server.Hash()
+									for _, server = range doc.Servers {
+										if server.Value.GoLow().Hash() == hash {
+											nCtx = context.WithValue(ctx, v3.Context, sc)
+											server.Travel(nCtx, t)
+										}
+									}
+
+								}
+							}
+						} else {
+							nCtx = context.WithValue(ctx, v3.Context, sc)
+							PushChangesWithOverride(nCtx, doc, sc, "server", "$.servers")
 						}
 					}
 				}
@@ -75,7 +81,7 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 						IdHash:     docModelNode.IdHash,
 						Type:       docModelNode.Type,
 						Label:      docModelNode.Label,
-						Path:       "$.tags",
+						Path:       "$.servers",
 						ArrayIndex: -1,
 						Changes:    sc,
 					}
@@ -94,7 +100,7 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 		//
 		//PushChangesFromSlice(nCtx, doc, []*model.ServerChanges{}, "", "")
 	}
-	if doc.Tags != nil && len(docChanges.TagChanges) > 0 {
+	if docChanges != nil && len(docChanges.TagChanges) > 0 {
 		nCtx := context.WithValue(ctx, v3.Context, docChanges.TagChanges)
 		for _, tc := range docChanges.TagChanges {
 
@@ -115,13 +121,26 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 									tag.Travel(nCtx, t)
 								}
 							}
+						} else {
+							// iterate through all the tags, check if they have an extension of the same name
+							for _, tag = range doc.Tags {
+								if !tag.Value.Extensions.IsZero() {
+									tagExt := tag.Value.Extensions.GetOrZero(ch.Property)
+									if tagExt != nil {
+										if tagExt == modifiedObject {
+											nCtx = context.WithValue(ctx, v3.Context, tc)
+											tag.Travel(nCtx, t)
+										}
+									}
+								}
+							}
 						}
 					}
 					break
 				default:
 
 					docModelNode := doc.Node
-					for _, cj := range tc.GetPropertyChanges() {
+					for _, cj := range tc.GetAllChanges() {
 						cj.Path = "$.tags"
 						cj.Type = "tag"
 					}
@@ -147,29 +166,28 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 			}
 		}
 	}
-	if doc.Security != nil && len(docChanges.SecurityRequirementChanges) > 0 {
+	if docChanges != nil && len(docChanges.SecurityRequirementChanges) > 0 {
 		nCtx := context.WithValue(ctx, v3.Context, docChanges.SecurityRequirementChanges)
 		PushChangesFromSlice(nCtx, doc, []*model.SecurityRequirementChanges{}, "", "")
 	}
-	if doc.Paths != nil && docChanges.PathsChanges != nil {
+	if docChanges != nil && docChanges.PathsChanges != nil {
 		nCtx := context.WithValue(ctx, v3.Context, docChanges.PathsChanges)
 		doc.Paths.Travel(nCtx, t)
 	}
-	if doc.Components != nil && docChanges.ComponentsChanges != nil {
+	if docChanges != nil && docChanges.ComponentsChanges != nil {
 		nCtx := context.WithValue(ctx, v3.Context, docChanges.ComponentsChanges)
 		doc.Components.Travel(nCtx, t)
 	}
-	if doc.ExternalDocs != nil && docChanges.ExternalDocChanges != nil {
+	if docChanges != nil && docChanges.ExternalDocChanges != nil {
 		nCtx := context.WithValue(ctx, v3.Context, docChanges.ExternalDocChanges)
 		doc.ExternalDocs.Travel(nCtx, t)
 	}
-	if doc.Webhooks != nil && doc.Webhooks.Len() > 0 && docChanges.WebhookChanges != nil {
+	if docChanges != nil && docChanges.WebhookChanges != nil {
 		ProcessMaps(ctx, docChanges.WebhookChanges, doc.Webhooks, t)
 	}
 
-	if doc.Document.Extensions != nil && doc.Document.Extensions.Len() > 0 && docChanges.ExtensionChanges != nil {
-		nCtx := context.WithValue(ctx, v3.Context, docChanges.ExtensionChanges)
-		PushChangesWithOverride(nCtx, doc, &model.ExtensionChanges{}, "extension", "")
+	if docChanges != nil && docChanges.ExtensionChanges != nil {
+		HandleExtensions(ctx, doc, docChanges.ExtensionChanges)
 	}
 	close(t.NodeChan)
 }
