@@ -22,5 +22,8 @@ func (t *Changerator) VisitServer(ctx context.Context, obj *v3.Server) {
 				}
 			}
 		}
+		if changes != nil && changes.ExtensionChanges != nil {
+			HandleExtensions(ctx, obj, changes.ExtensionChanges)
+		}
 	}
 }

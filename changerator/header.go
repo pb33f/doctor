@@ -25,11 +25,8 @@ func (t *Changerator) VisitHeader(ctx context.Context, obj *v3.Header) {
 			nCtx = context.WithValue(ctx, v3.Context, changes.SchemaChanges)
 			obj.Schema.Schema.Travel(nCtx, t)
 		}
-		if obj.Value.Extensions != nil && obj.Value.Extensions.Len() > 0 {
-			if changes.ExtensionChanges != nil {
-				nCtx = context.WithValue(ctx, v3.Context, changes.ExtensionChanges)
-				PushChangesWithOverride(nCtx, obj, &model.ExtensionChanges{}, "extension", "")
-			}
+		if changes != nil && changes.ExtensionChanges != nil {
+			HandleExtensions(ctx, obj, changes.ExtensionChanges)
 		}
 	}
 }

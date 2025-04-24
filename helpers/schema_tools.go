@@ -18,11 +18,15 @@ var stringPool sync.Map
 
 // DiveIntoValidationError recursively dives into the validation error and collects all the causes, nicely
 // printed and formatted in a string slice
-func DiveIntoValidationError(e *jsonschema.ValidationError, causes *[]string) {
+func DiveIntoValidationError(e *jsonschema.ValidationError, causes *[]string, location string) {
 	if e.Causes != nil && len(e.Causes) > 0 {
 		for _, cause := range e.Causes {
-			DiveIntoValidationError(cause, causes)
+			DiveIntoValidationError(cause, causes, location)
 		}
+	}
+
+	if strings.Join(e.InstanceLocation, "/") != location {
+		return
 	}
 
 	defaultPrinter := message.NewPrinter(language.English)

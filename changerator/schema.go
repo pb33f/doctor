@@ -8,62 +8,95 @@ import (
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/what-changed/model"
+	"gopkg.in/yaml.v3"
+	"reflect"
 )
 
 func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 	var nCtx = ctx
 	if changes, ok := ctx.Value(v3.Context).(*model.SchemaChanges); ok {
 		PushChanges(ctx, schema, &model.SchemaChanges{})
+		if changes == nil {
+			return
+		}
 
-		processSlice := func(ch *model.SchemaChanges) {
-			// for each change, locate the object
-			for _, x := range ch.Changes {
-				if x.NewObject != nil {
-					if hrn, kk := x.NewObject.(low.HasRootNode); kk {
-						located, err := t.Config.Doctor.LocateModel(hrn.GetRootNode())
-						if located != nil && err == nil {
-							for _, z := range located {
-								nCtx = context.WithValue(ctx, v3.Context, ch)
-								if tr, yy := z.(v3.Companion); yy {
-									tr.Travel(nCtx, t)
-								}
+		traveller := func(rootNode *yaml.Node, ch *model.SchemaChanges) {
+			located, err := t.Config.Doctor.LocateModel(rootNode)
+			if located != nil && err == nil {
+				for _, z := range located {
+					nCtx = context.WithValue(ctx, v3.Context, ch)
+					if tr, yy := z.(v3.Companion); yy {
+						if !reflect.ValueOf(tr).IsNil() {
+							if !reflect.ValueOf(tr).IsNil() {
+								tr.Travel(nCtx, t)
 							}
 						}
 					}
 				}
 			}
 		}
+		processObj := func(x *model.Change, ch *model.SchemaChanges) {
+			if x.NewObject != nil {
+				if hrn, kk := x.NewObject.(low.HasRootNode); kk {
+					traveller(hrn.GetRootNode(), ch)
+				} else {
+					// check if this is a reference
+					if ir, kl := x.NewObject.(low.IsReferenced); kl {
+						if ir.IsReference() {
+							println("is a reference")
+						}
+					}
+				}
+			} else {
+				if x.OriginalObject != nil {
+					if hrn, kk := x.OriginalObject.(low.HasRootNode); kk {
+						traveller(hrn.GetRootNode(), ch)
+					}
+				}
+			}
+		}
+		processSlice := func(ch *model.SchemaChanges) {
+			// for each change, locate the object
+			for _, x := range ch.Changes {
+				processObj(x, ch)
+			}
+			for _, x := range ch.SchemaPropertyChanges {
+				for _, y := range x.GetPropertyChanges() {
+					processObj(y, ch)
+				}
+			}
+		}
 
 		processSchema := func(ch *model.SchemaChanges, sch *v3.Schema) {
 			nCtx = context.WithValue(ctx, v3.Context, ch)
-			if !sch.Value.GoLow().IsReference() {
+			if sch != nil && sch.Value != nil && !sch.Value.GoLow().IsReference() {
 				sch.Travel(nCtx, t)
 			}
 		}
 
 		// anyof
-		if len(changes.AnyOfChanges) > 0 {
+		if changes.AnyOfChanges != nil && len(changes.AnyOfChanges) > 0 {
 			for _, ch := range changes.AnyOfChanges {
 				processSlice(ch)
 			}
 		}
 
 		// oneof
-		if len(changes.OneOfChanges) > 0 {
+		if changes.OneOfChanges != nil && len(changes.OneOfChanges) > 0 {
 			for _, ch := range changes.OneOfChanges {
 				processSlice(ch)
 			}
 		}
 
 		// allof
-		if len(changes.AllOfChanges) > 0 {
+		if changes.AllOfChanges != nil && len(changes.AllOfChanges) > 0 {
 			for _, ch := range changes.AllOfChanges {
 				processSlice(ch)
 			}
 		}
 
 		// prefixItems
-		if len(changes.PrefixItemsChanges) > 0 {
+		if changes.PrefixItemsChanges != nil && len(changes.PrefixItemsChanges) > 0 {
 			for _, ch := range changes.PrefixItemsChanges {
 				processSlice(ch)
 			}
@@ -177,11 +210,8 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 				PushChanges(nCtx, schema, &model.SchemaChanges{})
 			}
 		}
-		if schema.Value.Extensions != nil && schema.Value.Extensions.Len() > 0 {
-			if changes.ExtensionChanges != nil {
-				nCtx = context.WithValue(ctx, v3.Context, changes.ExtensionChanges)
-				PushChangesWithOverride(nCtx, schema, &model.ExtensionChanges{}, "extension", "")
-			}
+		if changes.ExtensionChanges != nil {
+			HandleExtensions(ctx, schema, changes.ExtensionChanges)
 		}
 	}
 }

@@ -84,6 +84,10 @@ func PushChangesWithOverride[N v3.Foundational, R what_changed.Changed](ctx cont
 
 	if ch, ok := ctx.Value(v3.Context).(R); ok {
 		nChan := ctx.Value(NodeChannel)
+		if reflect.ValueOf(model).IsNil() {
+			return
+		}
+
 		if model.GetNode() != nil {
 
 			var node *v3.Node

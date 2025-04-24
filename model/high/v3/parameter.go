@@ -126,7 +126,7 @@ func (p *Parameter) GetSize() (height, width int) {
 	if p.Value.Name != "" {
 		height += HEIGHT
 		if len(p.Value.Name) > HEIGHT-15 {
-			width += (len(p.Value.Name) - (HEIGHT - 15)) * 30
+			width += (len(p.Value.Name) - (HEIGHT - 15)) * 10
 		}
 	}
 
