@@ -62,7 +62,7 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 			}
 			for _, x := range ch.SchemaPropertyChanges {
 				for _, y := range x.GetPropertyChanges() {
-					processObj(y, ch)
+					processObj(y, x)
 				}
 			}
 		}
@@ -141,7 +141,7 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 		// xml
 		if changes.XMLChanges != nil && schema.XML != nil {
 			nCtx = context.WithValue(ctx, v3.Context, changes.XMLChanges)
-			PushChanges(nCtx, schema, &model.XMLChanges{})
+			schema.XML.Travel(nCtx, t)
 		}
 
 		// external doc

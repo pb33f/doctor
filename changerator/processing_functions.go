@@ -22,7 +22,6 @@ func handleChanges[N v3.Foundational](node *v3.Node, ch what_changed.Changed, mo
 		ch.PropertiesOnly()
 		// flesh out the node path and type on the change.
 		for _, c := range ch.GetPropertyChanges() {
-
 			if nType != "" {
 				c.Type = nType
 			} else {
@@ -34,6 +33,7 @@ func handleChanges[N v3.Foundational](node *v3.Node, ch what_changed.Changed, mo
 				c.Path = mo.GenerateJSONPath()
 			}
 		}
+
 
 		aux = &v3.NodeChange{
 			Id:         node.Id,
@@ -69,9 +69,17 @@ func handleChanges[N v3.Foundational](node *v3.Node, ch what_changed.Changed, mo
 			h, w := hs.GetSize()
 			if node.Height <= 0 {
 				node.Height = h
+			} else {
+				if h > node.Height {
+					node.Height = h
+				}
 			}
 			if node.Width <= 0 {
 				node.Width = w
+			} else {
+				if w > node.Width {
+					node.Width = w
+				}
 			}
 		}
 	}

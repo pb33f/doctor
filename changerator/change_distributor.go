@@ -201,7 +201,7 @@ func (t *Changerator) Visit(ctx context.Context, object any) {
 	case *v3.Example:
 		PushChanges(ctx, obj, &whatChangedModel.ExampleChanges{})
 	case *v3.XML:
-		PushChanges(ctx, obj, &whatChangedModel.XMLChanges{})
+		t.VisitXML(ctx, obj)
 	case *v3.Components:
 		t.VisitComponents(ctx, obj)
 	case *v3.Schema:
