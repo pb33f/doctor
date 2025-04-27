@@ -7,8 +7,6 @@ import (
 	"context"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 type Responses struct {
@@ -22,11 +20,8 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 
 	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
-
 	r.Value = responses
-	//r.PathSegment = "responses"
-
-	r.BuildNodesAndEdges(ctx, cases.Title(language.English).String(r.Key), "responses", responses, r)
+	r.BuildNodesAndEdges(ctx, "Responses", "responses", responses, r)
 
 	if responses.Codes != nil {
 		r.Codes = orderedmap.New[string, *Response]()
