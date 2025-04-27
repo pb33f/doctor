@@ -217,8 +217,6 @@ func WrapBackticks(slice []any) string {
 		return ""
 	}
 	var b strings.Builder
-	// pre‑allocate a rough guess to avoid too many reallocs
-	// average element length + 3 (two backticks + comma/space)
 	est := 0
 	for _, s := range slice {
 		est += len(fmt.Sprint(s)) + 3

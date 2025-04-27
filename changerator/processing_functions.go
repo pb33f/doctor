@@ -46,11 +46,9 @@ func handleChanges[N v3.Foundational](node *v3.Node, ch what_changed.Changed, mo
 	}
 
 	if aux != nil {
-
 		// check if this node already has this change (seen when used as a reference)
 		addChange := true
 		for _, nch := range node.Changes {
-
 			for _, chg := range nch.GetPropertyChanges() {
 				if chg.Path == aux.Path && chg.Type == aux.Type && chg.Property == chg.Property {
 					// found a match, so we can skip this change
@@ -91,11 +89,7 @@ func PushChangesWithOverride[N v3.Foundational, R what_changed.Changed](ctx cont
 		if model.GetNode() != nil {
 
 			var node *v3.Node
-
 			node = model.GetNode()
-			//} else {
-			//	node = model.GetNodeParent().GetNode()
-			//}
 			handleChanges(node, ch, model, nType, nPath)
 
 			if nChan != nil {
@@ -106,9 +100,6 @@ func PushChangesWithOverride[N v3.Foundational, R what_changed.Changed](ctx cont
 			}
 		} else {
 
-			// check if this is a reference
-			// send the
-
 			var q any
 			q = model
 			if wf, kq := q.(v3.HasValue); kq {
@@ -118,7 +109,6 @@ func PushChangesWithOverride[N v3.Foundational, R what_changed.Changed](ctx cont
 						if is.IsReference() {
 							if nChan != nil {
 								_, u := utils.ConvertComponentIdIntoFriendlyPathSearch(is.GetReference())
-								//handleChanges(model.GetNodeParent().GetNode(), ch, model, nType, nPath)
 								nChan.(chan *modelChange) <- &modelChange{
 									referenceJSONPath: u,
 									model:             model,
@@ -157,32 +147,7 @@ func PushChangesFromSlice[N v3.Foundational, T what_changed.Changed](ctx context
 				}
 			}
 
-			//for _, change := range ch {
-			//	change.PropertiesOnly()
-			//	for _, c := range change.GetPropertyChanges() {
-			//		if nType != "" {
-			//			c.Type = nType
-			//		} else {
-			//			c.Type = node.Type
-			//		}
-			//		if nPath != "" {
-			//			c.Path = nPath
-			//		} else {
-			//			c.Path = model.GenerateJSONPath()
-			//		}
-			//	}
-			//	aux = &v3.NodeChange{
-			//		Id:         node.Id,
-			//		IdHash:     node.IdHash,
-			//		Type:       node.Type,
-			//		Label:      node.Label,
-			//		ArrayIndex: node.ArrayIndex,
-			//		Changes:    change,
-			//	}
-
-			//m
 		} else {
-			// check if this is a reference
 
 			var q any
 			q = model

@@ -16,7 +16,7 @@ func (t *Changerator) VisitLink(ctx context.Context, obj *v3.Link) {
 			nCtx := context.WithValue(ctx, v3.Context, changes.ServerChanges)
 			obj.Server.Travel(nCtx, t)
 		}
-		if changes != nil && changes.ExtensionChanges != nil {
+		if changes.ExtensionChanges != nil {
 			HandleExtensions(ctx, obj, changes.ExtensionChanges)
 		}
 	}

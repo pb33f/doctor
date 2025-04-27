@@ -7,6 +7,7 @@ import (
 	"github.com/pb33f/doctor/model"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	whatChangedModel "github.com/pb33f/libopenapi/what-changed/model"
+	"log/slog"
 )
 
 type ChangeratorConfig struct {
@@ -14,4 +15,5 @@ type ChangeratorConfig struct {
 	LeftDrDoc       *v3.Document
 	Doctor          *model.DrDocument
 	DocumentChanges *whatChangedModel.DocumentChanges
+	Logger          *slog.Logger
 }
