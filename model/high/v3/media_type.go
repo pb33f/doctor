@@ -130,6 +130,16 @@ func (m *MediaType) GetSize() (height, width int) {
 		}
 	}
 
+	if m.Value.Schema != nil && m.Value.Schema.Schema() != nil && len(m.Value.Schema.Schema().Type) <= 0 {
+		if !m.Value.Schema.IsReference() {
+			sh, sw := ParseSchemaSize(m.Value.Schema.Schema())
+			height += sh
+			if width < sw {
+				width = sw
+			}
+		}
+	}
+
 	if len(m.Changes) > 0 {
 		for _, change := range m.Changes {
 			if len(change.GetPropertyChanges()) > 0 {
