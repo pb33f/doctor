@@ -24,7 +24,7 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 	wg := drCtx.WaitGroup
 
 	r.Value = responses
-	r.PathSegment = "responses"
+	//r.PathSegment = "responses"
 
 	r.BuildNodesAndEdges(ctx, cases.Title(language.English).String(r.Key), "responses", responses, r)
 
