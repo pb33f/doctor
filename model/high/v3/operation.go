@@ -90,7 +90,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 		r := &Responses{}
 		r.Parent = o
 		r.NodeParent = o
-		r.Key = "responses"
+		//r.Key = "responses"
 		r.PathSegment = "responses"
 		r.KeyNode = operation.Responses.GoLow().KeyNode
 		r.ValueNode = operation.Responses.GoLow().RootNode

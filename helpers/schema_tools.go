@@ -119,7 +119,7 @@ func DiveIntoValidationError(e *jsonschema.ValidationError, causes *[]string, lo
 			k.Prop, WrapBackticksString(k.Missing))
 
 	case *kind.AdditionalProperties:
-		msg = fmt.Sprintf("`%s` is not allowed any additional properties (I found %d)",
+		msg = fmt.Sprintf("`%s` is not allowed any additional properties (I found %s)",
 			e.InstanceLocation[len(e.InstanceLocation)-1], WrapBackticksString(k.Properties))
 
 	case *kind.PropertyNames:
