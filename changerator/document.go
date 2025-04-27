@@ -44,7 +44,6 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 							if !seen {
 								// do the same for the original object
 								if originalObject != nil {
-
 									hash = sc.Server.Hash()
 									for _, server = range doc.Servers {
 										if server.Value.GoLow().Hash() == hash {
@@ -52,7 +51,6 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 											server.Travel(nCtx, t)
 										}
 									}
-
 								}
 							}
 						} else {
@@ -97,14 +95,10 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 				}
 			}
 		}
-		//
-		//PushChangesFromSlice(nCtx, doc, []*model.ServerChanges{}, "", "")
 	}
 	if docChanges != nil && len(docChanges.TagChanges) > 0 {
 		nCtx := context.WithValue(ctx, v3.Context, docChanges.TagChanges)
 		for _, tc := range docChanges.TagChanges {
-
-			// TODO: we need to perform extensions checks for tags and for servers.
 
 			// iterate through the tags and find the one that matches this tag
 			for _, ch := range tc.GetAllChanges() {

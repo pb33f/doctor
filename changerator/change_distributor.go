@@ -7,17 +7,11 @@ import (
 	"context"
 	"fmt"
 	v3 "github.com/pb33f/doctor/model/high/v3"
-	//"github.com/pb33f/libopenapi/datamodel/low"
 	whatChanged "github.com/pb33f/libopenapi/what-changed"
 	whatChangedModel "github.com/pb33f/libopenapi/what-changed/model"
 )
 
 type ChangeratorChange whatChangedModel.Change
-
-//
-//func (c *ChangeratorChange) MarshalJSON() ([]byte, error) {
-//
-//}
 
 type Changerator struct {
 	Config       *ChangeratorConfig
@@ -46,7 +40,7 @@ func NewChangerator(config *ChangeratorConfig) *Changerator {
 
 func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 
-	// get high level left and right docs
+	// get high-level left and right docs
 	leftDoc := t.Config.LeftDrDoc
 	rightDoc := t.Config.RightDrDoc
 
@@ -237,7 +231,8 @@ func (t *Changerator) Visit(ctx context.Context, object any) {
 	case *v3.OAuthFlow:
 		PushChanges(ctx, obj, &whatChangedModel.OAuthFlowChanges{})
 	default:
-		fmt.Printf("fuck off %v", obj)
-		panic("MISSED SOMETHING")
+		if t.Config.Logger != nil {
+			t.Config.Logger.Warn("[changerator] unknown type ", "type", obj)
+		}
 	}
 }

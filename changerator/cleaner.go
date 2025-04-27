@@ -102,12 +102,6 @@ func (t *Changerator) Changerify(n any) []*v3.Node {
 			hasOwnChanges := nodes[i].Changes != nil || len(nodes[i].RenderedChanges) > 0
 			hasChildChanges := len(nodes[i].Children) > 0
 
-			// is this a bridged node (holds an array of nodes)
-			//if nodes[i].Type == "tags" {
-			//	fmt.Println("hey")
-			//	hasOwnChanges = true
-			//}
-
 			// Include node only if it has changes or children with changes
 			if hasOwnChanges || hasChildChanges {
 				if nodes[i].DrInstance != nil {

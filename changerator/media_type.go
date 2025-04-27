@@ -35,7 +35,7 @@ func (t *Changerator) VisitMediaType(ctx context.Context, obj *v3.MediaType) {
 				}
 			}
 		}
-		if changes != nil && changes.ExtensionChanges != nil {
+		if changes.ExtensionChanges != nil {
 			HandleExtensions(ctx, obj, changes.ExtensionChanges)
 		}
 	}
