@@ -482,7 +482,7 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph bool, useCache bool) *d
 	// safe line comparator that handles nil references
 	safeCmp := func(left, right *yaml.Node) bool {
 		if left == nil || right == nil {
-			// don't care about order
+			// if nodes are nil, give precedence to left node by returning false
 			return false
 		}
 		return left.Line < right.Line
