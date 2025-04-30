@@ -5,7 +5,6 @@ package v3
 
 import (
 	"context"
-	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
@@ -13,12 +12,12 @@ import (
 type RequestBody struct {
 	Value   *v3.RequestBody
 	Content *orderedmap.Map[string, *MediaType]
-	base.Foundation
+	Foundation
 }
 
 func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 
-	drCtx := base.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 	r.Value = requestBody
 	if r.PathSegment == "" {
@@ -28,7 +27,7 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 	if r.InstanceType != "" {
 		instanceType = r.InstanceType
 	}
-	label := r.Key
+	label := "Request Body"
 
 	r.BuildNodesAndEdges(ctx, label, instanceType, requestBody, r)
 
@@ -58,7 +57,7 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 	}
 
 	if requestBody.GoLow().IsReference() {
-		base.BuildReference(drCtx, requestBody.GoLow())
+		BuildReference(drCtx, requestBody.GoLow())
 	}
 
 	drCtx.ObjectChan <- r
@@ -69,26 +68,35 @@ func (r *RequestBody) GetValue() any {
 }
 
 func (r *RequestBody) GetSize() (height, width int) {
-	width = base.WIDTH
-	height = base.HEIGHT
+	width = WIDTH
+	height = HEIGHT
 
 	if r.Key != "" {
-		if len(r.Key) > base.HEIGHT-10 {
-			width += (len(r.Key) - (base.HEIGHT - 10)) * 15
+		if len(r.Key) > HEIGHT-10 {
+			width += (len(r.Key) - (HEIGHT - 10)) * 15
 		}
 	}
 
 	if r.Value.Required != nil && *r.Value.Required {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if r.Value.Content != nil && r.Value.Content.Len() > 0 {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if r.Value.Extensions != nil && r.Value.Extensions.Len() > 0 {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
-
+	for _, change := range r.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
 	return height, width
+}
+
+func (r *RequestBody) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, r)
 }

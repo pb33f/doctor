@@ -5,7 +5,6 @@ package v3
 
 import (
 	"context"
-	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"golang.org/x/text/cases"
@@ -15,12 +14,12 @@ import (
 type Paths struct {
 	Value     *v3.Paths
 	PathItems *orderedmap.Map[string, *PathItem]
-	base.Foundation
+	Foundation
 }
 
 func (p *Paths) Walk(ctx context.Context, paths *v3.Paths) {
 
-	drCtx := base.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	//wg := drCtx.WaitGroup
 
 	p.Value = paths
@@ -55,12 +54,34 @@ func (p *Paths) Walk(ctx context.Context, paths *v3.Paths) {
 	}
 
 	if paths.GoLow().IsReference() {
-		base.BuildReference(drCtx, paths.GoLow())
+		BuildReference(drCtx, paths.GoLow())
 	}
 
 	drCtx.ObjectChan <- p
 }
 
+func (p *Paths) GetSize() (height, width int) {
+	width = WIDTH
+	height = HEIGHT
+
+	if p.Value.Extensions != nil && p.Value.Extensions.Len() > 0 {
+		height += HEIGHT
+	}
+
+	for _, change := range p.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
+
+	return height, width
+}
+
 func (p *Paths) GetValue() any {
 	return p.Value
+}
+
+func (p *Paths) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, p)
 }

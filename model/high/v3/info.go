@@ -1,7 +1,7 @@
 // Copyright 2024 Princess B33f Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: BUSL-1.1
 
-package base
+package v3
 
 import (
 	"context"
@@ -63,5 +63,16 @@ func (i *Info) GetSize() (height, width int) {
 		height += HEIGHT
 	}
 
+	for _, change := range i.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
+
 	return height, width
+}
+
+func (i *Info) Travel(ctx context.Context, traveller Tardis) {
+	traveller.Visit(ctx, i)
 }

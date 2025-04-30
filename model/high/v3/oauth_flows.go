@@ -5,8 +5,6 @@ package v3
 
 import (
 	"context"
-	"github.com/pb33f/doctor/model/high/base"
-	drBase "github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
@@ -16,12 +14,12 @@ type OAuthFlows struct {
 	Password          *OAuthFlow
 	ClientCredentials *OAuthFlow
 	AuthorizationCode *OAuthFlow
-	base.Foundation
+	Foundation
 }
 
 func (o *OAuthFlows) Walk(ctx context.Context, flows *v3.OAuthFlows) {
 	o.Value = flows
-	drCtx := drBase.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 
 	if flows.Implicit != nil {
 		i := &OAuthFlow{}
@@ -64,4 +62,8 @@ func (o *OAuthFlows) Walk(ctx context.Context, flows *v3.OAuthFlows) {
 
 func (o *OAuthFlows) GetValue() any {
 	return o.Value
+}
+
+func (o *OAuthFlows) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, o)
 }

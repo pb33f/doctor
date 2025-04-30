@@ -6,28 +6,13 @@ package gopher
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/cespare/xxhash/v2"
+	"github.com/pb33f/doctor/helpers"
 	"github.com/pb33f/libopenapi/index"
 	"net/url"
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 )
-
-var stringPool sync.Map
-
-func intern(s string) string {
-	if interned, exists := stringPool.Load(s); exists {
-		return interned.(string)
-	}
-	stringPool.Store(s, s)
-	return s
-}
-
-func HashString(s string) string {
-	return intern(fmt.Sprintf("%x", xxhash.Sum64String(s)))
-}
 
 type Node struct {
 	Children      map[string]*Node
@@ -110,7 +95,7 @@ func (n *Node) SetContent(content string) string {
 
 // AddChild adds a new child node with the given value
 func (n *Node) AddChild(value string, content string, fullPath string) *Node {
-	value = intern(value)
+	value = helpers.Intern(value)
 	if n.Children == nil {
 		n.Children = make(map[string]*Node)
 	}
@@ -128,7 +113,7 @@ func (n *Node) AddChild(value string, content string, fullPath string) *Node {
 		contentBuffer: buffer,
 		hasContent:    hasContent,
 	}
-	child.Id = intern(HashString(fullPath))
+	child.Id = helpers.Intern(helpers.HashString(fullPath))
 	n.Children[value] = child
 	return child
 }

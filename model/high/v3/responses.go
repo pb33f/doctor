@@ -5,7 +5,6 @@ package v3
 
 import (
 	"context"
-	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
@@ -14,16 +13,15 @@ type Responses struct {
 	Value   *v3.Responses
 	Codes   *orderedmap.Map[string, *Response]
 	Default *Response
-	base.Foundation
+	Foundation
 }
 
 func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 
-	drCtx := base.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
-
 	r.Value = responses
-	r.PathSegment = "responses"
+	r.BuildNodesAndEdges(ctx, "Responses", "responses", responses, r)
 
 	if responses.Codes != nil {
 		r.Codes = orderedmap.New[string, *Response]()
@@ -41,8 +39,11 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 				}
 			}
 			resp.Parent = r
-			resp.NodeParent = r.NodeParent
-			wg.Go(func() { resp.Walk(ctx, v) })
+			resp.NodeParent = r
+			resp.Key = k
+			wg.Go(func() {
+				resp.Walk(ctx, v)
+			})
 			r.Codes.Set(k, resp)
 		}
 	}
@@ -50,7 +51,7 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 	if responses.Default != nil {
 		resp := &Response{}
 		resp.Parent = r
-		resp.NodeParent = r.NodeParent
+		resp.NodeParent = r
 		resp.KeyNode = responses.Default.GoLow().KeyNode
 		resp.ValueNode = responses.GoLow().Default.ValueNode
 		resp.Key = "default"
@@ -61,12 +62,34 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 	}
 
 	if responses.GoLow().IsReference() {
-		base.BuildReference(drCtx, responses.GoLow())
+		BuildReference(drCtx, responses.GoLow())
 	}
 
 	drCtx.ObjectChan <- r
 }
 
+func (r *Responses) GetSize() (height, width int) {
+	width = WIDTH
+	height = HEIGHT
+
+	if r.Value.Extensions != nil && r.Value.Extensions.Len() > 0 {
+		height += HEIGHT
+	}
+
+	for _, change := range r.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
+
+	return height, width
+}
+
 func (r *Responses) GetValue() any {
 	return r.Value
+}
+
+func (r *Responses) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, r)
 }

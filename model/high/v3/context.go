@@ -1,7 +1,7 @@
 // Copyright 2023-2024 Princess B33f Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: BUSL-1.1
 
-package base
+package v3
 
 import (
 	"context"
@@ -58,6 +58,7 @@ type DrContext struct {
 	V3Document        *v3.Document
 	WaitGroup         *conc.WaitGroup
 	BuildGraph        bool
+	RenderChanges     bool
 	UseSchemaCache    bool
 	SchemaCache       *sync.Map
 	StorageRoot       string

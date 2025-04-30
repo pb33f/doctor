@@ -5,8 +5,6 @@ package v3
 
 import (
 	"context"
-	"github.com/pb33f/doctor/model/high/base"
-	drBase "github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"slices"
@@ -14,21 +12,21 @@ import (
 
 type Header struct {
 	Value    *v3.Header
-	Schema   *base.SchemaProxy
-	Examples *orderedmap.Map[string, *base.Example]
+	Schema   *SchemaProxy
+	Examples *orderedmap.Map[string, *Example]
 	Content  *orderedmap.Map[string, *MediaType]
-	base.Foundation
+	Foundation
 }
 
 func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 
-	drCtx := base.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 	h.Value = header
 	h.BuildNodesAndEdges(ctx, h.Key, "header", header, h)
 
 	if header.Schema != nil {
-		c := &base.SchemaProxy{}
+		c := &SchemaProxy{}
 		c.ValueNode = header.GoLow().RootNode
 		c.KeyNode = header.GoLow().KeyNode
 		c.Parent = h
@@ -51,10 +49,10 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 	}
 
 	if header.Examples != nil && header.Examples.Len() > 0 {
-		h.Examples = orderedmap.New[string, *base.Example]()
+		h.Examples = orderedmap.New[string, *Example]()
 		for examplesPairs := header.Examples.First(); examplesPairs != nil; examplesPairs = examplesPairs.Next() {
 			v := examplesPairs.Value()
-			ex := &base.Example{}
+			ex := &Example{}
 			for lowExPairs := header.GoLow().Examples.Value.First(); lowExPairs != nil; lowExPairs = lowExPairs.Next() {
 				if lowExPairs.Key().Value == examplesPairs.Key() {
 					ex.KeyNode = lowExPairs.Key().KeyNode
@@ -95,10 +93,10 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 	}
 
 	if header.GoLow().IsReference() {
-		drBase.BuildReference(drCtx, header.GoLow())
+		BuildReference(drCtx, header.GoLow())
 	}
 
-	drCtx.HeaderChan <- &drBase.WalkedHeader{
+	drCtx.HeaderChan <- &WalkedHeader{
 		Header:     h,
 		HeaderNode: header.GoLow().RootNode,
 	}
@@ -111,43 +109,56 @@ func (h *Header) GetValue() any {
 }
 
 func (h *Header) GetSize() (height, width int) {
-	width = drBase.WIDTH
-	height = drBase.HEIGHT * 2
+	width = WIDTH
+	height = HEIGHT * 2
 
 	if h.Key != "" {
-		if len(h.Key) > drBase.HEIGHT-10 {
-			width += (len(h.Key) - (drBase.HEIGHT - 10)) * 15
+		if len(h.Key) > HEIGHT-10 {
+			width += (len(h.Key) - (HEIGHT - 10)) * 15
 		}
 	}
 
 	if h.Value.Style != "" {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if h.Value.Deprecated {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if h.Value.Required {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if h.Value.Content != nil && h.Value.Content.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if h.Value.Extensions != nil && h.Value.Extensions.Len() > 0 {
-		height += drBase.HEIGHT
+		height += HEIGHT
 	}
 
 	if h.Value.Schema != nil && len(h.Value.Schema.Schema().Type) > 0 {
 		width += len(h.Value.Schema.Schema().Type) * 50
-		sh, sw := drBase.ParseSchemaSize(h.Value.Schema.Schema())
+		sh, sw := ParseSchemaSize(h.Value.Schema.Schema())
 		height += sh
 		if width < sw {
 			width = sw
 		}
 	}
 
+	if len(h.Changes) > 0 {
+		for _, change := range h.Changes {
+			if len(change.GetPropertyChanges()) > 0 {
+				height += HEIGHT
+				break
+			}
+		}
+	}
+
 	return height, width
+}
+
+func (h *Header) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, h)
 }

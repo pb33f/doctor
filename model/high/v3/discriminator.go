@@ -1,17 +1,17 @@
 // Copyright 2024 Princess B33f Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: BUSL-1.1
 
-package base
+package v3
 
 import (
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 )
 
-type ExternalDoc struct {
-	Value *base.ExternalDoc
+type Discriminator struct {
+	Value *base.Discriminator
 	Foundation
 }
 
-func (ed *ExternalDoc) GetValue() any {
-	return ed.Value
+func (d *Discriminator) GetValue() any {
+	return d.Value
 }

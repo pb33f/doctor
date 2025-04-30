@@ -5,7 +5,6 @@ package v3
 
 import (
 	"context"
-	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
@@ -15,12 +14,12 @@ type Response struct {
 	Headers *orderedmap.Map[string, *Header]
 	Content *orderedmap.Map[string, *MediaType]
 	Links   *orderedmap.Map[string, *Link]
-	base.Foundation
+	Foundation
 }
 
 func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 
-	drCtx := base.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 
 	r.Value = response
@@ -92,7 +91,7 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 	}
 
 	if response.GoLow().IsReference() {
-		base.BuildReference(drCtx, response.GoLow())
+		BuildReference(drCtx, response.GoLow())
 	}
 
 	drCtx.ObjectChan <- r
@@ -103,30 +102,40 @@ func (r *Response) GetValue() any {
 }
 
 func (r *Response) GetSize() (height, width int) {
-	width = base.WIDTH
-	height = base.HEIGHT
+	width = WIDTH
+	height = HEIGHT
 
 	if r.Key != "" {
-		if len(r.Key) > base.HEIGHT-10 {
-			width += (len(r.Key) - (base.HEIGHT - 10)) * 15
+		if len(r.Key) > HEIGHT-10 {
+			width += (len(r.Key) - (HEIGHT - 10)) * 15
 		}
 	}
 
 	if r.Value.Content != nil && r.Value.Content.Len() > 0 {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if r.Value.Headers != nil && r.Value.Headers.Len() > 0 {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if r.Value.Links != nil && r.Value.Links.Len() > 0 {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if r.Value.Extensions != nil && r.Value.Extensions.Len() > 0 {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
+	for _, change := range r.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
 	return height, width
+}
+
+func (r *Response) Travel(ctx context.Context, tardis Tardis) {
+	tardis.Visit(ctx, r)
 }

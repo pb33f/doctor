@@ -6,7 +6,6 @@ package v3
 import (
 	"context"
 	"fmt"
-	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"golang.org/x/text/cases"
@@ -15,26 +14,30 @@ import (
 
 type Document struct {
 	Document     *v3.Document
-	Info         *base.Info
+	Info         *Info
 	Servers      []*Server
 	Paths        *Paths
 	Components   *Components
-	Security     []*base.SecurityRequirement
-	Tags         []*base.Tag
-	ExternalDocs *base.ExternalDoc
+	Security     []*SecurityRequirement
+	Tags         []*Tag
+	ExternalDocs *ExternalDoc
 	Webhooks     *orderedmap.Map[string, *PathItem]
-	base.Foundation
+	Foundation
+}
+
+func (d *Document) Travel(ctx context.Context, traveller Tardis) {
+	traveller.Visit(ctx, d)
 }
 
 func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 
-	drCtx := base.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 
 	d.Document = doc
 	d.PathSegment = "$"
 
-	n := base.GenerateNode("document", nil, nil, drCtx)
+	n := GenerateNode("document", nil, nil, drCtx)
 	d.SetNode(n)
 	n.Width = 50
 	n.Height = 50
@@ -45,22 +48,22 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 	negOne := -1
 
 	if doc.Info != nil {
-		d.Info = &base.Info{}
+		d.Info = &Info{}
 		d.Info.Parent = d
 		d.Info.NodeParent = d
-		d.Info.ValueNode = base.ExtractValueNodeForLowModel(doc.GoLow().Info)
-		d.Info.KeyNode = base.ExtractKeyNodeForLowModel(doc.GoLow().Info)
+		d.Info.ValueNode = ExtractValueNodeForLowModel(doc.GoLow().Info)
+		d.Info.KeyNode = ExtractKeyNodeForLowModel(doc.GoLow().Info)
 		wg.Go(func() { d.Info.Walk(ctx, doc.Info) })
 	}
 
 	if doc.Servers != nil && len(doc.Servers) > 0 {
-		serversNode := &base.Foundation{
+		serversNode := &Foundation{
 			Parent:      d,
 			NodeParent:  d,
 			PathSegment: "servers",
 			Index:       d.Index,
-			ValueNode:   base.ExtractValueNodeForLowModel(doc.GoLow().Servers),
-			KeyNode:     base.ExtractKeyNodeForLowModel(doc.GoLow().Servers),
+			ValueNode:   ExtractValueNodeForLowModel(doc.GoLow().Servers),
+			KeyNode:     ExtractKeyNodeForLowModel(doc.GoLow().Servers),
 		}
 		serversNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(serversNode.PathSegment),
 			serversNode.PathSegment, nil, d, true, len(doc.Servers), &negOne)
@@ -85,8 +88,8 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		p := &Paths{}
 		p.Parent = d
 		p.NodeParent = d
-		p.ValueNode = base.ExtractValueNodeForLowModel(doc.GoLow().Paths)
-		p.KeyNode = base.ExtractKeyNodeForLowModel(doc.GoLow().Paths)
+		p.ValueNode = ExtractValueNodeForLowModel(doc.GoLow().Paths)
+		p.KeyNode = ExtractKeyNodeForLowModel(doc.GoLow().Paths)
 		wg.Go(func() {
 			p.Walk(ctx, doc.Paths)
 		})
@@ -97,28 +100,28 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		c := &Components{}
 		c.Parent = d
 		c.NodeParent = d
-		c.ValueNode = base.ExtractValueNodeForLowModel(doc.GoLow().Components)
-		c.KeyNode = base.ExtractKeyNodeForLowModel(doc.GoLow().Components)
+		c.ValueNode = ExtractValueNodeForLowModel(doc.GoLow().Components)
+		c.KeyNode = ExtractKeyNodeForLowModel(doc.GoLow().Components)
 		wg.Go(func() { c.Walk(ctx, doc.Components) })
 		d.Components = c
 	}
 
 	if doc.Security != nil {
 
-		secNode := &base.Foundation{
+		secNode := &Foundation{
 			Parent:      d,
 			NodeParent:  d,
 			PathSegment: "security",
 			Index:       d.Index,
-			ValueNode:   base.ExtractValueNodeForLowModel(doc.GoLow().Security),
-			KeyNode:     base.ExtractKeyNodeForLowModel(doc.GoLow().Security),
+			ValueNode:   ExtractValueNodeForLowModel(doc.GoLow().Security),
+			KeyNode:     ExtractKeyNodeForLowModel(doc.GoLow().Security),
 		}
 		secNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(secNode.PathSegment),
 			secNode.PathSegment, nil, d, true, len(doc.Security), &negOne)
 
 		for i, security := range doc.Security {
 			sec := security
-			s := &base.SecurityRequirement{}
+			s := &SecurityRequirement{}
 			s.Parent = d
 			s.NodeParent = secNode
 			s.PathSegment = "security"
@@ -158,10 +161,10 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 	}
 
 	if doc.ExternalDocs != nil {
-		ed := &base.ExternalDoc{}
+		ed := &ExternalDoc{}
 		ed.Parent = d
-		d.ValueNode = base.ExtractValueNodeForLowModel(doc.GoLow().ExternalDocs)
-		d.KeyNode = base.ExtractKeyNodeForLowModel(doc.GoLow().ExternalDocs)
+		d.ValueNode = ExtractValueNodeForLowModel(doc.GoLow().ExternalDocs)
+		d.KeyNode = ExtractKeyNodeForLowModel(doc.GoLow().ExternalDocs)
 		ed.PathSegment = "externalDocs"
 		ed.Value = doc.ExternalDocs
 		d.ExternalDocs = ed
@@ -169,20 +172,20 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 	}
 
 	if doc.Tags != nil {
-		tagsNode := &base.Foundation{
+		tagsNode := &Foundation{
 			Parent:      d,
 			NodeParent:  d,
 			PathSegment: "tags",
 			Index:       d.Index,
-			ValueNode:   base.ExtractValueNodeForLowModel(doc.GoLow().Tags),
-			KeyNode:     base.ExtractKeyNodeForLowModel(doc.GoLow().Tags),
+			ValueNode:   ExtractValueNodeForLowModel(doc.GoLow().Tags),
+			KeyNode:     ExtractKeyNodeForLowModel(doc.GoLow().Tags),
 		}
 
 		tagsNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(tagsNode.PathSegment),
 			tagsNode.PathSegment, nil, d, true, len(doc.Tags), &negOne)
 
 		for i, tag := range doc.Tags {
-			t := &base.Tag{}
+			t := &Tag{}
 			t.Parent = d
 			t.NodeParent = tagsNode
 			t.PathSegment = "tags"
@@ -201,13 +204,13 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 	if doc.Webhooks != nil {
 
 		webhooks := orderedmap.New[string, *PathItem]()
-		webhookNode := &base.Foundation{
+		webhookNode := &Foundation{
 			Parent:      d,
 			NodeParent:  d,
 			PathSegment: "webhooks",
 			Index:       d.Index,
-			ValueNode:   base.ExtractValueNodeForLowModel(doc.GoLow().Webhooks),
-			KeyNode:     base.ExtractKeyNodeForLowModel(doc.GoLow().Webhooks),
+			ValueNode:   ExtractValueNodeForLowModel(doc.GoLow().Webhooks),
+			KeyNode:     ExtractKeyNodeForLowModel(doc.GoLow().Webhooks),
 		}
 		webhookNode.BuildNodesAndEdges(ctx, cases.Title(language.English).String(webhookNode.PathSegment), webhookNode.PathSegment, nil, d)
 
@@ -300,7 +303,7 @@ func (d *Document) buildRenderedNode() {
 	if d.Security != nil {
 		m["security"] = len(d.Security)
 		if d.Security[0].NodeParent != nil {
-			if x, ok := d.Security[0].NodeParent.(base.Foundational); ok {
+			if x, ok := d.Security[0].NodeParent.(Foundational); ok {
 				if x.GetNode() != nil {
 					m["security_idhash"] = x.GetNode().IdHash
 				}
@@ -311,7 +314,7 @@ func (d *Document) buildRenderedNode() {
 		m["servers"] = len(d.Servers)
 
 		if d.Servers[0].NodeParent != nil {
-			if x, ok := d.Servers[0].NodeParent.(base.Foundational); ok {
+			if x, ok := d.Servers[0].NodeParent.(Foundational); ok {
 				if x.GetNode() != nil {
 					m["servers_idhash"] = x.GetNode().IdHash
 				}
@@ -321,7 +324,7 @@ func (d *Document) buildRenderedNode() {
 	if d.Tags != nil {
 		m["tags"] = len(d.Tags)
 		if d.Tags[0].NodeParent != nil {
-			if x, ok := d.Tags[0].NodeParent.(base.Foundational); ok {
+			if x, ok := d.Tags[0].NodeParent.(Foundational); ok {
 				if x.GetNode() != nil {
 					m["tags_idhash"] = x.GetNode().IdHash
 				}
@@ -330,14 +333,27 @@ func (d *Document) buildRenderedNode() {
 	}
 
 	if d.Document.GoLow().Extensions != nil {
-		m["extensions"] = d.Document.GoLow().Extensions.Len()
+		if d.Document.GoLow().Extensions.Len() > 0 {
+			ext := make(map[string]any)
+			for k, v := range d.Document.GoLow().Extensions.FromOldest() {
+				var decoded map[string]any
+				if v.Value != nil {
+					if err := v.Value.Decode(&decoded); err == nil {
+						ext[k.Value] = decoded
+					}
+				}
+			}
+			m["extensions"] = len(ext)
+			m["extensionData"] = ext
+		}
 	}
+
 	d.Node.Instance = m
 }
 
 func (d *Document) GetSize() (height, width int) {
 	width = 250
-	height = base.HEIGHT * 2 // add another row for the label.
+	height = HEIGHT * 2 // add another row for the label.
 	items := []any{
 		d.Servers,
 		d.Paths,
@@ -347,10 +363,16 @@ func (d *Document) GetSize() (height, width int) {
 		d.Tags,
 	}
 	for _, item := range items {
-		height = base.AddChunkDefaultHeight(item, height)
+		height = AddChunkDefaultHeight(item, height)
 	}
 	if d.Document.Extensions != nil && d.Document.Extensions.Len() > 0 {
-		height += base.HEIGHT
+		height += HEIGHT
+	}
+	for _, change := range d.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
 	}
 	return height, width
 }

@@ -5,7 +5,6 @@ package v3
 
 import (
 	"context"
-	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
@@ -13,14 +12,14 @@ import (
 type Callback struct {
 	Value      *v3.Callback
 	Expression *orderedmap.Map[string, *PathItem]
-	base.Foundation
+	Foundation
 }
 
 func (c *Callback) Walk(ctx context.Context, callback *v3.Callback) {
 
 	c.Value = callback
 
-	drCtx := base.GetDrContext(ctx)
+	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
 	c.BuildNodesAndEdges(ctx, c.Key, "callback", callback, c)
 
@@ -32,14 +31,16 @@ func (c *Callback) Walk(ctx context.Context, callback *v3.Callback) {
 			p.Key = expressionPairs.Key()
 			p.NodeParent = c
 			v := expressionPairs.Value()
-			wg.Go(func() { p.Walk(ctx, v) })
+			wg.Go(func() {
+				p.Walk(ctx, v)
+			})
 			expression.Set(expressionPairs.Key(), p)
 		}
 		c.Expression = expression
 	}
 
 	if callback.GoLow().IsReference() {
-		base.BuildReference(drCtx, callback.GoLow())
+		BuildReference(drCtx, callback.GoLow())
 	}
 
 	drCtx.ObjectChan <- c
@@ -50,22 +51,31 @@ func (c *Callback) GetValue() any {
 }
 
 func (c *Callback) GetSize() (height, width int) {
-	width = base.WIDTH
-	height = base.HEIGHT
+	width = WIDTH
+	height = HEIGHT
 
 	if c.Key != "" {
-		if len(c.Key) > base.HEIGHT-10 {
-			width += (len(c.Key) - (base.HEIGHT - 10)) * 20
+		if len(c.Key) > HEIGHT-10 {
+			width += (len(c.Key) - (HEIGHT - 10)) * 20
 		}
 	}
 
 	if c.Value.Expression.Len() > 0 {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
 
 	if c.Value.Extensions.Len() > 0 {
-		height += base.HEIGHT
+		height += HEIGHT
 	}
-
+	for _, change := range c.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			break
+		}
+	}
 	return height, width
+}
+
+func (c *Callback) Travel(ctx context.Context, traveller Tardis) {
+	traveller.Visit(ctx, c)
 }

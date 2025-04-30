@@ -1,7 +1,7 @@
 // Copyright 2023-2024 Princess Beef Heavy Industries, LLC / Dave Shanley
 // https://pb33f.io
 
-package base
+package v3
 
 import (
 	"encoding/json"
@@ -11,37 +11,113 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/pb33f/libopenapi/utils"
+	what_changed "github.com/pb33f/libopenapi/what-changed"
+	"github.com/pb33f/libopenapi/what-changed/model"
 	"gopkg.in/yaml.v3"
 	"reflect"
 	"strings"
 )
 
 type Node struct {
-	Value         *yaml.Node        `json:"-"`
-	Id            string            `json:"id"`
-	IdHash        string            `json:"idHash,omitempty"`
-	ParentId      string            `json:"parentId"`
-	Type          string            `json:"type"`
-	Label         string            `json:"label"`
-	Width         int               `json:"width"`
-	Height        int               `json:"height"`
-	Children      []*Node           `json:"nodes,omitempty"`
-	IsArray       bool              `json:"isArray,omitempty"`
-	IsPoly        bool              `json:"isPoly,omitempty"`
-	PolyType      string            `json:"polyType,omitempty"`
-	PropertyCount int               `json:"propertyCount,omitempty"`
-	ArrayIndex    int               `json:"arrayIndex,omitempty"`
-	ArrayValues   int               `json:"arrayValues,omitempty"`
-	Extensions    int               `json:"extensions,omitempty"`
-	Hash          string            `json:"hash,omitempty"`
-	Origin        *index.NodeOrigin `json:"origin,omitempty"`
-	drModel       any               `json:"-"`
-	KeyLine       int               `json:"-"`
-	ValueLine     int               `json:"valueLine"`
-	Instance      any               `json:"-"`
-	DrInstance    any               `json:"-"`
-	RenderProps   bool              `json:"-"`
+	Value           *yaml.Node             `json:"-"`
+	Id              string                 `json:"id"`
+	IdHash          string                 `json:"idHash,omitempty"`
+	ParentId        string                 `json:"parentId"`
+	Type            string                 `json:"type"`
+	Label           string                 `json:"label"`
+	Width           int                    `json:"width"`
+	Height          int                    `json:"height"`
+	Children        []*Node                `json:"nodes,omitempty"`
+	IsArray         bool                   `json:"isArray,omitempty"`
+	IsPoly          bool                   `json:"isPoly,omitempty"`
+	PolyType        string                 `json:"polyType,omitempty"`
+	PropertyCount   int                    `json:"propertyCount,omitempty"`
+	ArrayIndex      int                    `json:"arrayIndex,omitempty"`
+	ArrayValues     int                    `json:"arrayValues,omitempty"`
+	Extensions      int                    `json:"extensions,omitempty"`
+	Hash            string                 `json:"hash,omitempty"`
+	OriginLocation  string                 `json:"originLocation,omitempty"`
+	Origin          *index.NodeOrigin      `json:"nodeOrigin,omitempty"`
+	drModel         any                    `json:"-"`
+	KeyLine         int                    `json:"-"`
+	ValueLine       int                    `json:"valueLine"`
+	Instance        any                    `json:"instance"`
+	DrInstance      any                    `json:"-"`
+	Changes         []what_changed.Changed `json:"-"`
+	RenderedChanges []*model.Change        `json:"timeline,omitempty"`
+	CleanedChanged  []*model.Change        `json:"cleanedChanges,omitempty"`
+	RenderProps     bool                   `json:"-"`
+	RenderChanges   bool                   `json:"-"`
+	RenderProblems  bool                   `json:"-"`
 }
+
+type NodeChangeable interface {
+	GetType() string
+	GetLabel() string
+	GetHash() string
+	GetPath() string
+}
+
+type NodeChange struct {
+	Id         string               `json:"id,omitempty"`
+	IdHash     string               `json:"idHash,omitempty"`
+	Type       string               `json:"type,omitempty"`
+	Label      string               `json:"label,omitempty"`
+	Path       string               `json:"path,omitempty"`
+	Children   []*Node              `json:"nodes,omitempty"`
+	ArrayIndex int                  `json:"arrayIndex,omitempty"`
+	Changes    what_changed.Changed `json:"timeline,omitempty"`
+}
+
+func (n *NodeChange) GetType() string {
+	return n.Type
+}
+
+func (n *NodeChange) GetLabel() string {
+	return n.Label
+}
+
+func (n *NodeChange) GetHash() string {
+	return n.IdHash
+}
+
+func (n *NodeChange) GetPath() string {
+	return n.IdHash
+}
+
+func (n *NodeChange) GetAllChanges() []*model.Change {
+	return n.Changes.GetAllChanges()
+}
+
+func (n *NodeChange) TotalChanges() int {
+	return n.Changes.TotalChanges()
+}
+
+func (n *NodeChange) TotalBreakingChanges() int {
+	return n.Changes.TotalBreakingChanges()
+}
+
+func (n *NodeChange) PropertiesOnly() {
+	if n.Changes != nil {
+		n.Changes.PropertiesOnly()
+	}
+}
+
+func (n *NodeChange) GetPropertyChanges() []*model.Change {
+	if n.Changes != nil {
+		return n.Changes.GetPropertyChanges()
+	}
+	return nil
+}
+
+//func (n *NodeChange) MarshalJSON() ([]byte, error) {
+//	propMap := map[string]interface{}{}
+//	if n.Changes != nil && len(n.Changes.GetAllChanges()) > 0 {
+//		propMap["id"] = n.Id
+//		propMap["superHacks"] = n.Changes
+//	}
+//	return json.Marshal(propMap)
+//}
 
 type Edge struct {
 	Id      string   `json:"id"`
@@ -67,8 +143,8 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		"valueLine": n.ValueLine,
 		"hash":      n.Hash,
 	}
-	if n.Origin != nil {
-		propMap["origin"] = n.Origin.AbsoluteLocation
+	if n.Origin != nil && n.Origin.AbsoluteLocation != "" {
+		propMap["originLocation"] = n.Origin.AbsoluteLocation
 	}
 
 	if n.IsPoly || n.PolyType != "" {
@@ -100,15 +176,17 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 					}
 				}
 				if f, ok := n.DrInstance.(AcceptsRuleResults); ok {
-					propMap["results"] = f.GetRuleFunctionResults()
+					if n.RenderProblems && len(f.GetRuleFunctionResults()) > 0 {
+						propMap["results"] = f.GetRuleFunctionResults()
+					}
 				}
 			}
 			propMap["instance"] = n.Instance
 			if gl, ok := n.Instance.(high.GoesLowUntyped); ok {
 
-				if _, ok := n.Instance.(high.Renderable); ok {
+				if _, kk := n.Instance.(high.Renderable); kk {
 
-					if rn, ok := gl.GoLowUntyped().(low.HasRootNode); ok {
+					if rn, oo := gl.GoLowUntyped().(low.HasRootNode); oo {
 						var enc map[string]interface{}
 
 						// check if this is a reference
@@ -134,13 +212,32 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		propMap["propertyCount"] = n.PropertyCount
 	}
 
-	if !n.RenderProps {
+	if n.RenderProps {
 		if n.Children != nil && len(n.Children) > 0 {
 			propMap["nodes"] = n.Children
 		}
 	}
 
-	return json.Marshal(propMap)
+	if n.RenderChanges {
+		if n.Changes != nil && len(n.Changes) > 0 {
+
+			var changes []*model.Change
+			for _, ch := range n.Changes {
+				changes = append(changes, ch.GetPropertyChanges()...)
+			}
+			if len(changes) > 0 {
+				propMap["timeline"] = changes
+			}
+		}
+
+		if n.RenderedChanges != nil {
+			propMap["timeline"] = n.RenderedChanges
+		}
+	}
+
+	pm, err := json.Marshal(propMap)
+
+	return pm, err
 }
 
 func GenerateNode(parentId string, instance any, drModel any, ctx *DrContext) *Node {
@@ -205,12 +302,14 @@ func GenerateNode(parentId string, instance any, drModel any, ctx *DrContext) *N
 	}
 
 	return &Node{
-		Id:        uuidValue,
-		ParentId:  parentId,
-		KeyLine:   line,
-		ValueLine: line,
-		drModel:   drModel,
-		Origin:    nodeOrigin,
+		Id:             uuidValue,
+		ParentId:       parentId,
+		KeyLine:        line,
+		ValueLine:      line,
+		drModel:        drModel,
+		Origin:         nodeOrigin,
+		RenderChanges:  ctx.RenderChanges,
+		RenderProblems: true,
 	}
 }
 
