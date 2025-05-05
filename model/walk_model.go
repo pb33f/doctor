@@ -15,7 +15,6 @@ import (
 	"strconv"
 	"sync"
 
-	drBase "github.com/pb33f/doctor/model/high/base"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel/high"
