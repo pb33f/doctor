@@ -43,7 +43,7 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 					// check if this is a reference
 					if ir, kl := x.NewObject.(low.IsReferenced); kl {
 						if ir.IsReference() {
-							println("is a reference")
+							//println("is a reference")
 						}
 					}
 				}
@@ -195,7 +195,7 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 
 		if changes.ItemsChanges != nil {
 			if schema.Items != nil && schema.Items.Value.IsA() {
-				processSchema(changes.UnevaluatedPropertiesChanges, schema.UnevaluatedProperties.A.Schema)
+				processSchema(changes.ItemsChanges, schema.Items.A.Schema)
 			} else {
 				nCtx = context.WithValue(ctx, v3.Context, changes.ItemsChanges)
 				PushChanges(nCtx, schema, &model.ItemsChanges{})
