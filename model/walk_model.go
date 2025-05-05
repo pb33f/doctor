@@ -10,6 +10,12 @@ package model
 import (
 	"context"
 	"fmt"
+	"os"
+	"sort"
+	"strconv"
+	"sync"
+
+	drBase "github.com/pb33f/doctor/model/high/base"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel/high"
@@ -18,10 +24,6 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/sourcegraph/conc"
 	"gopkg.in/yaml.v3"
-	"os"
-	"sort"
-	"strconv"
-	"sync"
 )
 
 // DrDocument is a turbocharged version of the libopenapi Document model. The doctor
@@ -479,23 +481,38 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph, useCache, renderChange
 		w.processObject(val, ln)
 	}
 
+	// safe line comparator that handles nil references
+	safeCmp := func(left, right *yaml.Node) bool {
+		if left == nil || right == nil {
+			// if nodes are nil, give precedence to left node by returning false
+			return false
+		}
+		return left.Line < right.Line
+	}
 	// sort schemas by line number
 	orderedFunc := func(i, j int) bool {
-		return schemas[i].GetKeyNode().Line < schemas[j].GetKeyNode().Line
+		return safeCmp(schemas[i].GetKeyNode(), schemas[j].GetKeyNode())
+	}
+	// sort skipped schemas by line number
+	orderedFuncSkipped := func(i, j int) bool {
+		if i < len(schemas) {
+			_ = schemas[i]
+		}
+		return safeCmp(skippedSchemas[i].GetKeyNode(), skippedSchemas[j].GetKeyNode())
 	}
 	// same for parameters
 	orderedFuncParam := func(i, j int) bool {
-		return parameters[i].GetKeyNode().Line < parameters[j].GetKeyNode().Line
+		return safeCmp(parameters[i].GetKeyNode(), parameters[j].GetKeyNode())
 	}
 	// same for headers
 	orderedFuncHeader := func(i, j int) bool {
-		return headers[i].GetKeyNode().Line < headers[j].GetKeyNode().Line
+		return safeCmp(headers[i].GetKeyNode(), headers[j].GetKeyNode())
 	}
 	if len(schemas) > 0 {
 		sort.Slice(schemas, orderedFunc)
 	}
 	if len(skippedSchemas) > 0 {
-		sort.Slice(skippedSchemas, orderedFunc)
+		sort.Slice(skippedSchemas, orderedFuncSkipped)
 	}
 	if len(parameters) > 0 {
 		sort.Slice(parameters, orderedFuncParam)
