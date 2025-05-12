@@ -69,7 +69,7 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 
 		processSchema := func(ch *model.SchemaChanges, sch *v3.Schema) {
 			nCtx = context.WithValue(ctx, v3.Context, ch)
-			if sch != nil && sch.Value != nil && !sch.Value.GoLow().IsReference() {
+			if sch != nil && sch.Value != nil && sch.Value.GoLow() != nil && !sch.Value.GoLow().IsReference() {
 				sch.Travel(nCtx, t)
 			}
 		}
@@ -185,7 +185,8 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 		}
 
 		if changes.UnevaluatedPropertiesChanges != nil {
-			if schema.UnevaluatedProperties != nil && schema.UnevaluatedProperties.Value.IsA() {
+			if schema.UnevaluatedProperties != nil && schema.UnevaluatedProperties.Value != nil &&
+				schema.UnevaluatedProperties.Value.IsA() {
 				processSchema(changes.UnevaluatedPropertiesChanges, schema.UnevaluatedProperties.A.Schema)
 			} else {
 				nCtx = context.WithValue(ctx, v3.Context, changes.UnevaluatedPropertiesChanges)
@@ -194,7 +195,7 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 		}
 
 		if changes.ItemsChanges != nil {
-			if schema.Items != nil && schema.Items.Value.IsA() {
+			if schema.Items != nil && schema.Items.Value != nil && schema.Items.Value.IsA() {
 				processSchema(changes.ItemsChanges, schema.Items.A.Schema)
 			} else {
 				nCtx = context.WithValue(ctx, v3.Context, changes.ItemsChanges)
@@ -203,7 +204,8 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 		}
 
 		if changes.AdditionalPropertiesChanges != nil {
-			if schema.AdditionalProperties != nil && schema.AdditionalProperties.Value.IsA() {
+			if schema.AdditionalProperties != nil && schema.AdditionalProperties.Value != nil &&
+				schema.AdditionalProperties.Value.IsA() {
 				processSchema(changes.AdditionalPropertiesChanges, schema.AdditionalProperties.A.Schema)
 			} else {
 				nCtx = context.WithValue(ctx, v3.Context, changes.AdditionalPropertiesChanges)
