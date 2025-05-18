@@ -67,6 +67,7 @@ type Foundation struct {
 	RuleResults   []*RuleFunctionResult
 	JSONPath      string
 	Mutex         sync.Mutex
+	JSONPathOnce  sync.Once
 	Node          *Node
 	NodeReference *Node // if the chain was broken, keep a reference
 	Edges         []*Edge
@@ -361,12 +362,12 @@ func (f *Foundation) GetPathSegment() string {
 }
 
 func (f *Foundation) GenerateJSONPath() string {
-	if f.JSONPath != "" {
-		return f.JSONPath
+	if f.JSONPath == "" {
+		f.JSONPathOnce.Do(func() {
+			f.JSONPath = f.GenerateJSONPathWithLevel(0)
+		})
 	}
-	path := f.GenerateJSONPathWithLevel(0)
-	f.JSONPath = path
-	return path
+	return f.JSONPath
 }
 
 func (f *Foundation) GenerateJSONPathWithLevel(level int) string {
