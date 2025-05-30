@@ -58,11 +58,16 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 		processSlice := func(ch *model.SchemaChanges) {
 			// for each change, locate the object
 			for _, x := range ch.Changes {
-				processObj(x, ch)
+				if ch != nil {
+					processObj(x, ch)
+				}
 			}
+
 			for _, x := range ch.SchemaPropertyChanges {
-				for _, y := range x.GetPropertyChanges() {
-					processObj(y, x)
+				if x != nil {
+					for _, y := range x.GetPropertyChanges() {
+						processObj(y, x)
+					}
 				}
 			}
 		}
