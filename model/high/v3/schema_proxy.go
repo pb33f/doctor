@@ -117,7 +117,11 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 
 			// clone context
 			clonedCtx := *drCtx
-			clonedCtx.BuildGraph = false
+
+			// if we're building changes, we're going to want to build the whole graph, so we can see the changes.
+			if !drCtx.RenderChanges {
+				clonedCtx.BuildGraph = false
+			}
 			newCtx := context.WithValue(ctx, "drCtx", &clonedCtx)
 
 			// check if this is a circular ref.
