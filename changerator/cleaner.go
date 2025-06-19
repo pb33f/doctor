@@ -69,7 +69,7 @@ func (t *Changerator) BuildNodeChangeTree(root *v3.Node) {
 		if _, ok := seen[n.Id]; !ok {
 			for _, e := range t.Config.Doctor.Edges {
 				if slices.Contains(e.Targets, n.Id) && slices.Contains(e.Sources, n.ParentId) {
-					if _, ok := cleanedEdges[e.Id]; !ok {
+					if _, kk := cleanedEdges[e.Id]; !kk {
 						cleanedEdges[e.Id] = e
 					}
 				}
@@ -78,12 +78,40 @@ func (t *Changerator) BuildNodeChangeTree(root *v3.Node) {
 			cleanedNodes = append(cleanedNodes, n)
 		}
 	}
-	t.ChangedEdges = []*v3.Edge{}
+	var chEdges []*v3.Edge
+	var dupes []*v3.Edge
+	seenEdges := make(map[string]*v3.Edge)
+
 	for _, e := range cleanedEdges {
 		if e != nil {
-			t.ChangedEdges = append(t.ChangedEdges, e)
+
+			// check if there is already and edge with the same target and source
+			chk := fmt.Sprintf("%s:%s", e.Targets[0], e.Sources[0])
+			if _, ok := seenEdges[chk]; !ok {
+				seenEdges[chk] = e
+				chEdges = append(chEdges, e)
+			} else {
+				dupes = append(dupes, e)
+			}
 		}
 	}
+
+	if len(dupes) > 0 {
+
+		for _, du := range dupes {
+			for i, e := range chEdges {
+				if e.Sources[0] == du.Sources[0] && e.Targets[0] == du.Targets[0] {
+					if du.Ref != "" && chEdges[i].Ref == "" {
+						// replace the edge if it has a reference.
+						chEdges[i] = du
+					}
+					break
+				}
+			}
+		}
+	}
+
+	t.ChangedEdges = chEdges
 	t.ChangedNodes = cleanedNodes
 }
 

@@ -8,7 +8,9 @@ import (
 	"github.com/pb33f/doctor/model"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
 )
 
@@ -809,4 +811,56 @@ x-burp: hello`
 	err := json.Unmarshal(b, &n)
 	assert.NoError(t, err)
 
+}
+
+func TestTardis_MultiFile_MultiRef(t *testing.T) {
+
+	ymlLeft, _ := os.ReadFile("ref_test/orig/a.yaml")
+	ymlRight, _ := os.ReadFile("ref_test/mod/a.yaml")
+
+	l, _ := libopenapi.NewDocumentWithConfiguration(ymlLeft, &datamodel.DocumentConfiguration{
+		BasePath:            "ref_test/orig",
+		AllowFileReferences: true,
+		SpecFilePath:        "ref_test/orig/a.yaml",
+	})
+
+	leftModel, _ := l.BuildV3Model()
+	leftDoc := model.NewDrDocumentAndGraph(leftModel)
+
+	r, _ := libopenapi.NewDocumentWithConfiguration(ymlRight, &datamodel.DocumentConfiguration{
+		BasePath:            "ref_test/mod",
+		AllowFileReferences: true,
+		SpecFilePath:        "ref_test/mod/a.yaml",
+	})
+
+	rightModel, _ := r.BuildV3Model()
+	rightDoc := model.NewDrDocumentAndGraph(rightModel)
+
+	assert.NotNil(t, leftDoc)
+	assert.NotNil(t, rightDoc)
+
+	// build a changeDistributor
+	cd := NewChangerator(&ChangeratorConfig{
+		LeftDrDoc:  leftDoc.V3Document,
+		RightDrDoc: rightDoc.V3Document,
+		Doctor:     rightDoc,
+	})
+
+	cd.Changerate()
+
+	var fings []*v3.Node
+	fings = append(fings, rightDoc.V3Document.Node)
+
+	cd.Changerify(fings)
+
+	cd.BuildNodeChangeTree(rightDoc.V3Document.Node)
+	cd.PrepareNodesForGraph(rightDoc.V3Document.Node)
+
+	// raster the root node and all changes
+	b, _ := json.MarshalIndent(rightDoc.V3Document.Node, "", "  ")
+	assert.NotNil(t, b)
+	assert.NotNil(t, cd)
+	assert.Len(t, cd.ChangedNodes, 9)
+	assert.Len(t, cd.ChangedEdges, 8)
+	assert.Equal(t, "$.paths['/test'].get.responses['200'].content['application/json'].schema.properties['PropC']", cd.ChangedNodes[0].Id)
 }
