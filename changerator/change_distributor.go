@@ -44,6 +44,10 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 	leftDoc := t.Config.LeftDrDoc
 	rightDoc := t.Config.RightDrDoc
 
+	// rotate rolodex ids
+	leftDoc.Document.Rolodex.RotateId()
+	rightDoc.Document.Rolodex.RotateId()
+
 	docChanges := whatChanged.CompareOpenAPIDocuments(leftDoc.Document.GoLow(), rightDoc.Document.GoLow())
 
 	if docChanges == nil || len(docChanges.GetAllChanges()) == 0 {

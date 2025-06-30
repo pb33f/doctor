@@ -18,7 +18,8 @@ func (t *Changerator) VisitComponents(ctx context.Context, obj *v3.Components) {
 			for k, v := range changes.SchemaChanges {
 				if obj.Schemas.GetOrZero(k) != nil {
 					nCtx = context.WithValue(ctx, v3.Context, v)
-					if !obj.Schemas.GetOrZero(k).Schema.Value.GoLow().IsReference() {
+					if obj.Schemas.GetOrZero(k).Schema.Value != nil &&
+						!obj.Schemas.GetOrZero(k).Schema.Value.GoLow().IsReference() {
 						obj.Schemas.GetOrZero(k).Schema.Travel(nCtx, t)
 					}
 				}
@@ -29,14 +30,15 @@ func (t *Changerator) VisitComponents(ctx context.Context, obj *v3.Components) {
 			for k, v := range changes.SecuritySchemeChanges {
 				if obj.SecuritySchemes.GetOrZero(k) != nil {
 					nCtx = context.WithValue(ctx, v3.Context, v)
-					if !obj.SecuritySchemes.GetOrZero(k).Value.GoLow().IsReference() {
+					if obj.Schemas.GetOrZero(k).Schema.Value != nil &&
+						!obj.SecuritySchemes.GetOrZero(k).Value.GoLow().IsReference() {
 						obj.SecuritySchemes.GetOrZero(k).Travel(nCtx, t)
 					}
 				}
 			}
 		}
 
-		if changes != nil && changes.ExtensionChanges != nil {
+		if changes.ExtensionChanges != nil {
 			HandleExtensions(ctx, obj, changes.ExtensionChanges)
 		}
 	}
