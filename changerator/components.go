@@ -28,7 +28,10 @@ func (t *Changerator) VisitComponents(ctx context.Context, obj *v3.Components) {
 
 		if changes.SecuritySchemeChanges != nil && obj.SecuritySchemes != nil && obj.SecuritySchemes.Len() > 0 {
 			for k, v := range changes.SecuritySchemeChanges {
-				if obj.SecuritySchemes.GetOrZero(k) != nil {
+				if obj.SecuritySchemes != nil &&
+					obj.SecuritySchemes.GetOrZero(k) != nil &&
+					obj.Schemas != nil && obj.Schemas.GetOrZero(k) != nil &&
+					obj.Schemas.GetOrZero(k).Schema != nil {
 					nCtx = context.WithValue(ctx, v3.Context, v)
 					if obj.Schemas.GetOrZero(k).Schema.Value != nil &&
 						!obj.SecuritySchemes.GetOrZero(k).Value.GoLow().IsReference() {
