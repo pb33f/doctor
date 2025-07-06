@@ -144,7 +144,7 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		"hash":      n.Hash,
 	}
 	if n.Origin != nil && n.Origin.AbsoluteLocation != "" {
-		propMap["originLocation"] = n.Origin.AbsoluteLocation
+		propMap["origin"] = n.Origin.AbsoluteLocation
 	}
 
 	if n.IsPoly || n.PolyType != "" {
