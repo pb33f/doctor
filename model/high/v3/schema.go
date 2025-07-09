@@ -39,6 +39,7 @@ type Schema struct {
 	AdditionalProperties  *DynamicValue[*base.SchemaProxy, bool, *SchemaProxy, bool]
 	XML                   *XML
 	ExternalDocs          *ExternalDoc
+	Walked                bool
 	Foundation
 }
 
@@ -72,10 +73,12 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			rnHash := index.HashNode(schema.GoLow().RootNode)
 			hash := h.(string)
 			if rnHash == hash {
+
 				s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
 				drCtx.ObjectChan <- s
-				return
-
+				if s.Walked {
+					return
+				}
 			}
 		}
 
@@ -530,6 +533,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	drCtx.ObjectChan <- s
 
+	s.Walked = true
 }
 
 func (s *Schema) GetValue() any {
