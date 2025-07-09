@@ -4,6 +4,8 @@
 
 ### Just the doctor.
 
+The doctor provides super-charged versions of pb33f libraries and tools. Offering capabilities not available in the OSS.
+
 ---
 
 This is a BUSL-1.1 licensed project. You can find the license in the LICENSE file.
