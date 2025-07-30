@@ -822,6 +822,7 @@ func TestTardis_MultiFile_MultiRef(t *testing.T) {
 		BasePath:            "ref_test/orig",
 		AllowFileReferences: true,
 		SpecFilePath:        "ref_test/orig/a.yaml",
+		UseSchemaQuickHash:  true,
 	})
 
 	leftModel, _ := l.BuildV3Model()
@@ -831,6 +832,7 @@ func TestTardis_MultiFile_MultiRef(t *testing.T) {
 		BasePath:            "ref_test/mod",
 		AllowFileReferences: true,
 		SpecFilePath:        "ref_test/mod/a.yaml",
+		UseSchemaQuickHash:  true,
 	})
 
 	rightModel, _ := r.BuildV3Model()
