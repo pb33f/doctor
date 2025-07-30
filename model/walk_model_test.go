@@ -139,7 +139,7 @@ func BenchmarkWalker_TestStripe(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		walker := NewDrDocument(v3Doc)
-		assert.Equal(b, 15360, len(walker.Schemas))
+		assert.Equal(b, 16716, len(walker.Schemas))
 		assert.Equal(b, 186, len(walker.SkippedSchemas))
 	}
 }
