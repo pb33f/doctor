@@ -98,6 +98,9 @@ func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drV3.Fo
 		return nil, fmt.Errorf("DrDocument is nil, cannot locate model")
 	}
 
+	// Cache the hash of the value node to avoid recomputing it in loops
+	var valueHash string
+
 	// now we have an origin, we can locate that model.
 	if w.lineObjects[key.Line] == nil {
 		return nil, fmt.Errorf("model not found at line %d", key.Line)
@@ -145,8 +148,11 @@ func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drV3.Fo
 										filteredObjects = append(filteredObjects, o.(drV3.Foundational))
 										continue
 									}
-									// check hash
-									if index.HashNode(value) == index.HashNode(rn) {
+									// check hash - compute value hash once and reuse
+									if valueHash == "" {
+										valueHash = index.HashNode(value)
+									}
+									if valueHash == index.HashNode(rn) {
 										filteredObjects = append(filteredObjects, o.(drV3.Foundational))
 										continue
 									}
@@ -195,8 +201,11 @@ func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drV3.Fo
 									filteredObjects = append(filteredObjects, o.(drV3.Foundational))
 									continue
 								}
-								// check hash
-								if index.HashNode(value) == index.HashNode(rn) {
+								// check hash - compute value hash once and reuse
+								if valueHash == "" {
+									valueHash = index.HashNode(value)
+								}
+								if valueHash == index.HashNode(rn) {
 									filteredObjects = append(filteredObjects, o.(drV3.Foundational))
 									continue
 								}

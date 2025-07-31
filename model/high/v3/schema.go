@@ -64,15 +64,18 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 	wg := drCtx.WaitGroup
 
 	sm := drCtx.SchemaCache
+	var rootNodeHash string // Declare outside to reuse
+	
 	if drCtx.UseSchemaCache {
 		if h, ok := sm.Load(buf.String()); ok {
 
 			// cached! we don't need to re-walk this.
 			s.Value = schema
 
-			rnHash := index.HashNode(schema.GoLow().RootNode)
+			// Compute hash once for reuse
+			rootNodeHash = index.HashNode(schema.GoLow().RootNode)
 			hash := h.(string)
-			if rnHash == hash {
+			if rootNodeHash == hash {
 
 				s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
 				drCtx.ObjectChan <- s
@@ -82,7 +85,11 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			}
 		}
 
-		sm.Store(buf.String(), index.HashNode(schema.GoLow().RootNode))
+		// Store hash (compute only if not already computed above)
+		if rootNodeHash == "" {
+			rootNodeHash = index.HashNode(schema.GoLow().RootNode)
+		}
+		sm.Store(buf.String(), rootNodeHash)
 	}
 
 	s.Value = schema
