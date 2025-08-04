@@ -16,6 +16,15 @@ import (
 
 var stringPool sync.Map
 
+// getLastInstanceLocation safely gets the last element of InstanceLocation slice.
+// Returns "$" if the slice is empty or nil.
+func getLastInstanceLocation(instanceLocation []string) string {
+	if len(instanceLocation) == 0 {
+		return "$"
+	}
+	return instanceLocation[len(instanceLocation)-1]
+}
+
 // DiveIntoValidationError recursively dives into the validation error and collects all the causes, nicely
 // printed and formatted in a string slice
 func DiveIntoValidationError(e *jsonschema.ValidationError, causes *[]string, location string) {
@@ -29,13 +38,18 @@ func DiveIntoValidationError(e *jsonschema.ValidationError, causes *[]string, lo
 		return
 	}
 
+	// Check for nil ErrorKind to prevent panic
+	if e.ErrorKind == nil {
+		return
+	}
+
 	defaultPrinter := message.NewPrinter(language.English)
 	msg := e.ErrorKind.LocalizedString(defaultPrinter)
 
 	switch k := e.ErrorKind.(type) {
 	case *kind.InvalidJsonValue:
 		msg = fmt.Sprintf("`%s` is not valid JSON `%T`: `%v`",
-			e.InstanceLocation[len(e.InstanceLocation)-1], k.Value, k.Value)
+			getLastInstanceLocation(e.InstanceLocation), k.Value, k.Value)
 
 	case *kind.Schema:
 		msg = fmt.Sprintf("schema validation failed at: `%s`", k.Location)
@@ -68,10 +82,10 @@ func DiveIntoValidationError(e *jsonschema.ValidationError, causes *[]string, lo
 	case *kind.Enum:
 		if len(k.Want) == 1 {
 			msg = fmt.Sprintf("`%s` is invalid for property `%s`, value must be `%v`",
-				k.Got, e.InstanceLocation[len(e.InstanceLocation)-1], k.Want[0])
+				k.Got, getLastInstanceLocation(e.InstanceLocation), k.Want[0])
 		} else {
 			msg = fmt.Sprintf("`%s` is invalid for property `%s`, value must be one of %v",
-				k.Got, e.InstanceLocation[len(e.InstanceLocation)-1], WrapBackticks(k.Want))
+				k.Got, getLastInstanceLocation(e.InstanceLocation), WrapBackticks(k.Want))
 		}
 
 	case *kind.Const:
@@ -85,23 +99,23 @@ func DiveIntoValidationError(e *jsonschema.ValidationError, causes *[]string, lo
 
 	case *kind.MinProperties:
 		msg = fmt.Sprintf("`%s` must have at least `%d` properties (I only found `%d`)",
-			e.InstanceLocation[len(e.InstanceLocation)-1], k.Want, k.Got)
+			getLastInstanceLocation(e.InstanceLocation), k.Want, k.Got)
 
 	case *kind.MaxProperties:
 		msg = fmt.Sprintf("`%s` must have at most `%d` properties (I found `%d`)",
-			e.InstanceLocation[len(e.InstanceLocation)-1], k.Want, k.Got)
+			getLastInstanceLocation(e.InstanceLocation), k.Want, k.Got)
 
 	case *kind.MinItems:
 		msg = fmt.Sprintf("`%s` must have at most `%d` items  (I found `%d`)",
-			e.InstanceLocation[len(e.InstanceLocation)-1], k.Want, k.Got)
+			getLastInstanceLocation(e.InstanceLocation), k.Want, k.Got)
 
 	case *kind.MaxItems:
 		msg = fmt.Sprintf("`%s` must have at most `%d` items (I found `%d`)",
-			e.InstanceLocation[len(e.InstanceLocation)-1], k.Want, k.Got)
+			getLastInstanceLocation(e.InstanceLocation), k.Want, k.Got)
 
 	case *kind.AdditionalItems:
 		msg = fmt.Sprintf("`%s` is not allowed any additional items (I found `%d`)",
-			e.InstanceLocation[len(e.InstanceLocation)-1], k.Count)
+			getLastInstanceLocation(e.InstanceLocation), k.Count)
 
 	case *kind.Required:
 		if len(k.Missing) == 1 {
@@ -120,7 +134,7 @@ func DiveIntoValidationError(e *jsonschema.ValidationError, causes *[]string, lo
 
 	case *kind.AdditionalProperties:
 		msg = fmt.Sprintf("`%s` is not allowed any additional properties (I found %s)",
-			e.InstanceLocation[len(e.InstanceLocation)-1], WrapBackticksString(k.Properties))
+			getLastInstanceLocation(e.InstanceLocation), WrapBackticksString(k.Properties))
 
 	case *kind.PropertyNames:
 		msg = fmt.Sprintf("`%s` is an invalid property name", k.Property)
@@ -133,31 +147,31 @@ func DiveIntoValidationError(e *jsonschema.ValidationError, causes *[]string, lo
 
 	case *kind.MinContains:
 		msg = fmt.Sprintf("`%s` must match at least `%d` items (I found `%d`)",
-			e.InstanceLocation[len(e.InstanceLocation)-1], k.Want, len(k.Got))
+			getLastInstanceLocation(e.InstanceLocation), k.Want, len(k.Got))
 
 	case *kind.MaxContains:
 		msg = fmt.Sprintf("`%s` must match at most `%d` items (I found `%d`)",
-			e.InstanceLocation[len(e.InstanceLocation)-1], k.Want, len(k.Got))
+			getLastInstanceLocation(e.InstanceLocation), k.Want, len(k.Got))
 
 	case *kind.MinLength:
 		msg = fmt.Sprintf("`%s` must be at least `%d` characters long (I counted `%d`)",
-			e.InstanceLocation[len(e.InstanceLocation)-1], k.Want, k.Got)
+			getLastInstanceLocation(e.InstanceLocation), k.Want, k.Got)
 
 	case *kind.MaxLength:
 		msg = fmt.Sprintf("`%s` must be at most `%d` characters long (I counted `%d`)",
-			e.InstanceLocation[len(e.InstanceLocation)-1], k.Want, k.Got)
+			getLastInstanceLocation(e.InstanceLocation), k.Want, k.Got)
 
 	case *kind.Pattern:
 		msg = fmt.Sprintf("the value of `%s` (`%s`) does not match the required pattern `%s`",
-			e.InstanceLocation[len(e.InstanceLocation)-1], k.Got, k.Want)
+			getLastInstanceLocation(e.InstanceLocation), k.Got, k.Want)
 
 	case *kind.ContentEncoding:
 		msg = fmt.Sprintf("`%s` must be correctly encoded with `%s`",
-			e.InstanceLocation[len(e.InstanceLocation)-1], k.Want)
+			getLastInstanceLocation(e.InstanceLocation), k.Want)
 
 	case *kind.ContentMediaType:
 		msg = fmt.Sprintf("`%s` is not of the media type `%s`",
-			e.InstanceLocation[len(e.InstanceLocation)-1], k.Want)
+			getLastInstanceLocation(e.InstanceLocation), k.Want)
 
 	case *kind.ContentSchema:
 		msg = fmt.Sprint("does not conform to `contentSchema`")
@@ -166,31 +180,31 @@ func DiveIntoValidationError(e *jsonschema.ValidationError, causes *[]string, lo
 		got, _ := k.Got.Float64()
 		want, _ := k.Want.Float64()
 		msg = fmt.Sprintf("`%s` has a value of `%f`, must be no less than `%f`",
-			e.InstanceLocation[len(e.InstanceLocation)-1], got, want)
+			getLastInstanceLocation(e.InstanceLocation), got, want)
 
 	case *kind.Maximum:
 		got, _ := k.Got.Float64()
 		want, _ := k.Want.Float64()
 		msg = fmt.Sprintf("`%s` has a value of `%f`, must be no greater than `%f`",
-			e.InstanceLocation[len(e.InstanceLocation)-1], got, want)
+			getLastInstanceLocation(e.InstanceLocation), got, want)
 
 	case *kind.ExclusiveMinimum:
 		got, _ := k.Got.Float64()
 		want, _ := k.Want.Float64()
 		msg = fmt.Sprintf("`%s` has a value of `%f`, must be no less than `%f`",
-			e.InstanceLocation[len(e.InstanceLocation)-1], got, want)
+			getLastInstanceLocation(e.InstanceLocation), got, want)
 
 	case *kind.ExclusiveMaximum:
 		got, _ := k.Got.Float64()
 		want, _ := k.Want.Float64()
 		msg = fmt.Sprintf("`%s` has a value of `%f`, must be no greater than `%f`",
-			e.InstanceLocation[len(e.InstanceLocation)-1], got, want)
+			getLastInstanceLocation(e.InstanceLocation), got, want)
 
 	case *kind.MultipleOf:
 		got, _ := k.Got.Float64()
 		want, _ := k.Want.Float64()
 		msg = fmt.Sprintf("`%s` has a value of `%f`, it must be a multiple of `%f`",
-			e.InstanceLocation[len(e.InstanceLocation)-1], got, want)
+			getLastInstanceLocation(e.InstanceLocation), got, want)
 
 	default:
 		msg = "validation failed"
