@@ -56,11 +56,14 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 			}
 		}
 		processSlice := func(ch *model.SchemaChanges) {
+			// Early return if ch is nil to prevent nil pointer dereference
+			if ch == nil {
+				return
+			}
+			
 			// for each change, locate the object
 			for _, x := range ch.Changes {
-				if ch != nil {
-					processObj(x, ch)
-				}
+				processObj(x, ch)
 			}
 
 			for _, x := range ch.SchemaPropertyChanges {
