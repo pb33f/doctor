@@ -13,6 +13,7 @@ import (
 	"golang.org/x/text/language"
 	"slices"
 	"strings"
+	"sync"
 )
 
 type Schema struct {
@@ -40,6 +41,7 @@ type Schema struct {
 	XML                   *XML
 	ExternalDocs          *ExternalDoc
 	Walked                bool
+	mu                    sync.RWMutex
 	Foundation
 }
 
@@ -92,7 +94,9 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		sm.Store(buf.String(), rootNodeHash)
 	}
 
+	s.mu.Lock()
 	s.Value = schema
+	s.mu.Unlock()
 
 	process := true
 	if schema.Type != nil {
@@ -120,7 +124,9 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 	} else {
 		negone := -1
 		if s.Name == "" {
+			s.mu.Lock()
 			s.Name = "schema"
+			s.mu.Unlock()
 		}
 		if process {
 			s.ProcessNodesAndEdges(ctx, s.Name, "schema", schema, s, false, 0, &negone, true)
@@ -146,7 +152,9 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			wg.Go(func() { sch.Walk(ctx, aOfItem, depth) })
 
 		}
+		s.mu.Lock()
 		s.AllOf = allOf
+		s.mu.Unlock()
 	}
 
 	if schema.OneOf != nil {
@@ -166,7 +174,9 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			oneOf = append(oneOf, sch)
 			wg.Go(func() { sch.Walk(ctx, oOfItem, depth) })
 		}
+		s.mu.Lock()
 		s.OneOf = oneOf
+		s.mu.Unlock()
 	}
 
 	if schema.AnyOf != nil {
@@ -186,7 +196,9 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			anyOf = append(anyOf, sch)
 			wg.Go(func() { sch.Walk(ctx, aOfItem, depth) })
 		}
+		s.mu.Lock()
 		s.AnyOf = anyOf
+		s.mu.Unlock()
 	}
 
 	if schema.PrefixItems != nil {
@@ -544,10 +556,15 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 }
 
 func (s *Schema) GetValue() any {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.Value
 }
 
 func (s *Schema) GetSize() (height, width int) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
 	h, w := ParseSchemaSize(s.Value)
 	if s.Key != "" {
 		if len(s.Key) > (HEIGHT - 15) {

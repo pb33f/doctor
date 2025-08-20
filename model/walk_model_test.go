@@ -10,6 +10,8 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/require"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1403,4 +1405,195 @@ func TestMultiRefLookup_PetStore_ApiResponse(t *testing.T) {
 	assert.Equal(t, "$.components.schemas['ApiResponse']", models[0].GenerateJSONPath())
 	assert.Equal(t, 1156, models[0].GetKeyNode().Line)
 
+}
+
+func TestWalker_SchemaRaceCondition(t *testing.T) {
+	// Create a spec with self-referencing schemas to trigger concurrent walking
+	yml := `openapi: 3.1.0
+components:
+  schemas:
+    SelfRef:
+      type: object
+      properties:
+        name:
+          type: string
+        child:
+          $ref: '#/components/schemas/SelfRef'
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/SelfRef'
+    CircularA:
+      type: object
+      properties:
+        b:
+          $ref: '#/components/schemas/CircularB'
+    CircularB:
+      type: object
+      properties:
+        a:
+          $ref: '#/components/schemas/CircularA'
+        self:
+          $ref: '#/components/schemas/CircularB'
+`
+
+	newDoc, _ := libopenapi.NewDocument([]byte(yml))
+	v3Doc, _ := newDoc.BuildV3Model()
+
+	// Create a single DrDocument and then access its schemas concurrently
+	// This should reproduce the race where components.Walk() goroutines
+	// are still running when we try to access schema properties
+	walker := NewDrDocument(v3Doc)
+
+	// Now try to trigger concurrent access to the same schema instances
+	numGoroutines := 50
+	var wg sync.WaitGroup
+	var failures int32
+	
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					atomic.AddInt32(&failures, 1)
+				}
+			}()
+			
+			// Access the same schema instances from multiple goroutines
+			// This should trigger the race condition between ongoing Walk() and GetSize()
+			for j := 0; j < 100; j++ {
+				schema := walker.V3Document.Components.Schemas.GetOrZero("SelfRef").Schema
+				if schema != nil {
+					_, _ = schema.GetSize() // This reads s.Value
+				}
+				
+				schema2 := walker.V3Document.Components.Schemas.GetOrZero("CircularA").Schema  
+				if schema2 != nil {
+					_, _ = schema2.GetSize() // This reads s.Value
+				}
+			}
+		}()
+	}
+	
+	wg.Wait()
+	
+	// The test passes if no race condition panics occurred
+	if failures > 0 {
+		t.Errorf("Race condition detected: %d goroutines failed", failures)
+	}
+}
+
+func TestWalker_SchemaFieldsRaceCondition(t *testing.T) {
+	// Create a spec with complex schemas to trigger races on multiple schema fields
+	yml := `openapi: 3.1.0
+components:
+  schemas:
+    ComplexSchema:
+      type: object
+      title: "Complex Schema Title"
+      allOf:
+        - type: object
+          properties:
+            field1:
+              type: string
+        - type: object  
+          properties:
+            field2:
+              type: integer
+      oneOf:
+        - type: object
+          properties:
+            variant1:
+              type: string
+        - type: object
+          properties:
+            variant2:
+              type: number
+      anyOf:
+        - type: string
+        - type: number
+        - type: boolean
+      properties:
+        mainField:
+          type: object
+          properties:
+            nested:
+              $ref: '#/components/schemas/ComplexSchema'
+        arrayField:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComplexSchema'
+`
+
+	newDoc, _ := libopenapi.NewDocument([]byte(yml))
+	v3Doc, _ := newDoc.BuildV3Model()
+
+	// Create one walker and then access it from multiple goroutines
+	// This increases the chance of race conditions on the same schema instance
+	walker := NewDrDocument(v3Doc)
+	
+	numGoroutines := 100
+	var wg sync.WaitGroup
+	var failures int32
+	
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(goroutineID int) {
+			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					atomic.AddInt32(&failures, 1)
+				}
+			}()
+			
+			// Half goroutines access the same schemas repeatedly
+			// Half create new walkers to increase concurrent schema creation
+			if goroutineID%2 == 0 {
+				// Access existing schema instance repeatedly
+				for j := 0; j < 200; j++ {
+					schema := walker.V3Document.Components.Schemas.GetOrZero("ComplexSchema").Schema
+					if schema != nil {
+						// This should trigger races on schema fields
+						_, _ = schema.GetSize()
+						_ = schema.GetValue()
+					}
+				}
+			} else {
+				// Create new walker to trigger concurrent schema processing
+				newWalker := NewDrDocument(v3Doc)
+				for j := 0; j < 50; j++ {
+					schema := newWalker.V3Document.Components.Schemas.GetOrZero("ComplexSchema").Schema
+					if schema != nil {
+						_, _ = schema.GetSize()
+						_ = schema.GetValue()
+					}
+				}
+			}
+		}(i)
+	}
+	
+	wg.Wait()
+	
+	// The test passes if no race condition panics occurred
+	if failures > 0 {
+		t.Errorf("Schema fields race condition detected: %d goroutines failed", failures)
+	}
+}
+
+func TestWalker_SchemaNameFieldRaceCondition(t *testing.T) {
+	// Use the petstore spec which triggers the actual race condition we saw
+	bytes, _ := os.ReadFile("../test_specs/petstorev3.json")
+	newDoc, _ := libopenapi.NewDocument(bytes)
+	v3Doc, _ := newDoc.BuildV3Model()
+
+	// This should trigger the race condition between:
+	// Write: s.Name = "schema" at line 127 in Walk()
+	// Read: if s.Name != "" at line 567 in GetSize()
+	walker := NewDrDocument(v3Doc)
+	
+	// Just checking that walker was created - the race should be triggered during creation
+	if len(walker.Schemas) == 0 {
+		t.Errorf("Expected schemas to be created")
+	}
 }
