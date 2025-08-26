@@ -16,7 +16,10 @@ type SecurityRequirement struct {
 func (s *SecurityRequirement) Walk(ctx context.Context, securityRequirement *base.SecurityRequirement) {
 	drCtx := GetDrContext(ctx)
 	s.Value = securityRequirement
-	s.PathSegment = "security"
+	// Don't override PathSegment if it's already set (e.g., from document or operation level)
+	if s.PathSegment == "" {
+		s.PathSegment = "security"
+	}
 	drCtx.ObjectChan <- s
 }
 

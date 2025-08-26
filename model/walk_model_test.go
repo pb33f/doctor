@@ -127,7 +127,7 @@ func BenchmarkWalker_TestBurgers(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		walker := NewDrDocument(v3Doc)
 
-		assert.Equal(b, 31, len(walker.Schemas))
+		assert.Equal(b, 32, len(walker.Schemas))
 		assert.Equal(b, 0, len(walker.SkippedSchemas))
 	}
 }
