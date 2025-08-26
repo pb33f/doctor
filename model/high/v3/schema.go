@@ -43,6 +43,22 @@ type Schema struct {
 	Foundation
 }
 
+// isSchemaAlreadyCached checks if a schema is already in the cache
+// This helps avoid spawning unnecessary goroutines for already-processed schemas
+func isSchemaAlreadyCached(ctx context.Context, schema *base.Schema) bool {
+	drCtx := GetDrContext(ctx)
+	if !drCtx.UseSchemaCache || schema == nil {
+		return false
+	}
+	
+	// Check if this schema is already cached
+	rootNodeHash := index.HashNode(schema.GoLow().RootNode)
+	if _, exists := drCtx.SchemaCache.Load(rootNodeHash); exists {
+		return true
+	}
+	return false
+}
+
 func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	drCtx := GetDrContext(ctx)
