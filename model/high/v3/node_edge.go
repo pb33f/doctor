@@ -16,6 +16,21 @@ import (
 	"gopkg.in/yaml.v3"
 	"reflect"
 	"strings"
+	"sync"
+)
+
+// Object pools for Node and Edge to reduce allocations
+var (
+	nodePool = sync.Pool{
+		New: func() interface{} {
+			return &Node{}
+		},
+	}
+	edgePool = sync.Pool{
+		New: func() interface{} {
+			return &Edge{}
+		},
+	}
 )
 
 type Node struct {
@@ -241,6 +256,12 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 }
 
 func GenerateNode(parentId string, instance any, drModel any, ctx *DrContext) *Node {
+	// Get a node from the pool
+	n := nodePool.Get().(*Node)
+	
+	// Reset the node to clean state
+	*n = Node{}
+	
 	// check if instance can go low
 	var uuidValue string
 	line := 1
@@ -301,19 +322,26 @@ func GenerateNode(parentId string, instance any, drModel any, ctx *DrContext) *N
 		}
 	}
 
-	return &Node{
-		Id:             uuidValue,
-		ParentId:       parentId,
-		KeyLine:        line,
-		ValueLine:      line,
-		drModel:        drModel,
-		Origin:         nodeOrigin,
-		RenderChanges:  ctx.RenderChanges,
-		RenderProblems: true,
-	}
+	// Set the node fields
+	n.Id = uuidValue
+	n.ParentId = parentId
+	n.KeyLine = line
+	n.ValueLine = line
+	n.drModel = drModel
+	n.Origin = nodeOrigin
+	n.RenderChanges = ctx.RenderChanges
+	n.RenderProblems = true
+	
+	return n
 }
 
 func GenerateEdge(sources []string, targets []string) *Edge {
+	// Get an edge from the pool
+	e := edgePool.Get().(*Edge)
+	
+	// Reset the edge to clean state
+	*e = Edge{}
+	
 	// Use a simpler ID generation for edges to reduce UUID overhead
 	// Format: source_target for single connections
 	var id string
@@ -323,10 +351,24 @@ func GenerateEdge(sources []string, targets []string) *Edge {
 		id = uuid.New().String()
 	}
 	
-	return &Edge{
-		Id:      id,
-		Sources: sources,
-		Targets: targets,
+	e.Id = id
+	e.Sources = sources
+	e.Targets = targets
+	
+	return e
+}
+
+// ReleaseNode returns a node to the pool for reuse
+func ReleaseNode(n *Node) {
+	if n != nil {
+		nodePool.Put(n)
+	}
+}
+
+// ReleaseEdge returns an edge to the pool for reuse
+func ReleaseEdge(e *Edge) {
+	if e != nil {
+		edgePool.Put(e)
 	}
 }
 
