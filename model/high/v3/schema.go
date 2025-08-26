@@ -5,14 +5,12 @@ package v3
 
 import (
 	"context"
-	"fmt"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"slices"
-	"strings"
 	"sync"
 )
 
@@ -48,13 +46,6 @@ type Schema struct {
 func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	drCtx := GetDrContext(ctx)
-	buf := strings.Builder{}
-	l := schema.GoLow()
-	buf.WriteString(l.Index.GetSpecAbsolutePath())
-	buf.WriteString(":")
-	buf.WriteString(fmt.Sprint(l.RootNode.Line))
-	buf.WriteString(":")
-	buf.WriteString(fmt.Sprint(l.RootNode.Column))
 	depth++
 	if depth > 500 {
 		// this schema is insane and we're going to bail
@@ -66,19 +57,21 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 	wg := drCtx.WaitGroup
 
 	sm := drCtx.SchemaCache
-	var rootNodeHash string // Declare outside to reuse
+	
+	// Use node hash as cache key for better deduplication
+	var cacheKey string
+	var rootNodeHash string
 	
 	if drCtx.UseSchemaCache {
-		if h, ok := sm.Load(buf.String()); ok {
-
+		// Compute hash once and use as cache key
+		rootNodeHash = index.HashNode(schema.GoLow().RootNode)
+		cacheKey = rootNodeHash
+		
+		if h, ok := sm.Load(cacheKey); ok {
 			// cached! we don't need to re-walk this.
 			s.Value = schema
-
-			// Compute hash once for reuse
-			rootNodeHash = index.HashNode(schema.GoLow().RootNode)
 			hash := h.(string)
 			if rootNodeHash == hash {
-
 				s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
 				drCtx.ObjectChan <- s
 				if s.Walked {
@@ -87,11 +80,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			}
 		}
 
-		// Store hash (compute only if not already computed above)
-		if rootNodeHash == "" {
-			rootNodeHash = index.HashNode(schema.GoLow().RootNode)
-		}
-		sm.Store(buf.String(), rootNodeHash)
+		// Store hash for future lookups
+		sm.Store(cacheKey, rootNodeHash)
 	}
 
 	s.mu.Lock()

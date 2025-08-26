@@ -13,6 +13,7 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"gopkg.in/yaml.v3"
 	"reflect"
+	"strings"
 	"sync"
 )
 
@@ -364,41 +365,103 @@ func (f *Foundation) GetPathSegment() string {
 func (f *Foundation) GenerateJSONPath() string {
 	if f.JSONPath == "" {
 		f.JSONPathOnce.Do(func() {
-			f.JSONPath = f.GenerateJSONPathWithLevel(0)
+			f.JSONPath = f.buildJSONPathIterative()
 		})
 	}
 	return f.JSONPath
 }
 
-func (f *Foundation) GenerateJSONPathWithLevel(level int) string {
-	level++
-	if level > 150 {
+func (f *Foundation) buildJSONPathIterative() string {
+	// Collect path segments bottom-up
+	segments := make([]string, 0, 16) // Pre-allocate reasonable capacity
+	var current Foundational = f
+	depth := 0
+	
+	for current != nil && depth < 150 { // Keep the depth limit for safety
+		depth++
+		
+		// Build the segment for current level
+		var segment string
+		key := current.GetKeyValue()
+		pathSeg := current.GetPathSegment()
+		index := current.GetIndexValue()
+		
+		// Check if this is a cache split (Foundation specific)
+		cacheSplit := false
+		if found, ok := current.(*Foundation); ok {
+			cacheSplit = found.CacheSplit
+		}
+		
+		if key != "" {
+			if pathSeg == "" {
+				segment = "['" + key + "']"
+			} else {
+				segment = pathSeg + "['" + key + "']"
+			}
+		} else if index != nil {
+			if cacheSplit {
+				segment = pathSeg + "CACHE-SPLIT[" + fmt.Sprint(*index) + "]--"
+			} else {
+				segment = pathSeg + "[" + fmt.Sprint(*index) + "]"
+			}
+		} else {
+			segment = pathSeg
+		}
+		
+		if segment != "" {
+			segments = append(segments, segment)
+		}
+		
+		// Move up the chain using the interface method
+		parent := current.GetParent()
+		if parent != nil {
+			current = parent
+		} else {
+			break
+		}
+	}
+	
+	// Handle edge cases
+	if len(segments) == 0 {
+		if f.PathSegment == "document" || f.PathSegment == "$" {
+			return "$"
+		}
 		return f.PathSegment
 	}
-	sep := "."
-	if f.Parent != nil {
-		if f.Key != "" {
-			if f.PathSegment == "" {
-				sep = ""
+	
+	// Reverse segments (we collected bottom-up, need top-down)
+	for i, j := 0, len(segments)-1; i < j; i, j = i+1, j-1 {
+		segments[i], segments[j] = segments[j], segments[i]
+	}
+	
+	// Handle document root
+	if segments[0] == "document" || segments[0] == "$" {
+		segments[0] = "$"
+	}
+	
+	// Build the final path efficiently
+	var result strings.Builder
+	result.Grow(128) // Pre-allocate for typical paths
+	
+	for i, segment := range segments {
+		if i == 0 {
+			result.WriteString(segment)
+		} else {
+			// Add separator if needed (not for array/map access)
+			if !strings.HasPrefix(segment, "[") && !strings.HasPrefix(segment, "CACHE-SPLIT[") {
+				result.WriteByte('.')
 			}
-			return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment + "['" + f.Key + "']"
+			result.WriteString(segment)
 		}
-		if f.IsIndexed {
-			return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment + "[" + fmt.Sprint(*f.Index) + "]"
-		}
-		if f.CacheSplit {
-			return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment + "CACHE-SPLIT[" + fmt.Sprint(*f.Index) + "]--"
-		}
-		if f.PathSegment == "" {
-			sep = ""
-		}
-		return f.Parent.(Foundational).GenerateJSONPathWithLevel(level) + sep + f.PathSegment
+	}
+	
+	return result.String()
+}
 
-	}
-	if f.PathSegment == "document" {
-		return "$"
-	}
-	return f.PathSegment
+func (f *Foundation) GenerateJSONPathWithLevel(level int) string {
+	// For backward compatibility, just use the cached version
+	// This ensures the same result with better performance
+	return f.GenerateJSONPath()
 }
 
 func (f *Foundation) SetNode(node *Node) {
