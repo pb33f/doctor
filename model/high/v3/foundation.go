@@ -157,13 +157,13 @@ func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arra
 
 		if f.PolyType != "" {
 			n.IsPoly = true
-			n.PolyType = f.PolyType
+			n.PolyType = drCtx.internString(f.PolyType)
 		}
 
 		n.RenderChanges = drCtx.RenderChanges
 		n.ArrayIndex = arrayIndex
-		n.Type = nodeType
-		n.Label = label
+		n.Type = drCtx.internString(nodeType)
+		n.Label = drCtx.internString(label)
 		calc := len(label)*10 + 20
 		if calc > minWidth {
 			n.Width = calc

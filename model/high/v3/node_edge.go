@@ -314,8 +314,17 @@ func GenerateNode(parentId string, instance any, drModel any, ctx *DrContext) *N
 }
 
 func GenerateEdge(sources []string, targets []string) *Edge {
+	// Use a simpler ID generation for edges to reduce UUID overhead
+	// Format: source_target for single connections
+	var id string
+	if len(sources) == 1 && len(targets) == 1 {
+		id = sources[0] + "_" + targets[0]
+	} else {
+		id = uuid.New().String()
+	}
+	
 	return &Edge{
-		Id:      uuid.New().String(),
+		Id:      id,
 		Sources: sources,
 		Targets: targets,
 	}

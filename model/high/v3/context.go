@@ -61,9 +61,22 @@ type DrContext struct {
 	RenderChanges     bool
 	UseSchemaCache    bool
 	SchemaCache       *sync.Map
+	StringCache       *sync.Map // String interning for common strings
 	StorageRoot       string
 	WorkingDirectory  string
 	Logger            *slog.Logger
+}
+
+// internString returns a cached version of the string to reduce memory
+func (d *DrContext) internString(s string) string {
+	if d.StringCache == nil {
+		return s
+	}
+	if cached, ok := d.StringCache.Load(s); ok {
+		return cached.(string)
+	}
+	d.StringCache.Store(s, s)
+	return s
 }
 
 func GetDrContext(ctx context.Context) *DrContext {

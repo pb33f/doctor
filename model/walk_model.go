@@ -322,6 +322,7 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph, useCache, renderChange
 		wd = ""
 	}
 
+	var stringCache sync.Map
 	dctx := &drV3.DrContext{
 		SchemaChan:        schemaChan,
 		SkippedSchemaChan: skippedSchemaChan,
@@ -338,6 +339,7 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph, useCache, renderChange
 		BuildGraph:        buildGraph,
 		RenderChanges:     renderChanges,
 		SchemaCache:       &schemaCache,
+		StringCache:       &stringCache,
 		StorageRoot:       doc.GoLow().StorageRoot,
 		Logger:            doc.Index.GetLogger(),
 		UseSchemaCache:    useCache,
