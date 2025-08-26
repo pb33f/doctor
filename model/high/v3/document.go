@@ -37,12 +37,15 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 	d.Document = doc
 	d.PathSegment = "$"
 
-	n := GenerateNode("document", nil, nil, drCtx)
-	d.SetNode(n)
-	n.Width = 50
-	n.Height = 50
-	n.Label = "Document"
-	drCtx.NodeChan <- n
+	// Only create node if we're building the graph
+	if drCtx.BuildGraph {
+		n := GenerateNode("document", nil, nil, drCtx)
+		d.SetNode(n)
+		n.Width = 50
+		n.Height = 50
+		n.Label = "Document"
+		drCtx.NodeChan <- n
+	}
 
 	//d.BuildNodesAndEdges(ctx, "document")
 	negOne := -1
@@ -238,11 +241,16 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 	wg.Wait()
 	d.InstanceType = "document"
 	d.PathSegment = "document"
-	d.Node.Type = "document"
-	d.Node.Hash = "document (root)"
-	d.Node.IdHash = "root"
-	d.Node.DrInstance = d
-	d.buildRenderedNode()
+	
+	// Only set node properties if the node was created (BuildGraph is true)
+	if d.Node != nil {
+		d.Node.Type = "document"
+		d.Node.Hash = "document (root)"
+		d.Node.IdHash = "root"
+		d.Node.DrInstance = d
+		d.buildRenderedNode()
+	}
+	
 	drCtx.ObjectChan <- d
 	close(drCtx.ObjectChan)
 }

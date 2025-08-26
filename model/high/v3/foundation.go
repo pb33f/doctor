@@ -141,60 +141,61 @@ func AddChunkDefaultHeight(element any, height int) int {
 
 func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arrayType bool, arrayCount, arrayIndex int, drModel any) *Node {
 	drCtx := GetDrContext(ctx)
-	if drCtx != nil && f != nil && f.NodeParent != nil && f.GetNodeParent().GetNode() != nil {
-		if !drCtx.BuildGraph {
-			return nil
-		}
-		minWidth := 170
-		n := GenerateNode(f.GetNodeParent().GetNode().Id, f, drModel, drCtx)
-		f.SetNode(n)
-		if arrayType {
-			n.IsArray = true
-			n.ArrayValues = arrayCount
-		} else {
-			n.PropertyCount = arrayCount
-		}
-
-		if f.PolyType != "" {
-			n.IsPoly = true
-			n.PolyType = drCtx.internString(f.PolyType)
-		}
-
-		n.RenderChanges = drCtx.RenderChanges
-		n.ArrayIndex = arrayIndex
-		n.Type = drCtx.internString(nodeType)
-		n.Label = drCtx.internString(label)
-		calc := len(label)*10 + 20
-		if calc > minWidth {
-			n.Width = calc
-		} else {
-			n.Width = minWidth
-		}
-
-		n.Height = 25
-
-		switch nodeType {
-		case "securitySchemes":
-			n.Width = 230
-		case "requestBodies":
-			n.Width = 210
-		}
-
-		if f.ValueNode != nil {
-			n.ValueLine = f.ValueNode.Line
-		}
-		if f.KeyNode != nil {
-			n.KeyLine = f.KeyNode.Line
-		}
-		if f.Node == nil {
-			panic("no node")
-		}
-
-		return n
-	} else {
-		panic("no parent node")
+	
+	// Early return if not building graph
+	if drCtx == nil || !drCtx.BuildGraph {
+		return nil
 	}
-	return nil
+	
+	// Check prerequisites for node building
+	if f == nil || f.NodeParent == nil || f.GetNodeParent().GetNode() == nil {
+		// When BuildGraph is false or prerequisites not met, return nil without panic
+		return nil
+	}
+	
+	minWidth := 170
+	n := GenerateNode(f.GetNodeParent().GetNode().Id, f, drModel, drCtx)
+	f.SetNode(n)
+	if arrayType {
+		n.IsArray = true
+		n.ArrayValues = arrayCount
+	} else {
+		n.PropertyCount = arrayCount
+	}
+
+	if f.PolyType != "" {
+		n.IsPoly = true
+		n.PolyType = drCtx.internString(f.PolyType)
+	}
+
+	n.RenderChanges = drCtx.RenderChanges
+	n.ArrayIndex = arrayIndex
+	n.Type = drCtx.internString(nodeType)
+	n.Label = drCtx.internString(label)
+	calc := len(label)*10 + 20
+	if calc > minWidth {
+		n.Width = calc
+	} else {
+		n.Width = minWidth
+	}
+
+	n.Height = 25
+
+	switch nodeType {
+	case "securitySchemes":
+		n.Width = 230
+	case "requestBodies":
+		n.Width = 210
+	}
+
+	if f.ValueNode != nil {
+		n.ValueLine = f.ValueNode.Line
+	}
+	if f.KeyNode != nil {
+		n.KeyLine = f.KeyNode.Line
+	}
+	
+	return n
 }
 
 func (f *Foundation) BuildNodesAndEdgesWithArray(ctx context.Context, label, nodeType string, model high.GoesLowUntyped, drModel any, arrayType bool, arrayCount int, arrayIndex *int) {
@@ -213,8 +214,9 @@ func (f *Foundation) ProcessNodesAndEdges(ctx context.Context, label, nodeType s
 		var n *Node
 		n = f.BuildNode(ctx, label, nodeType, arrayType, arrayCount, *arrayIndex, drModel)
 
-		if f.GetNode() == nil {
-			panic("no node dude")
+		// If node wasn't created (e.g., prerequisites not met), return early
+		if n == nil || f.GetNode() == nil {
+			return
 		}
 
 		if drModel != nil {
