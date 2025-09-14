@@ -13,7 +13,7 @@ import (
 	"github.com/pb33f/libopenapi/utils"
 	what_changed "github.com/pb33f/libopenapi/what-changed"
 	"github.com/pb33f/libopenapi/what-changed/model"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"reflect"
 	"strings"
 	"sync"
@@ -258,10 +258,10 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 func GenerateNode(parentId string, instance any, drModel any, ctx *DrContext) *Node {
 	// Get a node from the pool
 	n := nodePool.Get().(*Node)
-	
+
 	// Reset the node to clean state
 	*n = Node{}
-	
+
 	// check if instance can go low
 	var uuidValue string
 	line := 1
@@ -331,17 +331,17 @@ func GenerateNode(parentId string, instance any, drModel any, ctx *DrContext) *N
 	n.Origin = nodeOrigin
 	n.RenderChanges = ctx.RenderChanges
 	n.RenderProblems = true
-	
+
 	return n
 }
 
 func GenerateEdge(sources []string, targets []string) *Edge {
 	// Get an edge from the pool
 	e := edgePool.Get().(*Edge)
-	
+
 	// Reset the edge to clean state
 	*e = Edge{}
-	
+
 	// Use a simpler ID generation for edges to reduce UUID overhead
 	// Format: source_target for single connections
 	var id string
@@ -350,11 +350,11 @@ func GenerateEdge(sources []string, targets []string) *Edge {
 	} else {
 		id = uuid.New().String()
 	}
-	
+
 	e.Id = id
 	e.Sources = sources
 	e.Targets = targets
-	
+
 	return e
 }
 

@@ -9,7 +9,7 @@ import (
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/sourcegraph/conc"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"log/slog"
 	"sync"
 )

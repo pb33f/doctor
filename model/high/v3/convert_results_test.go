@@ -6,7 +6,7 @@ package v3
 import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"testing"
 )
 
