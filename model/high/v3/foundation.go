@@ -365,11 +365,9 @@ func (f *Foundation) GetPathSegment() string {
 }
 
 func (f *Foundation) GenerateJSONPath() string {
-	if f.JSONPath == "" {
-		f.JSONPathOnce.Do(func() {
-			f.JSONPath = f.buildJSONPathIterative()
-		})
-	}
+	f.JSONPathOnce.Do(func() {
+		f.JSONPath = f.buildJSONPathIterative()
+	})
 	return f.JSONPath
 }
 
