@@ -8,7 +8,7 @@ import (
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/what-changed/model"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"reflect"
 )
 
@@ -60,7 +60,7 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 			if ch == nil {
 				return
 			}
-			
+
 			// for each change, locate the object
 			for _, x := range ch.Changes {
 				processObj(x, ch)

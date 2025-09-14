@@ -11,7 +11,7 @@ import (
 	"github.com/pb33f/libopenapi/datamodel/high"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/index"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"reflect"
 	"strings"
 	"sync"
@@ -141,18 +141,18 @@ func AddChunkDefaultHeight(element any, height int) int {
 
 func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arrayType bool, arrayCount, arrayIndex int, drModel any) *Node {
 	drCtx := GetDrContext(ctx)
-	
+
 	// Early return if not building graph
 	if drCtx == nil || !drCtx.BuildGraph {
 		return nil
 	}
-	
+
 	// Check prerequisites for node building
 	if f == nil || f.NodeParent == nil || f.GetNodeParent().GetNode() == nil {
 		// When BuildGraph is false or prerequisites not met, return nil without panic
 		return nil
 	}
-	
+
 	minWidth := 170
 	n := GenerateNode(f.GetNodeParent().GetNode().Id, f, drModel, drCtx)
 	f.SetNode(n)
@@ -194,7 +194,7 @@ func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arra
 	if f.KeyNode != nil {
 		n.KeyLine = f.KeyNode.Line
 	}
-	
+
 	return n
 }
 
@@ -378,22 +378,22 @@ func (f *Foundation) buildJSONPathIterative() string {
 	segments := make([]string, 0, 16) // Pre-allocate reasonable capacity
 	var current Foundational = f
 	depth := 0
-	
+
 	for current != nil && depth < 150 { // Keep the depth limit for safety
 		depth++
-		
+
 		// Build the segment for current level
 		var segment string
 		key := current.GetKeyValue()
 		pathSeg := current.GetPathSegment()
 		index := current.GetIndexValue()
-		
+
 		// Check if this is a cache split (Foundation specific)
 		cacheSplit := false
 		if found, ok := current.(*Foundation); ok {
 			cacheSplit = found.CacheSplit
 		}
-		
+
 		if key != "" {
 			if pathSeg == "" {
 				segment = "['" + key + "']"
@@ -409,11 +409,11 @@ func (f *Foundation) buildJSONPathIterative() string {
 		} else {
 			segment = pathSeg
 		}
-		
+
 		if segment != "" {
 			segments = append(segments, segment)
 		}
-		
+
 		// Move up the chain using the interface method
 		parent := current.GetParent()
 		if parent != nil {
@@ -422,7 +422,7 @@ func (f *Foundation) buildJSONPathIterative() string {
 			break
 		}
 	}
-	
+
 	// Handle edge cases
 	if len(segments) == 0 {
 		if f.PathSegment == "document" || f.PathSegment == "$" {
@@ -430,21 +430,21 @@ func (f *Foundation) buildJSONPathIterative() string {
 		}
 		return f.PathSegment
 	}
-	
+
 	// Reverse segments (we collected bottom-up, need top-down)
 	for i, j := 0, len(segments)-1; i < j; i, j = i+1, j-1 {
 		segments[i], segments[j] = segments[j], segments[i]
 	}
-	
+
 	// Handle document root
 	if segments[0] == "document" || segments[0] == "$" {
 		segments[0] = "$"
 	}
-	
+
 	// Build the final path efficiently
 	var result strings.Builder
 	result.Grow(128) // Pre-allocate for typical paths
-	
+
 	for i, segment := range segments {
 		if i == 0 {
 			result.WriteString(segment)
@@ -456,7 +456,7 @@ func (f *Foundation) buildJSONPathIterative() string {
 			result.WriteString(segment)
 		}
 	}
-	
+
 	return result.String()
 }
 
