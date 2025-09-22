@@ -30,7 +30,7 @@ func TestWalker_TestSelfReferences(t *testing.T) {
 	})
 
 	var err error
-	var errs []error
+	var errs error
 	measureExecutionTime("new doc", func() {
 
 		docConfig := datamodel.DocumentConfiguration{
@@ -1449,7 +1449,7 @@ components:
 	numGoroutines := 50
 	var wg sync.WaitGroup
 	var failures int32
-	
+
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
 		go func() {
@@ -1459,7 +1459,7 @@ components:
 					atomic.AddInt32(&failures, 1)
 				}
 			}()
-			
+
 			// Access the same schema instances from multiple goroutines
 			// This should trigger the race condition between ongoing Walk() and GetSize()
 			for j := 0; j < 100; j++ {
@@ -1467,17 +1467,17 @@ components:
 				if schema != nil {
 					_, _ = schema.GetSize() // This reads s.Value
 				}
-				
-				schema2 := walker.V3Document.Components.Schemas.GetOrZero("CircularA").Schema  
+
+				schema2 := walker.V3Document.Components.Schemas.GetOrZero("CircularA").Schema
 				if schema2 != nil {
 					_, _ = schema2.GetSize() // This reads s.Value
 				}
 			}
 		}()
 	}
-	
+
 	wg.Wait()
-	
+
 	// The test passes if no race condition panics occurred
 	if failures > 0 {
 		t.Errorf("Race condition detected: %d goroutines failed", failures)
@@ -1532,11 +1532,11 @@ components:
 	// Create one walker and then access it from multiple goroutines
 	// This increases the chance of race conditions on the same schema instance
 	walker := NewDrDocument(v3Doc)
-	
+
 	numGoroutines := 100
 	var wg sync.WaitGroup
 	var failures int32
-	
+
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)
 		go func(goroutineID int) {
@@ -1546,7 +1546,7 @@ components:
 					atomic.AddInt32(&failures, 1)
 				}
 			}()
-			
+
 			// Half goroutines access the same schemas repeatedly
 			// Half create new walkers to increase concurrent schema creation
 			if goroutineID%2 == 0 {
@@ -1572,9 +1572,9 @@ components:
 			}
 		}(i)
 	}
-	
+
 	wg.Wait()
-	
+
 	// The test passes if no race condition panics occurred
 	if failures > 0 {
 		t.Errorf("Schema fields race condition detected: %d goroutines failed", failures)
@@ -1591,7 +1591,7 @@ func TestWalker_SchemaNameFieldRaceCondition(t *testing.T) {
 	// Write: s.Name = "schema" at line 127 in Walk()
 	// Read: if s.Name != "" at line 567 in GetSize()
 	walker := NewDrDocument(v3Doc)
-	
+
 	// Just checking that walker was created - the race should be triggered during creation
 	if len(walker.Schemas) == 0 {
 		t.Errorf("Expected schemas to be created")
