@@ -18,7 +18,7 @@ func (s *SecurityRequirement) Walk(ctx context.Context, securityRequirement *bas
 	s.Value = securityRequirement
 	// Don't override PathSegment if it's already set (e.g., from document or operation level)
 	if s.PathSegment == "" {
-		s.PathSegment = "security"
+		s.SetPathSegment("security")
 	}
 	drCtx.ObjectChan <- s
 }

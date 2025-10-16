@@ -31,7 +31,7 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 		c.KeyNode = header.GoLow().KeyNode
 		c.Parent = h
 		c.Value = header.Schema
-		c.PathSegment = "schema"
+		c.SetPathSegment("schema")
 		g := header.Schema.Schema()
 		if g != nil {
 			if !slices.Contains(g.Type, "string") &&
@@ -62,7 +62,7 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 			}
 			ex.Parent = h
 			ex.Key = examplesPairs.Key()
-			ex.PathSegment = "examples"
+			ex.SetPathSegment("examples")
 			ex.NodeParent = h
 			wg.Go(func() { ex.Walk(ctx, v) })
 			h.Examples.Set(examplesPairs.Key(), ex)
@@ -81,7 +81,7 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 					break
 				}
 			}
-			mt.PathSegment = "content"
+			mt.SetPathSegment("content")
 			mt.Parent = h
 			mt.Key = contentPairs.Key()
 			mt.NodeParent = h

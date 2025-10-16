@@ -17,7 +17,7 @@ type Link struct {
 func (l *Link) Walk(ctx context.Context, link *v3.Link) {
 
 	l.Value = link
-	l.PathSegment = "links"
+	l.SetPathSegment("links")
 
 	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup

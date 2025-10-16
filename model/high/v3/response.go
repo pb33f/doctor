@@ -42,7 +42,7 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 					break
 				}
 			}
-			h.PathSegment = "headers"
+			h.SetPathSegment("headers")
 			h.Parent = r
 			h.NodeParent = r
 			wg.Go(func() {
@@ -66,7 +66,7 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 				}
 			}
 			m.Parent = r
-			m.PathSegment = "content"
+			m.SetPathSegment("content")
 			m.NodeParent = r
 			v := contentPairs.Value()
 			wg.Go(func() { m.Walk(ctx, v) })
@@ -79,7 +79,7 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 		links := orderedmap.New[string, *Link]()
 		for linksPairs := response.Links.First(); linksPairs != nil; linksPairs = linksPairs.Next() {
 			l := &Link{}
-			l.PathSegment = "links"
+			l.SetPathSegment("links")
 			l.Parent = r
 			l.NodeParent = r
 			l.Key = linksPairs.Key()

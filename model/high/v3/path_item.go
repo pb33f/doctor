@@ -37,7 +37,7 @@ func (p *PathItem) buildOperation(method string) *Operation {
 	op.Parent = p
 	//op.Key = method
 	op.NodeParent = p
-	op.PathSegment = method
+	op.SetPathSegment(method)
 
 	switch strings.ToUpper(method) {
 	case http.MethodGet:
@@ -162,7 +162,7 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 			para := &Parameter{}
 			para.KeyNode = param.GoLow().KeyNode
 			para.ValueNode = param.GoLow().RootNode
-			para.PathSegment = "parameters"
+			para.SetPathSegment("parameters")
 			para.Parent = p
 			para.IsIndexed = true
 			para.Index = &i

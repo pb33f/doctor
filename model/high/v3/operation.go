@@ -38,7 +38,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 		ed := &ExternalDoc{}
 		ed.Parent = o
 		ed.NodeParent = o
-		ed.PathSegment = "externalDocs"
+		ed.SetPathSegment("externalDocs")
 		ed.Value = operation.ExternalDocs
 		ed.Walk(ctx, operation.ExternalDocs)
 		o.ExternalDocs = ed
@@ -63,7 +63,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			p := &Parameter{}
 			p.ValueNode = param.GoLow().RootNode
 			p.KeyNode = param.GoLow().KeyNode
-			p.PathSegment = "parameters"
+			p.SetPathSegment("parameters")
 			p.Parent = o
 			p.NodeParent = paramsNode
 			p.IsIndexed = true
@@ -76,7 +76,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 	if operation.RequestBody != nil {
 		rb := &RequestBody{}
 		rb.Parent = o
-		rb.PathSegment = "requestBody"
+		rb.SetPathSegment("requestBody")
 		rb.NodeParent = o
 		rb.ValueNode = operation.RequestBody.GoLow().RootNode
 		rb.KeyNode = operation.RequestBody.GoLow().KeyNode
@@ -91,7 +91,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 		r.Parent = o
 		r.NodeParent = o
 		//r.Key = "responses"
-		r.PathSegment = "responses"
+		r.SetPathSegment("responses")
 		r.KeyNode = operation.Responses.GoLow().KeyNode
 		r.ValueNode = operation.Responses.GoLow().RootNode
 		wg.Go(func() {
@@ -113,7 +113,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 					break
 				}
 			}
-			c.PathSegment = "callbacks"
+			c.SetPathSegment("callbacks")
 			c.Key = callbackPairs.Key()
 			v := callbackPairs.Value()
 			c.NodeParent = o

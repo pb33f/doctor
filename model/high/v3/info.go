@@ -23,7 +23,7 @@ func (i *Info) Walk(ctx context.Context, info *base.Info) {
 	wg := drCtx.WaitGroup
 
 	i.Value = info
-	i.PathSegment = "info"
+	i.SetPathSegment("info")
 	i.BuildNodesAndEdges(ctx, cases.Title(language.English).String(i.PathSegment), i.PathSegment, info, i)
 
 	if info.Contact != nil {

@@ -32,7 +32,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 	wg := drCtx.WaitGroup
 
 	c.Value = components
-	c.PathSegment = "components"
+	c.SetPathSegment("components")
 	c.BuildNodesAndEdges(ctx, cases.Title(language.English).String(c.PathSegment), c.PathSegment, components, c)
 	negOne := -1
 
@@ -64,7 +64,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			}
 			sp.NodeParent = schNode
 			sp.Key = k
-			sp.PathSegment = "schemas"
+			sp.SetPathSegment("schemas")
 			wg.Go(func() { sp.Walk(ctx, v, 0) })
 			c.Schemas.Set(k, sp)
 		}
@@ -97,7 +97,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			r.Parent = c
 			r.NodeParent = respNode
 			r.Key = k
-			r.PathSegment = "responses"
+			r.SetPathSegment("responses")
 			wg.Go(func() {
 				r.Walk(ctx, v)
 			})
@@ -134,7 +134,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			p.Parent = c
 			p.NodeParent = paramNode
 			p.Key = k
-			p.PathSegment = "parameters"
+			p.SetPathSegment("parameters")
 			wg.Go(func() { p.Walk(ctx, v) })
 			c.Parameters.Set(k, p)
 		}
@@ -169,7 +169,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			e.Parent = c
 			e.NodeParent = expNode
 			e.Key = k
-			e.PathSegment = "examples"
+			e.SetPathSegment("examples")
 			wg.Go(func() { e.Walk(ctx, v) })
 			c.Examples.Set(k, e)
 		}
@@ -204,7 +204,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			rb.Parent = c
 			rb.NodeParent = reqNode
 			rb.Key = k
-			rb.PathSegment = "requestBodies"
+			rb.SetPathSegment("requestBodies")
 			rb.InstanceType = "requestBody"
 			wg.Go(func() {
 				rb.Walk(ctx, v)
@@ -242,7 +242,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			h.Parent = c
 			h.NodeParent = headerNode
 			h.Key = k
-			h.PathSegment = "headers"
+			h.SetPathSegment("headers")
 			wg.Go(func() { h.Walk(ctx, v) })
 			c.Headers.Set(k, h)
 		}
@@ -277,7 +277,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			ss.Parent = c
 			ss.NodeParent = secNode
 			ss.Key = k
-			ss.PathSegment = "securitySchemes"
+			ss.SetPathSegment("securitySchemes")
 			wg.Go(func() { ss.Walk(ctx, v) })
 			c.SecuritySchemes.Set(k, ss)
 		}
@@ -312,7 +312,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			l.Parent = c
 			l.NodeParent = linkNode
 			l.Key = k
-			l.PathSegment = "links"
+			l.SetPathSegment("links")
 			wg.Go(func() { l.Walk(ctx, v) })
 			c.Links.Set(k, l)
 		}
@@ -347,7 +347,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			cb.Parent = c
 			cb.NodeParent = cbNode
 			cb.Key = k
-			cb.PathSegment = "callbacks"
+			cb.SetPathSegment("callbacks")
 			wg.Go(func() { cb.Walk(ctx, v) })
 			c.Callbacks.Set(k, cb)
 		}
@@ -382,7 +382,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 
 			pi.NodeParent = piNode
 			pi.Key = k
-			pi.PathSegment = "pathItems"
+			pi.SetPathSegment("pathItems")
 			wg.Go(func() { pi.Walk(ctx, v) })
 			c.PathItems.Set(k, pi)
 		}

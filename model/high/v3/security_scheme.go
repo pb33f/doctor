@@ -20,13 +20,13 @@ func (s *SecurityScheme) Walk(ctx context.Context, securityScheme *v3.SecuritySc
 	wg := drCtx.WaitGroup
 
 	s.Value = securityScheme
-	s.PathSegment = "securitySchemes"
+	s.SetPathSegment("securitySchemes")
 	s.BuildNodesAndEdges(ctx, s.Key, "securityScheme", securityScheme, s)
 
 	if securityScheme.Flows != nil {
 		f := &OAuthFlows{}
 		f.Parent = s
-		f.PathSegment = "flows"
+		f.SetPathSegment("flows")
 		wg.Go(func() { f.Walk(ctx, securityScheme.Flows) })
 		s.Flows = f
 	}

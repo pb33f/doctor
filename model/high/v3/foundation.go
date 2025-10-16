@@ -57,25 +57,26 @@ type HasSize interface {
 }
 
 type Foundation struct {
-	PathSegment   string
-	InstanceType  string
-	IsIndexed     bool
-	Index         *int
-	Key           string
-	PolyType      string
-	Parent        any
-	NodeParent    any
-	RuleResults   []*RuleFunctionResult
-	JSONPath      string
-	Mutex         sync.Mutex
-	JSONPathOnce  sync.Once
-	Node          *Node
-	NodeReference *Node // if the chain was broken, keep a reference
-	Edges         []*Edge
-	KeyNode       *yaml.Node
-	ValueNode     *yaml.Node
-	Changes       []*NodeChange
-	CacheSplit    bool
+	PathSegment      string
+	InstanceType     string
+	IsIndexed        bool
+	Index            *int
+	Key              string
+	PolyType         string
+	Parent           any
+	NodeParent       any
+	RuleResults      []*RuleFunctionResult
+	JSONPath         string
+	Mutex            sync.Mutex
+	PathSegmentMutex sync.RWMutex // Separate mutex for PathSegment
+	JSONPathOnce     sync.Once
+	Node             *Node
+	NodeReference    *Node // if the chain was broken, keep a reference
+	Edges            []*Edge
+	KeyNode          *yaml.Node
+	ValueNode        *yaml.Node
+	Changes          []*NodeChange
+	CacheSplit       bool
 }
 
 func (f *Foundation) GetChanges() []*NodeChange {
@@ -361,7 +362,15 @@ func (f *Foundation) GetNodeParent() Foundational {
 }
 
 func (f *Foundation) GetPathSegment() string {
+	f.PathSegmentMutex.RLock()
+	defer f.PathSegmentMutex.RUnlock()
 	return f.PathSegment
+}
+
+func (f *Foundation) SetPathSegment(segment string) {
+	f.PathSegmentMutex.Lock()
+	defer f.PathSegmentMutex.Unlock()
+	f.PathSegment = segment
 }
 
 func (f *Foundation) GenerateJSONPath() string {

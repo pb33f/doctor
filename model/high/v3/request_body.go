@@ -21,7 +21,7 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 	wg := drCtx.WaitGroup
 	r.Value = requestBody
 	if r.PathSegment == "" {
-		r.PathSegment = "requestBody"
+		r.SetPathSegment("requestBody")
 	}
 	instanceType := r.PathSegment
 	if r.InstanceType != "" {
@@ -45,7 +45,7 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 			}
 
 			mt.Parent = r
-			mt.PathSegment = "content"
+			mt.SetPathSegment("content")
 			mt.NodeParent = r
 			value := contentPairs.Value()
 			wg.Go(func() {

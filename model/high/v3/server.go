@@ -21,7 +21,7 @@ func (s *Server) Walk(ctx context.Context, server *v3.Server) {
 	wg := drCtx.WaitGroup
 
 	s.Value = server
-	s.PathSegment = "servers"
+	s.SetPathSegment("servers")
 	s.BuildNodesAndEdgesWithArray(ctx, s.Value.URL, "server", server, s, false, 0, s.Index)
 
 	if server.Variables != nil {
