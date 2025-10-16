@@ -356,7 +356,7 @@ func (d *Document) buildRenderedNode() {
 		}
 	}
 
-	d.Node.Instance = m
+	d.Node.SetInstance(m)
 }
 
 func (d *Document) GetSize() (height, width int) {

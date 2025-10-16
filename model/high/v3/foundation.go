@@ -67,7 +67,7 @@ type Foundation struct {
 	NodeParent       any
 	RuleResults      []*RuleFunctionResult
 	JSONPath         string
-	Mutex            sync.Mutex
+	Mutex            sync.RWMutex
 	PathSegmentMutex sync.RWMutex // Separate mutex for PathSegment
 	JSONPathOnce     sync.Once
 	Node             *Node
@@ -80,14 +80,20 @@ type Foundation struct {
 }
 
 func (f *Foundation) GetChanges() []*NodeChange {
+	f.Mutex.RLock()
+	defer f.Mutex.RUnlock()
 	return f.Changes
 }
 
 func (f *Foundation) AddChanges(changes []*NodeChange) {
+	f.Mutex.Lock()
+	defer f.Mutex.Unlock()
 	f.Changes = append(f.Changes, changes...)
 }
 
 func (f *Foundation) AddChange(change *NodeChange) {
+	f.Mutex.Lock()
+	defer f.Mutex.Unlock()
 	f.Changes = append(f.Changes, change)
 }
 
@@ -474,6 +480,8 @@ func (f *Foundation) GenerateJSONPathWithLevel(level int) string {
 }
 
 func (f *Foundation) SetNode(node *Node) {
+	f.Mutex.Lock()
+	defer f.Mutex.Unlock()
 	f.Node = node
 }
 
@@ -488,16 +496,18 @@ func (f *Foundation) AddEdge(edge *Edge) {
 	if edge == nil {
 		return
 	}
+	f.Mutex.Lock()
 	if f.Edges == nil {
 		f.Edges = []*Edge{edge}
 	} else {
-		f.Mutex.Lock()
 		f.Edges = append(f.Edges, edge)
-		f.Mutex.Unlock()
 	}
+	f.Mutex.Unlock()
 }
 
 func (f *Foundation) GetNode() *Node {
+	f.Mutex.RLock()
+	defer f.Mutex.RUnlock()
 	return f.Node
 }
 

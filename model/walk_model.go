@@ -438,7 +438,7 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph, useCache, renderChange
 					}
 
 					// check if node is a reference node
-					if gl, o := nt.Instance.(high.GoesLowUntyped); o {
+					if gl, o := nt.GetInstance().(high.GoesLowUntyped); o {
 						if r, k := gl.GoLowUntyped().(low.IsReferenced); k {
 							if !r.IsReference() {
 								if _, ok := nodeValueMap[fmt.Sprint(nt.ValueLine)]; !ok {

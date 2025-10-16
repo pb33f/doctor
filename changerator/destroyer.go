@@ -14,12 +14,12 @@ func (t *Changerator) Prepareotron(nodes []*v3.Node) {
 }
 
 func (t *Changerator) destroy(node *v3.Node) {
-	if node.Instance != nil {
-		if n, ok := node.Instance.(*v3.Node); ok {
+	if node.GetInstance() != nil {
+		if n, ok := node.GetInstance().(*v3.Node); ok {
 			t.destroy(n)
 		}
 	}
-	node.Instance = nil
+	node.SetInstance(nil)
 	node.DrInstance = nil
 	node.RenderChanges = true
 	node.RenderProps = true

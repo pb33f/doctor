@@ -6,6 +6,7 @@ package changerator
 import (
 	"context"
 	"fmt"
+	"sync"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	whatChanged "github.com/pb33f/libopenapi/what-changed"
 	whatChangedModel "github.com/pb33f/libopenapi/what-changed/model"
@@ -22,6 +23,7 @@ type Changerator struct {
 	tmpEdges     []*v3.Edge
 	tmpNodes     []*v3.Node
 	seen         map[string]*whatChangedModel.Change
+	mutex        sync.RWMutex
 }
 
 type modelChange struct {
@@ -68,7 +70,7 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 				continue
 			}
 
-			for _, c := range val.node.Changes {
+			for _, c := range val.node.GetChanges() {
 				for _, ch := range c.GetAllChanges() {
 					ctx := ch.Context
 					var hash string
@@ -99,7 +101,9 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 					t.Changes = append(t.Changes, ch)
 				}
 			}
+			t.mutex.Lock()
 			t.ChangedNodes = append(t.ChangedNodes, val.node)
+			t.mutex.Unlock()
 		}
 		doneChan <- struct{}{}
 	}()
@@ -116,8 +120,8 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 		// process referenced nodes with changes
 		go func() {
 			for val := range t.NodeChan {
-				if val.node != nil && len(val.node.Changes) > 0 {
-					for _, q := range val.node.Changes {
+				if val.node != nil && len(val.node.GetChanges()) > 0 {
+					for _, q := range val.node.GetChanges() {
 						for _, ch := range q.GetAllChanges() {
 							ctx := ch.Context
 							var hash string
@@ -149,7 +153,9 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 							t.Changes = append(t.Changes, ch)
 						}
 					}
+					t.mutex.Lock()
 					t.ChangedNodes = append(t.ChangedNodes, val.node)
+					t.mutex.Unlock()
 				}
 			}
 		}()
