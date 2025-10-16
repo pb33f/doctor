@@ -30,7 +30,7 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 		s.ValueNode = mediaType.Schema.GoLow().GetValueNode()
 		s.KeyNode = mediaType.Schema.GetSchemaKeyNode()
 		s.Parent = m
-		s.PathSegment = "schema"
+		s.SetPathSegment("schema")
 		s.Value = mediaType.Schema
 		s.NodeParent = m
 		m.SchemaProxy = s
@@ -44,7 +44,7 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 		for mediaTypePairs := mediaType.Examples.First(); mediaTypePairs != nil; mediaTypePairs = mediaTypePairs.Next() {
 			e := &Example{}
 			e.Parent = m
-			e.PathSegment = "examples"
+			e.SetPathSegment("examples")
 			e.Key = mediaTypePairs.Key()
 			v := mediaTypePairs.Value()
 			for lowExpPairs := mediaType.GoLow().Examples.Value.First(); lowExpPairs != nil; lowExpPairs = lowExpPairs.Next() {
@@ -69,7 +69,7 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 		for encodingPairs := mediaType.Encoding.First(); encodingPairs != nil; encodingPairs = encodingPairs.Next() {
 			e := &Encoding{}
 			e.Parent = m
-			e.PathSegment = "encoding"
+			e.SetPathSegment("encoding")
 			e.Key = encodingPairs.Key()
 			v := encodingPairs.Value()
 			for lowEncPairs := mediaType.GoLow().Encoding.Value.First(); lowEncPairs != nil; lowEncPairs = lowEncPairs.Next() {

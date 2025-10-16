@@ -39,7 +39,7 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 		s.ValueNode = param.Schema.GoLow().GetValueNode()
 		s.KeyNode = param.Schema.GetSchemaKeyNode()
 		s.Parent = p
-		s.PathSegment = "schema"
+		s.SetPathSegment("schema")
 		g := param.Schema.Schema()
 		if g != nil {
 			//if !slices.Contains(g.Type, "string") &&
@@ -66,7 +66,7 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 				}
 			}
 			e.Parent = p
-			e.PathSegment = "examples"
+			e.SetPathSegment("examples")
 			v := paramPairs.Value()
 			e.NodeParent = p
 			wg.Go(func() { e.Walk(ctx, v) })
@@ -80,7 +80,7 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 		for contentPairs := param.Content.First(); contentPairs != nil; contentPairs = contentPairs.Next() {
 			mt := &MediaType{}
 			mt.Parent = p
-			mt.PathSegment = "content"
+			mt.SetPathSegment("content")
 			mt.NodeParent = p
 			mt.Key = contentPairs.Key()
 			for lowExpPairs := param.GoLow().Content.Value.First(); lowExpPairs != nil; lowExpPairs = lowExpPairs.Next() {

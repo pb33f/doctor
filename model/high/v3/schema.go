@@ -150,7 +150,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.Parent = s
 			sch.IsIndexed = true
 			sch.Index = &i
-			sch.PathSegment = "allOf"
+			sch.SetPathSegment("allOf")
 			sch.PolyType = sch.PathSegment
 			sch.NodeParent = s
 			sch.Value = aOfItem
@@ -173,7 +173,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.Parent = s
 			sch.IsIndexed = true
 			sch.Index = &i
-			sch.PathSegment = "oneOf"
+			sch.SetPathSegment("oneOf")
 			sch.PolyType = sch.PathSegment
 			sch.NodeParent = s
 			sch.Value = oOfItem
@@ -195,7 +195,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.Parent = s
 			sch.IsIndexed = true
 			sch.Index = &i
-			sch.PathSegment = "anyOf"
+			sch.SetPathSegment("anyOf")
 			sch.PolyType = sch.PathSegment
 			sch.NodeParent = s
 			sch.Value = aOfItem
@@ -218,7 +218,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.IsIndexed = true
 			sch.Index = &i
 			sch.NodeParent = s
-			sch.PathSegment = "prefixItems"
+			sch.SetPathSegment("prefixItems")
 			sch.Value = pItem
 			prefixItems = append(prefixItems, sch)
 			wg.Go(func() { sch.Walk(ctx, pItem, depth) })
@@ -231,7 +231,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		d.KeyNode = schema.GoLow().Discriminator.KeyNode
 		d.ValueNode = schema.GoLow().Discriminator.ValueNode
 		d.Parent = s
-		d.PathSegment = "discriminator"
+		d.SetPathSegment("discriminator")
 		d.Value = schema.Discriminator
 		d.NodeParent = s
 		d.BuildNodesAndEdges(ctx, cases.Title(language.English).String(d.PathSegment), d.PathSegment, schema.Discriminator, d)
@@ -244,7 +244,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		sch.KeyNode = schema.GoLow().Contains.KeyNode
 		sch.ValueNode = schema.GoLow().Contains.ValueNode
 		sch.Parent = s
-		sch.PathSegment = "contains"
+		sch.SetPathSegment("contains")
 		sch.NodeParent = s
 		wg.Go(func() { sch.Walk(ctx, schema.Contains, depth) })
 		s.Contains = sch
@@ -255,7 +255,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		sch.KeyNode = schema.GoLow().If.KeyNode
 		sch.ValueNode = schema.GoLow().If.ValueNode
 		sch.Parent = s
-		sch.PathSegment = "if"
+		sch.SetPathSegment("if")
 		sch.NodeParent = s
 		wg.Go(func() { sch.Walk(ctx, schema.If, depth) })
 		s.If = sch
@@ -266,7 +266,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		sch.KeyNode = schema.GoLow().Else.KeyNode
 		sch.ValueNode = schema.GoLow().Else.ValueNode
 		sch.Parent = s
-		sch.PathSegment = "else"
+		sch.SetPathSegment("else")
 		sch.NodeParent = s
 		wg.Go(func() { sch.Walk(ctx, schema.Else, depth) })
 		s.Else = sch
@@ -277,7 +277,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		sch.Parent = s
 		sch.KeyNode = schema.GoLow().Then.KeyNode
 		sch.ValueNode = schema.GoLow().Then.ValueNode
-		sch.PathSegment = "then"
+		sch.SetPathSegment("then")
 		sch.NodeParent = s
 		wg.Go(func() { sch.Walk(ctx, schema.Then, depth) })
 		s.Then = sch
@@ -288,7 +288,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		for dependentSchemasPairs := schema.DependentSchemas.First(); dependentSchemasPairs != nil; dependentSchemasPairs = dependentSchemasPairs.Next() {
 			sch := &SchemaProxy{}
 			sch.Parent = s
-			sch.PathSegment = "dependentSchemas"
+			sch.SetPathSegment("dependentSchemas")
 			sch.Key = dependentSchemasPairs.Key()
 			for lowDPairs := schema.GoLow().DependentSchemas.Value.First(); lowDPairs != nil; lowDPairs = lowDPairs.Next() {
 				if lowDPairs.Key().Value == sch.Key {
@@ -318,7 +318,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		for patternPropertiesPairs := schema.PatternProperties.First(); patternPropertiesPairs != nil; patternPropertiesPairs = patternPropertiesPairs.Next() {
 			sch := &SchemaProxy{}
 			sch.Parent = s
-			sch.PathSegment = "patternProperties"
+			sch.SetPathSegment("patternProperties")
 			sch.Key = patternPropertiesPairs.Key()
 			walked := false
 			for lowPPPairs := schema.GoLow().PatternProperties.Value.First(); lowPPPairs != nil; lowPPPairs = lowPPPairs.Next() {
@@ -371,7 +371,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		sch.ValueNode = schema.GoLow().PropertyNames.ValueNode
 		sch.KeyNode = schema.GoLow().PropertyNames.KeyNode
 		sch.Parent = s
-		sch.PathSegment = "propertyNames"
+		sch.SetPathSegment("propertyNames")
 		sch.Value = schema.PropertyNames
 		sch.NodeParent = s
 		s.PropertyNames = sch
@@ -383,7 +383,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		sch.ValueNode = schema.GoLow().UnevaluatedItems.ValueNode
 		sch.KeyNode = schema.GoLow().UnevaluatedItems.KeyNode
 		sch.Parent = s
-		sch.PathSegment = "unevaluatedItems"
+		sch.SetPathSegment("unevaluatedItems")
 		sch.Value = schema.UnevaluatedItems
 		sch.NodeParent = s
 		s.UnevaluatedItems = sch
@@ -392,7 +392,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	if schema.UnevaluatedProperties != nil {
 		dynamicValue := &DynamicValue[*base.SchemaProxy, bool, *SchemaProxy, bool]{}
-		dynamicValue.PathSegment = "unevaluatedProperties"
+		dynamicValue.SetPathSegment("unevaluatedProperties")
 		dynamicValue.Parent = s
 		dynamicValue.Value = schema.UnevaluatedProperties
 		dynamicValue.ValueNode = schema.GoLow().UnevaluatedProperties.ValueNode
@@ -414,7 +414,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	if schema.Items != nil {
 		dynamicValue := &DynamicValue[*base.SchemaProxy, bool, *SchemaProxy, bool]{}
-		dynamicValue.PathSegment = "items"
+		dynamicValue.SetPathSegment("items")
 		dynamicValue.Parent = s
 		dynamicValue.Value = schema.Items
 		dynamicValue.ValueNode = schema.GoLow().Items.ValueNode
@@ -446,7 +446,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		sch.ValueNode = schema.GoLow().Not.ValueNode
 		sch.KeyNode = schema.GoLow().Not.KeyNode
 		sch.Parent = s
-		sch.PathSegment = "not"
+		sch.SetPathSegment("not")
 		sch.Value = schema.Not
 		sch.NodeParent = s
 		s.Not = sch
@@ -459,7 +459,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		for propertiesPairs := schema.Properties.First(); propertiesPairs != nil; propertiesPairs = propertiesPairs.Next() {
 			sch := &SchemaProxy{}
 			sch.Parent = s
-			sch.PathSegment = "properties"
+			sch.SetPathSegment("properties")
 			v := propertiesPairs.Value()
 			sch.Key = propertiesPairs.Key()
 			sch.Value = v
@@ -510,7 +510,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	if schema.AdditionalProperties != nil {
 		dynamicValue := &DynamicValue[*base.SchemaProxy, bool, *SchemaProxy, bool]{}
-		dynamicValue.PathSegment = "additionalProperties"
+		dynamicValue.SetPathSegment("additionalProperties")
 		dynamicValue.Parent = s
 		dynamicValue.Value = schema.AdditionalProperties
 		dynamicValue.KeyNode = schema.GoLow().AdditionalProperties.KeyNode
@@ -536,7 +536,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		xml.ValueNode = schema.GoLow().XML.ValueNode
 		xml.KeyNode = schema.GoLow().XML.KeyNode
 		xml.Parent = s
-		xml.PathSegment = "xml"
+		xml.SetPathSegment("xml")
 		xml.Value = schema.XML
 		xml.NodeParent = s
 		xml.BuildNodesAndEdges(ctx, "xml", "xml", schema.XML, schema.XML)
@@ -549,7 +549,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		externalDocs.ValueNode = schema.GoLow().ExternalDocs.ValueNode
 		externalDocs.KeyNode = schema.GoLow().ExternalDocs.KeyNode
 		externalDocs.Parent = s
-		externalDocs.PathSegment = "externalDocs"
+		externalDocs.SetPathSegment("externalDocs")
 		externalDocs.Value = schema.ExternalDocs
 		externalDocs.NodeParent = s
 		s.ExternalDocs = externalDocs

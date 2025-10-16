@@ -23,7 +23,7 @@ func (t *Tag) Walk(ctx context.Context, tag *libopenapibase.Tag) {
 		ed.Parent = t
 		ed.ValueNode = ExtractValueNodeForLowModel(tag.GoLow().ExternalDocs)
 		ed.KeyNode = ExtractKeyNodeForLowModel(tag.GoLow().ExternalDocs)
-		ed.PathSegment = "externalDocs"
+		ed.SetPathSegment("externalDocs")
 		ed.Value = tag.ExternalDocs
 		t.ExternalDocs = ed
 		drCtx.ObjectChan <- ed

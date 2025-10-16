@@ -18,7 +18,7 @@ type ServerVariable struct {
 func (sv *ServerVariable) Walk(ctx context.Context, serverVariable *v3.ServerVariable, key string) {
 	drCtx := GetDrContext(ctx)
 	sv.Value = serverVariable
-	sv.PathSegment = "variables"
+	sv.SetPathSegment("variables")
 	sv.Key = key
 	sv.KeyNode = serverVariable.GoLow().KeyNode
 	sv.BuildNodesAndEdges(ctx, cases.Title(language.English).String(sv.PathSegment), sv.PathSegment, serverVariable, sv)

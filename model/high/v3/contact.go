@@ -18,7 +18,7 @@ type Contact struct {
 func (c *Contact) Walk(ctx context.Context, contact *base.Contact) {
 	drCtx := GetDrContext(ctx)
 	c.Value = contact
-	c.PathSegment = "contact"
+	c.SetPathSegment("contact")
 	c.ValueNode = contact.GoLow().RootNode
 	c.KeyNode = contact.GoLow().KeyNode
 	c.BuildNodesAndEdges(ctx, cases.Title(language.English).String(c.PathSegment), c.PathSegment, contact, c)

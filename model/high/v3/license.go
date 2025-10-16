@@ -17,7 +17,7 @@ type License struct {
 
 func (l *License) Walk(ctx context.Context, license *base.License) {
 	drCtx := GetDrContext(ctx)
-	l.PathSegment = "license"
+	l.SetPathSegment("license")
 	l.Value = license
 	l.ValueNode = license.GoLow().RootNode
 	l.KeyNode = license.GoLow().KeyNode

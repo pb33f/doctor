@@ -35,7 +35,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 	wg := drCtx.WaitGroup
 
 	d.Document = doc
-	d.PathSegment = "$"
+	d.SetPathSegment("$")
 
 	// Only create node if we're building the graph
 	if drCtx.BuildGraph {
@@ -127,7 +127,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			s := &SecurityRequirement{}
 			s.Parent = d
 			s.NodeParent = secNode
-			s.PathSegment = "security"
+			s.SetPathSegment("security")
 			s.IsIndexed = true
 			s.Index = &i
 			s.Value = sec
@@ -168,7 +168,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		ed.Parent = d
 		d.ValueNode = ExtractValueNodeForLowModel(doc.GoLow().ExternalDocs)
 		d.KeyNode = ExtractKeyNodeForLowModel(doc.GoLow().ExternalDocs)
-		ed.PathSegment = "externalDocs"
+		ed.SetPathSegment("externalDocs")
 		ed.Value = doc.ExternalDocs
 		d.ExternalDocs = ed
 		drCtx.ObjectChan <- ed
@@ -191,7 +191,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			t := &Tag{}
 			t.Parent = d
 			t.NodeParent = tagsNode
-			t.PathSegment = "tags"
+			t.SetPathSegment("tags")
 			t.IsIndexed = true
 			t.Index = &i
 			t.Value = tag
@@ -228,7 +228,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 				}
 			}
 			pi.Parent = d
-			pi.PathSegment = "webhooks"
+			pi.SetPathSegment("webhooks")
 			pi.NodeParent = webhookNode
 			v := pair.Value()
 			wg.Go(func() {
@@ -240,7 +240,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 	}
 	wg.Wait()
 	d.InstanceType = "document"
-	d.PathSegment = "document"
+	d.SetPathSegment("document")
 	
 	// Only set node properties if the node was created (BuildGraph is true)
 	if d.Node != nil {

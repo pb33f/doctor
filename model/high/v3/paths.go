@@ -23,7 +23,7 @@ func (p *Paths) Walk(ctx context.Context, paths *v3.Paths) {
 	//wg := drCtx.WaitGroup
 
 	p.Value = paths
-	p.PathSegment = "paths"
+	p.SetPathSegment("paths")
 	negOne := -1
 
 	p.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(p.PathSegment),
