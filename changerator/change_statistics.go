@@ -20,7 +20,7 @@ func (t *Changerator) Calculatoratron() *ChangeStatistics {
 	if len(t.ChangedNodes) > 0 {
 		for i := range t.ChangedNodes {
 
-			c := t.ChangedNodes[i].Changes
+			c := t.ChangedNodes[i].GetChanges()
 			for _, cw := range c {
 				for _, ch := range cw.GetAllChanges() {
 					ctx := ch.Context

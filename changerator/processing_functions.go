@@ -41,14 +41,14 @@ func handleChanges[N v3.Foundational](node *v3.Node, ch what_changed.Changed, mo
 			Type:       node.Type,
 			Path:       mo.GenerateJSONPath(),
 			ArrayIndex: node.ArrayIndex,
-			Changes:    ch,
 		}
+		aux.SetChanges(ch)
 	}
 
 	if aux != nil {
 		// check if this node already has this change (seen when used as a reference)
 		addChange := true
-		for _, nch := range node.Changes {
+		for _, nch := range node.GetChanges() {
 			for _, chg := range nch.GetPropertyChanges() {
 				if chg.Path == aux.Path && chg.Type == aux.Type && chg.Property == chg.Property {
 					// found a match, so we can skip this change
@@ -58,7 +58,7 @@ func handleChanges[N v3.Foundational](node *v3.Node, ch what_changed.Changed, mo
 		}
 
 		if addChange {
-			node.Changes = append(node.Changes, aux)
+			node.AppendChange(ch)
 			mo.AddChange(aux)
 		}
 	}

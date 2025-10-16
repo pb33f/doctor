@@ -16,8 +16,8 @@ func (t *Changerator) Cleaneromatic(nodes []*v3.Node) []*v3.Node {
 	var clean []*v3.Node
 	if len(nodes) > 0 {
 		for i := range nodes {
-			if nodes[i].Changes != nil {
-				c := nodes[i].Changes
+			if len(nodes[i].GetChanges()) > 0 {
+				c := nodes[i].GetChanges()
 				for _, cw := range c {
 					for _, ch := range cw.GetAllChanges() {
 						ctx := ch.Context
@@ -111,8 +111,10 @@ func (t *Changerator) BuildNodeChangeTree(root *v3.Node) {
 		}
 	}
 
+	t.mutex.Lock()
 	t.ChangedEdges = chEdges
 	t.ChangedNodes = cleanedNodes
+	t.mutex.Unlock()
 }
 
 func (t *Changerator) Changerify(n any) []*v3.Node {
@@ -127,7 +129,7 @@ func (t *Changerator) Changerify(n any) []*v3.Node {
 			nodes[i].RenderProblems = false
 
 			// Check if the current node has changes or rendered changes
-			hasOwnChanges := nodes[i].Changes != nil || len(nodes[i].RenderedChanges) > 0
+			hasOwnChanges := len(nodes[i].GetChanges()) > 0 || len(nodes[i].RenderedChanges) > 0
 			hasChildChanges := len(nodes[i].Children) > 0
 
 			// Include node only if it has changes or children with changes
@@ -136,7 +138,7 @@ func (t *Changerator) Changerify(n any) []*v3.Node {
 					t.tmpEdges = append(t.tmpEdges, nodes[i].DrInstance.(v3.Foundational).GetEdges()...)
 				}
 				nodes[i].RenderChanges = true
-				nodes[i].Instance = nil
+				nodes[i].SetInstance(nil)
 				nodes[i].DrInstance = nil
 				nodes[i].RenderProps = true
 				filtered = append(filtered, nodes[i])
@@ -162,13 +164,13 @@ func (t *Changerator) Changerify(n any) []*v3.Node {
 			}
 
 			// Check if node has changes or child changes
-			hasOwnChanges := b.Changes != nil || len(b.RenderedChanges) > 0
+			hasOwnChanges := len(b.GetChanges()) > 0 || len(b.RenderedChanges) > 0
 			hasChildChanges := len(b.Children) > 0
 
 			if hasOwnChanges || hasChildChanges {
 				b.RenderChanges = true
 				b.RenderProps = true
-				b.Instance = nil
+				b.SetInstance(nil)
 				b.DrInstance = nil
 				rn = append(rn, &b)
 			}

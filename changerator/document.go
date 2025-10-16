@@ -81,9 +81,11 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 						Label:      docModelNode.Label,
 						Path:       "$.servers",
 						ArrayIndex: -1,
-						Changes:    sc,
 					}
+					aux.SetChanges(sc)
+					docModelNode.Mutex.Lock()
 					docModelNode.Changes = append(docModelNode.Changes, aux)
+					docModelNode.Mutex.Unlock()
 					nChan := ctx.Value(NodeChannel)
 					if nChan != nil {
 						nChan.(chan *modelChange) <- &modelChange{
@@ -145,9 +147,11 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 						Label:      docModelNode.Label,
 						Path:       "$.tags",
 						ArrayIndex: -1,
-						Changes:    tc,
 					}
+					aux.SetChanges(tc)
+					docModelNode.Mutex.Lock()
 					docModelNode.Changes = append(docModelNode.Changes, aux)
+					docModelNode.Mutex.Unlock()
 					nChan := ctx.Value(NodeChannel)
 					if nChan != nil {
 						nChan.(chan *modelChange) <- &modelChange{

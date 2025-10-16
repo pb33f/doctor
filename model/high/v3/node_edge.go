@@ -5,6 +5,9 @@ package v3
 
 import (
 	"encoding/json"
+	"reflect"
+	"strings"
+	"sync"
 	"github.com/google/uuid"
 	"github.com/pb33f/libopenapi/datamodel/high"
 	"github.com/pb33f/libopenapi/datamodel/low"
@@ -14,9 +17,6 @@ import (
 	what_changed "github.com/pb33f/libopenapi/what-changed"
 	"github.com/pb33f/libopenapi/what-changed/model"
 	"go.yaml.in/yaml/v4"
-	"reflect"
-	"strings"
-	"sync"
 )
 
 // Object pools for Node and Edge to reduce allocations
@@ -64,6 +64,7 @@ type Node struct {
 	RenderProps     bool                   `json:"-"`
 	RenderChanges   bool                   `json:"-"`
 	RenderProblems  bool                   `json:"-"`
+	Mutex           sync.RWMutex           `json:"-"`
 }
 
 type NodeChangeable interface {
@@ -82,6 +83,7 @@ type NodeChange struct {
 	Children   []*Node              `json:"nodes,omitempty"`
 	ArrayIndex int                  `json:"arrayIndex,omitempty"`
 	Changes    what_changed.Changed `json:"timeline,omitempty"`
+	Mutex      sync.RWMutex         `json:"-"`
 }
 
 func (n *NodeChange) GetType() string {
@@ -101,15 +103,50 @@ func (n *NodeChange) GetPath() string {
 }
 
 func (n *NodeChange) GetAllChanges() []*model.Change {
+	n.Mutex.RLock()
+	defer n.Mutex.RUnlock()
 	return n.Changes.GetAllChanges()
 }
 
+func (n *NodeChange) SetChanges(changes what_changed.Changed) {
+	n.Mutex.Lock()
+	defer n.Mutex.Unlock()
+	n.Changes = changes
+}
+
 func (n *NodeChange) TotalChanges() int {
+	n.Mutex.RLock()
+	defer n.Mutex.RUnlock()
 	return n.Changes.TotalChanges()
 }
 
 func (n *NodeChange) TotalBreakingChanges() int {
 	return n.Changes.TotalBreakingChanges()
+}
+
+// Node methods for thread-safe access to Changes field
+func (n *Node) GetChanges() []what_changed.Changed {
+	n.Mutex.RLock()
+	defer n.Mutex.RUnlock()
+	return n.Changes
+}
+
+func (n *Node) AppendChange(change what_changed.Changed) {
+	n.Mutex.Lock()
+	defer n.Mutex.Unlock()
+	n.Changes = append(n.Changes, change)
+}
+
+func (n *Node) GetInstance() any {
+	n.Mutex.RLock()
+	defer n.Mutex.RUnlock()
+	return n.Instance
+}
+
+func (n *Node) SetInstance(instance any) {
+	n.Mutex.Lock()
+	defer n.Mutex.Unlock()
+	n.Instance = instance
 }
 
 func (n *NodeChange) PropertiesOnly() {
@@ -119,6 +156,8 @@ func (n *NodeChange) PropertiesOnly() {
 }
 
 func (n *NodeChange) GetPropertyChanges() []*model.Change {
+	n.Mutex.RLock()
+	defer n.Mutex.RUnlock()
 	if n.Changes != nil {
 		return n.Changes.GetPropertyChanges()
 	}
