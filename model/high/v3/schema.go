@@ -50,7 +50,7 @@ func isSchemaAlreadyCached(ctx context.Context, schema *base.Schema) bool {
 	if !drCtx.UseSchemaCache || schema == nil {
 		return false
 	}
-	
+
 	// Check if this schema is already cached
 	rootNodeHash := index.HashNode(schema.GoLow().RootNode)
 	if _, exists := drCtx.SchemaCache.Load(rootNodeHash); exists {
@@ -70,25 +70,45 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		}
 		return
 	}
+
+	// Check for canonical path early - if DeterministicPaths is enabled and this schema
+	// has a canonical path (defined in components.schemas), use it to ensure determinism
+	if drCtx.DeterministicPaths && drCtx.CanonicalPathCache != nil && schema != nil {
+		if lowSchema := schema.GoLow(); lowSchema != nil && lowSchema.RootNode != nil {
+			schemaHash := index.HashNode(lowSchema.RootNode)
+			if canonicalPath, found := drCtx.CanonicalPathCache.Load(schemaHash); found {
+				// Pre-set the JSONPath using sync.Once to ensure deterministic path
+				s.JSONPathOnce.Do(func() {
+					s.JSONPath = canonicalPath.(string)
+				})
+			}
+		}
+	}
+
 	wg := drCtx.WaitGroup
 
 	sm := drCtx.SchemaCache
-	
+
 	// Use node hash as cache key for better deduplication
 	var cacheKey string
 	var rootNodeHash string
-	
+
 	if drCtx.UseSchemaCache {
 		// Compute hash once and use as cache key
 		rootNodeHash = index.HashNode(schema.GoLow().RootNode)
 		cacheKey = rootNodeHash
-		
+
 		if h, ok := sm.Load(cacheKey); ok {
 			// cached! we don't need to re-walk this.
 			s.Value = schema
 			hash := h.(string)
 			if rootNodeHash == hash {
+				// Preserve NodeParent before BuildNodesAndEdges to prevent corruption
+				// when s.Name is empty (which triggers NodeParent reassignment in foundation.go)
+				originalNodeParent := s.NodeParent
 				s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
+				// Restore original NodeParent after potential corruption
+				s.NodeParent = originalNodeParent
 				drCtx.ObjectChan <- s
 				if s.Walked {
 					return
@@ -539,7 +559,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		xml.SetPathSegment("xml")
 		xml.Value = schema.XML
 		xml.NodeParent = s
-		xml.BuildNodesAndEdges(ctx, "xml", "xml", schema.XML, schema.XML)
+		xml.BuildNodesAndEdges(ctx, "xml", "xml", schema.XML, xml) // Pass xml (*v3.XML), not schema.XML (*base.XML)
 		s.XML = xml
 		drCtx.ObjectChan <- xml
 	}
@@ -570,7 +590,7 @@ func (s *Schema) GetValue() any {
 func (s *Schema) GetSize() (height, width int) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	h, w := ParseSchemaSize(s.Value)
 	if s.Key != "" {
 		if len(s.Key) > (HEIGHT - 15) {
@@ -609,16 +629,7 @@ func hasSubSchemas(s *base.Schema) bool {
 func ParseSchemaSize(schema *base.Schema) (height, width int) {
 	width = WIDTH
 	height = HEIGHT
-	if schema.Type != nil {
-		strArr := []string{"object", "array"}
-		for _, t := range strArr {
-			if slices.Contains(schema.Type, t) {
-				height += HEIGHT
-				break
-			}
-		}
-		//height += HEIGHT
-	} else {
+	if schema.Type == nil {
 		if hasSubSchemas(schema) {
 			height += HEIGHT
 		}

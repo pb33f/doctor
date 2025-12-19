@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strconv"
+	"strings"
 	"sync"
 
 	drV3 "github.com/pb33f/doctor/model/high/v3"
@@ -48,9 +48,10 @@ type DrDocument struct {
 }
 
 type DrConfig struct {
-	BuildGraph     bool
-	RenderChanges  bool
-	UseSchemaCache bool
+	BuildGraph         bool
+	RenderChanges      bool
+	UseSchemaCache     bool
+	DeterministicPaths bool // When true, schemas always return their definition-site path
 }
 
 type HasValue interface {
@@ -71,7 +72,7 @@ func NewDrDocumentWithConfig(document *libopenapi.DocumentModel[v3.Document], co
 	doc := &DrDocument{
 		index: document.Index,
 	}
-	doc.walkV3(&document.Model, config.BuildGraph, config.UseSchemaCache, config.RenderChanges)
+	doc.walkV3WithConfig(&document.Model, config)
 	return doc
 }
 
@@ -305,6 +306,15 @@ func (w *DrDocument) GetIndex() *index.SpecIndex {
 }
 
 func (w *DrDocument) walkV3(doc *v3.Document, buildGraph, useCache, renderChanges bool) *drV3.Document {
+	return w.walkV3WithConfig(doc, &DrConfig{
+		BuildGraph:         buildGraph,
+		UseSchemaCache:     useCache,
+		RenderChanges:      renderChanges,
+		DeterministicPaths: false, // Default to false for backwards compatibility
+	})
+}
+
+func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.Document {
 
 	schemaChan := make(chan *drV3.WalkedSchema)
 	skippedSchemaChan := make(chan *drV3.WalkedSchema)
@@ -323,27 +333,30 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph, useCache, renderChange
 	}
 
 	var stringCache sync.Map
+	var canonicalPathCache sync.Map
 	dctx := &drV3.DrContext{
-		SchemaChan:        schemaChan,
-		SkippedSchemaChan: skippedSchemaChan,
-		ParameterChan:     parameterChan,
-		HeaderChan:        headerChan,
-		MediaTypeChan:     mediaTypeChan,
-		Index:             w.index,
-		WaitGroup:         &conc.WaitGroup{},
-		ErrorChan:         buildErrorChan,
-		NodeChan:          nodeChan,
-		EdgeChan:          edgeChan,
-		ObjectChan:        objectChan,
-		V3Document:        doc,
-		BuildGraph:        buildGraph,
-		RenderChanges:     renderChanges,
-		SchemaCache:       &schemaCache,
-		StringCache:       &stringCache,
-		StorageRoot:       doc.GoLow().StorageRoot,
-		Logger:            doc.Index.GetLogger(),
-		UseSchemaCache:    useCache,
-		WorkingDirectory:  wd,
+		SchemaChan:         schemaChan,
+		SkippedSchemaChan:  skippedSchemaChan,
+		ParameterChan:      parameterChan,
+		HeaderChan:         headerChan,
+		MediaTypeChan:      mediaTypeChan,
+		Index:              w.index,
+		WaitGroup:          &conc.WaitGroup{},
+		ErrorChan:          buildErrorChan,
+		NodeChan:           nodeChan,
+		EdgeChan:           edgeChan,
+		ObjectChan:         objectChan,
+		V3Document:         doc,
+		BuildGraph:         config.BuildGraph,
+		RenderChanges:      config.RenderChanges,
+		SchemaCache:        &schemaCache,
+		CanonicalPathCache: &canonicalPathCache,
+		StringCache:        &stringCache,
+		StorageRoot:        doc.GoLow().StorageRoot,
+		Logger:             doc.Index.GetLogger(),
+		UseSchemaCache:     config.UseSchemaCache,
+		DeterministicPaths: config.DeterministicPaths,
+		WorkingDirectory:   wd,
 	}
 	w.StorageRoot = doc.GoLow().StorageRoot
 
@@ -481,6 +494,59 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph, useCache, renderChange
 		}
 	}(schemaChan, skippedSchemaChan, done)
 
+	// PRE-POPULATE canonical paths for ALL component types BEFORE concurrent walking.
+	// This must happen synchronously before any goroutines run to avoid races.
+	// The cache maps object hash -> canonical JSONPath (definition-site path).
+	if config.DeterministicPaths && doc.Components != nil {
+		// Schemas
+		if doc.Components.Schemas != nil {
+			for pair := doc.Components.Schemas.First(); pair != nil; pair = pair.Next() {
+				if resolved := pair.Value().Schema(); resolved != nil {
+					if low := resolved.GoLow(); low != nil && low.RootNode != nil {
+						canonicalPathCache.Store(index.HashNode(low.RootNode),
+							fmt.Sprintf("$.components.schemas['%s']", pair.Key()))
+					}
+				}
+			}
+		}
+		// Responses
+		if doc.Components.Responses != nil {
+			for pair := doc.Components.Responses.First(); pair != nil; pair = pair.Next() {
+				if low := pair.Value().GoLow(); low != nil && low.RootNode != nil {
+					canonicalPathCache.Store(index.HashNode(low.RootNode),
+						fmt.Sprintf("$.components.responses['%s']", pair.Key()))
+				}
+			}
+		}
+		// Parameters
+		if doc.Components.Parameters != nil {
+			for pair := doc.Components.Parameters.First(); pair != nil; pair = pair.Next() {
+				if low := pair.Value().GoLow(); low != nil && low.RootNode != nil {
+					canonicalPathCache.Store(index.HashNode(low.RootNode),
+						fmt.Sprintf("$.components.parameters['%s']", pair.Key()))
+				}
+			}
+		}
+		// RequestBodies
+		if doc.Components.RequestBodies != nil {
+			for pair := doc.Components.RequestBodies.First(); pair != nil; pair = pair.Next() {
+				if low := pair.Value().GoLow(); low != nil && low.RootNode != nil {
+					canonicalPathCache.Store(index.HashNode(low.RootNode),
+						fmt.Sprintf("$.components.requestBodies['%s']", pair.Key()))
+				}
+			}
+		}
+		// Headers
+		if doc.Components.Headers != nil {
+			for pair := doc.Components.Headers.First(); pair != nil; pair = pair.Next() {
+				if low := pair.Value().GoLow(); low != nil && low.RootNode != nil {
+					canonicalPathCache.Store(index.HashNode(low.RootNode),
+						fmt.Sprintf("$.components.headers['%s']", pair.Key()))
+				}
+			}
+		}
+	}
+
 	drDoc.Walk(drCtx, doc)
 
 	done <- true
@@ -543,40 +609,33 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph, useCache, renderChange
 	roughEdges := edges
 	var cleanedEdges []*drV3.Edge
 
-	if buildGraph {
+	if config.BuildGraph {
 		for _, edge := range refEdges {
 			//extract node id from line map
 			// check if the target is an int.
-			t, e := strconv.Atoi(edge.Targets[0])
-			if e == nil {
-				if n, ok := w.lineObjects[t]; ok {
-					// iterate through objects in slice,
-					for _, o := range n {
-						r := o.(drV3.Foundational).GetNode()
-						if r != nil {
-							edge.Targets[0] = r.Id
-						} else {
-							if b, ko := nodeValueMap[edge.Targets[0]]; ko {
-								edge.Targets[0] = b.Id
-							}
-						}
-						targets[edge.Targets[0]] = edge
-						sources[edge.Sources[0]] = edge
-					}
-				} else {
-					if b, ko := nodeValueMap[edge.Targets[0]]; ko {
-						edge.Targets[0] = b.Id
-						targets[edge.Targets[0]] = edge
-						sources[edge.Sources[0]] = edge
-					}
-				}
-			} else {
-				if b, ko := nodeValueMap[edge.Targets[0]]; ko {
-					edge.Targets[0] = b.Id
-					targets[edge.Targets[0]] = edge
-					sources[edge.Sources[0]] = edge
-				}
+			//t, e := strconv.Atoi(edge.Targets[0])
+			//if e == nil {
+			if _, ok := nodeIdMap[edge.Targets[0]]; ok {
+				// iterate through objects in slice,
+				//edge.Targets[0] = n.Id
+
+				targets[edge.Targets[0]] = edge
+				sources[edge.Sources[0]] = edge
 			}
+			//} else {
+			//	if b, ko := nodeValueMap[edge.Targets[0]]; ko {
+			//		edge.Targets[0] = b.Id
+			//		targets[edge.Targets[0]] = edge
+			//		sources[edge.Sources[0]] = edge
+			//	}
+			//}
+			//} else {
+			//	if b, ko := nodeValueMap[edge.Targets[0]]; ko {
+			//		edge.Targets[0] = b.Id
+			//		targets[edge.Targets[0]] = edge
+			//		sources[edge.Sources[0]] = edge
+			//	}
+			//}
 			roughEdges = append(roughEdges, edge)
 		}
 
@@ -601,9 +660,21 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph, useCache, renderChange
 		w.Edges = cleanedEdges
 
 		// build node tree
-		for _, n := range w.Nodes {
+		for x, n := range w.Nodes {
+			fmt.Sprint(x)
 			if p, ok := nodeIdMap[n.ParentId]; ok {
-				p.Children = append(p.Children, n)
+
+				exists := false
+				for _, c := range p.Children {
+					if c.Id == n.Id {
+						exists = true
+						break
+					}
+				}
+				if !exists {
+					p.Children = append(p.Children, n)
+				}
+
 				if n.Origin == nil {
 					origin := doc.Index.GetRolodex().FindNodeOrigin(n.Value)
 					if origin != nil {
@@ -709,4 +780,96 @@ func (w *DrDocument) processObject(obj any, ln []any) {
 			}
 		}
 	}
+}
+
+func (w *DrDocument) BuildGraphMap() map[int]string {
+	graphMap := make(map[int]string)
+	graphLocationMap := w.BuildObjectLocationMap()
+	for i, gi := range graphLocationMap {
+		if d, k := gi.([]interface{}); k {
+			for _, t := range d {
+				if f, p := t.(drV3.Foundational); p {
+					if f != nil {
+						if f.GetNode() != nil {
+							graphMap[i] = f.GetNode().Id
+						}
+					}
+				}
+			}
+		}
+		if f, k := gi.(drV3.Foundational); k {
+			if f != nil {
+				if f.GetNode() != nil {
+					graphMap[i] = f.GetNode().Id
+				}
+			}
+		}
+	}
+	return graphMap
+}
+
+func SanitizeGraph(nodes []*drV3.Node, santizePaths []string) {
+	if nodes == nil {
+		return
+	}
+	dive(nodes, 0, 10000, 0, 999999, santizePaths)
+}
+
+func dive(n []*drV3.Node, depth, limit, count, countLimit int, santizePaths []string) {
+	if count >= countLimit {
+		return
+	}
+	for _, node := range n {
+		node.RenderChanges = true
+		node.RenderProps = true
+		node.RenderProblems = true
+		//node.DrInstance = nil
+		//node.Children = nil
+		if len(node.Changes) > 0 {
+			for _, ch := range node.Changes {
+				for _, c := range ch.GetPropertyChanges() {
+					if c.Context != nil {
+						for _, p := range santizePaths {
+							c.Context.DocumentLocation = strings.Replace(c.Context.DocumentLocation, p, "", 1)
+						}
+					}
+				}
+			}
+		}
+
+		if node.Origin != nil {
+			o := node.Origin
+			if o.AbsoluteLocation != "" {
+				for _, p := range santizePaths {
+					if strings.Contains(o.AbsoluteLocation, p) {
+						if p != "" && p != "/" {
+							o.AbsoluteLocation = strings.Replace(o.AbsoluteLocation, p, "", 1)
+						}
+					}
+				}
+			}
+		}
+
+		if node.DrInstance != nil {
+			if f, ok := node.DrInstance.(drV3.AcceptsRuleResults); ok {
+				if node.RenderProblems && len(f.GetRuleFunctionResults()) > 0 {
+					for _, p := range f.GetRuleFunctionResults() {
+						if p.Origin != nil {
+							for _, sp := range santizePaths {
+								p.Origin.AbsoluteLocation = strings.Replace(p.Origin.AbsoluteLocation, sp, "", 1)
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if node.Children != nil && depth < limit {
+			dive(node.Children, depth+1, limit, count+1, countLimit, santizePaths)
+		}
+		if depth >= limit {
+			node.Children = nil
+		}
+	}
+	depth--
 }

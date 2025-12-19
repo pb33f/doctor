@@ -5,7 +5,9 @@ package v3
 
 import (
 	"context"
+
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
 
@@ -19,6 +21,18 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 
 	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
+
+	// Check for canonical path - ensures deterministic paths for $ref'd requestBodies
+	if drCtx.DeterministicPaths && drCtx.CanonicalPathCache != nil && requestBody != nil {
+		if low := requestBody.GoLow(); low != nil && low.RootNode != nil {
+			if canonicalPath, found := drCtx.CanonicalPathCache.Load(index.HashNode(low.RootNode)); found {
+				r.JSONPathOnce.Do(func() {
+					r.JSONPath = canonicalPath.(string)
+				})
+			}
+		}
+	}
+
 	r.Value = requestBody
 	if r.PathSegment == "" {
 		r.SetPathSegment("requestBody")

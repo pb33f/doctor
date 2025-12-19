@@ -1,0 +1,358 @@
+classDiagram
+  class Document {
+    +string version
+  }
+  class info {
+    +string title
+    +string version
+    +string description
+  }
+  class Paths {
+    +int = 1 pathCount
+  }
+  class paths__notifications_post {
+    +string summary
+  }
+  class send_notification_RequestBody {
+    +boolean = true required
+  }
+  class EmailIdentity {
+    <<object>>
+    #string identity_type
+    #string email (format:email)
+    +string? display_name
+  }
+  class PhoneIdentity {
+    <<object>>
+    #string identity_type
+    #string phone (format:phone)
+    +string? country_code
+  }
+  class DeviceIdentity {
+    <<object>>
+    #string identity_type
+    #string device_token
+    +string? platform (enum:ios,android,web)
+  }
+  class UserIDIdentity {
+    <<object>>
+    #string identity_type
+    #string user_id (format:uuid)
+  }
+  class QuietHours {
+    <<object>>
+    +boolean? enabled
+    +string? start_time (format:time)
+    +string? end_time (format:time)
+    +string? timezone
+  }
+  class RecipientPreferences {
+    <<object>>
+    +string? language
+    +string[]? opt_out_channels
+    +QuietHours? quiet_hours
+  }
+  class Recipient {
+    <<object>>
+    #oneOf identity
+    +RecipientPreferences? preferences
+  }
+  class PlainTemplate {
+    <<object>>
+    +string? template_type
+    +object? variables
+  }
+  class HTMLTemplate {
+    <<object>>
+    +string? template_type
+    +string? template_id
+    +object? variables
+    +boolean? css_inline
+  }
+  class MarkdownTemplate {
+    <<object>>
+    +string? template_type
+    +string? markdown
+    +boolean? render_html
+  }
+  class ContentBase {
+    <<object>>
+    #string content_type
+    +oneOf? template
+  }
+  class Attachment {
+    <<object>>
+    +string? filename
+    +string? content_type
+    +string? url (format:uri)
+  }
+  class EmailContent {
+    +Attachment[]? attachments
+    +string? reply_to (format:email)
+    +string? content_type
+    +string? subject
+    +string? body
+  }
+  class SMSContent {
+    +string? content_type
+    +string? message
+    +boolean? shortened_links
+  }
+  class PushAction {
+    <<object>>
+    +string? action_type (enum:open_app,open_url,custom)
+    +string? url (format:uri)
+    +object? data
+  }
+  class PushContent {
+    +integer? badge_count
+    +string? content_type
+    +string? title
+    +string? body
+    +string? icon (format:uri)
+    +PushAction? action
+  }
+  class WebhookContent {
+    +string? content_type
+    +object? payload
+    +object? headers
+  }
+  class SMTPConfig {
+    <<object>>
+    +string? host
+    +integer? port
+    +string? username
+    +boolean? use_tls
+  }
+  class EmailChannel {
+    <<object>>
+    #string channel_type
+    #string from_address (format:email)
+    +string? from_name
+    +SMTPConfig? smtp_config
+  }
+  class SMSChannel {
+    <<object>>
+    #string channel_type
+    #string from_number
+    +string? provider (enum:twilio,messagebird,aws_sns)
+  }
+  class FCMConfig {
+    <<object>>
+    +string? api_key
+    +string? project_id
+  }
+  class APNSConfig {
+    <<object>>
+    +string? team_id
+    +string? key_id
+    +string? bundle_id
+  }
+  class PushChannel {
+    <<object>>
+    #string channel_type
+    #string app_id
+    +string? platform (enum:ios,android,web)
+    +FCMConfig? fcm_config
+    +APNSConfig? apns_config
+  }
+  class BearerAuth {
+    <<object>>
+    +string? auth_type
+    +string? token
+  }
+  class BasicAuth {
+    <<object>>
+    +string? auth_type
+    +string? username
+    +string? password
+  }
+  class APIKeyAuth {
+    <<object>>
+    +string? auth_type
+    +string? key
+    +string? header_name
+  }
+  class WebhookChannel {
+    <<object>>
+    #string channel_type
+    #string url (format:uri)
+    +string? method (enum:POST,PUT,PATCH)
+    +oneOf? auth
+  }
+  class PriorityOptions {
+    <<object>>
+    +string? priority (enum:low,normal,high,urgent)
+  }
+  class SchedulingOptions {
+    <<object>>
+    +string? send_at (format:date-time)
+    +string? timezone
+  }
+  class RetryOptions {
+    <<object>>
+    +integer? max_retries
+    +integer? retry_interval
+    +number? backoff_multiplier
+  }
+  class TrackingOptions {
+    <<object>>
+    +boolean? track_opens
+    +boolean? track_clicks
+    +boolean? track_conversions
+  }
+  class SendNotificationRequest {
+    <<object>>
+    #Recipient[] recipients
+    #oneOf content
+    #oneOf channel
+    +anyOf? options
+    +object? metadata
+  }
+  class paths__notifications_post_responses {
+  }
+  class send_notification_200 {
+    +string description
+  }
+  class DeliveryStatus {
+    <<object>>
+    +boolean? delivered
+    +boolean? opened
+    +boolean? clicked
+    +boolean? bounced
+    +string? error
+  }
+  class ImmediateDeliveryResponse {
+    <<object>>
+    #string delivery_mode
+    #string message_id
+    #string delivered_at (format:date-time)
+    +DeliveryStatus? status
+  }
+  class ScheduledDeliveryResponse {
+    <<object>>
+    #string delivery_mode
+    #string message_id
+    #string scheduled_for (format:date-time)
+    +string? cancel_url (format:uri)
+  }
+  class BatchDeliveryResponse {
+    <<object>>
+    #string delivery_mode
+    #string batch_id
+    #integer total_recipients
+    +string? estimated_completion (format:date-time)
+    +string? progress_url (format:uri)
+  }
+  class SendNotification200Response_Choice {
+    <<interface>>
+    + (oneOf)
+  }
+  class paths__notifications {
+    +post() Operation
+  }
+  class Components {
+  }
+  class NotificationRequest {
+    <<object>>
+    #Recipient[] recipients
+    #oneOf content
+    #oneOf channel
+    +anyOf? options
+    +object? metadata
+  }
+  Document *-- info
+  Recipient --> EmailIdentity : identity
+  Recipient --> PhoneIdentity : identity
+  Recipient --> DeviceIdentity : identity
+  Recipient --> UserIDIdentity : identity
+  RecipientPreferences *-- QuietHours : quiet_hours
+  Recipient *-- RecipientPreferences : preferences
+  SendNotificationRequest *-- Recipient : recipients 0..*
+  ContentBase --> PlainTemplate : template
+  ContentBase --> HTMLTemplate : template
+  ContentBase --> MarkdownTemplate : template
+  EmailContent *-- Attachment : attachments 0..*
+  ContentBase <|-- EmailContent : extends
+  SendNotificationRequest --> EmailContent : content
+  ContentBase <|-- SMSContent : extends
+  SendNotificationRequest --> SMSContent : content
+  PushContent *-- PushAction : action
+  ContentBase <|-- PushContent : extends
+  SendNotificationRequest --> PushContent : content
+  ContentBase <|-- WebhookContent : extends
+  SendNotificationRequest --> WebhookContent : content
+  EmailChannel *-- SMTPConfig : smtp_config
+  SendNotificationRequest --> EmailChannel : channel
+  SendNotificationRequest --> SMSChannel : channel
+  PushChannel *-- FCMConfig : fcm_config
+  PushChannel *-- APNSConfig : apns_config
+  SendNotificationRequest --> PushChannel : channel
+  WebhookChannel --> BearerAuth : auth
+  WebhookChannel --> BasicAuth : auth
+  WebhookChannel --> APIKeyAuth : auth
+  SendNotificationRequest --> WebhookChannel : channel
+  SendNotificationRequest --> PriorityOptions : options
+  SendNotificationRequest --> SchedulingOptions : options
+  SendNotificationRequest --> RetryOptions : options
+  SendNotificationRequest --> TrackingOptions : options
+  paths__notifications_post --> send_notification_RequestBody : request
+  ImmediateDeliveryResponse *-- DeliveryStatus : status
+  SendNotification200Response_Choice <|-- ImmediateDeliveryResponse
+  SendNotification200Response_Choice <|-- ScheduledDeliveryResponse
+  SendNotification200Response_Choice <|-- BatchDeliveryResponse
+  paths__notifications_post_responses *-- send_notification_200 : 200
+  paths__notifications_post --> paths__notifications_post_responses : responses
+  paths__notifications *-- paths__notifications_post : POST
+  Paths *-- paths__notifications : /notifications 1
+  Document *-- paths
+  NotificationRequest *-- Recipient : recipients 0..*
+  NotificationRequest --> EmailContent : content
+  NotificationRequest --> SMSContent : content
+  NotificationRequest --> PushContent : content
+  NotificationRequest --> WebhookContent : content
+  NotificationRequest --> EmailChannel : channel
+  NotificationRequest --> SMSChannel : channel
+  NotificationRequest --> PushChannel : channel
+  NotificationRequest --> WebhookChannel : channel
+  NotificationRequest --> PriorityOptions : options
+  NotificationRequest --> SchedulingOptions : options
+  NotificationRequest --> RetryOptions : options
+  NotificationRequest --> TrackingOptions : options
+  Components *-- NotificationRequest : schema
+  Components *-- Recipient : schema
+  Components *-- EmailIdentity : schema
+  Components *-- PhoneIdentity : schema
+  Components *-- DeviceIdentity : schema
+  Components *-- UserIDIdentity : schema
+  Components *-- ContentBase : schema
+  Components *-- EmailContent : schema
+  Components *-- SMSContent : schema
+  Components *-- PushContent : schema
+  Components *-- WebhookContent : schema
+  Components *-- PlainTemplate : schema
+  Components *-- HTMLTemplate : schema
+  Components *-- MarkdownTemplate : schema
+  Components *-- EmailChannel : schema
+  Components *-- SMSChannel : schema
+  Components *-- PushChannel : schema
+  Components *-- WebhookChannel : schema
+  Components *-- ImmediateDeliveryResponse : schema
+  Components *-- ScheduledDeliveryResponse : schema
+  Components *-- BatchDeliveryResponse : schema
+  Components *-- PriorityOptions : schema
+  Components *-- SchedulingOptions : schema
+  Components *-- RetryOptions : schema
+  Components *-- TrackingOptions : schema
+  Components *-- Attachment : schema
+  Components *-- PushAction : schema
+  Components *-- SMTPConfig : schema
+  Components *-- FCMConfig : schema
+  Components *-- APNSConfig : schema
+  Components *-- BearerAuth : schema
+  Components *-- BasicAuth : schema
+  Components *-- APIKeyAuth : schema
+  Components *-- DeliveryStatus : schema
+  Components *-- RecipientPreferences : schema
+  Components *-- QuietHours : schema
+  Document *-- components

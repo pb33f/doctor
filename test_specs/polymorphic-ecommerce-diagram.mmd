@@ -1,0 +1,325 @@
+classDiagram
+  class Document {
+    +string version
+  }
+  class info {
+    +string title
+    +string version
+    +string description
+  }
+  class Paths {
+    +int = 2 pathCount
+  }
+  class paths__orders_post {
+    +string summary
+  }
+  class create_order_RequestBody {
+    +boolean = true required
+  }
+  class Dimensions {
+    <<object>>
+    +number? length
+    +number? width
+    +number? height
+    +string? unit (enum:cm,in)
+  }
+  class PhysicalProduct {
+    <<object>>
+    #string product_type
+    #string sku
+    +string? name
+    #number weight
+    +Dimensions? dimensions
+  }
+  class DigitalProduct {
+    <<object>>
+    #string product_type
+    +string? name
+    #string download_url (format:uri)
+    +integer? file_size
+    +string? format
+  }
+  class ServiceProduct {
+    <<object>>
+    #string product_type
+    +string? name
+    #string service_date (format:date-time)
+    +integer? duration_minutes
+    +string? provider
+  }
+  class Engraving {
+    <<object>>
+    +string? type
+    +string? text
+    +string? font
+  }
+  class GiftWrap {
+    <<object>>
+    +string? type
+    +string? paper_style
+    +string? ribbon_color
+  }
+  class CustomMessage {
+    <<object>>
+    +string? type
+    +string? message
+    +string? card_design
+  }
+  class OrderItem {
+    <<object>>
+    #oneOf product
+    #integer quantity
+    +number? price
+    +anyOf? customization
+  }
+  class PaymentBase {
+    <<object>>
+    #string payment_type
+    #number amount
+    +string? currency
+  }
+  class Address {
+    <<object>>
+    #string street
+    +string? street2
+    #string city
+    +string? state
+    #string postal_code
+    #string country (format:iso-country-code)
+  }
+  class CardPayment {
+    +string? card_type (enum:visa,mastercard,amex,discover)
+    +Address? billing_address
+    +string? payment_type
+    +string? card_number
+    +string? cardholder_name
+  }
+  class BankTransferPayment {
+    +string? payment_type
+    +string? account_number
+    +string? routing_number
+    +string? bank_name
+  }
+  class DigitalWalletPayment {
+    +string? payment_type
+    +string? wallet_provider (enum:paypal,apple_pay,google_pay,venmo)
+    +string? wallet_id
+  }
+  class FulfillmentBase {
+    <<object>>
+    #string fulfillment_type
+    #string estimated_date (format:date-time)
+  }
+  class StandardShipping {
+    <<object>>
+    +string? method
+    +integer? days
+  }
+  class ExpressShipping {
+    <<object>>
+    +string? method
+    +integer? days
+    +boolean? signature_required
+  }
+  class OvernightShipping {
+    <<object>>
+    +string? method
+    +string? delivery_time (enum:morning,afternoon,evening)
+  }
+  class ShippingFulfillment {
+    +string? fulfillment_type
+    +Address? shipping_address
+    +string? carrier (enum:ups,fedex,usps,dhl)
+    +string? tracking_number
+    +oneOf? shipping_method
+  }
+  class PickupLocation {
+    <<object>>
+    +string? store_id
+    +string? name
+    +Address? address
+    +string? hours
+  }
+  class PickupFulfillment {
+    +string? fulfillment_type
+    +PickupLocation? pickup_location
+    +string? pickup_code
+  }
+  class DigitalFulfillment {
+    +string? download_link (format:uri)
+    +string? fulfillment_type
+    +string? delivery_method (enum:email,app_download,cloud_access)
+  }
+  class GiftOptions {
+    <<object>>
+    +boolean? is_gift
+    +string? gift_message
+    +boolean? wrap
+  }
+  class CreateOrderRequest {
+    +OrderItem[]? items
+    +oneOf? payment
+    +oneOf? fulfillment
+    +GiftOptions? gift_options
+    +string? promotional_code
+  }
+  class paths__orders_post_responses {
+  }
+  class create_order_201 {
+    +string description
+  }
+  class StatusChange {
+    <<object>>
+    +string? from_state
+    +string? to_state
+    +string? timestamp (format:date-time)
+    +string? reason
+  }
+  class OrderStatus {
+    <<object>>
+    +string? state (enum:pending,processing,shipped,delivered,cancelled)
+    +string? updated_at (format:date-time)
+    +StatusChange[]? history
+  }
+  class Order {
+    <<object>>
+    #string id (format:uuid)
+    +string? customer_id (format:uuid)
+    #OrderItem[] items
+    #number total (format:decimal)
+    +string? currency (enum:USD,EUR,GBP)
+    #oneOf payment
+    #oneOf fulfillment
+    +OrderStatus? status
+  }
+  class OrderLinks {
+    <<object>>
+    +string? self (format:uri)
+    +string? payment (format:uri)
+    +string? tracking (format:uri)
+  }
+  class CreateOrder201Response {
+    +OrderLinks? _links
+  }
+  class paths__orders {
+    +post() Operation
+  }
+  class paths__orders__orderId__get {
+    +string summary
+  }
+  class paths__orders__orderId__get_responses {
+  }
+  class get_order_200 {
+    +string description
+  }
+  class GetOrder200Response {
+    <<object>>
+    #string id (format:uuid)
+    +string? customer_id (format:uuid)
+    #OrderItem[] items
+    #number total (format:decimal)
+    +string? currency (enum:USD,EUR,GBP)
+    #oneOf payment
+    #oneOf fulfillment
+    +OrderStatus? status
+  }
+  class orderId {
+    +path in
+    +boolean = true required
+  }
+  class schema {
+    <<string>>
+  }
+  class paths__orders__orderId_ {
+    +get() Operation
+  }
+  class Components {
+  }
+  Document *-- info
+  PhysicalProduct *-- Dimensions : dimensions
+  OrderItem --> PhysicalProduct : product
+  OrderItem --> DigitalProduct : product
+  OrderItem --> ServiceProduct : product
+  OrderItem --> Engraving : customization
+  OrderItem --> GiftWrap : customization
+  OrderItem --> CustomMessage : customization
+  CreateOrderRequest *-- OrderItem : items 0..*
+  CardPayment *-- Address : billing_address
+  PaymentBase <|-- CardPayment : extends
+  CreateOrderRequest --> CardPayment : payment
+  PaymentBase <|-- BankTransferPayment : extends
+  CreateOrderRequest --> BankTransferPayment : payment
+  PaymentBase <|-- DigitalWalletPayment : extends
+  CreateOrderRequest --> DigitalWalletPayment : payment
+  ShippingFulfillment *-- Address : shipping_address
+  ShippingFulfillment --> StandardShipping : shipping_method
+  ShippingFulfillment --> ExpressShipping : shipping_method
+  ShippingFulfillment --> OvernightShipping : shipping_method
+  FulfillmentBase <|-- ShippingFulfillment : extends
+  CreateOrderRequest --> ShippingFulfillment : fulfillment
+  PickupLocation *-- Address : address
+  PickupFulfillment *-- PickupLocation : pickup_location
+  FulfillmentBase <|-- PickupFulfillment : extends
+  CreateOrderRequest --> PickupFulfillment : fulfillment
+  FulfillmentBase <|-- DigitalFulfillment : extends
+  CreateOrderRequest --> DigitalFulfillment : fulfillment
+  CreateOrderRequest *-- GiftOptions : gift_options
+  paths__orders_post --> create_order_RequestBody : request
+  Order *-- OrderItem : items 0..*
+  Order --> CardPayment : payment
+  Order --> BankTransferPayment : payment
+  Order --> DigitalWalletPayment : payment
+  Order --> ShippingFulfillment : fulfillment
+  Order --> PickupFulfillment : fulfillment
+  Order --> DigitalFulfillment : fulfillment
+  OrderStatus *-- StatusChange : history 0..*
+  Order *-- OrderStatus : status
+  CreateOrder201Response *-- OrderLinks : _links
+  Order <|-- CreateOrder201Response : extends
+  paths__orders_post_responses *-- create_order_201 : 201
+  paths__orders_post --> paths__orders_post_responses : responses
+  paths__orders *-- paths__orders_post : POST
+  Paths *-- paths__orders : /orders 1
+  GetOrder200Response *-- OrderItem : items 0..*
+  GetOrder200Response --> CardPayment : payment
+  GetOrder200Response --> BankTransferPayment : payment
+  GetOrder200Response --> DigitalWalletPayment : payment
+  GetOrder200Response --> ShippingFulfillment : fulfillment
+  GetOrder200Response --> PickupFulfillment : fulfillment
+  GetOrder200Response --> DigitalFulfillment : fulfillment
+  GetOrder200Response *-- OrderStatus : status
+  paths__orders__orderId__get_responses *-- get_order_200 : 200
+  paths__orders__orderId__get --> paths__orders__orderId__get_responses : responses
+  orderId *-- schema : schema
+  paths__orders__orderId__get "0..*" ..> orderId
+  paths__orders__orderId_ *-- paths__orders__orderId__get : GET
+  Paths *-- paths__orders__orderId_ : /orders/{orderId} 1
+  Document *-- paths
+  Components *-- Order : schema
+  Components *-- CreateOrderRequest : schema
+  Components *-- OrderItem : schema
+  Components *-- PaymentBase : schema
+  Components *-- CardPayment : schema
+  Components *-- BankTransferPayment : schema
+  Components *-- DigitalWalletPayment : schema
+  Components *-- FulfillmentBase : schema
+  Components *-- ShippingFulfillment : schema
+  Components *-- PickupFulfillment : schema
+  Components *-- DigitalFulfillment : schema
+  Components *-- PhysicalProduct : schema
+  Components *-- DigitalProduct : schema
+  Components *-- ServiceProduct : schema
+  Components *-- StandardShipping : schema
+  Components *-- ExpressShipping : schema
+  Components *-- OvernightShipping : schema
+  Components *-- Engraving : schema
+  Components *-- GiftWrap : schema
+  Components *-- CustomMessage : schema
+  Components *-- OrderStatus : schema
+  Components *-- StatusChange : schema
+  Components *-- Address : schema
+  Components *-- Dimensions : schema
+  Components *-- PickupLocation : schema
+  Components *-- GiftOptions : schema
+  Components *-- OrderLinks : schema
+  Document *-- components

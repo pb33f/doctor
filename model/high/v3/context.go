@@ -44,27 +44,29 @@ type WalkedMediaType struct {
 }
 
 type DrContext struct {
-	SchemaChan        chan *WalkedSchema
-	ObjectChan        chan any
-	SkippedSchemaChan chan *WalkedSchema
-	ParameterChan     chan *WalkedParam
-	HeaderChan        chan *WalkedHeader
-	MediaTypeChan     chan *WalkedMediaType
-	ErrorChan         chan *BuildError
-	NodeChan          chan *Node
-	EdgeChan          chan *Edge
-	Index             *index.SpecIndex
-	Rolodex           *index.Rolodex
-	V3Document        *v3.Document
-	WaitGroup         *conc.WaitGroup
-	BuildGraph        bool
-	RenderChanges     bool
-	UseSchemaCache    bool
-	SchemaCache       *sync.Map
-	StringCache       *sync.Map // String interning for common strings
-	StorageRoot       string
-	WorkingDirectory  string
-	Logger            *slog.Logger
+	SchemaChan               chan *WalkedSchema
+	ObjectChan               chan any
+	SkippedSchemaChan        chan *WalkedSchema
+	ParameterChan            chan *WalkedParam
+	HeaderChan               chan *WalkedHeader
+	MediaTypeChan            chan *WalkedMediaType
+	ErrorChan                chan *BuildError
+	NodeChan                 chan *Node
+	EdgeChan                 chan *Edge
+	Index                    *index.SpecIndex
+	Rolodex                  *index.Rolodex
+	V3Document               *v3.Document
+	WaitGroup                *conc.WaitGroup
+	BuildGraph               bool
+	RenderChanges            bool
+	UseSchemaCache           bool
+	DeterministicPaths   bool      // When true, component objects return definition-site paths
+	SchemaCache          *sync.Map
+	CanonicalPathCache   *sync.Map // Maps object hash -> canonical JSONPath (definition site)
+	StringCache              *sync.Map               // String interning for common strings
+	StorageRoot              string
+	WorkingDirectory         string
+	Logger                   *slog.Logger
 }
 
 // internString returns a cached version of the string to reduce memory
