@@ -1,0 +1,518 @@
+openapi: 3.1.0
+info:
+  title: Polymorphic E-Commerce API
+  version: 1.0.0
+  description: Complex polymorphic order system with multiple payment types, shipping options, and fulfillment strategies
+
+paths:
+  /orders:
+    post:
+      operationId: create-order
+      summary: Create a new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Order'
+                  - properties:
+                      _links:
+                        $ref: '#/components/schemas/OrderLinks'
+
+  /orders/{orderId}:
+    get:
+      operationId: get-order
+      summary: Get order details
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+components:
+  schemas:
+    # Base order with polymorphic fulfillment and payment
+    Order:
+      type: object
+      required:
+        - id
+        - items
+        - total
+        - payment
+        - fulfillment
+      properties:
+        id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        total:
+          type: number
+          format: decimal
+        currency:
+          type: string
+          enum: [USD, EUR, GBP]
+        payment:
+          description: Payment method - can be card, bank transfer, or digital wallet
+          oneOf:
+            - $ref: '#/components/schemas/CardPayment'
+            - $ref: '#/components/schemas/BankTransferPayment'
+            - $ref: '#/components/schemas/DigitalWalletPayment'
+          discriminator:
+            propertyName: payment_type
+            mapping:
+              card: '#/components/schemas/CardPayment'
+              bank_transfer: '#/components/schemas/BankTransferPayment'
+              digital_wallet: '#/components/schemas/DigitalWalletPayment'
+        fulfillment:
+          description: Fulfillment strategy - shipping, pickup, or digital delivery
+          oneOf:
+            - $ref: '#/components/schemas/ShippingFulfillment'
+            - $ref: '#/components/schemas/PickupFulfillment'
+            - $ref: '#/components/schemas/DigitalFulfillment'
+          discriminator:
+            propertyName: fulfillment_type
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+
+    # Order creation request with optional gift options
+    CreateOrderRequest:
+      allOf:
+        - type: object
+          required:
+            - items
+            - payment
+            - fulfillment
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/OrderItem'
+            payment:
+              oneOf:
+                - $ref: '#/components/schemas/CardPayment'
+                - $ref: '#/components/schemas/BankTransferPayment'
+                - $ref: '#/components/schemas/DigitalWalletPayment'
+            fulfillment:
+              oneOf:
+                - $ref: '#/components/schemas/ShippingFulfillment'
+                - $ref: '#/components/schemas/PickupFulfillment'
+                - $ref: '#/components/schemas/DigitalFulfillment'
+        - properties:
+            gift_options:
+              $ref: '#/components/schemas/GiftOptions'
+            promotional_code:
+              type: string
+
+    # Order item with polymorphic product types
+    OrderItem:
+      type: object
+      required:
+        - product
+        - quantity
+      properties:
+        product:
+          oneOf:
+            - $ref: '#/components/schemas/PhysicalProduct'
+            - $ref: '#/components/schemas/DigitalProduct'
+            - $ref: '#/components/schemas/ServiceProduct'
+          discriminator:
+            propertyName: product_type
+        quantity:
+          type: integer
+          minimum: 1
+        price:
+          type: number
+        customization:
+          anyOf:
+            - $ref: '#/components/schemas/Engraving'
+            - $ref: '#/components/schemas/GiftWrap'
+            - $ref: '#/components/schemas/CustomMessage'
+
+    # Payment Types (oneOf variants with shared base)
+    PaymentBase:
+      type: object
+      required:
+        - payment_type
+        - amount
+      properties:
+        payment_type:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+
+    CardPayment:
+      allOf:
+        - $ref: '#/components/schemas/PaymentBase'
+        - type: object
+          required:
+            - card_number
+            - cardholder_name
+          properties:
+            payment_type:
+              type: string
+              const: card
+            card_number:
+              type: string
+            cardholder_name:
+              type: string
+            card_type:
+              type: string
+              enum: [visa, mastercard, amex, discover]
+            billing_address:
+              $ref: '#/components/schemas/Address'
+
+    BankTransferPayment:
+      allOf:
+        - $ref: '#/components/schemas/PaymentBase'
+        - type: object
+          required:
+            - account_number
+            - routing_number
+          properties:
+            payment_type:
+              type: string
+              const: bank_transfer
+            account_number:
+              type: string
+            routing_number:
+              type: string
+            bank_name:
+              type: string
+
+    DigitalWalletPayment:
+      allOf:
+        - $ref: '#/components/schemas/PaymentBase'
+        - type: object
+          required:
+            - wallet_provider
+            - wallet_id
+          properties:
+            payment_type:
+              type: string
+              const: digital_wallet
+            wallet_provider:
+              type: string
+              enum: [paypal, apple_pay, google_pay, venmo]
+            wallet_id:
+              type: string
+
+    # Fulfillment Types (oneOf variants with shared base)
+    FulfillmentBase:
+      type: object
+      required:
+        - fulfillment_type
+        - estimated_date
+      properties:
+        fulfillment_type:
+          type: string
+        estimated_date:
+          type: string
+          format: date-time
+
+    ShippingFulfillment:
+      allOf:
+        - $ref: '#/components/schemas/FulfillmentBase'
+        - type: object
+          required:
+            - shipping_address
+            - carrier
+          properties:
+            fulfillment_type:
+              type: string
+              const: shipping
+            shipping_address:
+              $ref: '#/components/schemas/Address'
+            carrier:
+              type: string
+              enum: [ups, fedex, usps, dhl]
+            tracking_number:
+              type: string
+            shipping_method:
+              oneOf:
+                - $ref: '#/components/schemas/StandardShipping'
+                - $ref: '#/components/schemas/ExpressShipping'
+                - $ref: '#/components/schemas/OvernightShipping'
+
+    PickupFulfillment:
+      allOf:
+        - $ref: '#/components/schemas/FulfillmentBase'
+        - type: object
+          required:
+            - pickup_location
+          properties:
+            fulfillment_type:
+              type: string
+              const: pickup
+            pickup_location:
+              $ref: '#/components/schemas/PickupLocation'
+            pickup_code:
+              type: string
+
+    DigitalFulfillment:
+      allOf:
+        - $ref: '#/components/schemas/FulfillmentBase'
+        - type: object
+          required:
+            - delivery_method
+          properties:
+            fulfillment_type:
+              type: string
+              const: digital
+            delivery_method:
+              type: string
+              enum: [email, app_download, cloud_access]
+            download_link:
+              type: string
+              format: uri
+
+    # Product Types (oneOf variants)
+    PhysicalProduct:
+      type: object
+      required:
+        - product_type
+        - sku
+        - weight
+      properties:
+        product_type:
+          type: string
+          const: physical
+        sku:
+          type: string
+        name:
+          type: string
+        weight:
+          type: number
+        dimensions:
+          $ref: '#/components/schemas/Dimensions'
+
+    DigitalProduct:
+      type: object
+      required:
+        - product_type
+        - download_url
+      properties:
+        product_type:
+          type: string
+          const: digital
+        name:
+          type: string
+        download_url:
+          type: string
+          format: uri
+        file_size:
+          type: integer
+        format:
+          type: string
+
+    ServiceProduct:
+      type: object
+      required:
+        - product_type
+        - service_date
+      properties:
+        product_type:
+          type: string
+          const: service
+        name:
+          type: string
+        service_date:
+          type: string
+          format: date-time
+        duration_minutes:
+          type: integer
+        provider:
+          type: string
+
+    # Shipping method variants (nested oneOf)
+    StandardShipping:
+      type: object
+      properties:
+        method:
+          type: string
+          const: standard
+        days:
+          type: integer
+          minimum: 5
+          maximum: 10
+
+    ExpressShipping:
+      type: object
+      properties:
+        method:
+          type: string
+          const: express
+        days:
+          type: integer
+          minimum: 2
+          maximum: 3
+        signature_required:
+          type: boolean
+
+    OvernightShipping:
+      type: object
+      properties:
+        method:
+          type: string
+          const: overnight
+        delivery_time:
+          type: string
+          enum: [morning, afternoon, evening]
+
+    # Customization options (anyOf - can combine multiple)
+    Engraving:
+      type: object
+      properties:
+        type:
+          type: string
+          const: engraving
+        text:
+          type: string
+          maxLength: 50
+        font:
+          type: string
+
+    GiftWrap:
+      type: object
+      properties:
+        type:
+          type: string
+          const: gift_wrap
+        paper_style:
+          type: string
+        ribbon_color:
+          type: string
+
+    CustomMessage:
+      type: object
+      properties:
+        type:
+          type: string
+          const: custom_message
+        message:
+          type: string
+          maxLength: 200
+        card_design:
+          type: string
+
+    # Supporting schemas
+    OrderStatus:
+      type: object
+      properties:
+        state:
+          type: string
+          enum: [pending, processing, shipped, delivered, cancelled]
+        updated_at:
+          type: string
+          format: date-time
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatusChange'
+
+    StatusChange:
+      type: object
+      properties:
+        from_state:
+          type: string
+        to_state:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        reason:
+          type: string
+
+    Address:
+      type: object
+      required:
+        - street
+        - city
+        - postal_code
+        - country
+      properties:
+        street:
+          type: string
+        street2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        postal_code:
+          type: string
+        country:
+          type: string
+          format: iso-country-code
+
+    Dimensions:
+      type: object
+      properties:
+        length:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+        unit:
+          type: string
+          enum: [cm, in]
+
+    PickupLocation:
+      type: object
+      properties:
+        store_id:
+          type: string
+        name:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        hours:
+          type: string
+
+    GiftOptions:
+      type: object
+      properties:
+        is_gift:
+          type: boolean
+        gift_message:
+          type: string
+        wrap:
+          type: boolean
+
+    OrderLinks:
+      type: object
+      properties:
+        self:
+          type: string
+          format: uri
+        payment:
+          type: string
+          format: uri
+        tracking:
+          type: string
+          format: uri

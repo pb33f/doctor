@@ -6,10 +6,10 @@ package changerator
 import (
 	"context"
 	"fmt"
-	"sync"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	whatChanged "github.com/pb33f/libopenapi/what-changed"
 	whatChangedModel "github.com/pb33f/libopenapi/what-changed/model"
+	"sync"
 )
 
 type ChangeratorChange whatChangedModel.Change
@@ -23,7 +23,15 @@ type Changerator struct {
 	tmpEdges     []*v3.Edge
 	tmpNodes     []*v3.Node
 	seen         map[string]*whatChangedModel.Change
-	mutex        sync.RWMutex
+
+	// Deduplicator handles change deduplication across the hierarchy
+	Deduplicator *ChangeDeduplicator
+
+	// For context extraction
+	rightDocContent []byte   // Original right document content
+	rightDocLines   []string // Cached split lines for performance
+	rightDocFormat  string   // "yaml" or "json"
+	mutex           sync.Mutex
 }
 
 type modelChange struct {
@@ -37,7 +45,53 @@ const NodeChannel string = "node-channel"
 
 func NewChangerator(config *ChangeratorConfig) *Changerator {
 	seen := make(map[string]*whatChangedModel.Change)
-	return &Changerator{Config: config, seen: seen}
+	return &Changerator{
+		Config:          config,
+		seen:            seen,
+		Deduplicator:    NewChangeDeduplicator(),
+		rightDocContent: config.RightDocContent,
+	}
+}
+
+// generateChangeLocationHash creates a hash from a change's context location.
+// This is used to detect duplicate changes at the same location.
+func (t *Changerator) generateChangeLocationHash(ctx *whatChangedModel.ChangeContext) string {
+	if ctx == nil {
+		return ""
+	}
+
+	var a, b, c, d int
+	if ctx.OriginalLine != nil {
+		a = *ctx.OriginalLine
+	}
+	if ctx.OriginalColumn != nil {
+		b = *ctx.OriginalColumn
+	}
+	if ctx.NewLine != nil {
+		c = *ctx.NewLine
+	}
+	if ctx.NewColumn != nil {
+		d = *ctx.NewColumn
+	}
+
+	return fmt.Sprintf("%d:%d:%d:%d", a, b, c, d)
+}
+
+// processChangeWithDedup processes a change and returns true if it should be kept (unique).
+// Returns false if the change is a duplicate.
+func (t *Changerator) processChangeWithDedup(ch *whatChangedModel.Change) bool {
+	hash := t.generateChangeLocationHash(ch.Context)
+
+	if hash == "" {
+		return true
+	}
+
+	if _, ok := t.seen[hash]; ok {
+		return false
+	}
+
+	t.seen[hash] = ch
+	return true
 }
 
 func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
@@ -72,33 +126,9 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 
 			for _, c := range val.node.GetChanges() {
 				for _, ch := range c.GetAllChanges() {
-					ctx := ch.Context
-					var hash string
-					if ctx != nil {
-
-						var a, b, c, d int
-						if ctx.OriginalLine != nil {
-							a = *ctx.OriginalLine
-						}
-						if ctx.OriginalColumn != nil {
-							b = *ctx.OriginalColumn
-						}
-						if ctx.NewLine != nil {
-							c = *ctx.NewLine
-						}
-						if ctx.NewColumn != nil {
-							d = *ctx.NewColumn
-						}
-
-						hash = fmt.Sprintf("%d:%d:%d:%d", a, b, c, d)
+					if t.processChangeWithDedup(ch) {
+						t.Changes = append(t.Changes, ch)
 					}
-					_, ok := t.seen[hash]
-
-					if hash != "" && ok {
-						continue
-					}
-					t.seen[hash] = ch
-					t.Changes = append(t.Changes, ch)
 				}
 			}
 			t.mutex.Lock()
@@ -123,34 +153,9 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 				if val.node != nil && len(val.node.GetChanges()) > 0 {
 					for _, q := range val.node.GetChanges() {
 						for _, ch := range q.GetAllChanges() {
-							ctx := ch.Context
-							var hash string
-							if ctx != nil {
-
-								var a, b, c, d int
-								if ctx.OriginalLine != nil {
-									a = *ctx.OriginalLine
-								}
-								if ctx.OriginalColumn != nil {
-									b = *ctx.OriginalColumn
-								}
-								if ctx.NewLine != nil {
-									c = *ctx.NewLine
-								}
-								if ctx.NewColumn != nil {
-									d = *ctx.NewColumn
-								}
-
-								hash = fmt.Sprintf("%d:%d:%d:%d", a, b, c, d)
+							if t.processChangeWithDedup(ch) {
+								t.Changes = append(t.Changes, ch)
 							}
-							_, ok := t.seen[hash]
-
-							if hash != "" && ok {
-								continue
-							}
-
-							t.seen[hash] = ch
-							t.Changes = append(t.Changes, ch)
 						}
 					}
 					t.mutex.Lock()
@@ -179,6 +184,34 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 
 func (t *Changerator) GetDoctor() v3.Doctor {
 	return t.Config.Doctor
+}
+
+// DeduplicateChanges removes duplicate changes using JSONPath + property as the unique key.
+// This prevents the same change from appearing multiple times when a reference is used in multiple locations.
+// Returns a deduplicated array of changes.
+func (t *Changerator) DeduplicateChanges() []*whatChangedModel.Change {
+	if t.Config == nil || t.Config.DocumentChanges == nil {
+		return nil
+	}
+
+	allChanges := t.Config.DocumentChanges.GetAllChanges()
+	if len(allChanges) == 0 {
+		return allChanges
+	}
+
+	seen := make(map[string]bool)
+	var deduplicated []*whatChangedModel.Change
+
+	for _, change := range allChanges {
+		key := change.Path + ":" + change.Property
+
+		if !seen[key] {
+			seen[key] = true
+			deduplicated = append(deduplicated, change)
+		}
+	}
+
+	return deduplicated
 }
 
 func (t *Changerator) Visit(ctx context.Context, object any) {

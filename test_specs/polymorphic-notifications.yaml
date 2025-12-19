@@ -1,0 +1,570 @@
+openapi: 3.1.0
+info:
+  title: Polymorphic Notification System API
+  version: 1.0.0
+  description: Multi-channel notification system with templates, scheduling, and delivery tracking
+
+paths:
+  /notifications:
+    post:
+      operationId: send-notification
+      summary: Send a notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationRequest'
+      responses:
+        '200':
+          description: Notification sent
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ImmediateDeliveryResponse'
+                  - $ref: '#/components/schemas/ScheduledDeliveryResponse'
+                  - $ref: '#/components/schemas/BatchDeliveryResponse'
+                discriminator:
+                  propertyName: delivery_mode
+
+components:
+  schemas:
+    # Top-level notification request with polymorphic channel and content
+    NotificationRequest:
+      type: object
+      required:
+        - recipients
+        - content
+        - channel
+      properties:
+        recipients:
+          type: array
+          items:
+            $ref: '#/components/schemas/Recipient'
+        content:
+          description: Notification content - varies by channel and template type
+          oneOf:
+            - $ref: '#/components/schemas/EmailContent'
+            - $ref: '#/components/schemas/SMSContent'
+            - $ref: '#/components/schemas/PushContent'
+            - $ref: '#/components/schemas/WebhookContent'
+          discriminator:
+            propertyName: content_type
+        channel:
+          description: Delivery channel configuration
+          oneOf:
+            - $ref: '#/components/schemas/EmailChannel'
+            - $ref: '#/components/schemas/SMSChannel'
+            - $ref: '#/components/schemas/PushChannel'
+            - $ref: '#/components/schemas/WebhookChannel'
+          discriminator:
+            propertyName: channel_type
+        options:
+          anyOf:
+            - $ref: '#/components/schemas/PriorityOptions'
+            - $ref: '#/components/schemas/SchedulingOptions'
+            - $ref: '#/components/schemas/RetryOptions'
+            - $ref: '#/components/schemas/TrackingOptions'
+        metadata:
+          type: object
+          additionalProperties: true
+
+    # Recipient with polymorphic identity
+    Recipient:
+      type: object
+      required:
+        - identity
+      properties:
+        identity:
+          oneOf:
+            - $ref: '#/components/schemas/EmailIdentity'
+            - $ref: '#/components/schemas/PhoneIdentity'
+            - $ref: '#/components/schemas/DeviceIdentity'
+            - $ref: '#/components/schemas/UserIDIdentity'
+          discriminator:
+            propertyName: identity_type
+        preferences:
+          $ref: '#/components/schemas/RecipientPreferences'
+
+    # Identity types
+    EmailIdentity:
+      type: object
+      required:
+        - identity_type
+        - email
+      properties:
+        identity_type:
+          type: string
+          const: email
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+
+    PhoneIdentity:
+      type: object
+      required:
+        - identity_type
+        - phone
+      properties:
+        identity_type:
+          type: string
+          const: phone
+        phone:
+          type: string
+          format: phone
+        country_code:
+          type: string
+
+    DeviceIdentity:
+      type: object
+      required:
+        - identity_type
+        - device_token
+      properties:
+        identity_type:
+          type: string
+          const: device
+        device_token:
+          type: string
+        platform:
+          type: string
+          enum: [ios, android, web]
+
+    UserIDIdentity:
+      type: object
+      required:
+        - identity_type
+        - user_id
+      properties:
+        identity_type:
+          type: string
+          const: user_id
+        user_id:
+          type: string
+          format: uuid
+
+    # Content types with polymorphic templates
+    ContentBase:
+      type: object
+      required:
+        - content_type
+      properties:
+        content_type:
+          type: string
+        template:
+          oneOf:
+            - $ref: '#/components/schemas/PlainTemplate'
+            - $ref: '#/components/schemas/HTMLTemplate'
+            - $ref: '#/components/schemas/MarkdownTemplate'
+
+    EmailContent:
+      allOf:
+        - $ref: '#/components/schemas/ContentBase'
+        - type: object
+          required:
+            - subject
+            - body
+          properties:
+            content_type:
+              type: string
+              const: email
+            subject:
+              type: string
+            body:
+              type: string
+            attachments:
+              type: array
+              items:
+                $ref: '#/components/schemas/Attachment'
+            reply_to:
+              type: string
+              format: email
+
+    SMSContent:
+      allOf:
+        - $ref: '#/components/schemas/ContentBase'
+        - type: object
+          required:
+            - message
+          properties:
+            content_type:
+              type: string
+              const: sms
+            message:
+              type: string
+              maxLength: 160
+            shortened_links:
+              type: boolean
+
+    PushContent:
+      allOf:
+        - $ref: '#/components/schemas/ContentBase'
+        - type: object
+          required:
+            - title
+            - body
+          properties:
+            content_type:
+              type: string
+              const: push
+            title:
+              type: string
+              maxLength: 50
+            body:
+              type: string
+              maxLength: 200
+            icon:
+              type: string
+              format: uri
+            action:
+              $ref: '#/components/schemas/PushAction'
+            badge_count:
+              type: integer
+
+    WebhookContent:
+      allOf:
+        - $ref: '#/components/schemas/ContentBase'
+        - type: object
+          required:
+            - payload
+          properties:
+            content_type:
+              type: string
+              const: webhook
+            payload:
+              type: object
+            headers:
+              type: object
+              additionalProperties:
+                type: string
+
+    # Template types
+    PlainTemplate:
+      type: object
+      properties:
+        template_type:
+          type: string
+          const: plain
+        variables:
+          type: object
+
+    HTMLTemplate:
+      type: object
+      properties:
+        template_type:
+          type: string
+          const: html
+        template_id:
+          type: string
+        variables:
+          type: object
+        css_inline:
+          type: boolean
+
+    MarkdownTemplate:
+      type: object
+      properties:
+        template_type:
+          type: string
+          const: markdown
+        markdown:
+          type: string
+        render_html:
+          type: boolean
+
+    # Channel configurations
+    EmailChannel:
+      type: object
+      required:
+        - channel_type
+        - from_address
+      properties:
+        channel_type:
+          type: string
+          const: email
+        from_address:
+          type: string
+          format: email
+        from_name:
+          type: string
+        smtp_config:
+          $ref: '#/components/schemas/SMTPConfig'
+
+    SMSChannel:
+      type: object
+      required:
+        - channel_type
+        - from_number
+      properties:
+        channel_type:
+          type: string
+          const: sms
+        from_number:
+          type: string
+        provider:
+          type: string
+          enum: [twilio, messagebird, aws_sns]
+
+    PushChannel:
+      type: object
+      required:
+        - channel_type
+        - app_id
+      properties:
+        channel_type:
+          type: string
+          const: push
+        app_id:
+          type: string
+        platform:
+          type: string
+          enum: [ios, android, web]
+        fcm_config:
+          $ref: '#/components/schemas/FCMConfig'
+        apns_config:
+          $ref: '#/components/schemas/APNSConfig'
+
+    WebhookChannel:
+      type: object
+      required:
+        - channel_type
+        - url
+      properties:
+        channel_type:
+          type: string
+          const: webhook
+        url:
+          type: string
+          format: uri
+        method:
+          type: string
+          enum: [POST, PUT, PATCH]
+        auth:
+          oneOf:
+            - $ref: '#/components/schemas/BearerAuth'
+            - $ref: '#/components/schemas/BasicAuth'
+            - $ref: '#/components/schemas/APIKeyAuth'
+
+    # Delivery response types
+    ImmediateDeliveryResponse:
+      type: object
+      required:
+        - delivery_mode
+        - message_id
+        - delivered_at
+      properties:
+        delivery_mode:
+          type: string
+          const: immediate
+        message_id:
+          type: string
+        delivered_at:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/DeliveryStatus'
+
+    ScheduledDeliveryResponse:
+      type: object
+      required:
+        - delivery_mode
+        - message_id
+        - scheduled_for
+      properties:
+        delivery_mode:
+          type: string
+          const: scheduled
+        message_id:
+          type: string
+        scheduled_for:
+          type: string
+          format: date-time
+        cancel_url:
+          type: string
+          format: uri
+
+    BatchDeliveryResponse:
+      type: object
+      required:
+        - delivery_mode
+        - batch_id
+        - total_recipients
+      properties:
+        delivery_mode:
+          type: string
+          const: batch
+        batch_id:
+          type: string
+        total_recipients:
+          type: integer
+        estimated_completion:
+          type: string
+          format: date-time
+        progress_url:
+          type: string
+          format: uri
+
+    # Options (anyOf - can combine)
+    PriorityOptions:
+      type: object
+      properties:
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+
+    SchedulingOptions:
+      type: object
+      properties:
+        send_at:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+
+    RetryOptions:
+      type: object
+      properties:
+        max_retries:
+          type: integer
+        retry_interval:
+          type: integer
+        backoff_multiplier:
+          type: number
+
+    TrackingOptions:
+      type: object
+      properties:
+        track_opens:
+          type: boolean
+        track_clicks:
+          type: boolean
+        track_conversions:
+          type: boolean
+
+    # Supporting types
+    Attachment:
+      type: object
+      properties:
+        filename:
+          type: string
+        content_type:
+          type: string
+        url:
+          type: string
+          format: uri
+
+    PushAction:
+      type: object
+      properties:
+        action_type:
+          type: string
+          enum: [open_app, open_url, custom]
+        url:
+          type: string
+          format: uri
+        data:
+          type: object
+
+    SMTPConfig:
+      type: object
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+        username:
+          type: string
+        use_tls:
+          type: boolean
+
+    FCMConfig:
+      type: object
+      properties:
+        api_key:
+          type: string
+        project_id:
+          type: string
+
+    APNSConfig:
+      type: object
+      properties:
+        team_id:
+          type: string
+        key_id:
+          type: string
+        bundle_id:
+          type: string
+
+    BearerAuth:
+      type: object
+      properties:
+        auth_type:
+          type: string
+          const: bearer
+        token:
+          type: string
+
+    BasicAuth:
+      type: object
+      properties:
+        auth_type:
+          type: string
+          const: basic
+        username:
+          type: string
+        password:
+          type: string
+
+    APIKeyAuth:
+      type: object
+      properties:
+        auth_type:
+          type: string
+          const: api_key
+        key:
+          type: string
+        header_name:
+          type: string
+
+    DeliveryStatus:
+      type: object
+      properties:
+        delivered:
+          type: boolean
+        opened:
+          type: boolean
+        clicked:
+          type: boolean
+        bounced:
+          type: boolean
+        error:
+          type: string
+
+    RecipientPreferences:
+      type: object
+      properties:
+        language:
+          type: string
+        opt_out_channels:
+          type: array
+          items:
+            type: string
+        quiet_hours:
+          $ref: '#/components/schemas/QuietHours'
+
+    QuietHours:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        start_time:
+          type: string
+          format: time
+        end_time:
+          type: string
+          format: time
+        timezone:
+          type: string

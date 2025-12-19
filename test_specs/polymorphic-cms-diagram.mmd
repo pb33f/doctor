@@ -1,0 +1,404 @@
+classDiagram
+  class Document {
+    +string version
+  }
+  class info {
+    +string title
+    +string version
+    +string description
+  }
+  class Paths {
+    +int = 2 pathCount
+  }
+  class paths__content_post {
+    +string summary
+  }
+  class create_content_RequestBody {
+    +boolean = true required
+  }
+  class Author {
+    <<object>>
+    +string? id (format:uuid)
+    +string? name
+    +string? email (format:email)
+    +string? avatar (format:uri)
+  }
+  class ContentBase {
+    <<object>>
+    #string content_type
+    +string? id (readOnly) (format:uuid)
+    #string title
+    +string? slug
+    #Author author
+    +string? status (enum:draft,review,published,archived)
+    +any? metadata
+    +string? created_at (readOnly) (format:date-time)
+    +string? updated_at (readOnly) (format:date-time)
+  }
+  class TOCEntry {
+    <<object>>
+    +string? title
+    +integer? level
+    +string? anchor
+  }
+  class ArticleContent {
+    +string? content_type
+    +string? summary
+    +any[]? body
+    +integer? reading_time
+    +TOCEntry[]? table_of_contents
+  }
+  class VideoFormat {
+    <<object>>
+    +string? resolution (enum:720p,1080p,4k)
+    +string? url (format:uri)
+    +string? codec
+  }
+  class UploadedVideo {
+    <<object>>
+    #string video_type
+    #string file_url (format:uri)
+    +integer? file_size
+    +VideoFormat[]? formats
+  }
+  class YouTubeVideo {
+    <<object>>
+    #string video_type
+    #string youtube_id
+    +integer? start_time
+    +boolean? autoplay
+  }
+  class VimeoVideo {
+    <<object>>
+    #string video_type
+    #string vimeo_id
+    +string? color
+  }
+  class StreamingVideo {
+    <<object>>
+    #string video_type
+    #string stream_url (format:uri)
+    +string? protocol (enum:hls,dash,rtmp)
+  }
+  class Image {
+    <<object>>
+    #string url (format:uri)
+    +string? alt
+    +integer? width
+    +integer? height
+    +string? format (enum:jpeg,png,webp,svg)
+  }
+  class VideoChapter {
+    <<object>>
+    +string? title
+    +integer? start_time
+    +integer? end_time
+  }
+  class Subtitle {
+    <<object>>
+    +string? language
+    +string? url (format:uri)
+    +string? label
+  }
+  class VideoContent {
+    +integer? duration
+    +VideoChapter[]? chapters
+    +Subtitle[]? subtitles
+    +string? content_type
+    +string? description
+    +oneOf? video
+    +Image? thumbnail
+  }
+  class GalleryContent {
+    +any[]? images
+    +string? layout (enum:grid,carousel,masonry,slideshow)
+    +string? content_type
+    +string? description
+  }
+  class QuizQuestion {
+    <<object>>
+    +string? question
+    +string[]? options
+    +integer? correct_answer
+    +string? explanation
+  }
+  class QuizConfig {
+    <<object>>
+    #string config_type
+    #QuizQuestion[] questions
+    +integer? passing_score
+    +boolean? randomize_questions
+  }
+  class PollConfig {
+    <<object>>
+    #string config_type
+    #string question
+    #string[] options
+    +boolean? allow_multiple
+  }
+  class SurveyConfig {
+    <<object>>
+    #string config_type
+    #any[] questions
+  }
+  class InteractiveContent {
+    +string? interactive_type (enum:quiz,poll,survey,calculator,game)
+    +oneOf? config
+    +string? content_type
+  }
+  class CreateContentRequest_Choice {
+    <<interface>>
+    + (oneOf)
+  }
+  class paths__content_post_responses {
+  }
+  class create_content_201 {
+    +string description
+  }
+  class ContentResponse {
+    <<object>>
+    +string? id (format:uuid)
+    +string? published_at (format:date-time)
+    +integer? version
+  }
+  class CreateContent201Response {
+    +any? _links
+  }
+  class paths__content {
+    +post() Operation
+  }
+  class paths__content__contentId__get {
+  }
+  class paths__content__contentId__get_responses {
+  }
+  class get_content_200 {
+    +string description
+  }
+  class GetContent200Response_Choice {
+    <<interface>>
+    + (oneOf)
+  }
+  class contentId {
+    +path in
+    +boolean = true required
+  }
+  class schema {
+    <<string>>
+  }
+  class paths__content__contentId_ {
+    +get() Operation
+  }
+  class Components {
+  }
+  class BoldStyle {
+    <<object>>
+    +boolean? bold
+  }
+  class ItalicStyle {
+    <<object>>
+    +boolean? italic
+  }
+  class HeadingStyle {
+    <<object>>
+    +integer? heading_level
+  }
+  class TextBlock {
+    <<object>>
+    #string block_type
+    #string content
+    +anyOf? style
+    +string? alignment (enum:left,center,right,justify)
+  }
+  class ImageBlock {
+    <<object>>
+    #string block_type
+    #Image image
+    +string? caption
+    +string? width
+    +string? alignment (enum:left,center,right,full-width)
+  }
+  class CodeBlock {
+    <<object>>
+    #string block_type
+    #string code
+    +string? language
+    +string? theme
+    +boolean? line_numbers
+    +integer[]? highlight_lines
+  }
+  class QuoteBlock {
+    <<object>>
+    #string block_type
+    #string quote
+    +string? attribution
+    +string? citation
+    +string? style (enum:simple,bordered,background)
+  }
+  class TwitterEmbed {
+    <<object>>
+    #string embed_type
+    #string tweet_id
+    +string? theme (enum:light,dark)
+  }
+  class CodePenEmbed {
+    <<object>>
+    #string embed_type
+    #string pen_id
+    +string? tab (enum:html,css,js,result)
+  }
+  class IFrameEmbed {
+    <<object>>
+    #string embed_type
+    #string url (format:uri)
+    +string? width
+    +string? height
+  }
+  class EmbedBlock {
+    <<object>>
+    #string block_type
+    #oneOf embed
+  }
+  class Category {
+    <<object>>
+    +string? id
+    +string? name
+    +string? slug
+    +string? parent_id
+  }
+  class SEOMetadata {
+    <<object>>
+    +string? meta_title
+    +string? meta_description
+    +string[]? keywords
+    +string? canonical_url (format:uri)
+  }
+  class SocialMetadata {
+    <<object>>
+    +string? og_title
+    +string? og_description
+    +string? og_image (format:uri)
+    +string? twitter_card (enum:summary,summary_large_image,app,player)
+  }
+  class TextQuestion {
+    <<object>>
+    #string question_type
+    #string question
+    +string? placeholder
+    +integer? max_length
+  }
+  class MultipleChoiceQuestion {
+    <<object>>
+    #string question_type
+    #string question
+    #string[] options
+    +boolean? allow_multiple
+  }
+  class RatingQuestion {
+    <<object>>
+    #string question_type
+    #string question
+    +integer? min_value
+    +integer? max_value
+    +object? labels
+  }
+  class SelfLink {
+    <<object>>
+    +string? self (format:uri)
+  }
+  class EditLink {
+    <<object>>
+    +string? edit (format:uri)
+  }
+  class PublishLink {
+    <<object>>
+    +string? publish (format:uri)
+    +string? unpublish (format:uri)
+  }
+  Document *-- info
+  ContentBase *-- Author : author
+  ArticleContent *-- TOCEntry : table_of_contents 0..*
+  ContentBase <|-- ArticleContent : extends
+  CreateContentRequest_Choice <|-- ArticleContent
+  UploadedVideo *-- VideoFormat : formats 0..*
+  VideoContent --> UploadedVideo : video
+  VideoContent --> YouTubeVideo : video
+  VideoContent --> VimeoVideo : video
+  VideoContent --> StreamingVideo : video
+  VideoContent *-- Image : thumbnail
+  VideoContent *-- VideoChapter : chapters 0..*
+  VideoContent *-- Subtitle : subtitles 0..*
+  ContentBase <|-- VideoContent : extends
+  CreateContentRequest_Choice <|-- VideoContent
+  ContentBase <|-- GalleryContent : extends
+  CreateContentRequest_Choice <|-- GalleryContent
+  QuizConfig *-- QuizQuestion : questions 0..*
+  InteractiveContent --> QuizConfig : config
+  InteractiveContent --> PollConfig : config
+  InteractiveContent --> SurveyConfig : config
+  ContentBase <|-- InteractiveContent : extends
+  CreateContentRequest_Choice <|-- InteractiveContent
+  paths__content_post --> create_content_RequestBody : request
+  ContentResponse <|-- CreateContent201Response : extends
+  paths__content_post_responses *-- create_content_201 : 201
+  paths__content_post --> paths__content_post_responses : responses
+  paths__content *-- paths__content_post : POST
+  Paths *-- paths__content : /content 1
+  GetContent200Response_Choice <|-- ArticleContent
+  GetContent200Response_Choice <|-- VideoContent
+  GetContent200Response_Choice <|-- GalleryContent
+  GetContent200Response_Choice <|-- InteractiveContent
+  paths__content__contentId__get_responses *-- get_content_200 : 200
+  paths__content__contentId__get --> paths__content__contentId__get_responses : responses
+  contentId *-- schema : schema
+  paths__content__contentId__get "0..*" ..> contentId
+  paths__content__contentId_ *-- paths__content__contentId__get : GET
+  Paths *-- paths__content__contentId_ : /content/{contentId} 1
+  Document *-- paths
+  Components *-- ContentBase : schema
+  Components *-- ArticleContent : schema
+  Components *-- VideoContent : schema
+  Components *-- GalleryContent : schema
+  Components *-- InteractiveContent : schema
+  TextBlock --> BoldStyle : style
+  TextBlock --> ItalicStyle : style
+  TextBlock --> HeadingStyle : style
+  Components *-- TextBlock : schema
+  ImageBlock *-- Image : image
+  Components *-- ImageBlock : schema
+  Components *-- CodeBlock : schema
+  Components *-- QuoteBlock : schema
+  EmbedBlock --> TwitterEmbed : embed
+  EmbedBlock --> CodePenEmbed : embed
+  EmbedBlock --> IFrameEmbed : embed
+  Components *-- EmbedBlock : schema
+  Components *-- UploadedVideo : schema
+  Components *-- YouTubeVideo : schema
+  Components *-- VimeoVideo : schema
+  Components *-- StreamingVideo : schema
+  Components *-- TwitterEmbed : schema
+  Components *-- CodePenEmbed : schema
+  Components *-- IFrameEmbed : schema
+  Components *-- QuizConfig : schema
+  Components *-- PollConfig : schema
+  Components *-- SurveyConfig : schema
+  Components *-- BoldStyle : schema
+  Components *-- ItalicStyle : schema
+  Components *-- HeadingStyle : schema
+  Components *-- Image : schema
+  Components *-- VideoFormat : schema
+  Components *-- VideoChapter : schema
+  Components *-- Subtitle : schema
+  Components *-- Author : schema
+  Components *-- Category : schema
+  Components *-- SEOMetadata : schema
+  Components *-- SocialMetadata : schema
+  Components *-- TOCEntry : schema
+  Components *-- QuizQuestion : schema
+  Components *-- TextQuestion : schema
+  Components *-- MultipleChoiceQuestion : schema
+  Components *-- RatingQuestion : schema
+  Components *-- ContentResponse : schema
+  Components *-- SelfLink : schema
+  Components *-- EditLink : schema
+  Components *-- PublishLink : schema
+  Document *-- components

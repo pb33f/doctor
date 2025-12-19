@@ -5,10 +5,11 @@ package changerator
 
 import (
 	"fmt"
+	"slices"
+
 	"github.com/mitchellh/mapstructure"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/what-changed/model"
-	"slices"
 )
 
 func (t *Changerator) Cleaneromatic(nodes []*v3.Node) []*v3.Node {
@@ -23,7 +24,8 @@ func (t *Changerator) Cleaneromatic(nodes []*v3.Node) []*v3.Node {
 						ctx := ch.Context
 						var hash string
 						if ctx != nil {
-							hash = fmt.Sprintf("%d:%d:%d:%d", ctx.OriginalColumn, ctx.NewColumn, ctx.OriginalLine, ctx.OriginalColumn)
+							hash = fmt.Sprintf("%d:%d:%d:%d",
+								ctx.OriginalColumn, ctx.NewColumn, ctx.OriginalLine, ctx.OriginalColumn)
 						}
 						_, ok := seen[hash]
 
@@ -43,7 +45,7 @@ func (t *Changerator) Cleaneromatic(nodes []*v3.Node) []*v3.Node {
 func (t *Changerator) TurnOnChangedTree(root *v3.Node) {
 	root.RenderProps = true
 	root.RenderChanges = true
-	root.RenderProblems = false
+	root.RenderProblems = true
 	for _, n := range root.Children {
 		t.TurnOnChangedTree(n)
 	}
@@ -52,7 +54,7 @@ func (t *Changerator) TurnOnChangedTree(root *v3.Node) {
 func (t *Changerator) PrepareNodesForGraph(root *v3.Node) {
 	root.RenderProps = true
 	root.RenderChanges = true
-	root.RenderProblems = false
+	root.RenderProblems = true
 	for _, n := range root.Children {
 		t.TurnOnChangedTree(n)
 	}
@@ -121,25 +123,21 @@ func (t *Changerator) Changerify(n any) []*v3.Node {
 	if nodes, ok := n.([]*v3.Node); ok {
 		var filtered []*v3.Node
 		for i := range nodes {
-			// Process children recursively first
+			// process children recursively first
 			if len(nodes[i].Children) > 0 {
 				nodes[i].Children = t.Changerify(nodes[i].Children)
 			}
 
 			nodes[i].RenderProblems = false
 
-			// Check if the current node has changes or rendered changes
 			hasOwnChanges := len(nodes[i].GetChanges()) > 0 || len(nodes[i].RenderedChanges) > 0
 			hasChildChanges := len(nodes[i].Children) > 0
 
-			// Include node only if it has changes or children with changes
 			if hasOwnChanges || hasChildChanges {
 				if nodes[i].DrInstance != nil {
 					t.tmpEdges = append(t.tmpEdges, nodes[i].DrInstance.(v3.Foundational).GetEdges()...)
 				}
 				nodes[i].RenderChanges = true
-				nodes[i].SetInstance(nil)
-				nodes[i].DrInstance = nil
 				nodes[i].RenderProps = true
 				filtered = append(filtered, nodes[i])
 				t.tmpNodes = append(t.tmpNodes, nodes[i])
@@ -149,7 +147,6 @@ func (t *Changerator) Changerify(n any) []*v3.Node {
 		return filtered
 	}
 
-	// Handle alternate type ([]any) from your original implementation if required
 	if uNodes, ok := n.([]any); ok {
 		var rn []*v3.Node
 		for i := range uNodes {
@@ -158,20 +155,16 @@ func (t *Changerator) Changerify(n any) []*v3.Node {
 				continue
 			}
 
-			// Process children recursively
 			if len(b.Children) > 0 {
 				b.Children = t.Changerify(b.Children)
 			}
 
-			// Check if node has changes or child changes
 			hasOwnChanges := len(b.GetChanges()) > 0 || len(b.RenderedChanges) > 0
 			hasChildChanges := len(b.Children) > 0
 
 			if hasOwnChanges || hasChildChanges {
 				b.RenderChanges = true
 				b.RenderProps = true
-				b.SetInstance(nil)
-				b.DrInstance = nil
 				rn = append(rn, &b)
 			}
 		}
@@ -179,4 +172,36 @@ func (t *Changerator) Changerify(n any) []*v3.Node {
 	}
 
 	return nil
+}
+
+// DeduplicateAllNodes runs deduplication on all changed nodes in the tree.
+// This is a convenience method that processes the entire node tree.
+func (t *Changerator) DeduplicateAllNodes(root *v3.Node) {
+	if t.Deduplicator == nil {
+		t.Deduplicator = NewChangeDeduplicator()
+	}
+
+	// recursively deduplicate all nodes
+	t.deduplicateNodeRecursive(root)
+}
+
+// deduplicateNodeRecursive recursively deduplicates a node and its children
+func (t *Changerator) deduplicateNodeRecursive(node *v3.Node) {
+	if node == nil {
+		return
+	}
+
+	t.Deduplicator.DeduplicateNodeChanges(node)
+
+	for _, child := range node.Children {
+		t.deduplicateNodeRecursive(child)
+	}
+}
+
+// GetDeduplicatedStatistics returns change statistics based on deduplicated data.
+func (t *Changerator) GetDeduplicatedStatistics() *ChangeStatistics {
+	if t.Deduplicator == nil {
+		return t.Calculatoratron() // Fallback to original
+	}
+	return t.Deduplicator.GetStatistics()
 }

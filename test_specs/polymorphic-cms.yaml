@@ -1,0 +1,734 @@
+openapi: 3.1.0
+info:
+  title: Polymorphic CMS API
+  version: 1.0.0
+  description: Content management system with polymorphic content types, nested blocks, and multi-level inheritance
+
+paths:
+  /content:
+    post:
+      operationId: create-content
+      summary: Create content
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/ArticleContent'
+                - $ref: '#/components/schemas/VideoContent'
+                - $ref: '#/components/schemas/GalleryContent'
+                - $ref: '#/components/schemas/InteractiveContent'
+              discriminator:
+                propertyName: content_type
+      responses:
+        '201':
+          description: Content created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ContentResponse'
+                  - properties:
+                      _links:
+                        allOf:
+                          - $ref: '#/components/schemas/SelfLink'
+                          - $ref: '#/components/schemas/EditLink'
+                          - $ref: '#/components/schemas/PublishLink'
+
+  /content/{contentId}:
+    get:
+      operationId: get-content
+      parameters:
+        - name: contentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Content details
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ArticleContent'
+                  - $ref: '#/components/schemas/VideoContent'
+                  - $ref: '#/components/schemas/GalleryContent'
+                  - $ref: '#/components/schemas/InteractiveContent'
+
+components:
+  schemas:
+    # Base content with shared metadata
+    ContentBase:
+      type: object
+      required:
+        - content_type
+        - title
+        - author
+      properties:
+        content_type:
+          type: string
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+        slug:
+          type: string
+        author:
+          $ref: '#/components/schemas/Author'
+        status:
+          type: string
+          enum: [draft, review, published, archived]
+        metadata:
+          allOf:
+            - $ref: '#/components/schemas/SEOMetadata'
+            - $ref: '#/components/schemas/SocialMetadata'
+            - properties:
+                tags:
+                  type: array
+                  items:
+                    type: string
+                categories:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Category'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    # Content types - each can have polymorphic blocks
+    ArticleContent:
+      allOf:
+        - $ref: '#/components/schemas/ContentBase'
+        - type: object
+          required:
+            - body
+          properties:
+            content_type:
+              type: string
+              const: article
+            summary:
+              type: string
+            body:
+              type: array
+              items:
+                oneOf:
+                  - $ref: '#/components/schemas/TextBlock'
+                  - $ref: '#/components/schemas/ImageBlock'
+                  - $ref: '#/components/schemas/CodeBlock'
+                  - $ref: '#/components/schemas/QuoteBlock'
+                  - $ref: '#/components/schemas/EmbedBlock'
+                discriminator:
+                  propertyName: block_type
+            reading_time:
+              type: integer
+            table_of_contents:
+              type: array
+              items:
+                $ref: '#/components/schemas/TOCEntry'
+
+    VideoContent:
+      allOf:
+        - $ref: '#/components/schemas/ContentBase'
+        - type: object
+          required:
+            - video
+          properties:
+            content_type:
+              type: string
+              const: video
+            description:
+              type: string
+            video:
+              oneOf:
+                - $ref: '#/components/schemas/UploadedVideo'
+                - $ref: '#/components/schemas/YouTubeVideo'
+                - $ref: '#/components/schemas/VimeoVideo'
+                - $ref: '#/components/schemas/StreamingVideo'
+              discriminator:
+                propertyName: video_type
+            thumbnail:
+              $ref: '#/components/schemas/Image'
+            duration:
+              type: integer
+            chapters:
+              type: array
+              items:
+                $ref: '#/components/schemas/VideoChapter'
+            subtitles:
+              type: array
+              items:
+                $ref: '#/components/schemas/Subtitle'
+
+    GalleryContent:
+      allOf:
+        - $ref: '#/components/schemas/ContentBase'
+        - type: object
+          required:
+            - images
+          properties:
+            content_type:
+              type: string
+              const: gallery
+            description:
+              type: string
+            images:
+              type: array
+              items:
+                allOf:
+                  - $ref: '#/components/schemas/Image'
+                  - properties:
+                      caption:
+                        type: string
+                      position:
+                        type: integer
+            layout:
+              type: string
+              enum: [grid, carousel, masonry, slideshow]
+
+    InteractiveContent:
+      allOf:
+        - $ref: '#/components/schemas/ContentBase'
+        - type: object
+          required:
+            - interactive_type
+            - config
+          properties:
+            content_type:
+              type: string
+              const: interactive
+            interactive_type:
+              type: string
+              enum: [quiz, poll, survey, calculator, game]
+            config:
+              oneOf:
+                - $ref: '#/components/schemas/QuizConfig'
+                - $ref: '#/components/schemas/PollConfig'
+                - $ref: '#/components/schemas/SurveyConfig'
+              discriminator:
+                propertyName: config_type
+
+    # Block types (used in ArticleContent.body)
+    TextBlock:
+      type: object
+      required:
+        - block_type
+        - content
+      properties:
+        block_type:
+          type: string
+          const: text
+        content:
+          type: string
+        style:
+          anyOf:
+            - $ref: '#/components/schemas/BoldStyle'
+            - $ref: '#/components/schemas/ItalicStyle'
+            - $ref: '#/components/schemas/HeadingStyle'
+        alignment:
+          type: string
+          enum: [left, center, right, justify]
+
+    ImageBlock:
+      type: object
+      required:
+        - block_type
+        - image
+      properties:
+        block_type:
+          type: string
+          const: image
+        image:
+          $ref: '#/components/schemas/Image'
+        caption:
+          type: string
+        width:
+          type: string
+        alignment:
+          type: string
+          enum: [left, center, right, full-width]
+
+    CodeBlock:
+      type: object
+      required:
+        - block_type
+        - code
+      properties:
+        block_type:
+          type: string
+          const: code
+        code:
+          type: string
+        language:
+          type: string
+        theme:
+          type: string
+        line_numbers:
+          type: boolean
+        highlight_lines:
+          type: array
+          items:
+            type: integer
+
+    QuoteBlock:
+      type: object
+      required:
+        - block_type
+        - quote
+      properties:
+        block_type:
+          type: string
+          const: quote
+        quote:
+          type: string
+        attribution:
+          type: string
+        citation:
+          type: string
+        style:
+          type: string
+          enum: [simple, bordered, background]
+
+    EmbedBlock:
+      type: object
+      required:
+        - block_type
+        - embed
+      properties:
+        block_type:
+          type: string
+          const: embed
+        embed:
+          oneOf:
+            - $ref: '#/components/schemas/TwitterEmbed'
+            - $ref: '#/components/schemas/CodePenEmbed'
+            - $ref: '#/components/schemas/IFrameEmbed'
+          discriminator:
+            propertyName: embed_type
+
+    # Video source types
+    UploadedVideo:
+      type: object
+      required:
+        - video_type
+        - file_url
+      properties:
+        video_type:
+          type: string
+          const: uploaded
+        file_url:
+          type: string
+          format: uri
+        file_size:
+          type: integer
+        formats:
+          type: array
+          items:
+            $ref: '#/components/schemas/VideoFormat'
+
+    YouTubeVideo:
+      type: object
+      required:
+        - video_type
+        - youtube_id
+      properties:
+        video_type:
+          type: string
+          const: youtube
+        youtube_id:
+          type: string
+        start_time:
+          type: integer
+        autoplay:
+          type: boolean
+
+    VimeoVideo:
+      type: object
+      required:
+        - video_type
+        - vimeo_id
+      properties:
+        video_type:
+          type: string
+          const: vimeo
+        vimeo_id:
+          type: string
+        color:
+          type: string
+
+    StreamingVideo:
+      type: object
+      required:
+        - video_type
+        - stream_url
+      properties:
+        video_type:
+          type: string
+          const: streaming
+        stream_url:
+          type: string
+          format: uri
+        protocol:
+          type: string
+          enum: [hls, dash, rtmp]
+
+    # Embed types (nested oneOf in EmbedBlock)
+    TwitterEmbed:
+      type: object
+      required:
+        - embed_type
+        - tweet_id
+      properties:
+        embed_type:
+          type: string
+          const: twitter
+        tweet_id:
+          type: string
+        theme:
+          type: string
+          enum: [light, dark]
+
+    CodePenEmbed:
+      type: object
+      required:
+        - embed_type
+        - pen_id
+      properties:
+        embed_type:
+          type: string
+          const: codepen
+        pen_id:
+          type: string
+        tab:
+          type: string
+          enum: [html, css, js, result]
+
+    IFrameEmbed:
+      type: object
+      required:
+        - embed_type
+        - url
+      properties:
+        embed_type:
+          type: string
+          const: iframe
+        url:
+          type: string
+          format: uri
+        width:
+          type: string
+        height:
+          type: string
+
+    # Interactive configs (oneOf in InteractiveContent)
+    QuizConfig:
+      type: object
+      required:
+        - config_type
+        - questions
+      properties:
+        config_type:
+          type: string
+          const: quiz
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuizQuestion'
+        passing_score:
+          type: integer
+        randomize_questions:
+          type: boolean
+
+    PollConfig:
+      type: object
+      required:
+        - config_type
+        - question
+        - options
+      properties:
+        config_type:
+          type: string
+          const: poll
+        question:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        allow_multiple:
+          type: boolean
+
+    SurveyConfig:
+      type: object
+      required:
+        - config_type
+        - questions
+      properties:
+        config_type:
+          type: string
+          const: survey
+        questions:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/TextQuestion'
+              - $ref: '#/components/schemas/MultipleChoiceQuestion'
+              - $ref: '#/components/schemas/RatingQuestion'
+
+    # Text styling (anyOf - can combine in TextBlock)
+    BoldStyle:
+      type: object
+      properties:
+        bold:
+          type: boolean
+
+    ItalicStyle:
+      type: object
+      properties:
+        italic:
+          type: boolean
+
+    HeadingStyle:
+      type: object
+      properties:
+        heading_level:
+          type: integer
+          minimum: 1
+          maximum: 6
+
+    # Supporting schemas
+    Image:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+        alt:
+          type: string
+        width:
+          type: integer
+        height:
+          type: integer
+        format:
+          type: string
+          enum: [jpeg, png, webp, svg]
+
+    VideoFormat:
+      type: object
+      properties:
+        resolution:
+          type: string
+          enum: ['720p', '1080p', '4k']
+        url:
+          type: string
+          format: uri
+        codec:
+          type: string
+
+    VideoChapter:
+      type: object
+      properties:
+        title:
+          type: string
+        start_time:
+          type: integer
+        end_time:
+          type: integer
+
+    Subtitle:
+      type: object
+      properties:
+        language:
+          type: string
+        url:
+          type: string
+          format: uri
+        label:
+          type: string
+
+    Author:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        avatar:
+          type: string
+          format: uri
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        parent_id:
+          type: string
+
+    SEOMetadata:
+      type: object
+      properties:
+        meta_title:
+          type: string
+        meta_description:
+          type: string
+        keywords:
+          type: array
+          items:
+            type: string
+        canonical_url:
+          type: string
+          format: uri
+
+    SocialMetadata:
+      type: object
+      properties:
+        og_title:
+          type: string
+        og_description:
+          type: string
+        og_image:
+          type: string
+          format: uri
+        twitter_card:
+          type: string
+          enum: [summary, summary_large_image, app, player]
+
+    TOCEntry:
+      type: object
+      properties:
+        title:
+          type: string
+        level:
+          type: integer
+        anchor:
+          type: string
+
+    QuizQuestion:
+      type: object
+      properties:
+        question:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        correct_answer:
+          type: integer
+        explanation:
+          type: string
+
+    TextQuestion:
+      type: object
+      required:
+        - question_type
+        - question
+      properties:
+        question_type:
+          type: string
+          const: text
+        question:
+          type: string
+        placeholder:
+          type: string
+        max_length:
+          type: integer
+
+    MultipleChoiceQuestion:
+      type: object
+      required:
+        - question_type
+        - question
+        - options
+      properties:
+        question_type:
+          type: string
+          const: multiple_choice
+        question:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        allow_multiple:
+          type: boolean
+
+    RatingQuestion:
+      type: object
+      required:
+        - question_type
+        - question
+      properties:
+        question_type:
+          type: string
+          const: rating
+        question:
+          type: string
+        min_value:
+          type: integer
+        max_value:
+          type: integer
+        labels:
+          type: object
+          properties:
+            min:
+              type: string
+            max:
+              type: string
+
+    # Content response wrapper
+    ContentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        published_at:
+          type: string
+          format: date-time
+        version:
+          type: integer
+
+    # Link schemas
+    SelfLink:
+      type: object
+      properties:
+        self:
+          type: string
+          format: uri
+
+    EditLink:
+      type: object
+      properties:
+        edit:
+          type: string
+          format: uri
+
+    PublishLink:
+      type: object
+      properties:
+        publish:
+          type: string
+          format: uri
+        unpublish:
+          type: string
+          format: uri

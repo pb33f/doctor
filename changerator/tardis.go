@@ -16,4 +16,5 @@ type ChangeratorConfig struct {
 	Doctor          *model.DrDocument
 	DocumentChanges *whatChangedModel.DocumentChanges
 	Logger          *slog.Logger
+	RightDocContent []byte // Raw document content for context extraction
 }

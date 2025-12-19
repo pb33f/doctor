@@ -5,9 +5,11 @@ package v3
 
 import (
 	"context"
-	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
-	"github.com/pb33f/libopenapi/orderedmap"
 	"slices"
+
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/orderedmap"
 )
 
 type Header struct {
@@ -22,6 +24,18 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 
 	drCtx := GetDrContext(ctx)
 	wg := drCtx.WaitGroup
+
+	// Check for canonical path - ensures deterministic paths for $ref'd headers
+	if drCtx.DeterministicPaths && drCtx.CanonicalPathCache != nil && header != nil {
+		if low := header.GoLow(); low != nil && low.RootNode != nil {
+			if canonicalPath, found := drCtx.CanonicalPathCache.Load(index.HashNode(low.RootNode)); found {
+				h.JSONPathOnce.Do(func() {
+					h.JSONPath = canonicalPath.(string)
+				})
+			}
+		}
+	}
+
 	h.Value = header
 	h.BuildNodesAndEdges(ctx, h.Key, "header", header, h)
 
