@@ -226,6 +226,11 @@ func (mt *MermaidTardis) visitComponentSchemaByRef(ctx context.Context, refPath 
 		return
 	}
 
+	// check if this reference is part of a circular reference chain (pre-computed by index)
+	if mt.circularRefs[refPath] {
+		return // circular reference detected, don't recurse
+	}
+
 	schemaName := ExtractSchemaNameFromReference(refPath)
 
 	// try to get from document if available
