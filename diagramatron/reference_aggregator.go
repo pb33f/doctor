@@ -5,6 +5,7 @@ package diagramatron
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -91,6 +92,17 @@ func (ra *ReferenceAggregator) Aggregate(relationships []*DiagramRelationship) [
 
 	// add back non-aggregated relationships
 	merged = append(merged, otherRels...)
+
+	// sort for deterministic output
+	sort.Slice(merged, func(i, j int) bool {
+		if merged[i].SourceID != merged[j].SourceID {
+			return merged[i].SourceID < merged[j].SourceID
+		}
+		if merged[i].TargetID != merged[j].TargetID {
+			return merged[i].TargetID < merged[j].TargetID
+		}
+		return merged[i].Label < merged[j].Label
+	})
 
 	return merged
 }

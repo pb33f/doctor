@@ -13,19 +13,20 @@ import (
 
 // MermaidTardis implements the Tardis visitor pattern for generating mermaid diagrams
 type MermaidTardis struct {
-	diagram              *MermaidDiagram
-	doctor               v3.Doctor
-	document             *v3.Document // store document reference for component lookups
-	visited              map[string]bool
-	depth                int
-	relationshipAnalyzer *RelationshipAnalyzer
+	diagram               *MermaidDiagram
+	doctor                v3.Doctor
+	document              *v3.Document // store document reference for component lookups
+	visited               map[string]bool
+	circularRefs          map[string]bool // pre-computed circular reference paths from index
+	depth                 int
+	relationshipAnalyzer  *RelationshipAnalyzer
 	discriminatorAnalyzer *discriminatorAnalyzer
-	enumAnalyzer         *EnumAnalyzer
-	propertyAnalyzer     *PropertyAnalyzer
-	inheritanceAnalyzer  *InheritanceAnalyzer
-	externalRefHandler   *ExternalReferenceHandler
-	usageAnalyzer        *ComponentUsageAnalyzer
-	refAggregator        *ReferenceAggregator
+	enumAnalyzer          *EnumAnalyzer
+	propertyAnalyzer      *PropertyAnalyzer
+	inheritanceAnalyzer   *InheritanceAnalyzer
+	externalRefHandler    *ExternalReferenceHandler
+	usageAnalyzer         *ComponentUsageAnalyzer
+	refAggregator         *ReferenceAggregator
 }
 
 func NewMermaidTardis(config *MermaidConfig) *MermaidTardis {
@@ -405,6 +406,7 @@ func (mt *MermaidTardis) findAndStoreDocument(entry v3.Foundational) {
 	// check if entry itself is a Document
 	if doc, ok := entry.(*v3.Document); ok {
 		mt.document = doc
+		mt.populateCircularRefs()
 		return
 	}
 
@@ -413,12 +415,46 @@ func (mt *MermaidTardis) findAndStoreDocument(entry v3.Foundational) {
 	for current != nil {
 		if doc, ok := current.(*v3.Document); ok {
 			mt.document = doc
+			mt.populateCircularRefs()
 			return
 		}
 		if f, ok := current.(v3.Foundational); ok {
 			current = f.GetParent()
 		} else {
 			break
+		}
+	}
+}
+
+// populateCircularRefs extracts circular reference paths from the index
+// This uses the pre-computed circular references from libopenapi's index
+func (mt *MermaidTardis) populateCircularRefs() {
+	mt.circularRefs = make(map[string]bool)
+
+	if mt.document == nil || mt.document.Document == nil {
+		return
+	}
+
+	idx := mt.document.Document.GetIndex()
+	if idx == nil {
+		return
+	}
+
+	// get all types of circular references
+	circRefs := idx.GetCircularReferences()
+	polyRefs := idx.GetIgnoredPolymorphicCircularReferences()
+	arrayRefs := idx.GetIgnoredArrayCircularReferences()
+
+	// combine all circular reference types
+	allCircRefs := append(circRefs, polyRefs...)
+	allCircRefs = append(allCircRefs, arrayRefs...)
+
+	// build map of circular reference paths for quick lookup
+	for _, ref := range allCircRefs {
+		if ref.LoopPoint != nil {
+			// store both the full definition and the definition (local path)
+			mt.circularRefs[ref.LoopPoint.FullDefinition] = true
+			mt.circularRefs[ref.LoopPoint.Definition] = true
 		}
 	}
 }
