@@ -44,6 +44,8 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		n.Width = 50
 		n.Height = 50
 		n.Label = "Document"
+		n.Id = "root"
+		n.IdHash = "root"
 		drCtx.NodeChan <- n
 	}
 

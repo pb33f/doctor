@@ -65,8 +65,11 @@ func (rt *RolodexTree) BuildTree(base string, baseUrl string) *Node {
 
 	if len(indexes) == 0 && rootIndex != nil {
 		// there is only a single document, no need for a tree, return root node
-		root.StringValue = "/root.yaml"
-		root.FullPath = "/root.yaml"
+		path := rt.indexConfig.SpecFilePath
+		fullPath := strings.ReplaceAll(path, base, "")
+		root.IsRoot = true
+		root.StringValue = fullPath
+		root.FullPath = path
 		rt.Root = root
 		return root
 	}
