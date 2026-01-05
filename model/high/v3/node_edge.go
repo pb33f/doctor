@@ -1,4 +1,4 @@
-// Copyright 2023-2024 Princess Beef Heavy Industries, LLC / Dave Shanley
+// Copyright 2023-2026 Princess Beef Heavy Industries, LLC / Dave Shanley
 // https://pb33f.io
 
 package v3
@@ -8,7 +8,9 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+
 	"github.com/google/uuid"
+	"github.com/pb33f/doctor/helpers"
 	"github.com/pb33f/libopenapi/datamodel/high"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/index"
@@ -235,7 +237,6 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 					}
 				}
 			}
-			propMap["instance"] = n.Instance
 			if gl, ok := n.Instance.(high.GoesLowUntyped); ok {
 
 				if _, kk := n.Instance.(high.Renderable); kk {
@@ -248,12 +249,17 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 							if r.IsReference() {
 								enc = make(map[string]interface{})
 								enc["$ref"] = r.GetReference()
+								propMap["instance"] = enc
 							} else {
 								_ = rn.GetRootNode().Decode(&enc)
+								propMap["instance"] = helpers.ConvertInterfaceMapKeys(enc)
 							}
 						}
-						propMap["instance"] = enc
 					}
+				}
+			} else {
+				if _, kk := n.Instance.(map[string]interface{}); kk {
+					propMap["instance"] = n.Instance
 				}
 			}
 		}
@@ -268,7 +274,11 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 
 	if n.RenderProps {
 		if n.Children != nil && len(n.Children) > 0 {
-			propMap["nodes"] = n.Children
+			kids := make([]string, 0, len(n.Children))
+			for _, c := range n.Children {
+				kids = append(kids, c.Id)
+			}
+			propMap["nodes"] = kids
 		}
 	}
 

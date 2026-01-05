@@ -1,4 +1,4 @@
-// Copyright 2023-2024 Princess Beef Heavy Industries, LLC / Dave Shanley
+// Copyright 2023-2026 Princess Beef Heavy Industries, LLC / Dave Shanley
 // https://pb33f.io
 
 package gopher
@@ -17,6 +17,7 @@ import (
 type Node struct {
 	Children      map[string]*Node
 	FullPath      string
+	IsRoot        bool
 	Parent        *Node
 	StringValue   string
 	Id            string
@@ -65,6 +66,9 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 	}
 	if n.showContent {
 		m["instance"] = n.GetString()
+	}
+	if n.IsRoot {
+		m["root"] = true
 	}
 	return json.Marshal(m)
 }
