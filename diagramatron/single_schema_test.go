@@ -59,7 +59,8 @@ func TestSingleResponseSchema_IncludesReferencedComponents(t *testing.T) {
 	assert.Contains(t, result, "trip_id", "Booking should have trip_id property")
 
 	// 5. CreateBooking201Response should only have links, not Booking properties
-	assert.Contains(t, result, "Links-Self? links", "CreateBooking201Response should have links property")
+	// Note: Links-Self is sanitized to Links_Self for mermaid compatibility
+	assert.Contains(t, result, "Links_Self? links", "CreateBooking201Response should have links property")
 
 	// 6. Should show proper relationships
 	assert.Contains(t, result, "Booking <|-- CreateBooking201Response : extends", "Should inherit from Booking")

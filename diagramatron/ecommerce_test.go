@@ -46,9 +46,9 @@ func TestECommerce_CreateOrderRequest(t *testing.T) {
 	assert.Contains(t, result, "class Dimensions", "Should have Dimensions component class")
 	assert.Contains(t, result, "class Address", "Should have Address component class")
 
-	// 3. Property types for oneOf should be 'oneOf'
-	assert.Contains(t, result, "+oneOf? payment", "Payment should be oneOf type")
-	assert.Contains(t, result, "+oneOf? fulfillment", "Fulfillment should be oneOf type")
+	// 3. Property types for oneOf should show union type notation (UML standard)
+	assert.Contains(t, result, "+CardPayment | BankTransferPayment | DigitalWalletPayment? payment", "Payment should be union type")
+	assert.Contains(t, result, "+ShippingFulfillment | PickupFulfillment | DigitalFulfillment? fulfillment", "Fulfillment should be union type")
 
 	// 4. Should NOT have generated type names
 	assert.NotContains(t, result, "schemas_CreateOrderRequest_Payment", "Should not have generated payment type name")
@@ -77,6 +77,6 @@ func TestECommerce_CreateOrderRequest(t *testing.T) {
 	assert.Contains(t, result, "OrderItem --> GiftWrap : customization", "Should relate to GiftWrap")
 	assert.Contains(t, result, "OrderItem --> CustomMessage : customization", "Should relate to CustomMessage")
 
-	// 10. Property type for anyOf should be 'anyOf'
-	assert.Contains(t, result, "+anyOf? customization", "Customization should be anyOf type")
+	// 10. Property type for anyOf should show union type notation (UML standard)
+	assert.Contains(t, result, "+Engraving | GiftWrap | CustomMessage? customization", "Customization should be union type")
 }

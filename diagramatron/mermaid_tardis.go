@@ -19,6 +19,7 @@ type MermaidTardis struct {
 	visited               map[string]bool
 	circularRefs          map[string]bool // pre-computed circular reference paths from index
 	depth                 int
+	entryPoint            v3.Foundational // tracks the entry schema to avoid skipping it
 	relationshipAnalyzer  *RelationshipAnalyzer
 	discriminatorAnalyzer *discriminatorAnalyzer
 	enumAnalyzer          *EnumAnalyzer
@@ -100,8 +101,9 @@ func (mt *MermaidTardis) Visit(ctx context.Context, object any) {
 		mt.visitComponents(ctx, obj)
 	case *v3.Schema:
 		// check if this schema is a composition member (allOf/oneOf/anyOf) of a parent
-		// if so, skip it (the parent will handle it)
-		if mt.isCompositionMemberOfParent(obj) {
+		// if so, skip it (the parent will handle it) - UNLESS this is the entry point
+		isEntryPoint := mt.entryPoint != nil && mt.entryPoint == obj
+		if !isEntryPoint && mt.isCompositionMemberOfParent(obj) {
 			return // skip this composition member
 		}
 		mt.visitSchema(ctx, obj)
@@ -382,6 +384,9 @@ func Mermaidify(ctx context.Context, entry v3.Foundational, config *MermaidConfi
 	}
 
 	tardis := NewMermaidTardis(config)
+
+	// track the entry point so we don't skip it even if it's a composition member
+	tardis.entryPoint = entry
 
 	// try to find the document by traversing up the parent chain
 	tardis.findAndStoreDocument(entry)

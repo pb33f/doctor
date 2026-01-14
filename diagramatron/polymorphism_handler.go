@@ -103,7 +103,8 @@ func (mt *MermaidTardis) createPolymorphicPlaceholder(ctx context.Context, schem
 }
 
 // handlePropertyPolymorphism handles property-level oneOf/anyOf.
-// Shows direct relationships to all variants without creating a placeholder.
+// Shows direct relationships to object types only - scalars are shown in the type annotation.
+// This follows UML best practices: primitives are type annotations, not classes.
 func (mt *MermaidTardis) handlePropertyPolymorphism(ctx context.Context, parentID, propName string, propSchema *base.Schema) {
 	if propSchema == nil {
 		return
@@ -118,13 +119,19 @@ func (mt *MermaidTardis) handlePropertyPolymorphism(ctx context.Context, parentI
 		return
 	}
 
-	// create direct relationships to each variant (no placeholder)
+	// create relationships only for non-scalar variants (object types)
+	// scalars are already represented in the union type annotation (e.g., "string | file")
 	for i, variantProxy := range variants {
 		if variantProxy == nil {
 			continue
 		}
 
-		// visit the variant schema
+		// skip simple scalar types - they don't need classes or relationships in UML
+		if mt.isSimpleScalarVariant(variantProxy) {
+			continue
+		}
+
+		// visit the variant schema and create relationship
 		if variantProxy.IsReference() {
 			mt.visitComponentSchemaByRef(ctx, variantProxy.GetReference())
 			variantID := ExtractSchemaNameFromReference(variantProxy.GetReference())
@@ -137,30 +144,87 @@ func (mt *MermaidTardis) handlePropertyPolymorphism(ctx context.Context, parentI
 				Label:  propName,
 			})
 		} else {
-			// handle inline variants
+			// handle inline object variants (with title or properties)
 			variantSchema := variantProxy.Schema()
 			if variantSchema == nil {
 				continue
 			}
 
-			// check if config allows rendering titled inline schemas as separate classes
+			// determine variant ID based on config and whether it has a title
 			var variantID string
 			if mt.diagram.Config.RenderTitledInlineSchema && variantSchema.Title != "" {
-				// inline variant with title - create a separate class
+				// titled inline - use the title
 				variantID = sanitizeID(variantSchema.Title)
-			} else {
-				// no title or config disabled - use indexed ID to avoid collisions
+			} else if variantSchema.Properties != nil && variantSchema.Properties.Len() > 0 {
+				// anonymous inline object with properties - use indexed ID
 				variantID = fmt.Sprintf("%s_%s_%d", parentID, propName, i)
+			} else {
+				// anonymous inline without properties - skip (represented in type only)
+				continue
 			}
 
-			// create the class for this inline variant
 			mt.createInlineVariantClass(ctx, variantID, variantSchema)
 
-			// add relationship from parent to variant
 			mt.diagram.AddRelationship(&MermaidRelationship{
 				Source: parentID,
 				Target: variantID,
 				Type:   RelationAssociation,
+				Label:  propName,
+			})
+		}
+	}
+}
+
+// handlePropertyAllOf handles property-level allOf composition.
+// Creates composition relationships to all allOf members.
+func (mt *MermaidTardis) handlePropertyAllOf(ctx context.Context, parentID, propName string, propSchema *base.Schema) {
+	if propSchema == nil || len(propSchema.AllOf) == 0 {
+		return
+	}
+
+	// create composition relationships to each allOf member
+	for i, allOfProxy := range propSchema.AllOf {
+		if allOfProxy == nil {
+			continue
+		}
+
+		// visit the allOf member schema
+		if allOfProxy.IsReference() {
+			mt.visitComponentSchemaByRef(ctx, allOfProxy.GetReference())
+			targetID := ExtractSchemaNameFromReference(allOfProxy.GetReference())
+
+			// composition relationship (stronger than association)
+			mt.diagram.AddRelationship(&MermaidRelationship{
+				Source: parentID,
+				Target: targetID,
+				Type:   RelationComposition,
+				Label:  propName,
+			})
+		} else {
+			// handle inline allOf members
+			allOfSchema := allOfProxy.Schema()
+			if allOfSchema == nil {
+				continue
+			}
+
+			// check if config allows rendering titled inline schemas as separate classes
+			var targetID string
+			if mt.diagram.Config.RenderTitledInlineSchema && allOfSchema.Title != "" {
+				// inline member with title - create a separate class
+				targetID = sanitizeID(allOfSchema.Title)
+			} else {
+				// no title or config disabled - use indexed ID
+				targetID = fmt.Sprintf("%s_%s_allOf_%d", parentID, propName, i)
+			}
+
+			// create the class for this inline member
+			mt.createInlineVariantClass(ctx, targetID, allOfSchema)
+
+			// add composition relationship
+			mt.diagram.AddRelationship(&MermaidRelationship{
+				Source: parentID,
+				Target: targetID,
+				Type:   RelationComposition,
 				Label:  propName,
 			})
 		}

@@ -47,9 +47,9 @@ func TestECommerce_OrderSchema(t *testing.T) {
 	// 3. Should show relationship to OrderItem
 	assert.Contains(t, result, "Order *-- OrderItem : items 0..*", "Should have relationship to OrderItem")
 
-	// 4. Polymorphic properties should be 'oneOf' or 'anyOf' (# means required/protected)
-	assert.Contains(t, result, "#oneOf payment", "Payment should be oneOf type (required)")
-	assert.Contains(t, result, "#oneOf fulfillment", "Fulfillment should be oneOf type (required)")
+	// 4. Polymorphic properties should show union type notation (# means required/protected)
+	assert.Contains(t, result, "#CardPayment | BankTransferPayment | DigitalWalletPayment payment", "Payment should be union type (required)")
+	assert.Contains(t, result, "#ShippingFulfillment | PickupFulfillment | DigitalFulfillment fulfillment", "Fulfillment should be union type (required)")
 
 	// 5. Should show relationships to all payment variants
 	assert.Contains(t, result, "Order --> CardPayment : payment", "Should relate to CardPayment")
