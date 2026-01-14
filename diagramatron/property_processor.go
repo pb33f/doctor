@@ -6,6 +6,7 @@ package diagramatron
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 )
@@ -13,11 +14,13 @@ import (
 // PropertyTypeResult holds the result of property type determination.
 // This struct captures all information needed to create properties and relationships.
 type PropertyTypeResult struct {
-	Type        string // the resolved type string (e.g., "string?", "Card", "oneOf")
-	IsRef       bool   // true if this property is a direct $ref
-	IsArray     bool   // true if this property is an array type
-	RefPath     string // reference path if IsRef is true
-	ItemRefPath string // array item reference path if IsArray and items are $ref
+	Type          string   // the resolved type string (e.g., "string?", "Card", "oneOf")
+	IsRef         bool     // true if this property is a direct $ref
+	IsArray       bool     // true if this property is an array type
+	IsAllOf       bool     // true if this property has allOf composition
+	RefPath       string   // reference path if IsRef is true
+	ItemRefPath   string   // array item reference path if IsArray and items are $ref
+	AllOfRefPaths []string // reference paths for allOf members
 }
 
 // buildPropertyDisplayName adds annotations to a property name including enum, readOnly/writeOnly/deprecated, and format.
@@ -70,7 +73,8 @@ func (mt *MermaidTardis) determinePropertyType(
 	if propSchemaProxy.IsReference() {
 		result.IsRef = true
 		result.RefPath = propSchemaProxy.GetReference()
-		result.Type = ExtractSchemaNameFromReference(result.RefPath)
+		// sanitize the type name to match the class ID (e.g., Links-Self -> Links_Self)
+		result.Type = sanitizeID(ExtractSchemaNameFromReference(result.RefPath))
 		if !requiredMap[propName] {
 			result.Type += "?"
 		}
@@ -84,7 +88,8 @@ func (mt *MermaidTardis) determinePropertyType(
 			if itemProxy := propSchema.Items.A; itemProxy != nil && itemProxy.IsReference() {
 				// array of referenced type
 				result.ItemRefPath = itemProxy.GetReference()
-				itemType := ExtractSchemaNameFromReference(result.ItemRefPath)
+				// sanitize the type name to match the class ID
+				itemType := sanitizeID(ExtractSchemaNameFromReference(result.ItemRefPath))
 				result.Type = fmt.Sprintf("%s[]", itemType)
 			} else {
 				// array of inline type
@@ -101,27 +106,63 @@ func (mt *MermaidTardis) determinePropertyType(
 		return result
 	}
 
-	// check for oneOf polymorphism
+	// check for oneOf polymorphism (multiple options)
 	if propSchema != nil && propSchema.OneOf != nil && len(propSchema.OneOf) > 1 {
-		result.Type = "oneOf"
+		result.Type = mt.buildUnionTypeString(propSchema.OneOf)
 		if !requiredMap[propName] {
 			result.Type += "?"
 		}
 		return result
 	}
 
-	// check for anyOf polymorphism
+	// check for anyOf polymorphism (multiple options)
 	if propSchema != nil && propSchema.AnyOf != nil && len(propSchema.AnyOf) > 1 {
-		result.Type = "anyOf"
+		result.Type = mt.buildUnionTypeString(propSchema.AnyOf)
 		if !requiredMap[propName] {
 			result.Type += "?"
 		}
 		return result
+	}
+
+	// check for single-option oneOf (nullable reference pattern in OAS 3.0)
+	// e.g., anyOf: [{$ref: '#/components/schemas/Foo'}] with nullable: true
+	if propSchema != nil && propSchema.OneOf != nil && len(propSchema.OneOf) == 1 {
+		singleOption := propSchema.OneOf[0]
+		if singleOption != nil && singleOption.IsReference() {
+			result.IsRef = true
+			result.RefPath = singleOption.GetReference()
+			result.Type = sanitizeID(ExtractSchemaNameFromReference(result.RefPath))
+			// single-option oneOf is typically nullable, so always add ?
+			result.Type += "?"
+			return result
+		}
+	}
+
+	// check for single-option anyOf (nullable reference pattern in OAS 3.0)
+	if propSchema != nil && propSchema.AnyOf != nil && len(propSchema.AnyOf) == 1 {
+		singleOption := propSchema.AnyOf[0]
+		if singleOption != nil && singleOption.IsReference() {
+			result.IsRef = true
+			result.RefPath = singleOption.GetReference()
+			result.Type = sanitizeID(ExtractSchemaNameFromReference(result.RefPath))
+			// single-option anyOf is typically nullable, so always add ?
+			result.Type += "?"
+			return result
+		}
 	}
 
 	// check for allOf composition
-	if propSchema != nil && propSchema.AllOf != nil {
-		result.Type = "any"
+	if propSchema != nil && len(propSchema.AllOf) > 0 {
+		result.IsAllOf = true
+		result.Type = "allOf"
+
+		// collect reference paths for allOf members
+		for _, allOfProxy := range propSchema.AllOf {
+			if allOfProxy != nil && allOfProxy.IsReference() {
+				result.AllOfRefPaths = append(result.AllOfRefPaths, allOfProxy.GetReference())
+			}
+		}
+
 		if !requiredMap[propName] {
 			result.Type += "?"
 		}
@@ -144,9 +185,16 @@ func (mt *MermaidTardis) createPropertyRelationships(
 	typeResult *PropertyTypeResult,
 ) {
 	// check if property has oneOf/anyOf (property-level polymorphism)
-	if propSchema != nil && ((propSchema.OneOf != nil && len(propSchema.OneOf) > 1) || (propSchema.AnyOf != nil && len(propSchema.AnyOf) > 1)) {
+	if propSchema != nil && ((len(propSchema.OneOf) > 1) || (len(propSchema.AnyOf) > 1)) {
 		// property-level polymorphism: show direct relationships to ALL variants (no placeholder)
 		mt.handlePropertyPolymorphism(ctx, parentID, propName, propSchema)
+		return
+	}
+
+	// check if property has allOf composition
+	if propSchema != nil && len(propSchema.AllOf) > 0 {
+		// property-level composition: show relationships to ALL allOf members
+		mt.handlePropertyAllOf(ctx, parentID, propName, propSchema)
 		return
 	}
 
@@ -183,4 +231,103 @@ func (mt *MermaidTardis) createPropertyRelationships(
 			Cardinality: cardinality,
 		})
 	}
+}
+
+// buildUnionTypeString builds a UML-style union type string from oneOf/anyOf variants.
+// For example: "string | file" or "Card | BankAccount"
+// Primitives are shown as type names, $refs as schema names.
+func (mt *MermaidTardis) buildUnionTypeString(variants []*base.SchemaProxy) string {
+	if len(variants) == 0 {
+		return "any"
+	}
+
+	var typeNames []string
+	for _, variant := range variants {
+		if variant == nil {
+			continue
+		}
+
+		typeName := mt.getVariantTypeName(variant)
+		if typeName != "" {
+			typeNames = append(typeNames, typeName)
+		}
+	}
+
+	if len(typeNames) == 0 {
+		return "any"
+	}
+
+	return strings.Join(typeNames, " | ")
+}
+
+// getVariantTypeName returns the type name for a polymorphic variant.
+// For $refs: returns the schema name (sanitized)
+// For inline schemas: returns the type (e.g., "string", "integer") or title if available
+func (mt *MermaidTardis) getVariantTypeName(variant *base.SchemaProxy) string {
+	if variant == nil {
+		return ""
+	}
+
+	// check for $ref
+	if variant.IsReference() {
+		return sanitizeID(ExtractSchemaNameFromReference(variant.GetReference()))
+	}
+
+	// inline schema - get the type
+	schema := variant.Schema()
+	if schema == nil {
+		return ""
+	}
+
+	// prefer title if available (for titled inline schemas)
+	if schema.Title != "" {
+		return sanitizeID(schema.Title)
+	}
+
+	// use the type
+	if len(schema.Type) > 0 {
+		return schema.Type[0]
+	}
+
+	return "object"
+}
+
+// isSimpleScalarVariant checks if a variant is a simple scalar type (string, number, integer, boolean)
+// that should NOT have a class created for it in UML.
+func (mt *MermaidTardis) isSimpleScalarVariant(variant *base.SchemaProxy) bool {
+	if variant == nil {
+		return true
+	}
+
+	// $refs are never simple scalars - they reference defined schemas
+	if variant.IsReference() {
+		return false
+	}
+
+	// check inline schema
+	schema := variant.Schema()
+	if schema == nil {
+		return true
+	}
+
+	// if it has a title, treat as a named type (not a simple scalar)
+	if schema.Title != "" {
+		return false
+	}
+
+	// if it has properties, it's an object
+	if schema.Properties != nil && schema.Properties.Len() > 0 {
+		return false
+	}
+
+	// check for scalar types
+	if len(schema.Type) > 0 {
+		t := schema.Type[0]
+		switch t {
+		case "string", "number", "integer", "boolean", "null":
+			return true
+		}
+	}
+
+	return false
 }

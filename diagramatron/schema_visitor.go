@@ -226,21 +226,99 @@ func (mt *MermaidTardis) visitComponentSchemaByRef(ctx context.Context, refPath 
 		return
 	}
 
-	// check if this reference is part of a circular reference chain (pre-computed by index)
-	if mt.circularRefs[refPath] {
-		return // circular reference detected, don't recurse
+	schemaName := ExtractSchemaNameFromReference(refPath)
+
+	// check if we've already created a class for this schema
+	if mt.diagram.HasClass(schemaName) {
+		return // already created, skip to avoid duplicates
 	}
 
-	schemaName := ExtractSchemaNameFromReference(refPath)
+	// check if this reference is part of a circular reference chain (pre-computed by index)
+	isCircular := mt.circularRefs[refPath]
 
 	// try to get from document if available
 	if mt.document != nil && mt.document.Components != nil && mt.document.Components.Schemas != nil {
 		componentSchemaProxy := mt.document.Components.Schemas.GetOrZero(schemaName)
 		if componentSchemaProxy != nil && componentSchemaProxy.Schema != nil {
-			// visit the actual component schema
-			mt.visitSchema(ctx, componentSchemaProxy.Schema)
+			if isCircular {
+				// for circular refs, create a basic class but don't recurse into properties
+				// this ensures the schema is rendered without causing infinite loops
+				mt.createCircularRefClass(schemaName, componentSchemaProxy.Schema)
+			} else {
+				// visit the actual component schema normally
+				mt.visitSchema(ctx, componentSchemaProxy.Schema)
+			}
 		}
 	}
+}
+
+// createCircularRefClass creates a basic class for a circular reference schema
+// This renders the schema's properties but doesn't recurse into nested references
+// to avoid infinite loops
+func (mt *MermaidTardis) createCircularRefClass(schemaName string, schema *v3.Schema) {
+	if schema == nil || schema.Value == nil {
+		return
+	}
+
+	class := NewMermaidClass(schemaName, schemaName)
+
+	// set type annotation
+	if len(schema.Value.Type) > 0 {
+		class.Annotations = append(class.Annotations, schema.Value.Type[0])
+	}
+
+	// add circular annotation to make it very clear this is a circular reference
+	class.Annotations = append(class.Annotations, "circular")
+
+	// add a property marker at the top to indicate circular reference
+	class.AddProperty(&MermaidMember{
+		Name:       "(circular ref)",
+		Type:       "",
+		Visibility: "+",
+	})
+
+	// add properties (but don't recurse into property relationships)
+	if schema.Value.Properties != nil {
+		requiredMap := CreateRequiredMap(schema.Value.Required)
+		count := 0
+		maxProps := mt.diagram.Config.MaxProperties
+
+		for propPair := schema.Value.Properties.First(); propPair != nil; propPair = propPair.Next() {
+			if maxProps > 0 && count >= maxProps {
+				break
+			}
+
+			propName := propPair.Key()
+			propSchemaProxy := propPair.Value()
+			if propSchemaProxy == nil {
+				continue
+			}
+
+			propSchema := propSchemaProxy.Schema()
+			typeResult := mt.determinePropertyType(propSchemaProxy, propSchema, propName, requiredMap)
+			displayName := mt.buildPropertyDisplayName(propName, propSchema)
+			visibility := mt.propertyAnalyzer.DetermineVisibility(propName, propSchema, requiredMap)
+
+			class.AddProperty(&MermaidMember{
+				Name:       displayName,
+				Type:       typeResult.Type,
+				Visibility: string(visibility),
+			})
+
+			count++
+		}
+
+		// show truncation message if needed
+		if maxProps > 0 && schema.Value.Properties.Len() > maxProps {
+			class.AddProperty(&MermaidMember{
+				Name:       fmt.Sprintf("... +%d more", schema.Value.Properties.Len()-maxProps),
+				Type:       "",
+				Visibility: "+",
+			})
+		}
+	}
+
+	mt.diagram.AddClass(class)
 }
 
 // isSimplePrimitive determines if a schema is too simple to warrant its own class

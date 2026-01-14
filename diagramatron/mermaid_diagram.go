@@ -37,6 +37,12 @@ func (md *MermaidDiagram) AddClass(class *MermaidClass) {
 	}
 }
 
+// HasClass checks if a class with the given ID already exists in the diagram
+func (md *MermaidDiagram) HasClass(id string) bool {
+	_, exists := md.Classes[id]
+	return exists
+}
+
 // AddRelationship adds a relationship between classes
 func (md *MermaidDiagram) AddRelationship(rel *MermaidRelationship) {
 	// check for exact duplicates (including label and cardinality)

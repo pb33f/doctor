@@ -44,9 +44,10 @@ func TestPolymorphism_PropertyLevelOneOf(t *testing.T) {
 	// 1. Should have BookingPayment class
 	assert.Contains(t, result, "class BookingPayment", "Should have BookingPayment class")
 
-	// 2. Should have Card and BankAccount classes (oneOf variants)
+	// 2. Should have Card and Bank_Account classes (oneOf variants)
+	// Note: "Bank Account" title gets sanitized to "Bank_Account"
 	assert.Contains(t, result, "class Card", "Should have Card variant class")
-	assert.Contains(t, result, "class BankAccount", "Should have BankAccount variant class")
+	assert.Contains(t, result, "class Bank_Account", "Should have Bank_Account variant class")
 
 	// 3. Should NOT create a placeholder for property-level oneOf
 	assert.NotContains(t, result, "<<oneOf>>", "Should not create placeholder for property-level oneOf")
@@ -54,20 +55,64 @@ func TestPolymorphism_PropertyLevelOneOf(t *testing.T) {
 
 	// 4. Should show direct relationships from BookingPayment to both variants
 	assert.Contains(t, result, "BookingPayment --> Card : source", "Should have relationship to Card")
-	assert.Contains(t, result, "BookingPayment --> BankAccount : source", "Should have relationship to BankAccount")
+	assert.Contains(t, result, "BookingPayment --> Bank_Account : source", "Should have relationship to Bank_Account")
 
-	// 5. Should have normal properties on BookingPayment
+	// 5. Should have union type annotation for the source property
+	assert.Contains(t, result, "Card | Bank_Account", "Should have union type annotation")
+
+	// 6. Should have normal properties on BookingPayment
 	assert.Contains(t, result, "id", "Should have id property")
 	assert.Contains(t, result, "amount", "Should have amount property")
 	assert.Contains(t, result, "status", "Should have status property")
 }
 
 func TestPolymorphism_SchemaLevelOneOf(t *testing.T) {
-	// load the train-travel spec
-	specBytes, err := os.ReadFile("../test_specs/train-travel.yaml")
-	require.NoError(t, err)
+	// Test schema-level oneOf - creates placeholder class with inheritance to variants
+	specYaml := `
+openapi: 3.1.0
+info:
+  title: Schema Level OneOf Test
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    PaymentResponse:
+      oneOf:
+        - $ref: '#/components/schemas/PaymentSucceeded'
+        - $ref: '#/components/schemas/PaymentPending'
+      discriminator:
+        propertyName: status
+    PaymentSucceeded:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          const: succeeded
+        amount:
+          type: number
+      required:
+        - id
+        - status
+    PaymentPending:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          const: pending
+        retryAfter:
+          type: integer
+      required:
+        - id
+        - status
+`
 
-	doc, err := libopenapi.NewDocument(specBytes)
+	doc, err := libopenapi.NewDocument([]byte(specYaml))
 	require.NoError(t, err)
 
 	v3Model, errs := doc.BuildV3Model()
@@ -76,26 +121,13 @@ func TestPolymorphism_SchemaLevelOneOf(t *testing.T) {
 	drDoc := model.NewDrDocument(v3Model)
 	require.NotNil(t, drDoc)
 
-	// Get POST /bookings/{bookingId}/payment 200 response (oneOf at schema level)
-	paths := drDoc.V3Document.Paths
-	paymentPath := paths.PathItems.GetOrZero("/bookings/{bookingId}/payment")
-	require.NotNil(t, paymentPath)
-
-	postOp := paymentPath.Post
-	require.NotNil(t, postOp)
-
-	response200 := postOp.Responses.Codes.GetOrZero("200")
-	require.NotNil(t, response200)
-
-	jsonContent := response200.Content.GetOrZero("application/json")
-	require.NotNil(t, jsonContent)
-
-	schema := jsonContent.SchemaProxy
-	require.NotNil(t, schema)
+	// Get the PaymentResponse schema (schema-level oneOf)
+	paymentResponse := drDoc.V3Document.Components.Schemas.GetOrZero("PaymentResponse")
+	require.NotNil(t, paymentResponse)
 
 	// render the schema
 	config := DefaultMermaidConfig()
-	diagram := Mermaidify(context.Background(), schema, config)
+	diagram := Mermaidify(context.Background(), paymentResponse, config)
 	require.NotNil(t, diagram)
 
 	result := diagram.Render()
@@ -103,7 +135,7 @@ func TestPolymorphism_SchemaLevelOneOf(t *testing.T) {
 
 	// expectations for schema-level oneOf:
 	// 1. Should create a placeholder with _Choice suffix
-	assert.Contains(t, result, "CreateBookingPayment200Response_Choice", "Should have placeholder with _Choice suffix")
+	assert.Contains(t, result, "PaymentResponse_Choice", "Should have placeholder with _Choice suffix")
 	assert.Contains(t, result, "<<interface>>", "Placeholder should use interface stereotype (renders in Mermaid)")
 	assert.Contains(t, result, "(oneOf)", "Placeholder should show (oneOf) indicator")
 
@@ -112,8 +144,8 @@ func TestPolymorphism_SchemaLevelOneOf(t *testing.T) {
 	assert.Contains(t, result, "class PaymentPending", "Should have PaymentPending variant")
 
 	// 3. Should show inheritance from placeholder to variants
-	assert.Contains(t, result, "CreateBookingPayment200Response_Choice <|-- PaymentSucceeded", "Should inherit to PaymentSucceeded")
-	assert.Contains(t, result, "CreateBookingPayment200Response_Choice <|-- PaymentPending", "Should inherit to PaymentPending")
+	assert.Contains(t, result, "PaymentResponse_Choice <|-- PaymentSucceeded", "Should inherit to PaymentSucceeded")
+	assert.Contains(t, result, "PaymentResponse_Choice <|-- PaymentPending", "Should inherit to PaymentPending")
 
 	// 4. Variant classes should have discriminator property (status with const value)
 	assert.Contains(t, result, "status", "Variants should have status discriminator")
@@ -405,5 +437,178 @@ components:
 	assert.Contains(t, result, "id", "Should have flattened id property")
 	assert.Contains(t, result, "amount", "Should have flattened amount property")
 	assert.Contains(t, result, "notes", "Should have flattened notes property")
+}
+
+func TestPolymorphism_PropertyLevelAllOf(t *testing.T) {
+	// Test property-level allOf - a property that is an allOf of multiple schemas
+	// This is different from schema-level allOf (inheritance pattern)
+	specYaml := `
+openapi: 3.1.0
+info:
+  title: Property AllOf Test
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Response:
+      type: object
+      properties:
+        links:
+          allOf:
+            - $ref: '#/components/schemas/Links-Self'
+            - $ref: '#/components/schemas/Links-Pagination'
+    Links-Self:
+      type: object
+      properties:
+        self:
+          type: string
+          format: uri
+    Links-Pagination:
+      type: object
+      properties:
+        next:
+          type: string
+          format: uri
+        prev:
+          type: string
+          format: uri
+`
+
+	doc, err := libopenapi.NewDocument([]byte(specYaml))
+	require.NoError(t, err)
+
+	v3Model, errs := doc.BuildV3Model()
+	require.Empty(t, errs)
+
+	drDoc := model.NewDrDocument(v3Model)
+	require.NotNil(t, drDoc)
+
+	response := drDoc.V3Document.Components.Schemas.GetOrZero("Response")
+	require.NotNil(t, response)
+
+	config := DefaultMermaidConfig()
+	diagram := Mermaidify(context.Background(), response, config)
+	require.NotNil(t, diagram)
+
+	result := diagram.Render()
+	t.Logf("Generated diagram:\n%s", result)
+
+	// 1. Should have Response class with links property showing allOf type
+	assert.Contains(t, result, "class Response", "Should have Response class")
+	assert.Contains(t, result, "allOf? links", "Should show allOf type for links property")
+
+	// 2. Should have Links-Self and Links-Pagination classes
+	assert.Contains(t, result, "class Links_Self", "Should have Links_Self class")
+	assert.Contains(t, result, "class Links_Pagination", "Should have Links_Pagination class")
+
+	// 3. Should NOT create a placeholder for property-level allOf
+	assert.NotContains(t, result, "<<allOf>>", "Should not create placeholder for property-level allOf")
+	assert.NotContains(t, result, "Links_Union", "Should not create placeholder")
+	assert.NotContains(t, result, "Links_Choice", "Should not create placeholder")
+
+	// 4. Should show composition relationships from Response to both allOf members
+	assert.Contains(t, result, "Response *-- Links_Self : links", "Should have composition relationship to Links_Self")
+	assert.Contains(t, result, "Response *-- Links_Pagination : links", "Should have composition relationship to Links_Pagination")
+
+	// 5. Should have 3 classes total (Response, Links_Self, Links_Pagination)
+	assert.Equal(t, 3, len(diagram.Classes), "Should have exactly 3 classes")
+
+	// 6. Should have 2 composition relationships
+	assert.Equal(t, 2, len(diagram.Relationships), "Should have exactly 2 composition relationships")
+
+	// 7. Links classes should have their properties
+	assert.Contains(t, result, "self", "Links_Self should have self property")
+	assert.Contains(t, result, "next", "Links_Pagination should have next property")
+	assert.Contains(t, result, "prev", "Links_Pagination should have prev property")
+}
+
+// TestPolymorphism_SingleOptionAnyOf_NullableRef tests the common OAS 3.0 pattern
+// where anyOf with a single $ref is used to represent a nullable reference.
+// e.g., anyOf: [{$ref: '#/components/schemas/Foo'}] with nullable: true
+func TestPolymorphism_SingleOptionAnyOf_NullableRef(t *testing.T) {
+	specYaml := `
+openapi: "3.1.0"
+info:
+  title: Nullable Reference Test
+  version: "1.0"
+paths: {}
+components:
+  schemas:
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+        business_profile:
+          anyOf:
+            - $ref: '#/components/schemas/BusinessProfile'
+          nullable: true
+          description: Business information about the account
+        settings:
+          oneOf:
+            - $ref: '#/components/schemas/AccountSettings'
+          nullable: true
+    BusinessProfile:
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+    AccountSettings:
+      type: object
+      properties:
+        timezone:
+          type: string
+        locale:
+          type: string
+`
+
+	doc, err := libopenapi.NewDocument([]byte(specYaml))
+	require.NoError(t, err)
+
+	v3Model, errs := doc.BuildV3Model()
+	require.Empty(t, errs)
+
+	drDoc := model.NewDrDocument(v3Model)
+	require.NotNil(t, drDoc)
+
+	account := drDoc.V3Document.Components.Schemas.GetOrZero("Account")
+	require.NotNil(t, account)
+
+	config := DefaultMermaidConfig()
+	diagram := Mermaidify(context.Background(), account, config)
+	require.NotNil(t, diagram)
+
+	result := diagram.Render()
+	t.Logf("Generated diagram:\n%s", result)
+
+	// 1. Should have Account class
+	assert.Contains(t, result, "class Account", "Should have Account class")
+
+	// 2. Should have BusinessProfile and AccountSettings classes (pulled in via nullable refs)
+	assert.Contains(t, result, "class BusinessProfile", "Should have BusinessProfile class")
+	assert.Contains(t, result, "class AccountSettings", "Should have AccountSettings class")
+
+	// 3. business_profile should show typed reference, not 'any'
+	assert.Contains(t, result, "BusinessProfile? business_profile", "Should show typed nullable reference for business_profile")
+	assert.NotContains(t, result, "any business_profile", "Should NOT show 'any' for single-option anyOf")
+	assert.NotContains(t, result, "anyOf? business_profile", "Should NOT show 'anyOf' for single-option anyOf")
+
+	// 4. settings should also show typed reference (single-option oneOf)
+	assert.Contains(t, result, "AccountSettings? settings", "Should show typed nullable reference for settings")
+	assert.NotContains(t, result, "any settings", "Should NOT show 'any' for single-option oneOf")
+	assert.NotContains(t, result, "oneOf? settings", "Should NOT show 'oneOf' for single-option oneOf")
+
+	// 5. Should have composition relationships from Account to both nullable refs
+	assert.Contains(t, result, "Account *-- BusinessProfile : business_profile", "Should have composition relationship to BusinessProfile")
+	assert.Contains(t, result, "Account *-- AccountSettings : settings", "Should have composition relationship to AccountSettings")
+
+	// 6. Should have 3 classes total
+	assert.Equal(t, 3, len(diagram.Classes), "Should have exactly 3 classes (Account, BusinessProfile, AccountSettings)")
+
+	// 7. Should have 2 relationships
+	assert.Equal(t, 2, len(diagram.Relationships), "Should have exactly 2 relationships")
 }
 
