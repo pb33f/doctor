@@ -19,7 +19,6 @@ type Responses struct {
 func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 
 	drCtx := GetDrContext(ctx)
-	wg := drCtx.WaitGroup
 	r.Value = responses
 	r.BuildNodesAndEdges(ctx, "Responses", "responses", responses, r)
 
@@ -31,18 +30,30 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 			v := respPairs.Value()
 			resp := &Response{}
 			resp.Key = k
+			var refString string
 			for lowRespPairs := responses.GoLow().Codes.First(); lowRespPairs != nil; lowRespPairs = lowRespPairs.Next() {
 				if lowRespPairs.Key().Value == k {
 					resp.KeyNode = lowRespPairs.Key().KeyNode
 					resp.ValueNode = lowRespPairs.Value().ValueNode
+					// capture reference info from the ValueReference wrapper
+					if lowRespPairs.Value().IsReference() {
+						refString = lowRespPairs.Value().GetReference()
+					}
 					break
 				}
 			}
 			resp.Parent = r
 			resp.NodeParent = r
 			resp.Key = k
-			wg.Go(func() {
-				resp.Walk(ctx, v)
+			// capture variables for goroutine
+			response := resp
+			ref := refString
+			drCtx.RunWalk(func() {
+				response.Walk(ctx, v)
+				// if this was a reference, create a reference edge
+				if ref != "" && response.GetNode() != nil && r.GetNode() != nil {
+					r.BuildReferenceEdge(ctx, r.GetNode().Id, response.GetNode().Id, ref, "")
+				}
 			})
 			r.Codes.Set(k, resp)
 		}
@@ -55,8 +66,17 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 		resp.KeyNode = responses.Default.GoLow().KeyNode
 		resp.ValueNode = responses.GoLow().Default.ValueNode
 		resp.Key = "default"
-		wg.Go(func() {
-			resp.Walk(ctx, responses.Default)
+		var refString string
+		if responses.GoLow().Default.IsReference() {
+			refString = responses.GoLow().Default.GetReference()
+		}
+		response := resp
+		ref := refString
+		drCtx.RunWalk(func() {
+			response.Walk(ctx, responses.Default)
+			if ref != "" && response.GetNode() != nil && r.GetNode() != nil {
+				r.BuildReferenceEdge(ctx, r.GetNode().Id, response.GetNode().Id, ref, "")
+			}
 		})
 		r.Default = resp
 	}

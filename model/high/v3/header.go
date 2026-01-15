@@ -23,7 +23,6 @@ type Header struct {
 func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 
 	drCtx := GetDrContext(ctx)
-	wg := drCtx.WaitGroup
 
 	// Check for canonical path - ensures deterministic paths for $ref'd headers
 	if drCtx.DeterministicPaths && drCtx.CanonicalPathCache != nil && header != nil {
@@ -56,7 +55,7 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 			}
 		}
 
-		wg.Go(func() {
+		drCtx.RunWalk(func() {
 			c.Walk(ctx, header.Schema, 0)
 		})
 		h.Schema = c
@@ -78,7 +77,7 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 			ex.Key = examplesPairs.Key()
 			ex.SetPathSegment("examples")
 			ex.NodeParent = h
-			wg.Go(func() { ex.Walk(ctx, v) })
+			drCtx.RunWalk(func() { ex.Walk(ctx, v) })
 			h.Examples.Set(examplesPairs.Key(), ex)
 		}
 	}
@@ -99,7 +98,7 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 			mt.Parent = h
 			mt.Key = contentPairs.Key()
 			mt.NodeParent = h
-			wg.Go(func() {
+			drCtx.RunWalk(func() {
 				mt.Walk(ctx, v)
 			})
 			h.Content.Set(contentPairs.Key(), mt)

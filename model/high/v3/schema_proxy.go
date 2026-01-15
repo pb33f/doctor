@@ -6,6 +6,7 @@ package v3
 import (
 	"context"
 	"fmt"
+
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/index"
@@ -104,7 +105,9 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 		newSchema.ValueNode = sp.ValueNode
 		newSchema.KeyNode = sp.KeyNode
 		newSchema.Value = sch
-		newSchema.Index = sp.Index
+		// Note: Do NOT copy sp.Index to newSchema - the SchemaProxy owns the array index,
+		// the Schema is the content of that array element, not another indexed element.
+		// Copying index causes duplicate path segments like allOf[2][2] instead of allOf[2].
 		newSchema.PolyType = sp.PolyType
 
 		if !schemaProxy.IsReference() {

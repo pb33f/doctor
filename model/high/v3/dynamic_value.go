@@ -21,12 +21,11 @@ type DynamicValue[A, R, S, E any] struct {
 
 func (d *DynamicValue[A, R, S, E]) Walk(ctx context.Context) {
 	drCtx := GetDrContext(ctx)
-	wg := drCtx.WaitGroup
 
 	if d.Value.IsA() {
 		if v, ok := any(d.A).(*SchemaProxy); ok {
 			p := any(d.Value.A).(*base.SchemaProxy)
-			wg.Go(func() { v.Walk(ctx, p, 0) })
+			drCtx.RunWalk(func() { v.Walk(ctx, p, 0) })
 		}
 	}
 	drCtx.ObjectChan <- d

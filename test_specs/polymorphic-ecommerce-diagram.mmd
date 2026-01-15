@@ -67,10 +67,10 @@ classDiagram
   }
   class OrderItem {
     <<object>>
-    #oneOf product
+    #PhysicalProduct | DigitalProduct | ServiceProduct product
     #integer quantity
     +number? price
-    +anyOf? customization
+    +Engraving | GiftWrap | CustomMessage? customization
   }
   class PaymentBase {
     <<object>>
@@ -88,17 +88,17 @@ classDiagram
     #string country (format:iso-country-code)
   }
   class CardPayment {
-    +string? card_type (enum:visa,mastercard,amex,discover)
     +Address? billing_address
     +string? payment_type
     +string? card_number
     +string? cardholder_name
+    +string? card_type (enum:visa,mastercard,amex,discover)
   }
   class BankTransferPayment {
-    +string? payment_type
     +string? account_number
     +string? routing_number
     +string? bank_name
+    +string? payment_type
   }
   class DigitalWalletPayment {
     +string? payment_type
@@ -131,7 +131,7 @@ classDiagram
     +Address? shipping_address
     +string? carrier (enum:ups,fedex,usps,dhl)
     +string? tracking_number
-    +oneOf? shipping_method
+    +StandardShipping | ExpressShipping | OvernightShipping? shipping_method
   }
   class PickupLocation {
     <<object>>
@@ -146,9 +146,9 @@ classDiagram
     +string? pickup_code
   }
   class DigitalFulfillment {
-    +string? download_link (format:uri)
     +string? fulfillment_type
     +string? delivery_method (enum:email,app_download,cloud_access)
+    +string? download_link (format:uri)
   }
   class GiftOptions {
     <<object>>
@@ -158,8 +158,8 @@ classDiagram
   }
   class CreateOrderRequest {
     +OrderItem[]? items
-    +oneOf? payment
-    +oneOf? fulfillment
+    +CardPayment | BankTransferPayment | DigitalWalletPayment? payment
+    +ShippingFulfillment | PickupFulfillment | DigitalFulfillment? fulfillment
     +GiftOptions? gift_options
     +string? promotional_code
   }
@@ -188,8 +188,8 @@ classDiagram
     #OrderItem[] items
     #number total (format:decimal)
     +string? currency (enum:USD,EUR,GBP)
-    #oneOf payment
-    #oneOf fulfillment
+    #CardPayment | BankTransferPayment | DigitalWalletPayment payment
+    #ShippingFulfillment | PickupFulfillment | DigitalFulfillment fulfillment
     +OrderStatus? status
   }
   class OrderLinks {
@@ -219,8 +219,8 @@ classDiagram
     #OrderItem[] items
     #number total (format:decimal)
     +string? currency (enum:USD,EUR,GBP)
-    #oneOf payment
-    #oneOf fulfillment
+    #CardPayment | BankTransferPayment | DigitalWalletPayment payment
+    #ShippingFulfillment | PickupFulfillment | DigitalFulfillment fulfillment
     +OrderStatus? status
   }
   class orderId {

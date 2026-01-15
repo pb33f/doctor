@@ -58,8 +58,37 @@ type HasValue interface {
 	GetValue() interface{}
 }
 
+// createKey packs line and column into a single uint64 key for efficient map lookups.
+// This eliminates string allocations from fmt.Sprintf("%d:%d", line, column).
+func createKey(line, column int) uint64 {
+	return uint64(line)<<32 | uint64(column)
+}
+
+// collectFoundational is a generic collector that handles deduplication with canonical selection.
+// When the same object (by line:column) is encountered via multiple concurrent paths,
+// it keeps the one with the earliest parent position (the lowest line:column).
+func collectFoundational[T drV3.Foundational](
+	items []T,
+	state map[uint64]int,
+	item T,
+	nodeKey uint64,
+) []T {
+	if existingIdx, exists := state[nodeKey]; !exists {
+		state[nodeKey] = len(items)
+		items = append(items, item)
+	} else {
+		if drV3.CompareByParentPosition(item, items[existingIdx]) {
+			items[existingIdx] = item
+		}
+	}
+	return items
+}
+
 // NewDrDocument Create a new DrDocument from an OpenAPI v3+ document
 func NewDrDocument(document *libopenapi.DocumentModel[v3.Document]) *DrDocument {
+	if document == nil {
+		return nil
+	}
 	doc := &DrDocument{
 		index: document.Index,
 	}
@@ -69,6 +98,9 @@ func NewDrDocument(document *libopenapi.DocumentModel[v3.Document]) *DrDocument 
 
 // NewDrDocumentWithConfig Create a new DrDocument from an OpenAPI v3+ document and a configuration struct
 func NewDrDocumentWithConfig(document *libopenapi.DocumentModel[v3.Document], config *DrConfig) *DrDocument {
+	if document == nil {
+		return nil
+	}
 	doc := &DrDocument{
 		index: document.Index,
 	}
@@ -78,6 +110,9 @@ func NewDrDocumentWithConfig(document *libopenapi.DocumentModel[v3.Document], co
 
 // NewDrDocumentAndGraph Create a new DrDocument from an OpenAPI v3+ document, and create a graph of the model.
 func NewDrDocumentAndGraph(document *libopenapi.DocumentModel[v3.Document]) *DrDocument {
+	if document == nil {
+		return nil
+	}
 	doc := &DrDocument{
 		index: document.Index,
 	}
@@ -357,10 +392,18 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 		UseSchemaCache:     config.UseSchemaCache,
 		DeterministicPaths: config.DeterministicPaths,
 		WorkingDirectory:   wd,
+		PooledWalk:         true, // use bounded worker pools by default to prevent goroutine explosion
 	}
 	w.StorageRoot = doc.GoLow().StorageRoot
 
 	drCtx := context.WithValue(context.Background(), "drCtx", dctx)
+
+	// create bounded worker pools - these prevent goroutine explosion on large specs
+	dctx.WalkPool = drV3.NewWalkPool(drV3.DefaultWalkWorkers)
+	defer dctx.WalkPool.Shutdown()
+
+	dctx.SchemaPool = drV3.NewSchemaWalkPool(drCtx, dctx, drV3.DefaultSchemaWorkers)
+	defer dctx.SchemaPool.Shutdown()
 
 	var schemas []*drV3.Schema
 	var skippedSchemas []*drV3.Schema
@@ -375,11 +418,14 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 	var nodeValueMap = make(map[string]*drV3.Node)
 	var nodeIdMap = make(map[string]*drV3.Node)
 
-	skippedSchemasState := make(map[string]bool)
-	seenSchemasState := make(map[string]bool)
-	seenParametersState := make(map[string]bool)
-	seenHeadersState := make(map[string]bool)
-	seenMediaTypesState := make(map[string]bool)
+	// Maps use uint64 keys (packed line:column) for zero-allocation lookups.
+	// Pre-allocated for large specs (Stripe has ~5000+ schemas). Maps auto-grow if needed.
+	const estimatedSchemas = 5000
+	skippedSchemasState := make(map[uint64]int, estimatedSchemas)
+	seenSchemasState := make(map[uint64]int, estimatedSchemas)
+	seenParametersState := make(map[uint64]int, estimatedSchemas/4)
+	seenHeadersState := make(map[uint64]int, estimatedSchemas/4)
+	seenMediaTypesState := make(map[uint64]int, estimatedSchemas/2)
 	w.lineObjects = make(map[int][]any)
 
 	done := make(chan bool)
@@ -400,49 +446,28 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 				return
 			case s := <-sChan:
 				if s != nil {
-					key := fmt.Sprintf("%d:%d", s.SchemaNode.Line,
-						s.SchemaNode.Column)
-
-					if _, ok := seenSchemasState[key]; !ok {
-						schemas = append(schemas, s.Schema)
-						seenSchemasState[key] = true
-					}
+					key := createKey(s.SchemaNode.Line, s.SchemaNode.Column)
+					schemas = collectFoundational(schemas, seenSchemasState, s.Schema, key)
 				}
 			case schema := <-skippedChan:
 				if schema != nil {
-					key := fmt.Sprintf("%d:%d", schema.SchemaNode.Line, schema.SchemaNode.Column)
-
-					if _, ok := skippedSchemasState[key]; !ok {
-						skippedSchemas = append(skippedSchemas, schema.Schema)
-						skippedSchemasState[key] = true
-					}
+					key := createKey(schema.SchemaNode.Line, schema.SchemaNode.Column)
+					skippedSchemas = collectFoundational(skippedSchemas, skippedSchemasState, schema.Schema, key)
 				}
 			case p := <-parameterChan:
 				if p != nil {
-					key := fmt.Sprintf("%d:%d", p.ParamNode.Line, p.ParamNode.Column)
-
-					if _, ok := seenParametersState[key]; !ok {
-						parameters = append(parameters, p.Param.(*drV3.Parameter))
-						seenParametersState[key] = true
-					}
+					key := createKey(p.ParamNode.Line, p.ParamNode.Column)
+					parameters = collectFoundational(parameters, seenParametersState, p.Param.(*drV3.Parameter), key)
 				}
 			case h := <-headerChan:
 				if h != nil {
-					key := fmt.Sprintf("%d:%d", h.HeaderNode.Line, h.HeaderNode.Column)
-
-					if _, ok := seenHeadersState[key]; !ok {
-						headers = append(headers, h.Header.(*drV3.Header))
-						seenHeadersState[key] = true
-					}
+					key := createKey(h.HeaderNode.Line, h.HeaderNode.Column)
+					headers = collectFoundational(headers, seenHeadersState, h.Header.(*drV3.Header), key)
 				}
 			case mt := <-mediaTypeChan:
 				if mt != nil {
-					key := fmt.Sprintf("%d:%d", mt.MediaTypeNode.Line, mt.MediaTypeNode.Column)
-
-					if _, ok := seenMediaTypesState[key]; !ok {
-						mediaTypes = append(mediaTypes, mt.MediaType.(*drV3.MediaType))
-						seenMediaTypesState[key] = true
-					}
+					key := createKey(mt.MediaTypeNode.Line, mt.MediaTypeNode.Column)
+					mediaTypes = collectFoundational(mediaTypes, seenMediaTypesState, mt.MediaType.(*drV3.MediaType), key)
 				}
 			case nt := <-dctx.NodeChan:
 				if nt != nil {
@@ -450,7 +475,7 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 						nodeMap[fmt.Sprint(nt.KeyLine)] = nt
 					}
 
-					// check if node is a reference node
+					// check if a node is a reference node
 					if gl, o := nt.GetInstance().(high.GoesLowUntyped); o {
 						if r, k := gl.GoLowUntyped().(low.IsReferenced); k {
 							if !r.IsReference() {
@@ -611,31 +636,26 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 
 	if config.BuildGraph {
 		for _, edge := range refEdges {
-			//extract node id from line map
-			// check if the target is an int.
-			//t, e := strconv.Atoi(edge.Targets[0])
-			//if e == nil {
+			// Check if the target is already a node ID
 			if _, ok := nodeIdMap[edge.Targets[0]]; ok {
-				// iterate through objects in slice,
-				//edge.Targets[0] = n.Id
-
+				// Skip self-referencing edges (source == target)
+				if edge.Sources[0] == edge.Targets[0] {
+					continue
+				}
 				targets[edge.Targets[0]] = edge
 				sources[edge.Sources[0]] = edge
+			} else {
+				// Target is likely a line number - convert it to node ID using nodeValueMap
+				if targetNode, ok := nodeValueMap[edge.Targets[0]]; ok {
+					edge.Targets[0] = targetNode.Id
+					// Skip self-referencing edges (source == target after conversion)
+					if edge.Sources[0] == edge.Targets[0] {
+						continue
+					}
+					targets[edge.Targets[0]] = edge
+					sources[edge.Sources[0]] = edge
+				}
 			}
-			//} else {
-			//	if b, ko := nodeValueMap[edge.Targets[0]]; ko {
-			//		edge.Targets[0] = b.Id
-			//		targets[edge.Targets[0]] = edge
-			//		sources[edge.Sources[0]] = edge
-			//	}
-			//}
-			//} else {
-			//	if b, ko := nodeValueMap[edge.Targets[0]]; ko {
-			//		edge.Targets[0] = b.Id
-			//		targets[edge.Targets[0]] = edge
-			//		sources[edge.Sources[0]] = edge
-			//	}
-			//}
 			roughEdges = append(roughEdges, edge)
 		}
 
@@ -822,7 +842,7 @@ func dive(n []*drV3.Node, depth, limit, count, countLimit int, santizePaths []st
 	for _, node := range n {
 		node.RenderChanges = true
 		node.RenderProps = true
-		node.RenderProblems = true
+		node.RenderProblems = false
 		//node.DrInstance = nil
 		//node.Children = nil
 		if len(node.Changes) > 0 {

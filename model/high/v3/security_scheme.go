@@ -17,7 +17,6 @@ type SecurityScheme struct {
 func (s *SecurityScheme) Walk(ctx context.Context, securityScheme *v3.SecurityScheme) {
 
 	drCtx := GetDrContext(ctx)
-	wg := drCtx.WaitGroup
 
 	s.Value = securityScheme
 	s.SetPathSegment("securitySchemes")
@@ -27,7 +26,7 @@ func (s *SecurityScheme) Walk(ctx context.Context, securityScheme *v3.SecuritySc
 		f := &OAuthFlows{}
 		f.Parent = s
 		f.SetPathSegment("flows")
-		wg.Go(func() { f.Walk(ctx, securityScheme.Flows) })
+		drCtx.RunWalk(func() { f.Walk(ctx, securityScheme.Flows) })
 		s.Flows = f
 	}
 	drCtx.ObjectChan <- s

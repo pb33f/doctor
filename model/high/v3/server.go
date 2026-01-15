@@ -18,7 +18,6 @@ type Server struct {
 func (s *Server) Walk(ctx context.Context, server *v3.Server) {
 
 	drCtx := GetDrContext(ctx)
-	wg := drCtx.WaitGroup
 
 	s.Value = server
 	s.SetPathSegment("servers")
@@ -31,7 +30,7 @@ func (s *Server) Walk(ctx context.Context, server *v3.Server) {
 			v := serverVariablePairs.Value()
 			sv := &ServerVariable{}
 			sv.Parent = s
-			wg.Go(func() { sv.Walk(ctx, v, k) })
+			drCtx.RunWalk(func() { sv.Walk(ctx, v, k) })
 			s.Variables.Set(k, sv)
 		}
 	}

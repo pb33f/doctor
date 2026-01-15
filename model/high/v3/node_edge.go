@@ -36,37 +36,39 @@ var (
 )
 
 type Node struct {
-	Value           *yaml.Node             `json:"-"`
-	Id              string                 `json:"id"`
-	IdHash          string                 `json:"idHash,omitempty"`
-	ParentId        string                 `json:"parentId"`
-	Type            string                 `json:"type"`
-	Label           string                 `json:"label"`
-	Width           int                    `json:"width"`
-	Height          int                    `json:"height"`
-	Children        []*Node                `json:"nodes,omitempty"`
-	IsArray         bool                   `json:"isArray,omitempty"`
-	IsPoly          bool                   `json:"isPoly,omitempty"`
-	PolyType        string                 `json:"polyType,omitempty"`
-	PropertyCount   int                    `json:"propertyCount,omitempty"`
-	ArrayIndex      int                    `json:"arrayIndex,omitempty"`
-	ArrayValues     int                    `json:"arrayValues,omitempty"`
-	Extensions      int                    `json:"extensions,omitempty"`
-	Hash            string                 `json:"hash,omitempty"`
-	OriginLocation  string                 `json:"originLocation,omitempty"`
-	Origin          *index.NodeOrigin      `json:"nodeOrigin,omitempty"`
-	drModel         any                    `json:"-"`
-	KeyLine         int                    `json:"-"`
-	ValueLine       int                    `json:"valueLine"`
-	Instance        any                    `json:"instance"`
-	DrInstance      any                    `json:"-"`
-	Changes         []what_changed.Changed `json:"-"`
-	RenderedChanges []*model.Change        `json:"timeline,omitempty"`
-	CleanedChanged  []*model.Change        `json:"cleanedChanges,omitempty"`
-	RenderProps     bool                   `json:"-"`
-	RenderChanges   bool                   `json:"-"`
-	RenderProblems  bool                   `json:"-"`
-	Mutex           sync.RWMutex           `json:"-"`
+	Value               *yaml.Node             `json:"-"`
+	Id                  string                 `json:"id"`
+	IdHash              string                 `json:"idHash,omitempty"`
+	ParentId            string                 `json:"parentId"`
+	Type                string                 `json:"type"`
+	Label               string                 `json:"label"`
+	Width               int                    `json:"width"`
+	Height              int                    `json:"height"`
+	Children            []*Node                `json:"nodes,omitempty"`
+	IsArray             bool                   `json:"isArray,omitempty"`
+	IsPoly              bool                   `json:"isPoly,omitempty"`
+	PolyType            string                 `json:"polyType,omitempty"`
+	PropertyCount       int                    `json:"propertyCount,omitempty"`
+	ArrayIndex          int                    `json:"arrayIndex,omitempty"`
+	ArrayValues         int                    `json:"arrayValues,omitempty"`
+	Extensions          int                    `json:"extensions,omitempty"`
+	Hash                string                 `json:"hash,omitempty"`
+	OriginLocation      string                 `json:"originLocation,omitempty"`
+	Origin              *index.NodeOrigin      `json:"nodeOrigin,omitempty"`
+	KeyLine             int                    `json:"-"`
+	ValueLine           int                    `json:"valueLine"`
+	Instance            any                    `json:"instance"`
+	DrInstance          any                    `json:"-"`
+	Changes             []what_changed.Changed `json:"-"`
+	RenderedChanges     []*model.Change        `json:"timeline,omitempty"`
+	CleanedChanged      []*model.Change        `json:"cleanedChanges,omitempty"`
+	RenderProps         bool                   `json:"-"`
+	RenderChanges       bool                   `json:"-"`
+	RenderProblems      bool                   `json:"-"`
+	RenderProblemsAsIds bool                   `json:"-"` // modified design to stop embedding violations in nodes, uses lookup now.
+	ViolationIdMap      map[string]string      `json:"-"`
+	Mutex               sync.RWMutex           `json:"-"`
+	drModel             any
 }
 
 type NodeChangeable interface {
@@ -166,15 +168,6 @@ func (n *NodeChange) GetPropertyChanges() []*model.Change {
 	return nil
 }
 
-//func (n *NodeChange) MarshalJSON() ([]byte, error) {
-//	propMap := map[string]interface{}{}
-//	if n.Changes != nil && len(n.Changes.GetAllChanges()) > 0 {
-//		propMap["id"] = n.Id
-//		propMap["superHacks"] = n.Changes
-//	}
-//	return json.Marshal(propMap)
-//}
-
 type Edge struct {
 	Id      string   `json:"id"`
 	Sources []string `json:"sources"`
@@ -232,8 +225,24 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 					}
 				}
 				if f, ok := n.DrInstance.(AcceptsRuleResults); ok {
-					if n.RenderProblems && len(f.GetRuleFunctionResults()) > 0 {
-						propMap["results"] = f.GetRuleFunctionResults()
+					results := f.GetRuleFunctionResults()
+					if len(results) > 0 {
+						if n.RenderProblemsAsIds && n.ViolationIdMap != nil {
+							// use ID references - violations map provided separately
+							ids := make([]string, 0, len(results))
+							for _, r := range results {
+								key := r.Path + ":" + r.RuleId
+								if id, exists := n.ViolationIdMap[key]; exists {
+									ids = append(ids, id)
+								}
+							}
+							if len(ids) > 0 {
+								propMap["violationIds"] = ids // use new name!
+							}
+						} else if n.RenderProblems {
+							// legacy mode: embed full violation objects
+							propMap["results"] = results
+						}
 					}
 				}
 			}
@@ -273,7 +282,7 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 	}
 
 	if n.RenderProps {
-		if n.Children != nil && len(n.Children) > 0 {
+		if len(n.Children) > 0 {
 			kids := make([]string, 0, len(n.Children))
 			for _, c := range n.Children {
 				kids = append(kids, c.Id)
@@ -379,7 +388,7 @@ func GenerateNode(parentId string, instance any, drModel any, ctx *DrContext) *N
 	n.drModel = drModel
 	n.Origin = nodeOrigin
 	n.RenderChanges = ctx.RenderChanges
-	n.RenderProblems = true
+	n.RenderProblems = false // TODO: revisit this and re-review later.
 
 	return n
 }

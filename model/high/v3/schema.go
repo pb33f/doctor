@@ -85,16 +85,14 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		}
 	}
 
-	wg := drCtx.WaitGroup
-
 	sm := drCtx.SchemaCache
 
-	// Use node hash as cache key for better deduplication
+	// Use node hash as a cache key for better deduplication
 	var cacheKey string
 	var rootNodeHash string
 
 	if drCtx.UseSchemaCache {
-		// Compute hash once and use as cache key
+		// Compute hash once and use as a cache key
 		rootNodeHash = index.HashNode(schema.GoLow().RootNode)
 		cacheKey = rootNodeHash
 
@@ -175,7 +173,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.NodeParent = s
 			sch.Value = aOfItem
 			allOf = append(allOf, sch)
-			wg.Go(func() { sch.Walk(ctx, aOfItem, depth) })
+			drCtx.SubmitSchemaWalk(ctx, sch, aOfItem, depth)
 
 		}
 		s.mu.Lock()
@@ -198,7 +196,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.NodeParent = s
 			sch.Value = oOfItem
 			oneOf = append(oneOf, sch)
-			wg.Go(func() { sch.Walk(ctx, oOfItem, depth) })
+			drCtx.SubmitSchemaWalk(ctx, sch, oOfItem, depth)
 		}
 		s.mu.Lock()
 		s.OneOf = oneOf
@@ -220,7 +218,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.NodeParent = s
 			sch.Value = aOfItem
 			anyOf = append(anyOf, sch)
-			wg.Go(func() { sch.Walk(ctx, aOfItem, depth) })
+			drCtx.SubmitSchemaWalk(ctx, sch, aOfItem, depth)
 		}
 		s.mu.Lock()
 		s.AnyOf = anyOf
@@ -241,7 +239,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.SetPathSegment("prefixItems")
 			sch.Value = pItem
 			prefixItems = append(prefixItems, sch)
-			wg.Go(func() { sch.Walk(ctx, pItem, depth) })
+			drCtx.SubmitSchemaWalk(ctx, sch, pItem, depth)
 		}
 		s.PrefixItems = prefixItems
 	}
@@ -266,7 +264,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		sch.Parent = s
 		sch.SetPathSegment("contains")
 		sch.NodeParent = s
-		wg.Go(func() { sch.Walk(ctx, schema.Contains, depth) })
+		drCtx.SubmitSchemaWalk(ctx, sch, schema.Contains, depth)
 		s.Contains = sch
 	}
 
@@ -277,7 +275,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		sch.Parent = s
 		sch.SetPathSegment("if")
 		sch.NodeParent = s
-		wg.Go(func() { sch.Walk(ctx, schema.If, depth) })
+		drCtx.SubmitSchemaWalk(ctx, sch, schema.If, depth)
 		s.If = sch
 	}
 
@@ -288,7 +286,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		sch.Parent = s
 		sch.SetPathSegment("else")
 		sch.NodeParent = s
-		wg.Go(func() { sch.Walk(ctx, schema.Else, depth) })
+		drCtx.SubmitSchemaWalk(ctx, sch, schema.Else, depth)
 		s.Else = sch
 	}
 
@@ -299,7 +297,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		sch.ValueNode = schema.GoLow().Then.ValueNode
 		sch.SetPathSegment("then")
 		sch.NodeParent = s
-		wg.Go(func() { sch.Walk(ctx, schema.Then, depth) })
+		drCtx.SubmitSchemaWalk(ctx, sch, schema.Then, depth)
 		s.Then = sch
 	}
 
@@ -328,7 +326,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 					sch.NodeParent = s
 				}
 			}
-			wg.Go(func() { sch.Walk(ctx, v, depth) })
+			drCtx.SubmitSchemaWalk(ctx, sch, v, depth)
 		}
 		s.DependentSchemas = dependentSchemas
 	}
@@ -356,9 +354,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 						}
 					}
 					walked = true
-					wg.Go(func() {
-						sch.Walk(ctx, patternPropertiesPairs.Value(), depth)
-					})
+					drCtx.SubmitSchemaWalk(ctx, sch, patternPropertiesPairs.Value(), depth)
 					break
 				}
 			}
@@ -380,7 +376,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 					!slices.Contains(g.Type, "number") {
 					sch.NodeParent = s
 				}
-				wg.Go(func() { sch.Walk(ctx, v, depth) })
+				drCtx.SubmitSchemaWalk(ctx, sch, v, depth)
 			}
 		}
 		s.PatternProperties = patternProperties
@@ -395,7 +391,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		sch.Value = schema.PropertyNames
 		sch.NodeParent = s
 		s.PropertyNames = sch
-		wg.Go(func() { sch.Walk(ctx, s.PropertyNames.Value, depth) })
+		drCtx.SubmitSchemaWalk(ctx, sch, s.PropertyNames.Value, depth)
 	}
 
 	if schema.UnevaluatedItems != nil {
@@ -407,7 +403,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		sch.Value = schema.UnevaluatedItems
 		sch.NodeParent = s
 		s.UnevaluatedItems = sch
-		wg.Go(func() { sch.Walk(ctx, s.UnevaluatedItems.Value, depth) })
+		drCtx.SubmitSchemaWalk(ctx, sch, s.UnevaluatedItems.Value, depth)
 	}
 
 	if schema.UnevaluatedProperties != nil {
@@ -425,7 +421,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.ValueNode = schema.GoLow().UnevaluatedProperties.ValueNode
 			sch.KeyNode = schema.GoLow().UnevaluatedProperties.KeyNode
 			v := schema.UnevaluatedProperties.A
-			wg.Go(func() { sch.Walk(ctx, v, depth) })
+			drCtx.SubmitSchemaWalk(ctx, sch, v, depth)
 		} else {
 			dynamicValue.B = schema.UnevaluatedProperties.B
 		}
@@ -452,9 +448,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			dynamicValue.A = sch
 			dynamicValue.Node = s.Node
 			v := schema.Items.A
-			wg.Go(func() {
-				sch.Walk(ctx, v, depth)
-			})
+			drCtx.SubmitSchemaWalk(ctx, sch, v, depth)
 		} else {
 			dynamicValue.B = schema.Items.B
 		}
@@ -471,7 +465,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		sch.NodeParent = s
 		s.Not = sch
 		v := schema.Not
-		wg.Go(func() { sch.Walk(ctx, v, depth) })
+		drCtx.SubmitSchemaWalk(ctx, sch, v, depth)
 	}
 
 	if schema.Properties != nil {
@@ -520,9 +514,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 				}
 			}
 			if !walked {
-				wg.Go(func() {
-					sch.Walk(ctx, v, depth)
-				})
+				drCtx.SubmitSchemaWalk(ctx, sch, v, depth)
 			}
 		}
 		s.Properties = properties
@@ -544,7 +536,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.KeyNode = schema.AdditionalProperties.A.GoLow().GetKeyNode()
 			sch.ValueNode = schema.AdditionalProperties.A.GoLow().GetValueNode()
 			dynamicValue.A = sch
-			wg.Go(func() { dynamicValue.Walk(ctx) })
+			drCtx.RunWalk(func() { dynamicValue.Walk(ctx) })
 		} else {
 			dynamicValue.B = schema.AdditionalProperties.B
 		}

@@ -23,6 +23,24 @@ classDiagram
     +string? email (format:email)
     +string? avatar (format:uri)
   }
+  class SEOMetadata {
+    <<object>>
+    +string? meta_title
+    +string? meta_description
+    +string[]? keywords
+    +string? canonical_url (format:uri)
+  }
+  class SocialMetadata {
+    <<object>>
+    +string? og_title
+    +string? og_description
+    +string? og_image (format:uri)
+    +string? twitter_card (enum:summary,summary_large_image,app,player)
+  }
+  class ContentBase_metadata_allOf_2 {
+    +string[]? tags
+    +Category[]? categories
+  }
   class ContentBase {
     <<object>>
     #string content_type
@@ -31,7 +49,7 @@ classDiagram
     +string? slug
     #Author author
     +string? status (enum:draft,review,published,archived)
-    +any? metadata
+    +allOf? metadata
     +string? created_at (readOnly) (format:date-time)
     +string? updated_at (readOnly) (format:date-time)
   }
@@ -42,11 +60,11 @@ classDiagram
     +string? anchor
   }
   class ArticleContent {
+    +TOCEntry[]? table_of_contents
     +string? content_type
     +string? summary
     +any[]? body
     +integer? reading_time
-    +TOCEntry[]? table_of_contents
   }
   class VideoFormat {
     <<object>>
@@ -101,19 +119,19 @@ classDiagram
     +string? label
   }
   class VideoContent {
+    +string? content_type
+    +string? description
+    +UploadedVideo | YouTubeVideo | VimeoVideo | StreamingVideo? video
+    +Image? thumbnail
     +integer? duration
     +VideoChapter[]? chapters
     +Subtitle[]? subtitles
-    +string? content_type
-    +string? description
-    +oneOf? video
-    +Image? thumbnail
   }
   class GalleryContent {
-    +any[]? images
-    +string? layout (enum:grid,carousel,masonry,slideshow)
     +string? content_type
     +string? description
+    +any[]? images
+    +string? layout (enum:grid,carousel,masonry,slideshow)
   }
   class QuizQuestion {
     <<object>>
@@ -142,9 +160,9 @@ classDiagram
     #any[] questions
   }
   class InteractiveContent {
-    +string? interactive_type (enum:quiz,poll,survey,calculator,game)
-    +oneOf? config
     +string? content_type
+    +string? interactive_type (enum:quiz,poll,survey,calculator,game)
+    +QuizConfig | PollConfig | SurveyConfig? config
   }
   class CreateContentRequest_Choice {
     <<interface>>
@@ -161,8 +179,21 @@ classDiagram
     +string? published_at (format:date-time)
     +integer? version
   }
+  class SelfLink {
+    <<object>>
+    +string? self (format:uri)
+  }
+  class EditLink {
+    <<object>>
+    +string? edit (format:uri)
+  }
+  class PublishLink {
+    <<object>>
+    +string? publish (format:uri)
+    +string? unpublish (format:uri)
+  }
   class CreateContent201Response {
-    +any? _links
+    +allOf? _links
   }
   class paths__content {
     +post() Operation
@@ -206,7 +237,7 @@ classDiagram
     <<object>>
     #string block_type
     #string content
-    +anyOf? style
+    +BoldStyle | ItalicStyle | HeadingStyle? style
     +string? alignment (enum:left,center,right,justify)
   }
   class ImageBlock {
@@ -256,7 +287,7 @@ classDiagram
   class EmbedBlock {
     <<object>>
     #string block_type
-    #oneOf embed
+    #TwitterEmbed | CodePenEmbed | IFrameEmbed embed
   }
   class Category {
     <<object>>
@@ -264,20 +295,6 @@ classDiagram
     +string? name
     +string? slug
     +string? parent_id
-  }
-  class SEOMetadata {
-    <<object>>
-    +string? meta_title
-    +string? meta_description
-    +string[]? keywords
-    +string? canonical_url (format:uri)
-  }
-  class SocialMetadata {
-    <<object>>
-    +string? og_title
-    +string? og_description
-    +string? og_image (format:uri)
-    +string? twitter_card (enum:summary,summary_large_image,app,player)
   }
   class TextQuestion {
     <<object>>
@@ -301,21 +318,11 @@ classDiagram
     +integer? max_value
     +object? labels
   }
-  class SelfLink {
-    <<object>>
-    +string? self (format:uri)
-  }
-  class EditLink {
-    <<object>>
-    +string? edit (format:uri)
-  }
-  class PublishLink {
-    <<object>>
-    +string? publish (format:uri)
-    +string? unpublish (format:uri)
-  }
   Document *-- info
   ContentBase *-- Author : author
+  ContentBase *-- SEOMetadata : metadata
+  ContentBase *-- SocialMetadata : metadata
+  ContentBase *-- ContentBase_metadata_allOf_2 : metadata
   ArticleContent *-- TOCEntry : table_of_contents 0..*
   ContentBase <|-- ArticleContent : extends
   CreateContentRequest_Choice <|-- ArticleContent
@@ -338,6 +345,9 @@ classDiagram
   ContentBase <|-- InteractiveContent : extends
   CreateContentRequest_Choice <|-- InteractiveContent
   paths__content_post --> create_content_RequestBody : request
+  CreateContent201Response *-- SelfLink : _links
+  CreateContent201Response *-- EditLink : _links
+  CreateContent201Response *-- PublishLink : _links
   ContentResponse <|-- CreateContent201Response : extends
   paths__content_post_responses *-- create_content_201 : 201
   paths__content_post --> paths__content_post_responses : responses
