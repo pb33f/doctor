@@ -88,9 +88,9 @@ func GetDrContext(ctx context.Context) *DrContext {
 	return ctx.Value("drCtx").(*DrContext)
 }
 
-// RunOrGo submits work to the bounded WalkPool, or runs synchronously if SyncWalk is true.
+// RunWalk submits work to the bounded a WalkPool or runs synchronously if SyncWalk is true.
 // The pool automatically falls back to synchronous execution if the queue is full.
-func (d *DrContext) RunOrGo(f func()) {
+func (d *DrContext) RunWalk(f func()) {
 	if f == nil {
 		return
 	}

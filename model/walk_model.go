@@ -21,7 +21,6 @@ import (
 	"github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/sourcegraph/conc"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -376,7 +375,6 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 		HeaderChan:         headerChan,
 		MediaTypeChan:      mediaTypeChan,
 		Index:              w.index,
-		WaitGroup:          &conc.WaitGroup{},
 		ErrorChan:          buildErrorChan,
 		NodeChan:           nodeChan,
 		EdgeChan:           edgeChan,
@@ -392,17 +390,18 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 		UseSchemaCache:     config.UseSchemaCache,
 		DeterministicPaths: config.DeterministicPaths,
 		WorkingDirectory:   wd,
-		PooledWalk:         true, // use bounded worker pools by default to prevent goroutine explosion
+		PooledWalk:         true, // use bounded worker pools by default
 	}
 	w.StorageRoot = doc.GoLow().StorageRoot
 
 	drCtx := context.WithValue(context.Background(), "drCtx", dctx)
 
 	// create bounded worker pools - these prevent goroutine explosion on large specs
-	dctx.WalkPool = drV3.NewWalkPool(drV3.DefaultWalkWorkers)
+	// workers scale with CPU cores (one per core), queue size is 5000 for enterprise specs
+	dctx.WalkPool = drV3.NewWalkPool(drV3.DefaultWalkWorkers())
 	defer dctx.WalkPool.Shutdown()
 
-	dctx.SchemaPool = drV3.NewSchemaWalkPool(drCtx, dctx, drV3.DefaultSchemaWorkers)
+	dctx.SchemaPool = drV3.NewSchemaWalkPool(drCtx, dctx, drV3.DefaultSchemaWorkers())
 	defer dctx.SchemaPool.Shutdown()
 
 	var schemas []*drV3.Schema

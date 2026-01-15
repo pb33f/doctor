@@ -65,7 +65,7 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 			// capture variables for goroutine
 			header := h
 			ref := refString
-			drCtx.RunOrGo(func() {
+			drCtx.RunWalk(func() {
 				header.Walk(ctx, v)
 				// if this was a reference, create a reference edge
 				if ref != "" && header.GetNode() != nil && r.GetNode() != nil {
@@ -93,7 +93,7 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 			m.SetPathSegment("content")
 			m.NodeParent = r
 			v := contentPairs.Value()
-			drCtx.RunOrGo(func() { m.Walk(ctx, v) })
+			drCtx.RunWalk(func() { m.Walk(ctx, v) })
 			content.Set(contentPairs.Key(), m)
 		}
 		r.Content = content
@@ -121,7 +121,7 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 			v := linksPairs.Value()
 			link := l
 			ref := refString
-			drCtx.RunOrGo(func() {
+			drCtx.RunWalk(func() {
 				link.Walk(ctx, v)
 				if ref != "" && link.GetNode() != nil && r.GetNode() != nil {
 					r.BuildReferenceEdge(ctx, r.GetNode().Id, link.GetNode().Id, ref, "")

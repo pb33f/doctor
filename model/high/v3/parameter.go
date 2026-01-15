@@ -61,7 +61,7 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 			s.NodeParent = p
 			//}
 		}
-		drCtx.RunOrGo(func() { s.Walk(ctx, param.Schema, 0) })
+		drCtx.RunWalk(func() { s.Walk(ctx, param.Schema, 0) })
 		p.SchemaProxy = s
 	}
 
@@ -81,7 +81,7 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 			e.SetPathSegment("examples")
 			v := paramPairs.Value()
 			e.NodeParent = p
-			drCtx.RunOrGo(func() { e.Walk(ctx, v) })
+			drCtx.RunWalk(func() { e.Walk(ctx, v) })
 			examples.Set(paramPairs.Key(), e)
 		}
 		p.Examples = examples
@@ -103,7 +103,7 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 				}
 			}
 			v := contentPairs.Value()
-			drCtx.RunOrGo(func() { mt.Walk(ctx, v) })
+			drCtx.RunWalk(func() { mt.Walk(ctx, v) })
 			content.Set(contentPairs.Key(), mt)
 		}
 		p.Content = content
