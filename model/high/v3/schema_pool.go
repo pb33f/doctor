@@ -5,6 +5,7 @@ package v3
 
 import (
 	"context"
+	"runtime"
 	"sync"
 	"sync/atomic"
 
@@ -34,24 +35,26 @@ type SchemaWalkPool struct {
 	cond *sync.Cond
 }
 
-const (
-	// DefaultSchemaWorkers is the number of concurrent schema walkers.
-	// Keep small since each document walk creates its own pool.
-	DefaultSchemaWorkers = 10
+// DefaultSchemaWorkQueueSize is the buffer size for pending schema walks.
+// Set to 5000 to handle enterprise-scale OpenAPI specs out of the box.
+const DefaultSchemaWorkQueueSize = 5000
 
-	// SchemaWorkQueueSize is the buffer size for pending schema walks.
-	SchemaWorkQueueSize = 500
-)
+// DefaultSchemaWorkers returns the number of concurrent schema walkers.
+// Scales with available CPU cores for optimal performance.
+func DefaultSchemaWorkers() int {
+	return runtime.NumCPU()
+}
 
 // NewSchemaWalkPool creates a pool with bounded workers.
+// If workers <= 0, defaults to runtime.NumCPU() (one worker per core).
 func NewSchemaWalkPool(ctx context.Context, drCtx *DrContext, workers int) *SchemaWalkPool {
 	if workers <= 0 {
-		workers = DefaultSchemaWorkers
+		workers = DefaultSchemaWorkers()
 	}
 
 	pool := &SchemaWalkPool{
 		ctx:      ctx,
-		workChan: make(chan *SchemaWorkItem, SchemaWorkQueueSize),
+		workChan: make(chan *SchemaWorkItem, DefaultSchemaWorkQueueSize),
 		drCtx:    drCtx,
 		workers:  workers,
 	}

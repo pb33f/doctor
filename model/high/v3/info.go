@@ -29,14 +29,14 @@ func (i *Info) Walk(ctx context.Context, info *base.Info) {
 		i.Contact = &Contact{Value: info.Contact}
 		i.Contact.Parent = i
 		i.Contact.NodeParent = i
-		drCtx.RunWalk(func() { i.Contact.Walk(ctx, info.Contact) })
+		drCtx.RunOrGo(func() { i.Contact.Walk(ctx, info.Contact) })
 	}
 
 	if info.License != nil {
 		i.License = &License{Value: info.License}
 		i.License.Parent = i
 		i.License.NodeParent = i
-		drCtx.RunWalk(func() { i.License.Walk(ctx, info.License) })
+		drCtx.RunOrGo(func() { i.License.Walk(ctx, info.License) })
 	}
 
 	drCtx.ObjectChan <- i

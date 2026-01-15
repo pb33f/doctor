@@ -88,17 +88,17 @@ classDiagram
     #string country (format:iso-country-code)
   }
   class CardPayment {
-    +Address? billing_address
     +string? payment_type
     +string? card_number
     +string? cardholder_name
     +string? card_type (enum:visa,mastercard,amex,discover)
+    +Address? billing_address
   }
   class BankTransferPayment {
+    +string? payment_type
     +string? account_number
     +string? routing_number
     +string? bank_name
-    +string? payment_type
   }
   class DigitalWalletPayment {
     +string? payment_type
@@ -127,11 +127,11 @@ classDiagram
     +string? delivery_time (enum:morning,afternoon,evening)
   }
   class ShippingFulfillment {
+    +string? tracking_number
+    +StandardShipping | ExpressShipping | OvernightShipping? shipping_method
     +string? fulfillment_type
     +Address? shipping_address
     +string? carrier (enum:ups,fedex,usps,dhl)
-    +string? tracking_number
-    +StandardShipping | ExpressShipping | OvernightShipping? shipping_method
   }
   class PickupLocation {
     <<object>>

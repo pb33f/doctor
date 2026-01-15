@@ -57,7 +57,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		d.Info.NodeParent = d
 		d.Info.ValueNode = ExtractValueNodeForLowModel(doc.GoLow().Info)
 		d.Info.KeyNode = ExtractKeyNodeForLowModel(doc.GoLow().Info)
-		drCtx.RunWalk(func() { d.Info.Walk(ctx, doc.Info) })
+		drCtx.RunOrGo(func() { d.Info.Walk(ctx, doc.Info) })
 	}
 
 	if doc.Servers != nil && len(doc.Servers) > 0 {
@@ -82,7 +82,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			s.ValueNode = server.GoLow().RootNode
 			s.KeyNode = s.ValueNode
 			d.Servers = append(d.Servers, s)
-			drCtx.RunWalk(func() {
+			drCtx.RunOrGo(func() {
 				s.Walk(ctx, srvr)
 			})
 		}
@@ -94,7 +94,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		p.NodeParent = d
 		p.ValueNode = ExtractValueNodeForLowModel(doc.GoLow().Paths)
 		p.KeyNode = ExtractKeyNodeForLowModel(doc.GoLow().Paths)
-		drCtx.RunWalk(func() {
+		drCtx.RunOrGo(func() {
 			p.Walk(ctx, doc.Paths)
 		})
 		d.Paths = p
@@ -106,7 +106,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		c.NodeParent = d
 		c.ValueNode = ExtractValueNodeForLowModel(doc.GoLow().Components)
 		c.KeyNode = ExtractKeyNodeForLowModel(doc.GoLow().Components)
-		drCtx.RunWalk(func() { c.Walk(ctx, doc.Components) })
+		drCtx.RunOrGo(func() { c.Walk(ctx, doc.Components) })
 		d.Components = c
 	}
 
@@ -232,7 +232,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			pi.SetPathSegment("webhooks")
 			pi.NodeParent = webhookNode
 			v := pair.Value()
-			drCtx.RunWalk(func() {
+			drCtx.RunOrGo(func() {
 				pi.Walk(ctx, v)
 			})
 			webhooks.Set(pair.Key(), pi)

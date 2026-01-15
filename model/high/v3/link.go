@@ -25,7 +25,7 @@ func (l *Link) Walk(ctx context.Context, link *v3.Link) {
 	if link.Server != nil {
 		s := &Server{}
 		s.Parent = l
-		drCtx.RunWalk(func() { s.Walk(ctx, link.Server) })
+		drCtx.RunOrGo(func() { s.Walk(ctx, link.Server) })
 		l.Server = s
 	}
 

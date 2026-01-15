@@ -64,7 +64,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			sp.NodeParent = schNode
 			sp.Key = k
 			sp.SetPathSegment("schemas")
-			drCtx.RunWalk(func() { sp.Walk(ctx, v, 0) })
+			drCtx.RunOrGo(func() { sp.Walk(ctx, v, 0) })
 			c.Schemas.Set(k, sp)
 		}
 	}
@@ -97,7 +97,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			r.NodeParent = respNode
 			r.Key = k
 			r.SetPathSegment("responses")
-			drCtx.RunWalk(func() {
+			drCtx.RunOrGo(func() {
 				r.Walk(ctx, v)
 			})
 			c.Responses.Set(k, r)
@@ -134,7 +134,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			p.NodeParent = paramNode
 			p.Key = k
 			p.SetPathSegment("parameters")
-			drCtx.RunWalk(func() { p.Walk(ctx, v) })
+			drCtx.RunOrGo(func() { p.Walk(ctx, v) })
 			c.Parameters.Set(k, p)
 		}
 	}
@@ -169,7 +169,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			e.NodeParent = expNode
 			e.Key = k
 			e.SetPathSegment("examples")
-			drCtx.RunWalk(func() { e.Walk(ctx, v) })
+			drCtx.RunOrGo(func() { e.Walk(ctx, v) })
 			c.Examples.Set(k, e)
 		}
 	}
@@ -205,7 +205,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			rb.Key = k
 			rb.SetPathSegment("requestBodies")
 			rb.InstanceType = "requestBody"
-			drCtx.RunWalk(func() {
+			drCtx.RunOrGo(func() {
 				rb.Walk(ctx, v)
 			})
 			c.RequestBodies.Set(k, rb)
@@ -242,7 +242,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			h.NodeParent = headerNode
 			h.Key = k
 			h.SetPathSegment("headers")
-			drCtx.RunWalk(func() { h.Walk(ctx, v) })
+			drCtx.RunOrGo(func() { h.Walk(ctx, v) })
 			c.Headers.Set(k, h)
 		}
 	}
@@ -277,7 +277,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			ss.NodeParent = secNode
 			ss.Key = k
 			ss.SetPathSegment("securitySchemes")
-			drCtx.RunWalk(func() { ss.Walk(ctx, v) })
+			drCtx.RunOrGo(func() { ss.Walk(ctx, v) })
 			c.SecuritySchemes.Set(k, ss)
 		}
 	}
@@ -312,7 +312,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			l.NodeParent = linkNode
 			l.Key = k
 			l.SetPathSegment("links")
-			drCtx.RunWalk(func() { l.Walk(ctx, v) })
+			drCtx.RunOrGo(func() { l.Walk(ctx, v) })
 			c.Links.Set(k, l)
 		}
 	}
@@ -347,7 +347,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			cb.NodeParent = cbNode
 			cb.Key = k
 			cb.SetPathSegment("callbacks")
-			drCtx.RunWalk(func() { cb.Walk(ctx, v) })
+			drCtx.RunOrGo(func() { cb.Walk(ctx, v) })
 			c.Callbacks.Set(k, cb)
 		}
 	}
@@ -382,7 +382,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			pi.NodeParent = piNode
 			pi.Key = k
 			pi.SetPathSegment("pathItems")
-			drCtx.RunWalk(func() { pi.Walk(ctx, v) })
+			drCtx.RunOrGo(func() { pi.Walk(ctx, v) })
 			c.PathItems.Set(k, pi)
 		}
 	}

@@ -87,11 +87,11 @@ classDiagram
     +string? url (format:uri)
   }
   class EmailContent {
-    +string? content_type
-    +string? subject
     +string? body
     +Attachment[]? attachments
     +string? reply_to (format:email)
+    +string? content_type
+    +string? subject
   }
   class SMSContent {
     +string? content_type
@@ -105,17 +105,17 @@ classDiagram
     +object? data
   }
   class PushContent {
-    +string? content_type
-    +string? title
     +string? body
     +string? icon (format:uri)
     +PushAction? action
     +integer? badge_count
+    +string? content_type
+    +string? title
   }
   class WebhookContent {
+    +string? content_type
     +object? payload
     +object? headers
-    +string? content_type
   }
   class SMTPConfig {
     <<object>>
