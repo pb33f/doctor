@@ -48,7 +48,7 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 			// capture variables for goroutine
 			response := resp
 			ref := refString
-			drCtx.RunOrGo(func() {
+			drCtx.RunWalk(func() {
 				response.Walk(ctx, v)
 				// if this was a reference, create a reference edge
 				if ref != "" && response.GetNode() != nil && r.GetNode() != nil {
@@ -72,7 +72,7 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 		}
 		response := resp
 		ref := refString
-		drCtx.RunOrGo(func() {
+		drCtx.RunWalk(func() {
 			response.Walk(ctx, responses.Default)
 			if ref != "" && response.GetNode() != nil && r.GetNode() != nil {
 				r.BuildReferenceEdge(ctx, r.GetNode().Id, response.GetNode().Id, ref, "")

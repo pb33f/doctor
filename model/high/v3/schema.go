@@ -5,13 +5,14 @@ package v3
 
 import (
 	"context"
+	"slices"
+	"sync"
+
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-	"slices"
-	"sync"
 )
 
 type Schema struct {
@@ -536,7 +537,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.KeyNode = schema.AdditionalProperties.A.GoLow().GetKeyNode()
 			sch.ValueNode = schema.AdditionalProperties.A.GoLow().GetValueNode()
 			dynamicValue.A = sch
-			drCtx.RunOrGo(func() { dynamicValue.Walk(ctx) })
+			drCtx.RunWalk(func() { dynamicValue.Walk(ctx) })
 		} else {
 			dynamicValue.B = schema.AdditionalProperties.B
 		}

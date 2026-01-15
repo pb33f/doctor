@@ -80,14 +80,14 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 
 	if pathItem.Get != nil {
 		op := p.buildOperation("get")
-		drCtx.RunOrGo(func() { op.Walk(ctx, pathItem.Get) })
+		drCtx.RunWalk(func() { op.Walk(ctx, pathItem.Get) })
 		p.Get = op
 	}
 
 	if pathItem.Post != nil {
 		op := p.buildOperation("post")
 		p.Post = op
-		drCtx.RunOrGo(func() {
+		drCtx.RunWalk(func() {
 			op.Walk(ctx, pathItem.Post)
 		})
 
@@ -95,37 +95,37 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 
 	if pathItem.Put != nil {
 		op := p.buildOperation("put")
-		drCtx.RunOrGo(func() { op.Walk(ctx, pathItem.Put) })
+		drCtx.RunWalk(func() { op.Walk(ctx, pathItem.Put) })
 		p.Put = op
 	}
 
 	if pathItem.Delete != nil {
 		op := p.buildOperation("delete")
-		drCtx.RunOrGo(func() { op.Walk(ctx, pathItem.Delete) })
+		drCtx.RunWalk(func() { op.Walk(ctx, pathItem.Delete) })
 		p.Delete = op
 	}
 
 	if pathItem.Options != nil {
 		op := p.buildOperation("options")
-		drCtx.RunOrGo(func() { op.Walk(ctx, pathItem.Options) })
+		drCtx.RunWalk(func() { op.Walk(ctx, pathItem.Options) })
 		p.Options = op
 	}
 
 	if pathItem.Head != nil {
 		op := p.buildOperation("head")
-		drCtx.RunOrGo(func() { op.Walk(ctx, pathItem.Head) })
+		drCtx.RunWalk(func() { op.Walk(ctx, pathItem.Head) })
 		p.Head = op
 	}
 
 	if pathItem.Patch != nil {
 		op := p.buildOperation("patch")
-		drCtx.RunOrGo(func() { op.Walk(ctx, pathItem.Patch) })
+		drCtx.RunWalk(func() { op.Walk(ctx, pathItem.Patch) })
 		p.Patch = op
 	}
 
 	if pathItem.Trace != nil {
 		op := p.buildOperation("trace")
-		drCtx.RunOrGo(func() { op.Walk(ctx, pathItem.Trace) })
+		drCtx.RunWalk(func() { op.Walk(ctx, pathItem.Trace) })
 		p.Trace = op
 	}
 
@@ -137,7 +137,7 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 			s.IsIndexed = true
 			s.Index = &i
 			s.NodeParent = p
-			drCtx.RunOrGo(func() { s.Walk(ctx, srvr) })
+			drCtx.RunWalk(func() { s.Walk(ctx, srvr) })
 			p.Servers = append(p.Servers, s)
 		}
 	}
@@ -166,7 +166,7 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 			para.IsIndexed = true
 			para.Index = &i
 			para.NodeParent = paramsNode
-			drCtx.RunOrGo(func() {
+			drCtx.RunWalk(func() {
 				para.Walk(ctx, param)
 			})
 			p.Parameters = append(p.Parameters, para)

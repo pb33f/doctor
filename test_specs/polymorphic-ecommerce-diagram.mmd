@@ -95,15 +95,15 @@ classDiagram
     +Address? billing_address
   }
   class BankTransferPayment {
+    +string? bank_name
     +string? payment_type
     +string? account_number
     +string? routing_number
-    +string? bank_name
   }
   class DigitalWalletPayment {
+    +string? wallet_id
     +string? payment_type
     +string? wallet_provider (enum:paypal,apple_pay,google_pay,venmo)
-    +string? wallet_id
   }
   class FulfillmentBase {
     <<object>>
@@ -127,11 +127,11 @@ classDiagram
     +string? delivery_time (enum:morning,afternoon,evening)
   }
   class ShippingFulfillment {
+    +Address? shipping_address
+    +string? carrier (enum:ups,fedex,usps,dhl)
     +string? tracking_number
     +StandardShipping | ExpressShipping | OvernightShipping? shipping_method
     +string? fulfillment_type
-    +Address? shipping_address
-    +string? carrier (enum:ups,fedex,usps,dhl)
   }
   class PickupLocation {
     <<object>>

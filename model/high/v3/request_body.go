@@ -61,7 +61,7 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 			mt.SetPathSegment("content")
 			mt.NodeParent = r
 			value := contentPairs.Value()
-			drCtx.RunOrGo(func() {
+			drCtx.RunWalk(func() {
 				mt.Walk(ctx, value)
 			})
 			content.Set(contentPairs.Key(), mt)
