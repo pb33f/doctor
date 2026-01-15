@@ -22,7 +22,6 @@ type Response struct {
 func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 
 	drCtx := GetDrContext(ctx)
-	wg := drCtx.WaitGroup
 
 	// Check for canonical path - ensures deterministic paths for $ref'd responses
 	if drCtx.DeterministicPaths && drCtx.CanonicalPathCache != nil && response != nil {
@@ -48,18 +47,30 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 			v := headerPairs.Value()
 			h := &Header{}
 			h.Key = headerPairs.Key()
+			var refString string
 			for lowHeaderPairs := response.GoLow().Headers.Value.First(); lowHeaderPairs != nil; lowHeaderPairs = lowHeaderPairs.Next() {
 				if lowHeaderPairs.Key().Value == h.Key {
 					h.KeyNode = lowHeaderPairs.Key().KeyNode
 					h.ValueNode = lowHeaderPairs.Value().ValueNode
+					// capture reference info from the ValueReference wrapper
+					if lowHeaderPairs.Value().IsReference() {
+						refString = lowHeaderPairs.Value().GetReference()
+					}
 					break
 				}
 			}
 			h.SetPathSegment("headers")
 			h.Parent = r
 			h.NodeParent = r
-			wg.Go(func() {
-				h.Walk(ctx, v)
+			// capture variables for goroutine
+			header := h
+			ref := refString
+			drCtx.RunWalk(func() {
+				header.Walk(ctx, v)
+				// if this was a reference, create a reference edge
+				if ref != "" && header.GetNode() != nil && r.GetNode() != nil {
+					r.BuildReferenceEdge(ctx, r.GetNode().Id, header.GetNode().Id, ref, "")
+				}
 			})
 			headers.Set(headerPairs.Key(), h)
 		}
@@ -82,7 +93,7 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 			m.SetPathSegment("content")
 			m.NodeParent = r
 			v := contentPairs.Value()
-			wg.Go(func() { m.Walk(ctx, v) })
+			drCtx.RunWalk(func() { m.Walk(ctx, v) })
 			content.Set(contentPairs.Key(), m)
 		}
 		r.Content = content
@@ -96,8 +107,26 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 			l.Parent = r
 			l.NodeParent = r
 			l.Key = linksPairs.Key()
+			var refString string
+			for lowLinkPairs := response.GoLow().Links.Value.First(); lowLinkPairs != nil; lowLinkPairs = lowLinkPairs.Next() {
+				if lowLinkPairs.Key().Value == l.Key {
+					l.KeyNode = lowLinkPairs.Key().KeyNode
+					l.ValueNode = lowLinkPairs.Value().ValueNode
+					if lowLinkPairs.Value().IsReference() {
+						refString = lowLinkPairs.Value().GetReference()
+					}
+					break
+				}
+			}
 			v := linksPairs.Value()
-			wg.Go(func() { l.Walk(ctx, v) })
+			link := l
+			ref := refString
+			drCtx.RunWalk(func() {
+				link.Walk(ctx, v)
+				if ref != "" && link.GetNode() != nil && r.GetNode() != nil {
+					r.BuildReferenceEdge(ctx, r.GetNode().Id, link.GetNode().Id, ref, "")
+				}
+			})
 			links.Set(linksPairs.Key(), l)
 		}
 		r.Links = links

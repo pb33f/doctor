@@ -32,7 +32,6 @@ func (d *Document) Travel(ctx context.Context, traveller Tardis) {
 func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 
 	drCtx := GetDrContext(ctx)
-	wg := drCtx.WaitGroup
 
 	d.Document = doc
 	d.SetPathSegment("$")
@@ -58,7 +57,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		d.Info.NodeParent = d
 		d.Info.ValueNode = ExtractValueNodeForLowModel(doc.GoLow().Info)
 		d.Info.KeyNode = ExtractKeyNodeForLowModel(doc.GoLow().Info)
-		wg.Go(func() { d.Info.Walk(ctx, doc.Info) })
+		drCtx.RunWalk(func() { d.Info.Walk(ctx, doc.Info) })
 	}
 
 	if doc.Servers != nil && len(doc.Servers) > 0 {
@@ -83,7 +82,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			s.ValueNode = server.GoLow().RootNode
 			s.KeyNode = s.ValueNode
 			d.Servers = append(d.Servers, s)
-			wg.Go(func() {
+			drCtx.RunWalk(func() {
 				s.Walk(ctx, srvr)
 			})
 		}
@@ -95,7 +94,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		p.NodeParent = d
 		p.ValueNode = ExtractValueNodeForLowModel(doc.GoLow().Paths)
 		p.KeyNode = ExtractKeyNodeForLowModel(doc.GoLow().Paths)
-		wg.Go(func() {
+		drCtx.RunWalk(func() {
 			p.Walk(ctx, doc.Paths)
 		})
 		d.Paths = p
@@ -107,7 +106,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		c.NodeParent = d
 		c.ValueNode = ExtractValueNodeForLowModel(doc.GoLow().Components)
 		c.KeyNode = ExtractKeyNodeForLowModel(doc.GoLow().Components)
-		wg.Go(func() { c.Walk(ctx, doc.Components) })
+		drCtx.RunWalk(func() { c.Walk(ctx, doc.Components) })
 		d.Components = c
 	}
 
@@ -233,17 +232,17 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			pi.SetPathSegment("webhooks")
 			pi.NodeParent = webhookNode
 			v := pair.Value()
-			wg.Go(func() {
+			drCtx.RunWalk(func() {
 				pi.Walk(ctx, v)
 			})
 			webhooks.Set(pair.Key(), pi)
 		}
 		d.Webhooks = webhooks
 	}
-	wg.Wait()
+	drCtx.WaitForCompletion()
 	d.InstanceType = "document"
 	d.SetPathSegment("document")
-	
+
 	// Only set node properties if the node was created (BuildGraph is true)
 	if d.Node != nil {
 		d.Node.Type = "document"
@@ -252,7 +251,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 		d.Node.DrInstance = d
 		d.buildRenderedNode()
 	}
-	
+
 	drCtx.ObjectChan <- d
 	close(drCtx.ObjectChan)
 }

@@ -20,7 +20,6 @@ func (c *Callback) Walk(ctx context.Context, callback *v3.Callback) {
 	c.Value = callback
 
 	drCtx := GetDrContext(ctx)
-	wg := drCtx.WaitGroup
 	c.BuildNodesAndEdges(ctx, c.Key, "callback", callback, c)
 
 	if callback.Expression != nil {
@@ -31,7 +30,7 @@ func (c *Callback) Walk(ctx context.Context, callback *v3.Callback) {
 			p.Key = expressionPairs.Key()
 			p.NodeParent = c
 			v := expressionPairs.Value()
-			wg.Go(func() {
+			drCtx.RunWalk(func() {
 				p.Walk(ctx, v)
 			})
 			expression.Set(expressionPairs.Key(), p)

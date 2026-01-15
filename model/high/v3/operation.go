@@ -28,7 +28,6 @@ type Operation struct {
 func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 
 	drCtx := GetDrContext(ctx)
-	wg := drCtx.WaitGroup
 
 	o.Value = operation
 	o.BuildNodesAndEdges(ctx, strings.ToUpper(o.PathSegment), "operation", operation, o)
@@ -68,7 +67,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			p.NodeParent = paramsNode
 			p.IsIndexed = true
 			p.Index = &i
-			wg.Go(func() { p.Walk(ctx, param) })
+			drCtx.RunWalk(func() { p.Walk(ctx, param) })
 			o.Parameters = append(o.Parameters, p)
 		}
 	}
@@ -80,7 +79,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 		rb.NodeParent = o
 		rb.ValueNode = operation.RequestBody.GoLow().RootNode
 		rb.KeyNode = operation.RequestBody.GoLow().KeyNode
-		wg.Go(func() {
+		drCtx.RunWalk(func() {
 			rb.Walk(ctx, operation.RequestBody)
 		})
 		o.RequestBody = rb
@@ -94,7 +93,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 		r.SetPathSegment("responses")
 		r.KeyNode = operation.Responses.GoLow().KeyNode
 		r.ValueNode = operation.Responses.GoLow().RootNode
-		wg.Go(func() {
+		drCtx.RunWalk(func() {
 			r.Walk(ctx, operation.Responses)
 		})
 		o.Responses = r
@@ -117,7 +116,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			c.Key = callbackPairs.Key()
 			v := callbackPairs.Value()
 			c.NodeParent = o
-			wg.Go(func() { c.Walk(ctx, v) })
+			drCtx.RunWalk(func() { c.Walk(ctx, v) })
 			callbacks.Set(callbackPairs.Key(), c)
 		}
 		o.Callbacks = callbacks
@@ -151,7 +150,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			s.IsIndexed = true
 			s.Index = &i
 			s.NodeParent = o
-			wg.Go(func() { s.Walk(ctx, sec) })
+			drCtx.RunWalk(func() { s.Walk(ctx, sec) })
 			o.Security = append(o.Security, s)
 		}
 	}
@@ -188,7 +187,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			s.NodeParent = o
 			s.IsIndexed = true
 			s.Index = &i
-			wg.Go(func() { s.Walk(ctx, server) })
+			drCtx.RunWalk(func() { s.Walk(ctx, server) })
 			o.Servers = append(o.Servers, s)
 		}
 	}

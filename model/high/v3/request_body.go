@@ -20,7 +20,6 @@ type RequestBody struct {
 func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 
 	drCtx := GetDrContext(ctx)
-	wg := drCtx.WaitGroup
 
 	// Check for canonical path - ensures deterministic paths for $ref'd requestBodies
 	if drCtx.DeterministicPaths && drCtx.CanonicalPathCache != nil && requestBody != nil {
@@ -62,7 +61,7 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 			mt.SetPathSegment("content")
 			mt.NodeParent = r
 			value := contentPairs.Value()
-			wg.Go(func() {
+			drCtx.RunWalk(func() {
 				mt.Walk(ctx, value)
 			})
 			content.Set(contentPairs.Key(), mt)

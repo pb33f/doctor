@@ -20,7 +20,6 @@ type Info struct {
 func (i *Info) Walk(ctx context.Context, info *base.Info) {
 
 	drCtx := GetDrContext(ctx)
-	wg := drCtx.WaitGroup
 
 	i.Value = info
 	i.SetPathSegment("info")
@@ -30,14 +29,14 @@ func (i *Info) Walk(ctx context.Context, info *base.Info) {
 		i.Contact = &Contact{Value: info.Contact}
 		i.Contact.Parent = i
 		i.Contact.NodeParent = i
-		wg.Go(func() { i.Contact.Walk(ctx, info.Contact) })
+		drCtx.RunWalk(func() { i.Contact.Walk(ctx, info.Contact) })
 	}
 
 	if info.License != nil {
 		i.License = &License{Value: info.License}
 		i.License.Parent = i
 		i.License.NodeParent = i
-		wg.Go(func() { i.License.Walk(ctx, info.License) })
+		drCtx.RunWalk(func() { i.License.Walk(ctx, info.License) })
 	}
 
 	drCtx.ObjectChan <- i

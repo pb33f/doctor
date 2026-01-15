@@ -22,7 +22,6 @@ type Parameter struct {
 func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 
 	drCtx := GetDrContext(ctx)
-	wg := drCtx.WaitGroup
 
 	// Check for canonical path - ensures deterministic paths for $ref'd parameters
 	if drCtx.DeterministicPaths && drCtx.CanonicalPathCache != nil && param != nil {
@@ -62,7 +61,7 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 			s.NodeParent = p
 			//}
 		}
-		wg.Go(func() { s.Walk(ctx, param.Schema, 0) })
+		drCtx.RunWalk(func() { s.Walk(ctx, param.Schema, 0) })
 		p.SchemaProxy = s
 	}
 
@@ -82,7 +81,7 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 			e.SetPathSegment("examples")
 			v := paramPairs.Value()
 			e.NodeParent = p
-			wg.Go(func() { e.Walk(ctx, v) })
+			drCtx.RunWalk(func() { e.Walk(ctx, v) })
 			examples.Set(paramPairs.Key(), e)
 		}
 		p.Examples = examples
@@ -104,7 +103,7 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 				}
 			}
 			v := contentPairs.Value()
-			wg.Go(func() { mt.Walk(ctx, v) })
+			drCtx.RunWalk(func() { mt.Walk(ctx, v) })
 			content.Set(contentPairs.Key(), mt)
 		}
 		p.Content = content

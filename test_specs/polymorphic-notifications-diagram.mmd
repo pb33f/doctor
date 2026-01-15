@@ -54,7 +54,7 @@ classDiagram
   }
   class Recipient {
     <<object>>
-    #oneOf identity
+    #EmailIdentity | PhoneIdentity | DeviceIdentity | UserIDIdentity identity
     +RecipientPreferences? preferences
   }
   class PlainTemplate {
@@ -78,7 +78,7 @@ classDiagram
   class ContentBase {
     <<object>>
     #string content_type
-    +oneOf? template
+    +PlainTemplate | HTMLTemplate | MarkdownTemplate? template
   }
   class Attachment {
     <<object>>
@@ -87,11 +87,11 @@ classDiagram
     +string? url (format:uri)
   }
   class EmailContent {
-    +Attachment[]? attachments
-    +string? reply_to (format:email)
     +string? content_type
     +string? subject
     +string? body
+    +Attachment[]? attachments
+    +string? reply_to (format:email)
   }
   class SMSContent {
     +string? content_type
@@ -105,17 +105,17 @@ classDiagram
     +object? data
   }
   class PushContent {
-    +integer? badge_count
     +string? content_type
     +string? title
     +string? body
     +string? icon (format:uri)
     +PushAction? action
+    +integer? badge_count
   }
   class WebhookContent {
-    +string? content_type
     +object? payload
     +object? headers
+    +string? content_type
   }
   class SMTPConfig {
     <<object>>
@@ -178,7 +178,7 @@ classDiagram
     #string channel_type
     #string url (format:uri)
     +string? method (enum:POST,PUT,PATCH)
-    +oneOf? auth
+    +BearerAuth | BasicAuth | APIKeyAuth? auth
   }
   class PriorityOptions {
     <<object>>
@@ -204,9 +204,9 @@ classDiagram
   class SendNotificationRequest {
     <<object>>
     #Recipient[] recipients
-    #oneOf content
-    #oneOf channel
-    +anyOf? options
+    #EmailContent | SMSContent | PushContent | WebhookContent content
+    #EmailChannel | SMSChannel | PushChannel | WebhookChannel channel
+    +PriorityOptions | SchedulingOptions | RetryOptions | TrackingOptions? options
     +object? metadata
   }
   class paths__notifications_post_responses {
@@ -256,9 +256,9 @@ classDiagram
   class NotificationRequest {
     <<object>>
     #Recipient[] recipients
-    #oneOf content
-    #oneOf channel
-    +anyOf? options
+    #EmailContent | SMSContent | PushContent | WebhookContent content
+    #EmailChannel | SMSChannel | PushChannel | WebhookChannel channel
+    +PriorityOptions | SchedulingOptions | RetryOptions | TrackingOptions? options
     +object? metadata
   }
   Document *-- info

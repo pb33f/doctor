@@ -47,6 +47,7 @@ type Foundational interface {
 	GetKeyNode() *yaml.Node
 	GetValueNode() *yaml.Node
 	GetInstanceType() string
+	SetInstanceType(instanceType string)
 	GetChanges() []*NodeChange
 	AddChanges(changes []*NodeChange)
 	AddChange(changes *NodeChange)
@@ -107,6 +108,10 @@ func (f *Foundation) GetIndexValue() *int {
 
 func (f *Foundation) GetInstanceType() string {
 	return f.InstanceType
+}
+
+func (f *Foundation) SetInstanceType(instanceType string) {
+	f.InstanceType = instanceType
 }
 
 func (f *Foundation) GetKeyNode() *yaml.Node {
@@ -221,13 +226,17 @@ func (f *Foundation) ProcessNodesAndEdges(ctx context.Context, label, nodeType s
 		var n *Node
 		n = f.BuildNode(ctx, label, nodeType, arrayType, arrayCount, *arrayIndex, drModel)
 
-		// If node wasn't created (e.g., prerequisites not met), return early
+		// If the node wasn't created (e.g., prerequisites not met), return early
 		if n == nil || f.GetNode() == nil {
 			return
 		}
 
 		if drModel != nil {
 			n.DrInstance = drModel
+			// Set instance type on the drModel so GetInstanceType() returns correctly during serialization
+			if foundational, ok := drModel.(Foundational); ok {
+				foundational.SetInstanceType(nodeType)
+			}
 		}
 		if model != nil {
 			n.Instance = model
@@ -517,4 +526,36 @@ func (f *Foundation) GetRefNode() *Node {
 
 func (f *Foundation) GetEdges() []*Edge {
 	return f.Edges
+}
+
+// CompareByParentPosition returns true if a's parent comes before b's parent
+// in document order (lower line, or same line with lower column).
+// This is used to ensure a deterministic schema collection when the same schema
+// is encountered via multiple concurrent paths (e.g., via anyOf/oneOf refs).
+// A nil parent (definition site) is always considered canonical.
+func CompareByParentPosition(a, b Foundational) bool {
+	aParent := a.GetNodeParent()
+	bParent := b.GetNodeParent()
+
+	// nil parent = definition site, always canonical
+	if aParent == nil {
+		return true
+	}
+	if bParent == nil {
+		return false
+	}
+
+	aKey := aParent.GetKeyNode()
+	bKey := bParent.GetKeyNode()
+
+	// If either has no KeyNode, prefer the one without (likely definition site)
+	if aKey == nil || bKey == nil {
+		return aKey == nil
+	}
+
+	// Compare by line first, then column
+	if aKey.Line != bKey.Line {
+		return aKey.Line < bKey.Line
+	}
+	return aKey.Column < bKey.Column
 }

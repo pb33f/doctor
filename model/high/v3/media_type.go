@@ -20,7 +20,6 @@ type MediaType struct {
 func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 
 	drCtx := GetDrContext(ctx)
-	wg := drCtx.WaitGroup
 
 	m.Value = mediaType
 	m.BuildNodesAndEdges(ctx, m.Key, "mediaType", mediaType, m)
@@ -34,7 +33,7 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 		s.Value = mediaType.Schema
 		s.NodeParent = m
 		m.SchemaProxy = s
-		wg.Go(func() {
+		drCtx.RunWalk(func() {
 			s.Walk(ctx, mediaType.Schema, 0)
 		})
 	}
@@ -56,7 +55,7 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 			}
 			e.Value = v
 			e.NodeParent = m
-			wg.Go(func() {
+			drCtx.RunWalk(func() {
 				e.Walk(ctx, v)
 			})
 			examples.Set(mediaTypePairs.Key(), e)
@@ -80,7 +79,7 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 				}
 			}
 			e.NodeParent = m
-			wg.Go(func() { e.Walk(ctx, v) })
+			drCtx.RunWalk(func() { e.Walk(ctx, v) })
 			encoding.Set(encodingPairs.Key(), e)
 		}
 	}

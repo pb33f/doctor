@@ -18,7 +18,6 @@ type Encoding struct {
 func (e *Encoding) Walk(ctx context.Context, encoding *v3.Encoding) {
 
 	drCtx := GetDrContext(ctx)
-	wg := drCtx.WaitGroup
 
 	e.Value = encoding
 	e.BuildNodesAndEdges(ctx, e.Key, "encoding", encoding, e)
@@ -38,7 +37,7 @@ func (e *Encoding) Walk(ctx context.Context, encoding *v3.Encoding) {
 			}
 			v := headerPairs.Value()
 			h.NodeParent = e
-			wg.Go(func() { h.Walk(ctx, v) })
+			drCtx.RunWalk(func() { h.Walk(ctx, v) })
 			headers.Set(headerPairs.Key(), h)
 		}
 		e.Headers = headers
