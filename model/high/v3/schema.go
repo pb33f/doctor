@@ -536,7 +536,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.KeyNode = schema.AdditionalProperties.A.GoLow().GetKeyNode()
 			sch.ValueNode = schema.AdditionalProperties.A.GoLow().GetValueNode()
 			dynamicValue.A = sch
-			drCtx.RunWalk(func() { dynamicValue.Walk(ctx) })
+			drCtx.RunOrGo(func() { dynamicValue.Walk(ctx) })
 		} else {
 			dynamicValue.B = schema.AdditionalProperties.B
 		}

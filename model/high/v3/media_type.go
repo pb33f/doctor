@@ -33,7 +33,7 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 		s.Value = mediaType.Schema
 		s.NodeParent = m
 		m.SchemaProxy = s
-		drCtx.RunWalk(func() {
+		drCtx.RunOrGo(func() {
 			s.Walk(ctx, mediaType.Schema, 0)
 		})
 	}
@@ -55,7 +55,7 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 			}
 			e.Value = v
 			e.NodeParent = m
-			drCtx.RunWalk(func() {
+			drCtx.RunOrGo(func() {
 				e.Walk(ctx, v)
 			})
 			examples.Set(mediaTypePairs.Key(), e)
@@ -79,7 +79,7 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 				}
 			}
 			e.NodeParent = m
-			drCtx.RunWalk(func() { e.Walk(ctx, v) })
+			drCtx.RunOrGo(func() { e.Walk(ctx, v) })
 			encoding.Set(encodingPairs.Key(), e)
 		}
 	}

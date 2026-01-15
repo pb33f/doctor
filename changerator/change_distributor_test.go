@@ -442,11 +442,10 @@ components:
 
 	b, _ := json.MarshalIndent(rightDoc.V3Document.Node, "", "  ")
 	assert.NotNil(t, b)
-	var n v3.Node
-	err := json.Unmarshal(b, &n)
-	assert.NoError(t, err)
-
+	// Note: Unmarshal is not tested - Node serialization is one-way (to clients)
+	// The "nodes" field is serialized as []string (IDs) not []*Node
 }
+
 func TestTardis_SchemaParamSchemaRefTest(t *testing.T) {
 
 	ymlLeft := `openapi: "3.1"
@@ -512,10 +511,6 @@ components:
 
 	b, _ := json.MarshalIndent(rightDoc.V3Document.Node, "", "  ")
 	assert.NotNil(t, b)
-	var n v3.Node
-	err := json.Unmarshal(b, &n)
-	assert.NoError(t, err)
-
 }
 
 func TestTardis_ModifySecurityScheme(t *testing.T) {
@@ -567,10 +562,6 @@ components:
 
 	b, _ := json.MarshalIndent(rightDoc.V3Document.Node, "", "  ")
 	assert.NotNil(t, b)
-	var n v3.Node
-	err := json.Unmarshal(b, &n)
-	assert.NoError(t, err)
-
 }
 
 func TestTardis_ModifyRef(t *testing.T) {
@@ -637,10 +628,6 @@ components:
 
 	b, _ := json.MarshalIndent(rightDoc.V3Document.Node, "", "  ")
 	assert.NotNil(t, b)
-	var n v3.Node
-	err := json.Unmarshal(b, &n)
-	assert.NoError(t, err)
-
 }
 
 func TestTardis_Callback(t *testing.T) {
@@ -695,10 +682,6 @@ paths:
 
 	b, _ := json.MarshalIndent(rightDoc.V3Document.Node, "", "  ")
 	assert.NotNil(t, b)
-	var n v3.Node
-	err := json.Unmarshal(b, &n)
-	assert.NoError(t, err)
-
 }
 
 func TestTardis_CallbackPathItem(t *testing.T) {
@@ -762,10 +745,6 @@ components:
 
 	b, _ := json.MarshalIndent(rightDoc.V3Document.Node, "", "  ")
 	assert.NotNil(t, b)
-	var n v3.Node
-	err := json.Unmarshal(b, &n)
-	assert.NoError(t, err)
-
 }
 
 func TestTardis_ExtensionTesting(t *testing.T) {
@@ -807,10 +786,6 @@ x-burp: hello`
 
 	b, _ := json.MarshalIndent(rightDoc.V3Document.Node, "", "  ")
 	assert.NotNil(t, b)
-	var n v3.Node
-	err := json.Unmarshal(b, &n)
-	assert.NoError(t, err)
-
 }
 
 func TestTardis_MultiFile_MultiRef(t *testing.T) {

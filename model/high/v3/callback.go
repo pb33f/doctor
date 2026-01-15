@@ -30,7 +30,7 @@ func (c *Callback) Walk(ctx context.Context, callback *v3.Callback) {
 			p.Key = expressionPairs.Key()
 			p.NodeParent = c
 			v := expressionPairs.Value()
-			drCtx.RunWalk(func() {
+			drCtx.RunOrGo(func() {
 				p.Walk(ctx, v)
 			})
 			expression.Set(expressionPairs.Key(), p)

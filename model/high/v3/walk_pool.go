@@ -4,6 +4,7 @@
 package v3
 
 import (
+	"runtime"
 	"sync"
 	"sync/atomic"
 )
@@ -23,24 +24,25 @@ type WalkPool struct {
 	cond *sync.Cond
 }
 
-const (
-	// DefaultWalkWorkers is the number of concurrent walk workers.
-	// Keep small since each document walk creates its own pool.
-	// With N concurrent ops, total workers = N * DefaultWalkWorkers.
-	DefaultWalkWorkers = 20
+// DefaultWalkWorkQueueSize is the buffer size for pending walk operations.
+// Set to 5000 to handle enterprise-scale OpenAPI specs out of the box.
+const DefaultWalkWorkQueueSize = 5000
 
-	// WalkWorkQueueSize is the buffer size for pending walk operations.
-	WalkWorkQueueSize = 1000
-)
+// DefaultWalkWorkers returns the number of concurrent walk workers.
+// Scales with available CPU cores for optimal performance.
+func DefaultWalkWorkers() int {
+	return runtime.NumCPU()
+}
 
 // NewWalkPool creates a bounded pool with the specified number of workers.
+// If workers <= 0, defaults to runtime.NumCPU() (one worker per core).
 func NewWalkPool(workers int) *WalkPool {
 	if workers <= 0 {
-		workers = DefaultWalkWorkers
+		workers = DefaultWalkWorkers()
 	}
 
 	pool := &WalkPool{
-		workChan: make(chan func(), WalkWorkQueueSize),
+		workChan: make(chan func(), DefaultWalkWorkQueueSize),
 		workers:  workers,
 	}
 	pool.cond = sync.NewCond(&pool.mu)

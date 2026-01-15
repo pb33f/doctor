@@ -37,7 +37,7 @@ func (e *Encoding) Walk(ctx context.Context, encoding *v3.Encoding) {
 			}
 			v := headerPairs.Value()
 			h.NodeParent = e
-			drCtx.RunWalk(func() { h.Walk(ctx, v) })
+			drCtx.RunOrGo(func() { h.Walk(ctx, v) })
 			headers.Set(headerPairs.Key(), h)
 		}
 		e.Headers = headers

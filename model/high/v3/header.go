@@ -55,7 +55,7 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 			}
 		}
 
-		drCtx.RunWalk(func() {
+		drCtx.RunOrGo(func() {
 			c.Walk(ctx, header.Schema, 0)
 		})
 		h.Schema = c
@@ -77,7 +77,7 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 			ex.Key = examplesPairs.Key()
 			ex.SetPathSegment("examples")
 			ex.NodeParent = h
-			drCtx.RunWalk(func() { ex.Walk(ctx, v) })
+			drCtx.RunOrGo(func() { ex.Walk(ctx, v) })
 			h.Examples.Set(examplesPairs.Key(), ex)
 		}
 	}
@@ -98,7 +98,7 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 			mt.Parent = h
 			mt.Key = contentPairs.Key()
 			mt.NodeParent = h
-			drCtx.RunWalk(func() {
+			drCtx.RunOrGo(func() {
 				mt.Walk(ctx, v)
 			})
 			h.Content.Set(contentPairs.Key(), mt)

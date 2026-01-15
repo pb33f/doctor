@@ -15,7 +15,6 @@ import (
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
-	"github.com/sourcegraph/conc"
 )
 
 // loadStripeSpec loads the Stripe OpenAPI spec for benchmarking
@@ -95,7 +94,6 @@ func walkV3(doc *v3.Document, useCache bool, mode WalkMode) (*Document, int) {
 		ParameterChan:      parameterChan,
 		HeaderChan:         headerChan,
 		MediaTypeChan:      mediaTypeChan,
-		WaitGroup:          &conc.WaitGroup{},
 		ErrorChan:          buildErrorChan,
 		NodeChan:           nodeChan,
 		EdgeChan:           edgeChan,
@@ -117,11 +115,11 @@ func walkV3(doc *v3.Document, useCache bool, mode WalkMode) (*Document, int) {
 	// initialize pools if pooled mode
 	if mode == WalkModePooled {
 		// create general walk pool for all walk operations
-		dctx.WalkPool = NewWalkPool(DefaultWalkWorkers)
+		dctx.WalkPool = NewWalkPool(DefaultWalkWorkers())
 		defer dctx.WalkPool.Shutdown()
 
 		// create schema pool for schema-specific walks
-		dctx.SchemaPool = NewSchemaWalkPool(drCtx, dctx, DefaultSchemaWorkers)
+		dctx.SchemaPool = NewSchemaWalkPool(drCtx, dctx, DefaultSchemaWorkers())
 		defer dctx.SchemaPool.Shutdown()
 	}
 
@@ -321,7 +319,7 @@ func TestStripeWalkProfile_Pooled(t *testing.T) {
 
 	stopMonitor <- true
 
-	fmt.Printf("\n=== Stripe Spec Walk Profile (POOLED - %d workers) ===\n", DefaultSchemaWorkers)
+	fmt.Printf("\n=== Stripe Spec Walk Profile (POOLED - %d workers) ===\n", DefaultSchemaWorkers())
 	fmt.Printf("Duration:          %v\n", elapsed)
 	fmt.Printf("Objects processed: %d\n", objCount)
 	fmt.Printf("Start goroutines:  %d\n", startGoroutines)

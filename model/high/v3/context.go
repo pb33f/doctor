@@ -11,7 +11,6 @@ import (
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/sourcegraph/conc"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -57,12 +56,11 @@ type DrContext struct {
 	Index              *index.SpecIndex
 	Rolodex            *index.Rolodex
 	V3Document         *v3.Document
-	WaitGroup          *conc.WaitGroup
 	BuildGraph         bool
 	RenderChanges      bool
 	UseSchemaCache     bool
 	SyncWalk           bool            // When true, walk everything synchronously (no goroutines)
-	PooledWalk         bool            // When true, use bounded worker pools
+	PooledWalk         bool            // When true, use bounded worker pools (default)
 	SchemaPool         *SchemaWalkPool // Bounded worker pool for schema walks
 	WalkPool           *WalkPool       // General bounded worker pool for all walk operations
 	DeterministicPaths bool            // When true, component objects return definition-site paths
@@ -90,65 +88,58 @@ func GetDrContext(ctx context.Context) *DrContext {
 	return ctx.Value("drCtx").(*DrContext)
 }
 
-// RunWalk either runs the function synchronously (if SyncWalk is true)
-// or submits it to the bounded WalkPool (if PooledWalk is true)
-// or spawns it as a goroutine via the WaitGroup (unbounded, legacy behavior).
-func (d *DrContext) RunWalk(f func()) {
+// RunOrGo submits work to the bounded WalkPool, or runs synchronously if SyncWalk is true.
+// The pool automatically falls back to synchronous execution if the queue is full.
+func (d *DrContext) RunOrGo(f func()) {
 	if f == nil {
 		return
 	}
 	if d.SyncWalk {
 		f()
-	} else if d.PooledWalk && d.WalkPool != nil {
-		// use bounded worker pool to prevent goroutine explosion
+		return
+	}
+	// use bounded worker pool - falls back to sync if queue full
+	if d.WalkPool != nil {
 		d.WalkPool.SubmitOrRun(f)
 	} else {
-		// legacy unbounded behavior - use with caution on large specs
-		d.WaitGroup.Go(f)
+		// no pool available, run synchronously
+		f()
 	}
 }
 
 // WaitForCompletion blocks until all submitted walk operations have completed.
-// In pooled mode, this waits for the WalkPool to drain.
-// In async mode, this waits for the WaitGroup.
+// In pooled mode, this waits for both WalkPool and SchemaPool to drain.
 // In sync mode, this is a no-op (work already completed inline).
 func (d *DrContext) WaitForCompletion() {
 	if d.SyncWalk {
-		// sync mode - all work completed inline
 		return
 	}
-	if d.PooledWalk && d.WalkPool != nil {
-		// pooled mode - wait for BOTH pools using proper blocking (no polling)
-		// schema pool workers can submit work back to walk pool and vice versa,
-		// so we loop until both are stable
-		for {
-			// block on walk pool completion (uses sync.Cond internally)
-			d.WalkPool.WaitForCompletion()
+	if d.WalkPool == nil {
+		return
+	}
+	// wait for BOTH pools using proper blocking (no polling)
+	// schema pool workers can submit work back to walk pool and vice versa,
+	// so we loop until both are stable
+	for {
+		d.WalkPool.WaitForCompletion()
 
-			// block on schema pool completion if present
-			if d.SchemaPool != nil {
-				d.SchemaPool.WaitForCompletion()
-			}
-
-			// double-check both are idle (handles race where new work submitted)
-			if d.WalkPool.IsIdle() && (d.SchemaPool == nil || d.SchemaPool.IsIdle()) {
-				return
-			}
+		if d.SchemaPool != nil {
+			d.SchemaPool.WaitForCompletion()
 		}
-	} else if d.WaitGroup != nil {
-		// async mode - wait for WaitGroup
-		d.WaitGroup.Wait()
+
+		// double-check both are idle (handles race where new work submitted)
+		if d.WalkPool.IsIdle() && (d.SchemaPool == nil || d.SchemaPool.IsIdle()) {
+			return
+		}
 	}
 }
 
-// SubmitSchemaWalk submits a schema walk to the pool (if available) or runs via WaitGroup.
-// This is the preferred method for schema walking in pooled mode.
+// SubmitSchemaWalk submits a schema walk to the SchemaPool, or runs synchronously.
 func (d *DrContext) SubmitSchemaWalk(ctx context.Context, sch *SchemaProxy, baseSchema *base.SchemaProxy, depth int) {
-	if d.PooledWalk && d.SchemaPool != nil {
+	if d.SchemaPool != nil {
 		d.SchemaPool.SubmitOrWalk(sch, baseSchema, depth)
-	} else if d.SyncWalk {
-		sch.Walk(ctx, baseSchema, depth)
 	} else {
-		d.WaitGroup.Go(func() { sch.Walk(ctx, baseSchema, depth) })
+		// no pool available, run synchronously
+		sch.Walk(ctx, baseSchema, depth)
 	}
 }
