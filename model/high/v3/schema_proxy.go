@@ -160,7 +160,10 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 			} else {
 				// follow!
 				if schemaProxy.GoLow().GetValueNode() != nil {
-					sourceId := fmt.Sprintf("%s", sp.GetNodeParent().GetNode().Id)
+					// Use parent schema ID directly - no property node exists for simple $ref properties
+					// since BuildGraph is false in this code path. The edge goes from parent schema
+					// to the referenced schema.
+					sourceId := sp.GetNodeParent().GetNode().Id
 					target := fmt.Sprintf("%d", schemaProxy.GoLow().GetValueNode().Line)
 					poly := ""
 					if sp.PathSegment == "allOf" || sp.PathSegment == "oneOf" || sp.PathSegment == "anyOf" {
