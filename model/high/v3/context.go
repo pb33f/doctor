@@ -16,6 +16,9 @@ import (
 
 const HEIGHT = 25
 const WIDTH = 200
+const CHAR_WIDTH = 8
+const MAX_WIDTH = 700
+const MIN_WIDTH = 150
 
 type BuildError struct {
 	Error         error

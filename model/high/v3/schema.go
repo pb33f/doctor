@@ -109,9 +109,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 				// Restore original NodeParent after potential corruption
 				s.NodeParent = originalNodeParent
 				drCtx.ObjectChan <- s
-				if s.Walked {
-					return
-				}
+				s.Walked = true
+				return
 			}
 		}
 
@@ -585,16 +584,26 @@ func (s *Schema) GetSize() (height, width int) {
 	defer s.mu.RUnlock()
 
 	h, w := ParseSchemaSize(s.Value)
-	if s.Key != "" {
-		if len(s.Key) > (HEIGHT - 15) {
-			w += (len(s.Key) - (HEIGHT - 15)) * 25
+
+	// Calculate required width based on longest name (use max, don't add both)
+	maxNameLen := len(s.Key)
+	if len(s.Name) > maxNameLen {
+		maxNameLen = len(s.Name)
+	}
+
+	// Header needs: icon(30) + name + badge(60) + button(35) + padding(35) = 160 + name
+	if maxNameLen > 0 {
+		requiredWidth := 160 + (maxNameLen * CHAR_WIDTH)
+		if requiredWidth > w {
+			w = requiredWidth
 		}
 	}
-	if s.Name != "" {
-		if len(s.Name) > (HEIGHT - 15) {
-			w += (len(s.Name) - (HEIGHT - 15)) * 25
-		}
+
+	// Cap maximum width to prevent excessively wide boxes
+	if w > MAX_WIDTH {
+		w = MAX_WIDTH
 	}
+
 	if len(s.AnyOf) <= 0 && len(s.OneOf) <= 0 && len(s.AllOf) <= 0 {
 		if s.PolyType != "" {
 			h += HEIGHT // parent is poly, add new row for schema to render this.
@@ -630,13 +639,17 @@ func ParseSchemaSize(schema *base.Schema) (height, width int) {
 
 	if schema.Title != "" {
 		height += HEIGHT
-		if len(schema.Title) > (HEIGHT - 10) {
-			width += ((len(schema.Title) * 10) - HEIGHT)
+		// Title row: chevron(20) + title text + padding(30) = 50 + title
+		// But ensure minimum base matches header pattern for consistency
+		titleWidth := 80 + (len(schema.Title) * CHAR_WIDTH)
+		if titleWidth > width {
+			width = titleWidth
 		}
 	}
 
 	if len(schema.Type) > 1 {
-		width += len(schema.Type) * 60
+		// Multiple types need extra space for badges
+		width += len(schema.Type) * 40
 	}
 
 	if schema.Properties != nil && schema.Properties.Len() > 0 {
@@ -645,14 +658,19 @@ func ParseSchemaSize(schema *base.Schema) (height, width int) {
 
 	if len(schema.AnyOf) > 0 || len(schema.OneOf) > 0 || len(schema.AllOf) > 0 {
 		height += HEIGHT
-		if len(schema.AnyOf) > 0 && width < WIDTH+50 {
-			width += 50
+		// Add modest width for polymorphic indicators
+		polyWidth := 0
+		if len(schema.AnyOf) > 0 {
+			polyWidth += 40
 		}
-		if len(schema.OneOf) > 0 && width < WIDTH+100 {
-			width += 50
+		if len(schema.OneOf) > 0 {
+			polyWidth += 40
 		}
-		if len(schema.AllOf) > 0 && width < WIDTH+150 {
-			width += 50
+		if len(schema.AllOf) > 0 {
+			polyWidth += 40
+		}
+		if width < WIDTH+polyWidth {
+			width = WIDTH + polyWidth
 		}
 	}
 	if len(schema.Examples) <= 0 || schema.Example == nil {

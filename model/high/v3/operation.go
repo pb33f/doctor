@@ -215,8 +215,10 @@ func (o *Operation) GetSize() (height, width int) {
 
 	if o.Value.OperationId != "" {
 		height += HEIGHT
-		if len(o.Value.OperationId) > HEIGHT-10 {
-			width += (len(o.Value.OperationId) - (HEIGHT - 10)) * 20
+		// OperationId row: chevron(15) + "ID: "(30) + operationId + badge(35) + expand button(35) + padding(5)
+		opIdWidth := 120 + (len(o.Value.OperationId) * CHAR_WIDTH)
+		if opIdWidth > width {
+			width = opIdWidth
 		}
 	}
 
@@ -226,6 +228,11 @@ func (o *Operation) GetSize() (height, width int) {
 
 	if len(o.Value.Parameters) > 0 {
 		height += HEIGHT
+		// Parameters row: chevron(15) + icon(20) + "Parameters"(80) + badge(35) + expand(35) + padding(5)
+		paramWidth := 190
+		if paramWidth > width {
+			width = paramWidth
+		}
 	}
 
 	if o.Value.Deprecated != nil && *o.Value.Deprecated {
@@ -238,6 +245,11 @@ func (o *Operation) GetSize() (height, width int) {
 
 	if o.Value.Responses != nil && o.Value.Responses.Codes.Len() > 0 {
 		height += HEIGHT
+		// Responses row: chevron(15) + icon(20) + "Responses"(75) + badge(35) + expand(35) + padding(5)
+		respWidth := 185
+		if respWidth > width {
+			width = respWidth
+		}
 	}
 
 	if len(o.Value.Security) > 0 {
@@ -257,6 +269,11 @@ func (o *Operation) GetSize() (height, width int) {
 			height += HEIGHT
 			break
 		}
+	}
+
+	// Cap maximum width to prevent excessively wide boxes
+	if width > MAX_WIDTH {
+		width = MAX_WIDTH
 	}
 
 	return height, width
