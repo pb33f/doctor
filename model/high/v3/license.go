@@ -38,9 +38,23 @@ func (l *License) GetSize() (height, width int) {
 
 	if l.Value.Name != "" {
 		height += HEIGHT
-		if len(l.Value.Name) > HEIGHT-15 {
-			width += (len(l.Value.Name) - (HEIGHT - 15)) * 5
+		// Name row: chevron(20) + name text + right padding(40)
+		nameWidth := 60 + (len(l.Value.Name) * 9)
+		if nameWidth > width {
+			width = nameWidth
 		}
+	}
+
+	if l.Value.Identifier != "" {
+		// Identifier row: chevron(20) + identifier text + right padding(40)
+		idWidth := 60 + (len(l.Value.Identifier) * 9)
+		if idWidth > width {
+			width = idWidth
+		}
+	}
+
+	if width > MAX_WIDTH {
+		width = MAX_WIDTH
 	}
 
 	if l.Value.Extensions != nil && l.Value.Extensions.Len() > 0 {
