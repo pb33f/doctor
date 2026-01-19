@@ -5,6 +5,7 @@ package v3
 
 import (
 	"context"
+
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
@@ -49,10 +50,13 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 			response := resp
 			ref := refString
 			drCtx.RunWalk(func() {
-				response.Walk(ctx, v)
+				walkCtx := drCtx.WalkContextForRef(ctx, ref != "")
+				response.Walk(walkCtx, v)
 				// if this was a reference, create a reference edge
-				if ref != "" && response.GetNode() != nil && r.GetNode() != nil {
-					r.BuildReferenceEdge(ctx, r.GetNode().Id, response.GetNode().Id, ref, "")
+				if ref != "" && r.GetNode() != nil {
+					if !drCtx.BuildRefEdgeByLine(ctx, &r.Foundation, ref) && response.GetNode() != nil {
+						r.BuildReferenceEdge(ctx, r.GetNode().Id, response.GetNode().Id, ref, "")
+					}
 				}
 			})
 			r.Codes.Set(k, resp)
@@ -73,9 +77,12 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 		response := resp
 		ref := refString
 		drCtx.RunWalk(func() {
-			response.Walk(ctx, responses.Default)
-			if ref != "" && response.GetNode() != nil && r.GetNode() != nil {
-				r.BuildReferenceEdge(ctx, r.GetNode().Id, response.GetNode().Id, ref, "")
+			walkCtx := drCtx.WalkContextForRef(ctx, ref != "")
+			response.Walk(walkCtx, responses.Default)
+			if ref != "" && r.GetNode() != nil {
+				if !drCtx.BuildRefEdgeByLine(ctx, &r.Foundation, ref) && response.GetNode() != nil {
+					r.BuildReferenceEdge(ctx, r.GetNode().Id, response.GetNode().Id, ref, "")
+				}
 			}
 		})
 		r.Default = resp

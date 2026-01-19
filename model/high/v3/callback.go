@@ -40,6 +40,10 @@ func (c *Callback) Walk(ctx context.Context, callback *v3.Callback) {
 
 	if callback.GoLow().IsReference() {
 		BuildReference(drCtx, callback.GoLow())
+		if drCtx.BuildGraph && c.GetNode() != nil {
+			refString := callback.GoLow().GetReference()
+			drCtx.BuildRefEdgeByLine(ctx, &c.Foundation, refString)
+		}
 	}
 
 	drCtx.ObjectChan <- c

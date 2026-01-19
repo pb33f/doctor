@@ -261,6 +261,7 @@ func (f *Foundation) ProcessNodesAndEdges(ctx context.Context, label, nodeType s
 			}
 		}
 
+		var parentChildEdge *Edge
 		if label != "" && parent != nil && parent.GetNode() != nil {
 			e := GenerateEdge([]string{
 				parent.GetNode().Id,
@@ -276,12 +277,17 @@ func (f *Foundation) ProcessNodesAndEdges(ctx context.Context, label, nodeType s
 			f.AddEdge(e)
 
 			drCtx.EdgeChan <- e
+			parentChildEdge = e
 		}
 
 		//is this a possible reference?
 		if model != nil {
 			if r, ok := model.GoLowUntyped().(low.IsReferenced); ok {
 				if r.GetReferenceNode() != nil {
+					// Set ref on the parent-child edge so it renders as a reference edge
+					if parentChildEdge != nil {
+						parentChildEdge.Ref = r.GetReference()
+					}
 
 					// check if the ref supports a root node
 					if root, ko := model.GoLowUntyped().(low.HasValueNodeUntyped); ko {

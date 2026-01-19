@@ -6,6 +6,8 @@ package v3
 import (
 	"context"
 	"log/slog"
+	"net/url"
+	"strings"
 	"sync"
 
 	"github.com/pb33f/libopenapi/datamodel/high/base"
@@ -145,4 +147,76 @@ func (d *DrContext) SubmitSchemaWalk(ctx context.Context, sch *SchemaProxy, base
 		// no pool available, run synchronously
 		sch.Walk(ctx, baseSchema, depth)
 	}
+}
+
+// WalkContextForRef returns a context suitable for walking a $ref object.
+// When DeterministicPaths is enabled and not rendering changes, BuildGraph is disabled
+// to prevent creating duplicate nodes. The component definition creates the canonical node;
+// reference usages only need edges.
+func (d *DrContext) WalkContextForRef(ctx context.Context, isRef bool) context.Context {
+	if isRef && d.DeterministicPaths && !d.RenderChanges {
+		clonedCtx := *d
+		clonedCtx.BuildGraph = false
+		return context.WithValue(ctx, "drCtx", &clonedCtx)
+	}
+	return ctx
+}
+
+// BuildRefEdgeByLine creates a reference edge from source node to a component definition
+// using the component's canonical JSONPath as target identifier.
+// Returns true if edge was created successfully.
+func (d *DrContext) BuildRefEdgeByLine(ctx context.Context, source *Foundation, ref string) bool {
+	if ref == "" || d.Index == nil || source.GetNode() == nil {
+		return false
+	}
+	refComp := d.Index.FindComponent(ctx, ref)
+	if refComp == nil || refComp.Node == nil {
+		return false
+	}
+	// Convert ref to JSONPath format for target node ID
+	// ref is like "#/components/headers/RateLimit" -> "$.components.headers['RateLimit']"
+	target := refToJSONPath(ref)
+	source.BuildReferenceEdge(ctx, source.GetNode().Id, target, ref, "")
+	return true
+}
+
+// refToJSONPath converts a JSON Reference string to a JSONPath node ID.
+// e.g., "#/components/headers/RateLimit" -> "$.components.headers['RateLimit']"
+// Handles JSON Pointer escapes (~0 -> ~, ~1 -> /) and external refs (file.yaml#/...).
+func refToJSONPath(ref string) string {
+	// Handle external refs: extract only the fragment part after #
+	if idx := strings.Index(ref, "#"); idx >= 0 {
+		ref = ref[idx:]
+	}
+
+	ref = strings.TrimPrefix(strings.TrimPrefix(ref, "#"), "/")
+	if ref == "" {
+		return "$"
+	}
+
+	parts := strings.Split(ref, "/")
+	var b strings.Builder
+	b.Grow(len(ref) + len(parts)*4)
+	b.WriteByte('$')
+
+	for i, part := range parts {
+		// URL decode (handles %7B, %7D, etc.)
+		if decoded, err := url.PathUnescape(part); err == nil {
+			part = decoded
+		}
+		// JSON Pointer decode: ~1 -> /, ~0 -> ~ (order matters!)
+		part = strings.ReplaceAll(part, "~1", "/")
+		part = strings.ReplaceAll(part, "~0", "~")
+
+		if i < 2 {
+			b.WriteByte('.')
+			b.WriteString(part)
+		} else {
+			b.WriteString("['")
+			b.WriteString(part)
+			b.WriteString("']")
+		}
+	}
+
+	return b.String()
 }

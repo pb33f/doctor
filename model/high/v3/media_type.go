@@ -46,17 +46,29 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 			e.SetPathSegment("examples")
 			e.Key = mediaTypePairs.Key()
 			v := mediaTypePairs.Value()
+			var refString string
 			for lowExpPairs := mediaType.GoLow().Examples.Value.First(); lowExpPairs != nil; lowExpPairs = lowExpPairs.Next() {
 				if lowExpPairs.Key().Value == e.Key {
 					e.KeyNode = lowExpPairs.Key().KeyNode
 					e.ValueNode = lowExpPairs.Value().ValueNode
+					if lowExpPairs.Value().IsReference() {
+						refString = lowExpPairs.Value().GetReference()
+					}
 					break
 				}
 			}
 			e.Value = v
 			e.NodeParent = m
+			example := e
+			ref := refString
 			drCtx.RunWalk(func() {
-				e.Walk(ctx, v)
+				walkCtx := drCtx.WalkContextForRef(ctx, ref != "")
+				example.Walk(walkCtx, v)
+				if ref != "" && m.GetNode() != nil {
+					if !drCtx.BuildRefEdgeByLine(ctx, &m.Foundation, ref) && example.GetNode() != nil {
+						m.BuildReferenceEdge(ctx, m.GetNode().Id, example.GetNode().Id, ref, "")
+					}
+				}
 			})
 			examples.Set(mediaTypePairs.Key(), e)
 		}
@@ -86,6 +98,10 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 
 	if mediaType.GoLow().IsReference() {
 		BuildReference(drCtx, mediaType.GoLow())
+		if drCtx.BuildGraph && m.GetNode() != nil {
+			refString := mediaType.GoLow().GetReference()
+			drCtx.BuildRefEdgeByLine(ctx, &m.Foundation, refString)
+		}
 	}
 
 	drCtx.MediaTypeChan <- &WalkedMediaType{
