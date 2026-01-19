@@ -19,6 +19,10 @@ func (e *Example) Walk(ctx context.Context, example *base.Example) {
 	e.Value = example
 	if example.GoLow().IsReference() {
 		BuildReference(drCtx, example.GoLow())
+		if drCtx.BuildGraph && e.GetNode() != nil {
+			refString := example.GoLow().GetReference()
+			drCtx.BuildRefEdgeByLine(ctx, &e.Foundation, refString)
+		}
 	}
 	drCtx.ObjectChan <- e
 }

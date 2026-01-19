@@ -70,10 +70,14 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 		for paramPairs := param.Examples.First(); paramPairs != nil; paramPairs = paramPairs.Next() {
 			e := &Example{}
 			e.Key = paramPairs.Key()
+			var refString string
 			for lowExpPairs := param.GoLow().Examples.Value.First(); lowExpPairs != nil; lowExpPairs = lowExpPairs.Next() {
 				if lowExpPairs.Key().Value == e.Key {
 					e.KeyNode = lowExpPairs.Key().KeyNode
 					e.ValueNode = lowExpPairs.Value().ValueNode
+					if lowExpPairs.Value().IsReference() {
+						refString = lowExpPairs.Value().GetReference()
+					}
 					break
 				}
 			}
@@ -81,7 +85,17 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 			e.SetPathSegment("examples")
 			v := paramPairs.Value()
 			e.NodeParent = p
-			drCtx.RunWalk(func() { e.Walk(ctx, v) })
+			example := e
+			ref := refString
+			drCtx.RunWalk(func() {
+				walkCtx := drCtx.WalkContextForRef(ctx, ref != "")
+				example.Walk(walkCtx, v)
+				if ref != "" && p.GetNode() != nil {
+					if !drCtx.BuildRefEdgeByLine(ctx, &p.Foundation, ref) && example.GetNode() != nil {
+						p.BuildReferenceEdge(ctx, p.GetNode().Id, example.GetNode().Id, ref, "")
+					}
+				}
+			})
 			examples.Set(paramPairs.Key(), e)
 		}
 		p.Examples = examples
@@ -116,6 +130,11 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 
 	if param.GoLow().IsReference() {
 		BuildReference(drCtx, param.GoLow())
+		// Create reference edge from parameter instance to component definition
+		if drCtx.BuildGraph && p.GetNode() != nil {
+			refString := param.GoLow().GetReference()
+			drCtx.BuildRefEdgeByLine(ctx, &p.Foundation, refString)
+		}
 	}
 
 	drCtx.ObjectChan <- p

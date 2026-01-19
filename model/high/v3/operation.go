@@ -66,8 +66,22 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			p.Parent = o
 			p.NodeParent = paramsNode
 			p.IsIndexed = true
-			p.Index = &i
-			drCtx.RunWalk(func() { p.Walk(ctx, param) })
+			idx := i
+			p.Index = &idx
+			isRef := param.GoLow().IsReference()
+			var refString string
+			if isRef {
+				refString = param.GoLow().GetReference()
+			}
+			drCtx.RunWalk(func() {
+				walkCtx := drCtx.WalkContextForRef(ctx, isRef)
+				p.Walk(walkCtx, param)
+				if isRef && paramsNode.GetNode() != nil {
+					if !drCtx.BuildRefEdgeByLine(ctx, paramsNode, refString) && p.GetNode() != nil {
+						paramsNode.BuildReferenceEdge(ctx, paramsNode.GetNode().Id, p.GetNode().Id, refString, "")
+					}
+				}
+			})
 			o.Parameters = append(o.Parameters, p)
 		}
 	}
@@ -79,8 +93,21 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 		rb.NodeParent = o
 		rb.ValueNode = operation.RequestBody.GoLow().RootNode
 		rb.KeyNode = operation.RequestBody.GoLow().KeyNode
+		isRef := operation.RequestBody.GoLow().IsReference()
+		var refString string
+		if isRef {
+			refString = operation.RequestBody.GoLow().GetReference()
+		}
+		requestBody := rb
+		ref := refString
 		drCtx.RunWalk(func() {
-			rb.Walk(ctx, operation.RequestBody)
+			walkCtx := drCtx.WalkContextForRef(ctx, isRef)
+			requestBody.Walk(walkCtx, operation.RequestBody)
+			if ref != "" && o.GetNode() != nil {
+				if !drCtx.BuildRefEdgeByLine(ctx, &o.Foundation, ref) && requestBody.GetNode() != nil {
+					o.BuildReferenceEdge(ctx, o.GetNode().Id, requestBody.GetNode().Id, ref, "")
+				}
+			}
 		})
 		o.RequestBody = rb
 	}
@@ -105,10 +132,14 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			c := &Callback{}
 			c.Parent = o
 			c.Key = callbackPairs.Key()
-			for lowHeaderPairs := operation.GoLow().Callbacks.Value.First(); lowHeaderPairs != nil; lowHeaderPairs = lowHeaderPairs.Next() {
-				if lowHeaderPairs.Key().Value == c.Key {
-					c.KeyNode = lowHeaderPairs.Key().KeyNode
-					c.ValueNode = lowHeaderPairs.Value().ValueNode
+			var refString string
+			for lowCallbackPairs := operation.GoLow().Callbacks.Value.First(); lowCallbackPairs != nil; lowCallbackPairs = lowCallbackPairs.Next() {
+				if lowCallbackPairs.Key().Value == c.Key {
+					c.KeyNode = lowCallbackPairs.Key().KeyNode
+					c.ValueNode = lowCallbackPairs.Value().ValueNode
+					if lowCallbackPairs.Value().IsReference() {
+						refString = lowCallbackPairs.Value().GetReference()
+					}
 					break
 				}
 			}
@@ -116,7 +147,17 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			c.Key = callbackPairs.Key()
 			v := callbackPairs.Value()
 			c.NodeParent = o
-			drCtx.RunWalk(func() { c.Walk(ctx, v) })
+			callback := c
+			ref := refString
+			drCtx.RunWalk(func() {
+				walkCtx := drCtx.WalkContextForRef(ctx, ref != "")
+				callback.Walk(walkCtx, v)
+				if ref != "" && o.GetNode() != nil {
+					if !drCtx.BuildRefEdgeByLine(ctx, &o.Foundation, ref) && callback.GetNode() != nil {
+						o.BuildReferenceEdge(ctx, o.GetNode().Id, callback.GetNode().Id, ref, "")
+					}
+				}
+			})
 			callbacks.Set(callbackPairs.Key(), c)
 		}
 		o.Callbacks = callbacks

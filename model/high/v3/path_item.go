@@ -164,10 +164,24 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 			para.SetPathSegment("parameters")
 			para.Parent = p
 			para.IsIndexed = true
-			para.Index = &i
+			idx := i
+			para.Index = &idx
 			para.NodeParent = paramsNode
+			isRef := param.GoLow().IsReference()
+			var refString string
+			if isRef {
+				refString = param.GoLow().GetReference()
+			}
+			paramObj := para
+			ref := refString
 			drCtx.RunWalk(func() {
-				para.Walk(ctx, param)
+				walkCtx := drCtx.WalkContextForRef(ctx, isRef)
+				paramObj.Walk(walkCtx, param)
+				if ref != "" && paramsNode.GetNode() != nil {
+					if !drCtx.BuildRefEdgeByLine(ctx, paramsNode, ref) && paramObj.GetNode() != nil {
+						paramsNode.BuildReferenceEdge(ctx, paramsNode.GetNode().Id, paramObj.GetNode().Id, ref, "")
+					}
+				}
 			})
 			p.Parameters = append(p.Parameters, para)
 		}
@@ -175,6 +189,10 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 
 	if pathItem.GoLow().IsReference() {
 		BuildReference(drCtx, pathItem.GoLow())
+		if drCtx.BuildGraph && p.GetNode() != nil {
+			refString := pathItem.GoLow().GetReference()
+			drCtx.BuildRefEdgeByLine(ctx, &p.Foundation, refString)
+		}
 	}
 
 	drCtx.ObjectChan <- p

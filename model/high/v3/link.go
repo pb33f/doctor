@@ -5,6 +5,7 @@ package v3
 
 import (
 	"context"
+
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
@@ -31,6 +32,10 @@ func (l *Link) Walk(ctx context.Context, link *v3.Link) {
 
 	if link.GoLow().IsReference() {
 		BuildReference(drCtx, link.GoLow())
+		if drCtx.BuildGraph && l.GetNode() != nil {
+			refString := link.GoLow().GetReference()
+			drCtx.BuildRefEdgeByLine(ctx, &l.Foundation, refString)
+		}
 	}
 
 	drCtx.ObjectChan <- l

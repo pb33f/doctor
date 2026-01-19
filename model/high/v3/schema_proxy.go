@@ -5,7 +5,6 @@ package v3
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
@@ -118,6 +117,25 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 			}
 		} else {
 
+			// For polymorphic $ref items ONLY, build the node before disabling BuildGraph.
+			// This creates the allOf[0], oneOf[0], anyOf[0] node that would otherwise be missing.
+			// When RenderChanges is true, BuildGraph stays true and newSchema.Walk will build the node,
+			// so we only do this when !RenderChanges to avoid duplicate nodes.
+			if sp.PolyType != "" && !drCtx.RenderChanges && drCtx.BuildGraph {
+				label := newSchema.Name
+				if label == "" {
+					if sch.Type != nil && len(sch.Type) > 0 {
+						label = sch.Type[0]
+					} else if sch.Title != "" {
+						label = sch.Title
+					} else {
+						label = "schema"
+					}
+				}
+				newSchema.ProcessNodesAndEdges(ctx, label, "schema", sch, newSchema,
+					false, 0, sp.Index, true)
+			}
+
 			// clone context
 			clonedCtx := *drCtx
 
@@ -160,11 +178,13 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 			} else {
 				// follow!
 				if schemaProxy.GoLow().GetValueNode() != nil {
-					// Use parent schema ID directly - no property node exists for simple $ref properties
-					// since BuildGraph is false in this code path. The edge goes from parent schema
-					// to the referenced schema.
+					// Use polymorphic node as edge source if it exists (for allOf[0], oneOf[0], etc.),
+					// otherwise fall back to parent schema ID for regular $ref properties.
 					sourceId := sp.GetNodeParent().GetNode().Id
-					target := fmt.Sprintf("%d", schemaProxy.GoLow().GetValueNode().Line)
+					if sp.PolyType != "" && newSchema != nil && newSchema.GetNode() != nil {
+						sourceId = newSchema.GetNode().Id
+					}
+					target := refToJSONPath(schemaProxy.GetReference())
 					poly := ""
 					if sp.PathSegment == "allOf" || sp.PathSegment == "oneOf" || sp.PathSegment == "anyOf" {
 						poly = sp.PathSegment

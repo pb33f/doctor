@@ -66,10 +66,14 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 		for examplesPairs := header.Examples.First(); examplesPairs != nil; examplesPairs = examplesPairs.Next() {
 			v := examplesPairs.Value()
 			ex := &Example{}
+			var refString string
 			for lowExPairs := header.GoLow().Examples.Value.First(); lowExPairs != nil; lowExPairs = lowExPairs.Next() {
 				if lowExPairs.Key().Value == examplesPairs.Key() {
 					ex.KeyNode = lowExPairs.Key().KeyNode
 					ex.ValueNode = lowExPairs.Value().ValueNode
+					if lowExPairs.Value().IsReference() {
+						refString = lowExPairs.Value().GetReference()
+					}
 					break
 				}
 			}
@@ -77,7 +81,17 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 			ex.Key = examplesPairs.Key()
 			ex.SetPathSegment("examples")
 			ex.NodeParent = h
-			drCtx.RunWalk(func() { ex.Walk(ctx, v) })
+			example := ex
+			ref := refString
+			drCtx.RunWalk(func() {
+				walkCtx := drCtx.WalkContextForRef(ctx, ref != "")
+				example.Walk(walkCtx, v)
+				if ref != "" && h.GetNode() != nil {
+					if !drCtx.BuildRefEdgeByLine(ctx, &h.Foundation, ref) && example.GetNode() != nil {
+						h.BuildReferenceEdge(ctx, h.GetNode().Id, example.GetNode().Id, ref, "")
+					}
+				}
+			})
 			h.Examples.Set(examplesPairs.Key(), ex)
 		}
 	}
@@ -107,6 +121,10 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 
 	if header.GoLow().IsReference() {
 		BuildReference(drCtx, header.GoLow())
+		if drCtx.BuildGraph && h.GetNode() != nil {
+			refString := header.GoLow().GetReference()
+			drCtx.BuildRefEdgeByLine(ctx, &h.Foundation, refString)
+		}
 	}
 
 	drCtx.HeaderChan <- &WalkedHeader{

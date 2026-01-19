@@ -66,10 +66,13 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 			header := h
 			ref := refString
 			drCtx.RunWalk(func() {
-				header.Walk(ctx, v)
+				walkCtx := drCtx.WalkContextForRef(ctx, ref != "")
+				header.Walk(walkCtx, v)
 				// if this was a reference, create a reference edge
-				if ref != "" && header.GetNode() != nil && r.GetNode() != nil {
-					r.BuildReferenceEdge(ctx, r.GetNode().Id, header.GetNode().Id, ref, "")
+				if ref != "" && r.GetNode() != nil {
+					if !drCtx.BuildRefEdgeByLine(ctx, &r.Foundation, ref) && header.GetNode() != nil {
+						r.BuildReferenceEdge(ctx, r.GetNode().Id, header.GetNode().Id, ref, "")
+					}
 				}
 			})
 			headers.Set(headerPairs.Key(), h)
@@ -122,9 +125,12 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 			link := l
 			ref := refString
 			drCtx.RunWalk(func() {
-				link.Walk(ctx, v)
-				if ref != "" && link.GetNode() != nil && r.GetNode() != nil {
-					r.BuildReferenceEdge(ctx, r.GetNode().Id, link.GetNode().Id, ref, "")
+				walkCtx := drCtx.WalkContextForRef(ctx, ref != "")
+				link.Walk(walkCtx, v)
+				if ref != "" && r.GetNode() != nil {
+					if !drCtx.BuildRefEdgeByLine(ctx, &r.Foundation, ref) && link.GetNode() != nil {
+						r.BuildReferenceEdge(ctx, r.GetNode().Id, link.GetNode().Id, ref, "")
+					}
 				}
 			})
 			links.Set(linksPairs.Key(), l)

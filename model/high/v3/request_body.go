@@ -71,6 +71,10 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 
 	if requestBody.GoLow().IsReference() {
 		BuildReference(drCtx, requestBody.GoLow())
+		if drCtx.BuildGraph && r.GetNode() != nil {
+			refString := requestBody.GoLow().GetReference()
+			drCtx.BuildRefEdgeByLine(ctx, &r.Foundation, refString)
+		}
 	}
 
 	drCtx.ObjectChan <- r
