@@ -673,7 +673,60 @@ func ParseSchemaSize(schema *base.Schema) (height, width int) {
 			width = WIDTH + polyWidth
 		}
 	}
-	if len(schema.Examples) <= 0 || schema.Example == nil {
+	// Check if schema itself has examples
+	schemaHasExamples := len(schema.Examples) > 0 || schema.Example != nil
+
+	// Check if all properties have examples (or don't need them)
+	allPropertiesHaveExamples := false
+	if schema.Properties != nil && schema.Properties.Len() > 0 {
+		allPropertiesHaveExamples = true
+		for prop := schema.Properties.First(); prop != nil; prop = prop.Next() {
+			propSchema := prop.Value().Schema()
+			if propSchema == nil {
+				allPropertiesHaveExamples = false
+				break
+			}
+			// Properties with enums, booleans, or defaults don't need examples
+			hasEnum := len(propSchema.Enum) > 0
+			isBoolean := len(propSchema.Type) == 1 && propSchema.Type[0] == "boolean"
+			hasDefault := propSchema.Default != nil
+			if hasEnum || isBoolean || hasDefault {
+				continue
+			}
+			if propSchema.Example == nil && len(propSchema.Examples) == 0 {
+				allPropertiesHaveExamples = false
+				break
+			}
+		}
+	}
+
+	// Check if all polymorphic children have examples (or don't need them)
+	allPolyChildrenHaveExamples := false
+	polyChildren := append(append(schema.AllOf, schema.AnyOf...), schema.OneOf...)
+	if len(polyChildren) > 0 {
+		allPolyChildrenHaveExamples = true
+		for _, child := range polyChildren {
+			childSchema := child.Schema()
+			if childSchema == nil {
+				allPolyChildrenHaveExamples = false
+				break
+			}
+			// Children with enums, booleans, or defaults don't need examples
+			hasEnum := len(childSchema.Enum) > 0
+			isBoolean := len(childSchema.Type) == 1 && childSchema.Type[0] == "boolean"
+			hasDefault := childSchema.Default != nil
+			if hasEnum || isBoolean || hasDefault {
+				continue
+			}
+			if childSchema.Example == nil && len(childSchema.Examples) == 0 {
+				allPolyChildrenHaveExamples = false
+				break
+			}
+		}
+	}
+
+	// Show "No Examples" row only if no examples at any level
+	if !schemaHasExamples && !allPropertiesHaveExamples && !allPolyChildrenHaveExamples {
 		height += HEIGHT
 	}
 

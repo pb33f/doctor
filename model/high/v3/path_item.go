@@ -261,7 +261,7 @@ func (p *PathItem) GetSize() (height, width int) {
 
 	if p.Key != "" {
 		if len(p.Key) > HEIGHT-10 {
-			width += (len(p.Key) - (HEIGHT - 10)) * 15
+			width += (len(p.Key) - (HEIGHT - 10)) * 9
 		}
 	}
 
