@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -48,9 +49,13 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 	} else {
 		m["type"] = "rolodex-dir"
 	}
-	m["id"] = fmt.Sprintf("rolo-%d", n.NumericId)
+	m["id"] = "rolo-" + strconv.Itoa(n.NumericId)
 	if len(n.Children) > 0 {
-		m["nodes"] = n.SortChildren()
+		kids := make([]string, 0, len(n.Children))
+		for _, c := range n.SortChildren() {
+			kids = append(kids, "rolo-"+strconv.Itoa(c.NumericId))
+		}
+		m["nodes"] = kids
 	}
 	if n.FullPath != "" {
 		m["path"] = n.FullPath
@@ -182,6 +187,14 @@ func (n *Node) SortChildren() []*Node {
 		return childrenSlice[i].StringValue < childrenSlice[j].StringValue
 	})
 	return childrenSlice
+}
+
+// FlattenTree recursively collects all nodes into a flat slice
+func (n *Node) FlattenTree(nodes *[]*Node) {
+	*nodes = append(*nodes, n)
+	for _, child := range n.Children {
+		child.FlattenTree(nodes)
+	}
 }
 
 func isFile(path string) bool {
