@@ -68,8 +68,11 @@ func (rt *RolodexTree) BuildTree(base string, baseUrl string) *Node {
 		path := rt.indexConfig.SpecFilePath
 		fullPath := strings.ReplaceAll(path, base, "")
 		root.IsRoot = true
+		root.IsFile = true
+		root.IsOpenApi = true
 		root.StringValue = fullPath
 		root.FullPath = path
+		root.Index = rootIndex
 		rt.Root = root
 		return root
 	}
