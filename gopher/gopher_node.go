@@ -61,7 +61,7 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		m["path"] = n.FullPath
 	}
 	if n.Parent != nil {
-		m["parentId"] = n.Parent.Id
+		m["parentId"] = "rolo-" + strconv.Itoa(n.Parent.NumericId)
 	}
 	if n.IsOpenApi {
 		m["openapi"] = true
