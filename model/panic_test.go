@@ -75,30 +75,36 @@ components:
 	require.NoError(t, err)
 
 	v3Doc, errs := doc.BuildV3Model()
-	// We expect errors for the malformed ref
+	// We may or may not get build errors for the malformed ref, but we should get a document model.
 	t.Logf("Build errors: %v", errs)
-	t.Logf("v3Doc is nil: %v", v3Doc == nil)
+	require.NotNil(t, v3Doc, "v3Doc should be returned even when references are malformed")
 
-	// v3Doc will be nil because of the reference error
-	require.Nil(t, v3Doc, "v3Doc should be nil due to malformed reference")
+	// Building a DrDocument with a malformed ref should not panic.
+	require.NotPanics(t, func() {
+		drDoc := NewDrDocumentWithConfig(v3Doc, &DrConfig{
+			BuildGraph:     true,
+			UseSchemaCache: true,
+		})
+		require.NotNil(t, drDoc, "drDoc should be created even when the spec has reference errors")
+	})
 
 	// NewDrDocumentWithConfig should handle nil input gracefully (return nil, not panic)
 	require.NotPanics(t, func() {
-		drDoc := NewDrDocumentWithConfig(v3Doc, &DrConfig{
+		drDoc := NewDrDocumentWithConfig(nil, &DrConfig{
 			BuildGraph:     true,
 			UseSchemaCache: true,
 		})
 		require.Nil(t, drDoc, "drDoc should be nil when input document is nil")
 	})
 
-	// Also test NewDrDocument and NewDrDocumentAndGraph
+	// Also test NewDrDocument and NewDrDocumentAndGraph for nil input
 	require.NotPanics(t, func() {
-		drDoc := NewDrDocument(v3Doc)
+		drDoc := NewDrDocument(nil)
 		require.Nil(t, drDoc, "drDoc should be nil when input document is nil")
 	})
 
 	require.NotPanics(t, func() {
-		drDoc := NewDrDocumentAndGraph(v3Doc)
+		drDoc := NewDrDocumentAndGraph(nil)
 		require.Nil(t, drDoc, "drDoc should be nil when input document is nil")
 	})
 }
