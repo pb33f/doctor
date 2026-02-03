@@ -1200,7 +1200,7 @@ func TestMultiRefLookup(t *testing.T) {
 	bytes, _ := os.ReadFile("../test_specs/test-relative/spec.yaml")
 	newDoc, _ := libopenapi.NewDocumentWithConfiguration(bytes, &datamodel.DocumentConfiguration{
 		BasePath:            "../test_specs/test-relative",
-		SpecFilePath:        "test_specs/test-relative/spec.yaml",
+		SpecFilePath:        "../test_specs/test-relative/spec.yaml",
 		AllowFileReferences: true,
 	})
 	v3Doc, _ := newDoc.BuildV3Model()
