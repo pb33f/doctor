@@ -60,11 +60,11 @@ classDiagram
     +string? anchor
   }
   class ArticleContent {
+    +TOCEntry[]? table_of_contents
     +string? content_type
     +string? summary
     +any[]? body
     +integer? reading_time
-    +TOCEntry[]? table_of_contents
   }
   class VideoFormat {
     <<object>>
@@ -119,13 +119,13 @@ classDiagram
     +string? label
   }
   class VideoContent {
-    +Image? thumbnail
-    +integer? duration
-    +VideoChapter[]? chapters
     +Subtitle[]? subtitles
     +string? content_type
     +string? description
     +UploadedVideo | YouTubeVideo | VimeoVideo | StreamingVideo? video
+    +Image? thumbnail
+    +integer? duration
+    +VideoChapter[]? chapters
   }
   class GalleryContent {
     +string? description
@@ -160,9 +160,9 @@ classDiagram
     #any[] questions
   }
   class InteractiveContent {
+    +string? content_type
     +string? interactive_type (enum:quiz,poll,survey,calculator,game)
     +QuizConfig | PollConfig | SurveyConfig? config
-    +string? content_type
   }
   class CreateContentRequest_Choice {
     <<interface>>
