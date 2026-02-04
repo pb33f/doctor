@@ -109,13 +109,14 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 				// Restore original NodeParent after potential corruption
 				s.NodeParent = originalNodeParent
 				drCtx.ObjectChan <- s
-				s.Walked = true
-				return
+				if s.Walked {
+					return
+				}
 			}
 		}
 
-		// Store hash for future lookups
-		sm.Store(cacheKey, rootNodeHash)
+		// Note: Cache store moved to after properties populated to prevent race condition
+		// where incomplete schemas are sent to ObjectChan from cache hits
 	}
 
 	s.mu.Lock()
@@ -566,6 +567,12 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		externalDocs.NodeParent = s
 		s.ExternalDocs = externalDocs
 		drCtx.ObjectChan <- externalDocs
+	}
+
+	// Store schema in cache AFTER all properties are populated
+	// This prevents race condition where cache hit returns incomplete schema
+	if drCtx.UseSchemaCache && cacheKey != "" {
+		sm.Store(cacheKey, rootNodeHash)
 	}
 
 	drCtx.ObjectChan <- s
