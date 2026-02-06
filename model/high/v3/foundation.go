@@ -275,8 +275,6 @@ func (f *Foundation) ProcessNodesAndEdges(ctx context.Context, label, nodeType s
 
 			parent.AddEdge(e)
 			f.AddEdge(e)
-
-			drCtx.EdgeChan <- e
 			parentChildEdge = e
 		}
 
@@ -322,6 +320,11 @@ func (f *Foundation) ProcessNodesAndEdges(ctx context.Context, label, nodeType s
 					}
 				}
 			}
+		}
+
+		// Send edge after all fields (including Ref) are fully populated
+		if parentChildEdge != nil {
+			drCtx.EdgeChan <- parentChildEdge
 		}
 	}
 }
