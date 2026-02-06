@@ -95,10 +95,10 @@ classDiagram
     +Address? billing_address
   }
   class BankTransferPayment {
-    +string? bank_name
     +string? payment_type
     +string? account_number
     +string? routing_number
+    +string? bank_name
   }
   class DigitalWalletPayment {
     +string? payment_type
@@ -127,11 +127,11 @@ classDiagram
     +string? delivery_time (enum:morning,afternoon,evening)
   }
   class ShippingFulfillment {
-    +StandardShipping | ExpressShipping | OvernightShipping? shipping_method
     +string? fulfillment_type
     +Address? shipping_address
     +string? carrier (enum:ups,fedex,usps,dhl)
     +string? tracking_number
+    +StandardShipping | ExpressShipping | OvernightShipping? shipping_method
   }
   class PickupLocation {
     <<object>>
@@ -141,9 +141,9 @@ classDiagram
     +string? hours
   }
   class PickupFulfillment {
+    +string? fulfillment_type
     +PickupLocation? pickup_location
     +string? pickup_code
-    +string? fulfillment_type
   }
   class DigitalFulfillment {
     +string? fulfillment_type
@@ -157,11 +157,11 @@ classDiagram
     +boolean? wrap
   }
   class CreateOrderRequest {
-    +CardPayment | BankTransferPayment | DigitalWalletPayment? payment
     +ShippingFulfillment | PickupFulfillment | DigitalFulfillment? fulfillment
     +GiftOptions? gift_options
     +string? promotional_code
     +OrderItem[]? items
+    +CardPayment | BankTransferPayment | DigitalWalletPayment? payment
   }
   class paths__orders_post_responses {
   }

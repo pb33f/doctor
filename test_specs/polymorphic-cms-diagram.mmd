@@ -60,11 +60,11 @@ classDiagram
     +string? anchor
   }
   class ArticleContent {
-    +TOCEntry[]? table_of_contents
     +string? content_type
     +string? summary
     +any[]? body
     +integer? reading_time
+    +TOCEntry[]? table_of_contents
   }
   class VideoFormat {
     <<object>>
@@ -119,19 +119,19 @@ classDiagram
     +string? label
   }
   class VideoContent {
-    +Subtitle[]? subtitles
-    +string? content_type
     +string? description
     +UploadedVideo | YouTubeVideo | VimeoVideo | StreamingVideo? video
     +Image? thumbnail
     +integer? duration
     +VideoChapter[]? chapters
+    +Subtitle[]? subtitles
+    +string? content_type
   }
   class GalleryContent {
+    +string? content_type
     +string? description
     +any[]? images
     +string? layout (enum:grid,carousel,masonry,slideshow)
-    +string? content_type
   }
   class QuizQuestion {
     <<object>>

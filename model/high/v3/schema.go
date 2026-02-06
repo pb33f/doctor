@@ -102,14 +102,14 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			s.Value = schema
 			hash := h.(string)
 			if rootNodeHash == hash {
-				// Preserve NodeParent before BuildNodesAndEdges to prevent corruption
-				// when s.Name is empty (which triggers NodeParent reassignment in foundation.go)
-				originalNodeParent := s.NodeParent
-				s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
-				// Restore original NodeParent after potential corruption
-				s.NodeParent = originalNodeParent
-				drCtx.ObjectChan <- s
 				if s.Walked {
+					// Preserve NodeParent before BuildNodesAndEdges to prevent corruption
+					// when s.Name is empty (which triggers NodeParent reassignment in foundation.go)
+					originalNodeParent := s.NodeParent
+					s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
+					// Restore original NodeParent after potential corruption
+					s.NodeParent = originalNodeParent
+					drCtx.ObjectChan <- s
 					return
 				}
 			}
@@ -339,45 +339,20 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.Parent = s
 			sch.SetPathSegment("patternProperties")
 			sch.Key = patternPropertiesPairs.Key()
+			sch.NodeParent = s
 			walked := false
 			for lowPPPairs := schema.GoLow().PatternProperties.Value.First(); lowPPPairs != nil; lowPPPairs = lowPPPairs.Next() {
 				if lowPPPairs.Key().Value == sch.Key {
 					sch.KeyNode = lowPPPairs.Key().KeyNode
 					sch.ValueNode = lowPPPairs.Value().ValueNode
-
-					g := patternPropertiesPairs.Value().Schema()
-					if g != nil {
-						if !slices.Contains(g.Type, "string") &&
-							!slices.Contains(g.Type, "boolean") &&
-							!slices.Contains(g.Type, "integer") &&
-							!slices.Contains(g.Type, "number") {
-							sch.NodeParent = s
-						}
-					}
 					walked = true
 					drCtx.SubmitSchemaWalk(ctx, sch, patternPropertiesPairs.Value(), depth)
 					break
 				}
 			}
-			sch.NodeParent = s
 			patternProperties.Set(patternPropertiesPairs.Key(), sch)
-			v := patternPropertiesPairs.Value()
-			if v.IsReference() {
-				sch.NodeParent = s
-			} else {
-				if slices.Contains(v.Schema().Type, "object") {
-					sch.NodeParent = s
-				}
-			}
 			if !walked {
-				g := patternPropertiesPairs.Value().Schema()
-				if !slices.Contains(g.Type, "string") &&
-					!slices.Contains(g.Type, "boolean") &&
-					!slices.Contains(g.Type, "integer") &&
-					!slices.Contains(g.Type, "number") {
-					sch.NodeParent = s
-				}
-				drCtx.SubmitSchemaWalk(ctx, sch, v, depth)
+				drCtx.SubmitSchemaWalk(ctx, sch, patternPropertiesPairs.Value(), depth)
 			}
 		}
 		s.PatternProperties = patternProperties
