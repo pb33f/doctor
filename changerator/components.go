@@ -16,11 +16,12 @@ func (t *Changerator) VisitComponents(ctx context.Context, obj *v3.Components) {
 
 		if changes.SchemaChanges != nil && len(changes.SchemaChanges) > 0 && obj.Schemas.Len() > 0 {
 			for k, v := range changes.SchemaChanges {
-				if obj.Schemas.GetOrZero(k) != nil {
+				entry := obj.Schemas.GetOrZero(k)
+				if entry != nil && entry.Schema != nil {
 					nCtx = context.WithValue(ctx, v3.Context, v)
-					if obj.Schemas.GetOrZero(k).Schema.Value != nil &&
-						!obj.Schemas.GetOrZero(k).Schema.Value.GoLow().IsReference() {
-						obj.Schemas.GetOrZero(k).Schema.Travel(nCtx, t)
+					if entry.Schema.Value != nil &&
+						!entry.Schema.Value.GoLow().IsReference() {
+						entry.Schema.Travel(nCtx, t)
 					}
 				}
 			}
