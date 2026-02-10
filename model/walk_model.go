@@ -520,14 +520,14 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 
 	// PRE-POPULATE canonical paths for ALL component types BEFORE concurrent walking.
 	// This must happen synchronously before any goroutines run to avoid races.
-	// The cache maps object hash -> canonical JSONPath (definition-site path).
+	// The cache maps *yaml.Node pointer -> canonical JSONPath (definition-site path).
 	if config.DeterministicPaths && doc.Components != nil {
 		// Schemas
 		if doc.Components.Schemas != nil {
 			for pair := doc.Components.Schemas.First(); pair != nil; pair = pair.Next() {
 				if resolved := pair.Value().Schema(); resolved != nil {
 					if low := resolved.GoLow(); low != nil && low.RootNode != nil {
-						canonicalPathCache.Store(index.HashNode(low.RootNode),
+						canonicalPathCache.Store(low.RootNode,
 							fmt.Sprintf("$.components.schemas['%s']", pair.Key()))
 					}
 				}
@@ -537,7 +537,7 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 		if doc.Components.Responses != nil {
 			for pair := doc.Components.Responses.First(); pair != nil; pair = pair.Next() {
 				if low := pair.Value().GoLow(); low != nil && low.RootNode != nil {
-					canonicalPathCache.Store(index.HashNode(low.RootNode),
+					canonicalPathCache.Store(low.RootNode,
 						fmt.Sprintf("$.components.responses['%s']", pair.Key()))
 				}
 			}
@@ -546,7 +546,7 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 		if doc.Components.Parameters != nil {
 			for pair := doc.Components.Parameters.First(); pair != nil; pair = pair.Next() {
 				if low := pair.Value().GoLow(); low != nil && low.RootNode != nil {
-					canonicalPathCache.Store(index.HashNode(low.RootNode),
+					canonicalPathCache.Store(low.RootNode,
 						fmt.Sprintf("$.components.parameters['%s']", pair.Key()))
 				}
 			}
@@ -555,7 +555,7 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 		if doc.Components.RequestBodies != nil {
 			for pair := doc.Components.RequestBodies.First(); pair != nil; pair = pair.Next() {
 				if low := pair.Value().GoLow(); low != nil && low.RootNode != nil {
-					canonicalPathCache.Store(index.HashNode(low.RootNode),
+					canonicalPathCache.Store(low.RootNode,
 						fmt.Sprintf("$.components.requestBodies['%s']", pair.Key()))
 				}
 			}
@@ -564,7 +564,7 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 		if doc.Components.Headers != nil {
 			for pair := doc.Components.Headers.First(); pair != nil; pair = pair.Next() {
 				if low := pair.Value().GoLow(); low != nil && low.RootNode != nil {
-					canonicalPathCache.Store(index.HashNode(low.RootNode),
+					canonicalPathCache.Store(low.RootNode,
 						fmt.Sprintf("$.components.headers['%s']", pair.Key()))
 				}
 			}

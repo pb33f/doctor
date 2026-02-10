@@ -8,7 +8,6 @@ import (
 
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
-	"github.com/pb33f/libopenapi/index"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -151,11 +150,9 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 			ignoredCircularRefs := schemaProxy.GoLow().GetIndex().GetRolodex().GetIgnoredCircularReferences()
 			combinedCircularRefs := append(safeCircularRefs, ignoredCircularRefs...)
 			combinedCircularRefs = append(combinedCircularRefs, allCircs...)
+			schRootNode := sch.GoLow().RootNode
 			for _, ref := range combinedCircularRefs {
-				// hash the root node of the schema reference
-				rh := index.HashNode(sch.GoLow().RootNode)
-				lph := index.HashNode(ref.LoopPoint.Node)
-				if rh == lph {
+				if schRootNode == ref.LoopPoint.Node {
 					return // nope
 				}
 			}

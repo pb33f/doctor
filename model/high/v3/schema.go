@@ -9,8 +9,8 @@ import (
 	"sync"
 
 	"github.com/pb33f/libopenapi/datamodel/high/base"
-	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"go.yaml.in/yaml/v4"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -53,8 +53,7 @@ func isSchemaAlreadyCached(ctx context.Context, schema *base.Schema) bool {
 	}
 
 	// Check if this schema is already cached
-	rootNodeHash := index.HashNode(schema.GoLow().RootNode)
-	if _, exists := drCtx.SchemaCache.Load(rootNodeHash); exists {
+	if _, exists := drCtx.SchemaCache.Load(schema.GoLow().RootNode); exists {
 		return true
 	}
 	return false
@@ -76,8 +75,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 	// has a canonical path (defined in components.schemas), use it to ensure determinism
 	if drCtx.DeterministicPaths && drCtx.CanonicalPathCache != nil && schema != nil {
 		if lowSchema := schema.GoLow(); lowSchema != nil && lowSchema.RootNode != nil {
-			schemaHash := index.HashNode(lowSchema.RootNode)
-			if canonicalPath, found := drCtx.CanonicalPathCache.Load(schemaHash); found {
+			if canonicalPath, found := drCtx.CanonicalPathCache.Load(lowSchema.RootNode); found {
 				// Pre-set the JSONPath using sync.Once to ensure deterministic path
 				s.JSONPathOnce.Do(func() {
 					s.JSONPath = canonicalPath.(string)
@@ -88,30 +86,24 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	sm := drCtx.SchemaCache
 
-	// Use node hash as a cache key for better deduplication
-	var cacheKey string
-	var rootNodeHash string
+	// Use node pointer as cache key for zero-cost deduplication
+	var cacheKey *yaml.Node
 
 	if drCtx.UseSchemaCache {
-		// Compute hash once and use as a cache key
-		rootNodeHash = index.HashNode(schema.GoLow().RootNode)
-		cacheKey = rootNodeHash
+		cacheKey = schema.GoLow().RootNode
 
-		if h, ok := sm.Load(cacheKey); ok {
+		if _, ok := sm.Load(cacheKey); ok {
 			// cached! we don't need to re-walk this.
 			s.Value = schema
-			hash := h.(string)
-			if rootNodeHash == hash {
-				if s.Walked {
-					// Preserve NodeParent before BuildNodesAndEdges to prevent corruption
-					// when s.Name is empty (which triggers NodeParent reassignment in foundation.go)
-					originalNodeParent := s.NodeParent
-					s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
-					// Restore original NodeParent after potential corruption
-					s.NodeParent = originalNodeParent
-					drCtx.ObjectChan <- s
-					return
-				}
+			if s.Walked {
+				// Preserve NodeParent before BuildNodesAndEdges to prevent corruption
+				// when s.Name is empty (which triggers NodeParent reassignment in foundation.go)
+				originalNodeParent := s.NodeParent
+				s.BuildNodesAndEdges(ctx, s.Name, "schema", schema, s)
+				// Restore original NodeParent after potential corruption
+				s.NodeParent = originalNodeParent
+				drCtx.ObjectChan <- s
+				return
 			}
 		}
 
@@ -546,8 +538,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	// Store schema in cache AFTER all properties are populated
 	// This prevents race condition where cache hit returns incomplete schema
-	if drCtx.UseSchemaCache && cacheKey != "" {
-		sm.Store(cacheKey, rootNodeHash)
+	if drCtx.UseSchemaCache && cacheKey != nil {
+		sm.Store(cacheKey, true)
 	}
 
 	drCtx.ObjectChan <- s

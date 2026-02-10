@@ -7,7 +7,6 @@ import (
 	"context"
 
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
-	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
 
@@ -26,7 +25,7 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 	// Check for canonical path - ensures deterministic paths for $ref'd responses
 	if drCtx.DeterministicPaths && drCtx.CanonicalPathCache != nil && response != nil {
 		if low := response.GoLow(); low != nil && low.RootNode != nil {
-			if canonicalPath, found := drCtx.CanonicalPathCache.Load(index.HashNode(low.RootNode)); found {
+			if canonicalPath, found := drCtx.CanonicalPathCache.Load(low.RootNode); found {
 				r.JSONPathOnce.Do(func() {
 					r.JSONPath = canonicalPath.(string)
 				})
