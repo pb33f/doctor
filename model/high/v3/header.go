@@ -8,7 +8,6 @@ import (
 	"slices"
 
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
-	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
 
@@ -27,7 +26,7 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 	// Check for canonical path - ensures deterministic paths for $ref'd headers
 	if drCtx.DeterministicPaths && drCtx.CanonicalPathCache != nil && header != nil {
 		if low := header.GoLow(); low != nil && low.RootNode != nil {
-			if canonicalPath, found := drCtx.CanonicalPathCache.Load(index.HashNode(low.RootNode)); found {
+			if canonicalPath, found := drCtx.CanonicalPathCache.Load(low.RootNode); found {
 				h.JSONPathOnce.Do(func() {
 					h.JSONPath = canonicalPath.(string)
 				})

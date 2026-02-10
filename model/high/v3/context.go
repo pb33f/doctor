@@ -70,7 +70,7 @@ type DrContext struct {
 	WalkPool           *WalkPool       // General bounded worker pool for all walk operations
 	DeterministicPaths bool            // When true, component objects return definition-site paths
 	SchemaCache        *sync.Map
-	CanonicalPathCache *sync.Map // Maps object hash -> canonical JSONPath (definition site)
+	CanonicalPathCache *sync.Map // Maps *yaml.Node pointer -> canonical JSONPath (definition site)
 	StringCache        *sync.Map // String interning for common strings
 	StorageRoot        string
 	WorkingDirectory   string
