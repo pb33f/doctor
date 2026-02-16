@@ -46,6 +46,27 @@ type DrDocument struct {
 	lineObjects    map[int][]any
 }
 
+// Release nils all fields that can pin YAML node trees, SpecIndex maps, or
+// libopenapi documents in memory. This includes unexported fields (index,
+// lineObjects) that callers outside this package cannot reach directly.
+// Call this once all serialization work is done with the DrDocument.
+func (d *DrDocument) Release() {
+	if d == nil {
+		return
+	}
+	d.index = nil
+	d.lineObjects = nil
+	d.BuildErrors = nil
+	d.Schemas = nil
+	d.SkippedSchemas = nil
+	d.Parameters = nil
+	d.Headers = nil
+	d.MediaTypes = nil
+	d.V3Document = nil
+	d.Nodes = nil
+	d.Edges = nil
+}
+
 type DrConfig struct {
 	BuildGraph         bool
 	RenderChanges      bool
