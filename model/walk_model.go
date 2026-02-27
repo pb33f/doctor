@@ -18,9 +18,11 @@ import (
 	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel/high"
+	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/orderedmap"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -590,6 +592,77 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 				}
 			}
 		}
+
+		// Recursively pre-populate nested schema paths for all component types.
+		visited := make(map[*yaml.Node]bool)
+
+		// Schemas
+		if doc.Components.Schemas != nil {
+			for pair := doc.Components.Schemas.First(); pair != nil; pair = pair.Next() {
+				if resolved := pair.Value().Schema(); resolved != nil {
+					basePath := fmt.Sprintf("$.components.schemas['%s']", pair.Key())
+					prePopulateNestedSchemaPaths(&canonicalPathCache, resolved, basePath, visited)
+				}
+			}
+		}
+
+		// Responses
+		if doc.Components.Responses != nil {
+			for pair := doc.Components.Responses.First(); pair != nil; pair = pair.Next() {
+				response := pair.Value()
+				if response == nil || response.Content == nil {
+					continue
+				}
+				basePath := fmt.Sprintf("$.components.responses['%s']", pair.Key())
+				prePopulateMediaTypeSchemas(&canonicalPathCache, response.Content, basePath, visited)
+			}
+		}
+
+		// Parameters
+		if doc.Components.Parameters != nil {
+			for pair := doc.Components.Parameters.First(); pair != nil; pair = pair.Next() {
+				parameter := pair.Value()
+				if parameter == nil {
+					continue
+				}
+				basePath := fmt.Sprintf("$.components.parameters['%s']", pair.Key())
+				if parameter.Schema != nil {
+					populateSchemaProxyPath(&canonicalPathCache, parameter.Schema, basePath+".schema", visited)
+				}
+				if parameter.Content != nil {
+					prePopulateMediaTypeSchemas(&canonicalPathCache, parameter.Content, basePath, visited)
+				}
+			}
+		}
+
+		// RequestBodies
+		if doc.Components.RequestBodies != nil {
+			for pair := doc.Components.RequestBodies.First(); pair != nil; pair = pair.Next() {
+				requestBody := pair.Value()
+				if requestBody == nil || requestBody.Content == nil {
+					continue
+				}
+				basePath := fmt.Sprintf("$.components.requestBodies['%s']", pair.Key())
+				prePopulateMediaTypeSchemas(&canonicalPathCache, requestBody.Content, basePath, visited)
+			}
+		}
+
+		// Headers
+		if doc.Components.Headers != nil {
+			for pair := doc.Components.Headers.First(); pair != nil; pair = pair.Next() {
+				header := pair.Value()
+				if header == nil {
+					continue
+				}
+				basePath := fmt.Sprintf("$.components.headers['%s']", pair.Key())
+				if header.Schema != nil {
+					populateSchemaProxyPath(&canonicalPathCache, header.Schema, basePath+".schema", visited)
+				}
+				if header.Content != nil {
+					prePopulateMediaTypeSchemas(&canonicalPathCache, header.Content, basePath, visited)
+				}
+			}
+		}
 	}
 
 	drDoc.Walk(drCtx, doc)
@@ -736,6 +809,126 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 	drDoc.Document.Rolodex.ClearIndexCaches()
 
 	return drDoc
+}
+
+func prePopulateMediaTypeSchemas(
+	cache *sync.Map,
+	content *orderedmap.Map[string, *v3.MediaType],
+	basePath string,
+	visited map[*yaml.Node]bool,
+) {
+	if cache == nil || content == nil {
+		return
+	}
+	for pair := content.First(); pair != nil; pair = pair.Next() {
+		mediaType := pair.Value()
+		if mediaType == nil || mediaType.Schema == nil {
+			continue
+		}
+		mediaPath := fmt.Sprintf("%s.content['%s'].schema", basePath, pair.Key())
+		populateSchemaProxyPath(cache, mediaType.Schema, mediaPath, visited)
+	}
+}
+
+func prePopulateNestedSchemaPaths(
+	cache *sync.Map,
+	schema *highbase.Schema,
+	basePath string,
+	visited map[*yaml.Node]bool,
+) {
+	if cache == nil || schema == nil {
+		return
+	}
+
+	if schema.Properties != nil {
+		for pair := schema.Properties.First(); pair != nil; pair = pair.Next() {
+			path := fmt.Sprintf("%s.properties['%s']", basePath, pair.Key())
+			populateSchemaProxyPath(cache, pair.Value(), path, visited)
+		}
+	}
+
+	for i, proxy := range schema.AllOf {
+		path := fmt.Sprintf("%s.allOf[%d]", basePath, i)
+		populateSchemaProxyPath(cache, proxy, path, visited)
+	}
+	for i, proxy := range schema.OneOf {
+		path := fmt.Sprintf("%s.oneOf[%d]", basePath, i)
+		populateSchemaProxyPath(cache, proxy, path, visited)
+	}
+	for i, proxy := range schema.AnyOf {
+		path := fmt.Sprintf("%s.anyOf[%d]", basePath, i)
+		populateSchemaProxyPath(cache, proxy, path, visited)
+	}
+	for i, proxy := range schema.PrefixItems {
+		path := fmt.Sprintf("%s.prefixItems[%d]", basePath, i)
+		populateSchemaProxyPath(cache, proxy, path, visited)
+	}
+
+	populateSchemaProxyPath(cache, schema.Not, basePath+".not", visited)
+	populateSchemaProxyPath(cache, schema.Contains, basePath+".contains", visited)
+	populateSchemaProxyPath(cache, schema.If, basePath+".if", visited)
+	populateSchemaProxyPath(cache, schema.Then, basePath+".then", visited)
+	populateSchemaProxyPath(cache, schema.Else, basePath+".else", visited)
+	populateSchemaProxyPath(cache, schema.PropertyNames, basePath+".propertyNames", visited)
+	populateSchemaProxyPath(cache, schema.UnevaluatedItems, basePath+".unevaluatedItems", visited)
+	populateSchemaProxyPath(cache, schema.ContentSchema, basePath+".contentSchema", visited)
+
+	if schema.Items != nil && schema.Items.IsA() && schema.Items.A != nil {
+		populateSchemaProxyPath(cache, schema.Items.A, basePath+".items", visited)
+	}
+	if schema.AdditionalProperties != nil && schema.AdditionalProperties.IsA() && schema.AdditionalProperties.A != nil {
+		populateSchemaProxyPath(cache, schema.AdditionalProperties.A, basePath+".additionalProperties", visited)
+	}
+	if schema.UnevaluatedProperties != nil && schema.UnevaluatedProperties.IsA() && schema.UnevaluatedProperties.A != nil {
+		populateSchemaProxyPath(cache, schema.UnevaluatedProperties.A, basePath+".unevaluatedProperties", visited)
+	}
+
+	if schema.DependentSchemas != nil {
+		for pair := schema.DependentSchemas.First(); pair != nil; pair = pair.Next() {
+			path := fmt.Sprintf("%s.dependentSchemas['%s']", basePath, pair.Key())
+			populateSchemaProxyPath(cache, pair.Value(), path, visited)
+		}
+	}
+	if schema.PatternProperties != nil {
+		for pair := schema.PatternProperties.First(); pair != nil; pair = pair.Next() {
+			path := fmt.Sprintf("%s.patternProperties['%s']", basePath, pair.Key())
+			populateSchemaProxyPath(cache, pair.Value(), path, visited)
+		}
+	}
+}
+
+func populateSchemaProxyPath(
+	cache *sync.Map,
+	proxy *highbase.SchemaProxy,
+	path string,
+	visited map[*yaml.Node]bool,
+) {
+	if cache == nil || proxy == nil {
+		return
+	}
+
+	// Stop traversal at direct $ref boundaries: component targets are seeded independently.
+	if proxy.IsReference() {
+		return
+	}
+
+	resolved := proxy.Schema()
+	if resolved == nil {
+		return
+	}
+	low := resolved.GoLow()
+	if low == nil || low.RootNode == nil {
+		return
+	}
+
+	root := low.RootNode
+	if visited[root] {
+		return
+	}
+
+	cache.LoadOrStore(root, path)
+	visited[root] = true
+	prePopulateNestedSchemaPaths(cache, resolved, path, visited)
 }
 
 func (w *DrDocument) processObject(obj any, ln []any) {

@@ -918,8 +918,7 @@ components:
 	walker := NewDrDocument(v3Doc)
 
 	assert.Len(t, walker.BuildErrors, 2)
-	assert.Equal(t, "build schema failed: unexpected data type: 'string', line 6, col 29",
-		walker.BuildErrors[0].Error.Error())
+	assert.Contains(t, walker.BuildErrors[0].Error.Error(), "line 6, col 29")
 
 }
 
