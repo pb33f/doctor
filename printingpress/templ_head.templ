@@ -1,0 +1,17 @@
+package printingpress
+
+templ Head(title string, baseURL string) {
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<title>{ title }</title>
+		if baseURL != "" {
+			<base href={ baseURL }/>
+		}
+		<link rel="stylesheet" href="static/pb33f-theme.css"/>
+		<link rel="stylesheet" href="static/cowboy-components.css"/>
+		<link rel="stylesheet" href="static/shoelace-dark.css"/>
+		<link rel="stylesheet" href="static/printing-press.css"/>
+		<script src="static/printing-press.js"></script>
+	</head>
+}

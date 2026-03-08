@@ -1,0 +1,87 @@
+package printingpress
+
+import "fmt"
+
+templ ModelPageTempl(page *ModelPage) {
+	<div class="pp-model">
+		<div class="pp-model-header">
+			<h1>{ page.Name }</h1>
+			<span class="pp-component-type">{ page.ComponentType }</span>
+		</div>
+		if page.Origin != nil {
+			<div class="pp-origin">
+				<span class="pp-label">Defined in:</span>
+				<code>{ page.Origin.OriginalFile }</code>
+				if page.Origin.Line > 0 {
+					<span> (line { fmt.Sprintf("%d", page.Origin.Line) })</span>
+				}
+				if page.Origin.WasRenamed {
+					<span class="pp-renamed">
+						Originally: <code>{ page.Origin.OriginalName }</code>
+					</span>
+				}
+			</div>
+		}
+		if page.DescHTML != "" {
+			<div class="pp-description">
+				@templ.Raw(page.DescHTML)
+			</div>
+		}
+		if page.SchemaJSON != "" {
+			<pp-model-page model-json={ page.SchemaJSON } name={ page.Name }></pp-model-page>
+		}
+		if page.CrossRefs != nil {
+			@CrossRefSection(page.CrossRefs)
+		}
+	</div>
+}
+
+templ CrossRefSection(refs *ModelCrossRefs) {
+	<div class="pp-cross-refs">
+		if len(refs.UsedByOperations) > 0 {
+			<div class="pp-used-by-ops">
+				<h3>Used by Operations</h3>
+				<ul>
+					for _, op := range refs.UsedByOperations {
+						<li>
+							<a href={ templ.SafeURL("../../operations/" + op.Slug + ".html") }>
+								<pb33f-http-method method={ op.Method }></pb33f-http-method>
+								{ op.Path }
+							</a>
+						</li>
+					}
+				</ul>
+			</div>
+		}
+		if len(refs.UsedByModels) > 0 {
+			<div class="pp-used-by-models">
+				<h3>Referenced by</h3>
+				<ul>
+					for _, comp := range refs.UsedByModels {
+						<li>
+							<a href={ templ.SafeURL("../" + comp.ComponentType + "/" + comp.Slug + ".html") }>
+								{ comp.Name }
+							</a>
+							<span class="pp-component-type">{ comp.ComponentType }</span>
+						</li>
+					}
+				</ul>
+			</div>
+		}
+		if len(refs.UsesModels) > 0 {
+			<div class="pp-uses-models">
+				<h3>References</h3>
+				<ul>
+					for _, comp := range refs.UsesModels {
+						<li>
+							<a href={ templ.SafeURL("../" + comp.ComponentType + "/" + comp.Slug + ".html") }>
+								{ comp.Name }
+							</a>
+							<span class="pp-component-type">{ comp.ComponentType }</span>
+						</li>
+					}
+				</ul>
+			</div>
+		}
+	</div>
+}

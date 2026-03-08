@@ -1,0 +1,26 @@
+package printingpress
+
+import "encoding/json"
+
+templ Layout(pageTitle string, siteTitle string, baseURL string, navJSON string, activeSlug string, content templ.Component) {
+	<!DOCTYPE html>
+	<html lang="en" class="sl-theme-dark">
+		@Head(pageTitle, baseURL)
+		<body>
+			<pp-layout data-title={ siteTitle }>
+				<pp-nav slot="nav" data-nav={ navJSON } data-active={ activeSlug }></pp-nav>
+				<main slot="content">
+					@content
+				</main>
+			</pp-layout>
+		</body>
+	</html>
+}
+
+func MustJSON(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
+}

@@ -1,0 +1,73 @@
+package printingpress
+
+import "fmt"
+
+templ RootPageTempl(page *RootPage) {
+	<div class="pp-root">
+		<div class="pp-hero">
+			<h1>{ page.Title }</h1>
+			if page.Version != "" {
+				<span class="pp-version">{ page.Version }</span>
+			}
+		</div>
+		if page.DescHTML != "" {
+			<div class="pp-description">
+				@templ.Raw(page.DescHTML)
+			</div>
+		}
+		if page.Contact != nil {
+			<div class="pp-contact">
+				<h3>Contact</h3>
+				if page.Contact.Name != "" {
+					<span>{ page.Contact.Name }</span>
+				}
+				if page.Contact.Email != "" {
+					<a href={ templ.SafeURL("mailto:" + page.Contact.Email) }>{ page.Contact.Email }</a>
+				}
+				if page.Contact.URL != "" {
+					<a href={ templ.SafeURL(page.Contact.URL) }>{ page.Contact.URL }</a>
+				}
+			</div>
+		}
+		if page.License != nil {
+			<div class="pp-license">
+				<h3>License</h3>
+				if page.License.URL != "" {
+					<a href={ templ.SafeURL(page.License.URL) }>{ page.License.Name }</a>
+				} else {
+					<span>{ page.License.Name }</span>
+				}
+			</div>
+		}
+		if len(page.Servers) > 0 {
+			<div class="pp-servers">
+				<h3>Servers</h3>
+				<ul>
+					for _, srv := range page.Servers {
+						<li>
+							<code>{ srv.URL }</code>
+							if srv.Description != "" {
+								<span> &mdash; { srv.Description }</span>
+							}
+						</li>
+					}
+				</ul>
+			</div>
+		}
+		if len(page.Warnings) > 0 {
+			<details class="pp-warnings">
+				<summary>Build Warnings ({ fmt.Sprintf("%d", len(page.Warnings)) })</summary>
+				<ul>
+					for _, w := range page.Warnings {
+						<li>
+							<strong>{ w.Message }</strong>
+							if w.Context != "" {
+								<span> ({ w.Context })</span>
+							}
+						</li>
+					}
+				</ul>
+			</details>
+		}
+	</div>
+}
