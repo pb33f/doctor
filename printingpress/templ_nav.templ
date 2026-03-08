@@ -1,0 +1,63 @@
+package printingpress
+
+templ NavTempl(tags []*NavTag, models map[string][]*ModelPage) {
+	<nav class="pp-nav">
+		<div class="pp-nav-section">
+			<a href="index.html" class="pp-nav-home">Overview</a>
+		</div>
+		if len(tags) > 0 {
+			<div class="pp-nav-section">
+				<h4>Operations</h4>
+				for _, tag := range tags {
+					@NavTagItem(tag)
+				}
+			</div>
+		}
+		if len(models) > 0 {
+			<div class="pp-nav-section">
+				<h4>Models</h4>
+				for typeSlug, pages := range models {
+					if len(pages) > 0 {
+						<details class="pp-nav-group">
+							<summary>{ typeSlug }</summary>
+							<ul>
+								for _, page := range pages {
+									<li>
+										<a href={ templ.SafeURL("models/" + typeSlug + "/" + page.Slug + ".html") }>
+											{ page.Name }
+										</a>
+									</li>
+								}
+							</ul>
+						</details>
+					}
+				}
+			</div>
+		}
+	</nav>
+}
+
+templ NavTagItem(tag *NavTag) {
+	<details class="pp-nav-tag" open>
+		<summary>{ tag.Name }</summary>
+		if len(tag.Operations) > 0 {
+			<ul class="pp-nav-operations">
+				for _, op := range tag.Operations {
+					<li>
+						<a href={ templ.SafeURL("operations/" + op.Slug + ".html") }>
+							<pb33f-http-method method={ op.Method }></pb33f-http-method>
+							<span class="pp-nav-path">{ op.Path }</span>
+						</a>
+					</li>
+				}
+			</ul>
+		}
+		if len(tag.Children) > 0 {
+			<div class="pp-nav-children">
+				for _, child := range tag.Children {
+					@NavTagItem(child)
+				}
+			</div>
+		}
+	</details>
+}

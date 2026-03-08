@@ -1,0 +1,31 @@
+package printingpress
+
+templ ModelsIndexTempl(models map[string][]*ModelPage) {
+	<div class="pp-models-index">
+		<h1>Models</h1>
+		for typeSlug, pages := range models {
+			if len(pages) > 0 {
+				<div class="pp-model-category">
+					<h2>{ typeSlug }</h2>
+					<div class="pp-model-cards">
+						for _, page := range pages {
+							<a href={ templ.SafeURL(typeSlug + "/" + page.Slug + ".html") } class="pp-model-card">
+								<strong>{ page.Name }</strong>
+								if page.Description != "" {
+									<p>{ truncate(page.Description, 120) }</p>
+								}
+							</a>
+						}
+					</div>
+				</div>
+			}
+		}
+	</div>
+}
+
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
