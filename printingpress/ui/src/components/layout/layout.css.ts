@@ -55,15 +55,35 @@ export default css`
         color: var(--background-color);
     }
 
-    .nav-panel {
+    .nav-panel,
+    .content-panel {
         overflow-y: auto;
         height: calc(100vh - var(--pp-header-height, 57px));
+        scrollbar-width: thin;
+        scrollbar-color: var(--secondary-color-lowalpha) var(--terminal-background);
+    }
+
+    .nav-panel::-webkit-scrollbar,
+    .content-panel::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .nav-panel::-webkit-scrollbar-track,
+    .content-panel::-webkit-scrollbar-track {
+        background-color: var(--terminal-background);
+    }
+
+    .nav-panel::-webkit-scrollbar-thumb,
+    .content-panel::-webkit-scrollbar-thumb {
+        box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+        background: var(--secondary-color-lowalpha);
+    }
+
+    .nav-panel {
         background: var(--background-color);
     }
 
     .content-panel {
-        overflow-y: auto;
-        height: calc(100vh - var(--pp-header-height, 57px));
         padding: 2rem 3rem;
         max-width: 1000px;
     }

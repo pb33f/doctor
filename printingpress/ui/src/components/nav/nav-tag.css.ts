@@ -3,7 +3,7 @@ import {css} from "lit";
 export default css`
     :host {
         display: block;
-        margin: var(--global-padding) 0 var(--global-padding) 0;
+        margin: 0 0 var(--global-padding) 0; 
     }
 
     .tag-header {
@@ -57,7 +57,7 @@ export default css`
     ul {
         list-style: none;
         margin: 0 0 0 15px;
-        padding: var(--global-padding-double) 0 var(--global-padding-double) var(--global-padding);
+        padding: var(--global-padding) 0 var(--global-padding) var(--global-padding);
         border-left: 1px dashed var(--secondary-color-dimmer);
         border-top: 1px dashed var(--secondary-color-dimmer);
         border-bottom: 1px dashed var(--secondary-color-dimmer);
@@ -65,7 +65,8 @@ export default css`
 
     li a {
         display: flex;
-        align-items: center;
+        min-height: 22px; 
+        align-items: flex-start;
         gap: 0.4rem;
         padding: 0.2rem 0.4rem;
         border-radius: 0;
@@ -87,19 +88,19 @@ export default css`
     }
 
     .op-title {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        padding-top: 2px;
+        max-width: var(--nav-op-max-width);
         font-family: var(--font-stack-bold), monospace;
         font-size: var(--smaller-font);
-        
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
     }
 
     .children {
-        margin-top: var(--global-padding);
         margin-left: 15px;
         margin-bottom: var(--global-padding);
-      
+        border-left: 1px dashed var(--secondary-color-dimmer);
     }
 
     .deprecated {
