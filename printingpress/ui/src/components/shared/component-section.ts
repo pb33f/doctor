@@ -1,10 +1,10 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import ppComponentSectionCss from './pp-component-section.css.js';
+import componentSectionCss from './component-section.css.js';
 
 @customElement('pp-component-section')
 export class PpComponentSection extends LitElement {
-  static styles = ppComponentSectionCss;
+  static styles = componentSectionCss;
 
   @property({attribute: 'media-type'}) mediaType = '';
   @property({attribute: 'schema-json'}) schemaJson = '';

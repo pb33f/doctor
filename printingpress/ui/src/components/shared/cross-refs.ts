@@ -1,6 +1,6 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import ppCrossRefsCss from './pp-cross-refs.css.js';
+import crossRefsCss from './cross-refs.css.js';
 
 interface CrossRefData {
   UsedByOperations?: {Method: string; Path: string; Slug: string}[];
@@ -10,7 +10,7 @@ interface CrossRefData {
 
 @customElement('pp-cross-refs')
 export class PpCrossRefs extends LitElement {
-  static styles = ppCrossRefsCss;
+  static styles = crossRefsCss;
 
   @property({attribute: 'refs-json'}) refsJson = '';
   @state() private refs: CrossRefData = {};

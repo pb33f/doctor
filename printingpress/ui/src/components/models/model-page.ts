@@ -1,11 +1,11 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import sharedCss from '../styles/shared.css.js';
-import ppModelPageCss from './pp-model-page.css.js';
+import sharedCss from '../../styles/shared.css.js';
+import modelPageCss from './model-page.css.js';
 
 @customElement('pp-model-page')
 export class PpModelPage extends LitElement {
-  static styles = [sharedCss, ppModelPageCss];
+  static styles = [sharedCss, modelPageCss];
 
   @property({attribute: 'model-json'}) modelJson = '';
   @property() name = '';

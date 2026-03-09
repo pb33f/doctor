@@ -1,10 +1,10 @@
 import {LitElement, html} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
-import ppNavOperationCss from './pp-nav-operation.css.js';
+import navOperationCss from './nav-operation.css.js';
 
 @customElement('pp-nav-operation')
 export class PpNavOperation extends LitElement {
-  static styles = ppNavOperationCss;
+  static styles = navOperationCss;
 
   @property() method = '';
   @property() path = '';

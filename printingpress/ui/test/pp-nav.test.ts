@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import '../src/components/pp-nav.js';
-import '../src/components/pp-nav-tag.js';
+import '../src/components/nav/nav.js';
+import '../src/components/nav/nav-tag.js';
 import '@pb33f/cowboy-components/components/http-method/http-method.js';
 
 describe('pp-nav', () => {

@@ -1,10 +1,10 @@
 import {LitElement, html} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
-import ppModelCardCss from './pp-model-card.css.js';
+import modelCardCss from './model-card.css.js';
 
 @customElement('pp-model-card')
 export class PpModelCard extends LitElement {
-  static styles = ppModelCardCss;
+  static styles = modelCardCss;
 
   @property() name = '';
   @property() href = '';
