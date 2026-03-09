@@ -1,11 +1,11 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import sharedCss from '../styles/shared.css.js';
-import ppOperationPageCss from './pp-operation-page.css.js';
+import sharedCss from '../../styles/shared.css.js';
+import operationPageCss from './operation-page.css.js';
 
 @customElement('pp-operation-page')
 export class PpOperationPage extends LitElement {
-  static styles = [sharedCss, ppOperationPageCss];
+  static styles = [sharedCss, operationPageCss];
 
   @property({attribute: 'operation-json'}) operationJson = '';
   @state() private parsed: any = null;

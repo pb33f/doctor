@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import '../src/components/pp-layout.js';
+import '../src/components/layout/layout.js';
 
 describe('pp-layout', () => {
   beforeEach(() => {

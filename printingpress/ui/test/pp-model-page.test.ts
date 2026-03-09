@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import '../src/components/pp-model-page.js';
+import '../src/components/models/model-page.js';
 
 describe('pp-model-page', () => {
   beforeEach(() => {

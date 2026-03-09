@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import '../src/components/pp-operation-page.js';
+import '../src/components/operations/operation-page.js';
 
 describe('pp-operation-page', () => {
   beforeEach(() => {

@@ -1,6 +1,6 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import ppNavCss from './pp-nav.css.js';
+import navCss from './nav.css.js';
 
 interface NavTag {
   Name: string;
@@ -21,7 +21,7 @@ interface NavOperation {
 
 @customElement('pp-nav')
 export class PpNav extends LitElement {
-  static styles = ppNavCss;
+  static styles = navCss;
 
   @state() private tags: NavTag[] = [];
   @state() private activeSlug = '';

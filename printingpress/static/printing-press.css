@@ -20,6 +20,14 @@
   --pp-options: #585858;
   --pp-head: #585858;
   --pp-trace: #585858;
+
+
+  --global-padding: 5px;
+  --global-padding-double: 10px;
+
+  --smaller-font: 0.8rem;
+
+
 }
 
 /* Content */

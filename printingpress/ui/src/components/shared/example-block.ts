@@ -1,10 +1,10 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import ppExampleBlockCss from './pp-example-block.css.js';
+import exampleBlockCss from './example-block.css.js';
 
 @customElement('pp-example-block')
 export class PpExampleBlock extends LitElement {
-  static styles = ppExampleBlockCss;
+  static styles = exampleBlockCss;
 
   @property() name = '';
   @property({attribute: 'example-json'}) exampleJson = '';
