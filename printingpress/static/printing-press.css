@@ -250,6 +250,59 @@ main {
 /* Request body */
 .pp-request-body { margin-bottom: 1.5rem; }
 
+/* Operations overview on root page */
+.pp-operations-overview {
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+}
+.pp-operations-overview h2 {
+  margin-bottom: 1rem;
+}
+.pp-tag-group {
+  margin-bottom: 1.5rem;
+  padding-left: 0.5rem;
+  border-left: 1px dashed var(--secondary-color-dimmer);
+}
+.pp-tag-group h3 {
+  margin-bottom: 0.5rem;
+}
+.pp-tag-group h4 {
+  margin-bottom: 0.4rem;
+  font-size: 0.95em;
+  color: var(--font-color-sub1);
+}
+.pp-operation-list {
+  list-style: none;
+  margin: 0 0 0.75rem 0;
+  padding: 0;
+}
+.pp-op-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  color: var(--font-color);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+}
+.pp-op-item:hover {
+  background: var(--primary-color-verylowalpha);
+  border-left: 2px solid var(--secondary-color);
+  text-decoration: none;
+}
+.pp-op-item.deprecated {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+.op-path {
+  font-family: var(--font-stack), monospace;
+  font-size: 0.9em;
+}
+.op-summary {
+  font-size: 0.8em;
+  color: var(--font-color-sub1);
+}
+
 /* Method badge (fallback for when JS hasn't loaded) */
 pb33f-http-method:not(:defined) {
   display: inline-block;

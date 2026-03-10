@@ -2,13 +2,13 @@ package printingpress
 
 import "encoding/json"
 
-templ Layout(pageTitle string, siteTitle string, baseURL string, navJSON string, activeSlug string, content templ.Component) {
+templ Layout(pageTitle string, siteTitle string, baseURL string, navJSON string, modelsJSON string, activeSlug string, content templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en" class="sl-theme-dark">
 		@Head(pageTitle, baseURL)
 		<body>
 			<pp-layout data-title={ siteTitle }>
-				<pp-nav slot="nav" data-nav={ navJSON } data-active={ activeSlug }></pp-nav>
+				<pp-nav slot="nav" data-nav={ navJSON } data-models={ modelsJSON } data-active={ activeSlug }></pp-nav>
 				<main slot="content">
 					@content
 				</main>

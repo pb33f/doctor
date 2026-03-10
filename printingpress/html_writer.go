@@ -53,6 +53,7 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 	}
 
 	navJSON := MustJSON(site.NavTags)
+	modelsJSON := MustJSON(site.NavModelGroups)
 	title := ""
 	if site.Root != nil {
 		title = site.Root.Title
@@ -61,7 +62,7 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 	// Write root page
 	if site.Root != nil {
 		rootContent := RootPageTempl(site.Root)
-		if err := writeTemplPage(filepath.Join(outputDir, "index.html"), title, title, baseURL, navJSON, "", rootContent); err != nil {
+		if err := writeTemplPage(filepath.Join(outputDir, "index.html"), title, title, baseURL, navJSON, modelsJSON, "", rootContent); err != nil {
 			return fmt.Errorf("writing index.html: %w", err)
 		}
 	}
@@ -71,7 +72,7 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 		opContent := OperationPageTempl(op)
 		pageTitle := fmt.Sprintf("%s %s - %s", op.Method, op.Path, title)
 		path := filepath.Join(outputDir, "operations", op.Slug+".html")
-		if err := writeTemplPage(path, pageTitle, title, resolveBase(baseURL, 1), navJSON, op.Slug, opContent); err != nil {
+		if err := writeTemplPage(path, pageTitle, title, resolveBase(baseURL, 1), navJSON, modelsJSON, op.Slug, opContent); err != nil {
 			return fmt.Errorf("writing operation %s: %w", op.Slug, err)
 		}
 	}
@@ -82,7 +83,8 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 			modelContent := ModelPageTempl(page)
 			pageTitle := fmt.Sprintf("%s - %s", page.Name, title)
 			path := filepath.Join(outputDir, "models", typeSlug, page.Slug+".html")
-			if err := writeTemplPage(path, pageTitle, title, resolveBase(baseURL, 2), navJSON, "", modelContent); err != nil {
+			activeModelSlug := page.TypeSlug + "/" + page.Slug
+			if err := writeTemplPage(path, pageTitle, title, resolveBase(baseURL, 2), navJSON, modelsJSON, activeModelSlug, modelContent); err != nil {
 				return fmt.Errorf("writing model %s/%s: %w", typeSlug, page.Slug, err)
 			}
 		}
@@ -90,7 +92,7 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 
 	// Write models index page (1 level deep: models/)
 	indexContent := ModelsIndexTempl(site.Models)
-	if err := writeTemplPage(filepath.Join(outputDir, "models", "index.html"), "Models - "+title, title, resolveBase(baseURL, 1), navJSON, "", indexContent); err != nil {
+	if err := writeTemplPage(filepath.Join(outputDir, "models", "index.html"), "Models - "+title, title, resolveBase(baseURL, 1), navJSON, modelsJSON, "", indexContent); err != nil {
 		return fmt.Errorf("writing models index: %w", err)
 	}
 
@@ -99,7 +101,7 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 		whContent := OperationPageTempl(wh)
 		pageTitle := fmt.Sprintf("Webhook: %s %s - %s", wh.Method, wh.Path, title)
 		path := filepath.Join(outputDir, "operations", wh.Slug+".html")
-		if err := writeTemplPage(path, pageTitle, title, resolveBase(baseURL, 1), navJSON, wh.Slug, whContent); err != nil {
+		if err := writeTemplPage(path, pageTitle, title, resolveBase(baseURL, 1), navJSON, modelsJSON, wh.Slug, whContent); err != nil {
 			return fmt.Errorf("writing webhook %s: %w", wh.Slug, err)
 		}
 	}
@@ -107,14 +109,14 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 	return nil
 }
 
-func writeTemplPage(path, pageTitle, siteTitle, baseURL, navJSON, activeSlug string, content templ.Component) error {
+func writeTemplPage(path, pageTitle, siteTitle, baseURL, navJSON, modelsJSON, activeSlug string, content templ.Component) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	layout := Layout(pageTitle, siteTitle, baseURL, navJSON, activeSlug, content)
+	layout := Layout(pageTitle, siteTitle, baseURL, navJSON, modelsJSON, activeSlug, content)
 	return layout.Render(context.Background(), f)
 }
 

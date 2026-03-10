@@ -27,7 +27,7 @@ function tagContainsSlug(tag: NavTag, slug: string): boolean {
 
 @customElement('pp-nav-tag')
 export class PpNavTag extends LitElement {
-    static styles = navTagCss;
+    static styles = navTagCss; 
 
     @property({type: Object}) tag: NavTag = {
         Name: '',
