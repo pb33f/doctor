@@ -36,6 +36,7 @@ import '@pb33f/cowboy-components/components/theme-switcher/theme-switcher.js';
 export { PpLayout } from './components/layout/layout.js';
 export { PpNav } from './components/nav/nav.js';
 export { PpNavTag } from './components/nav/nav-tag.js';
+export { PpNavModelGroup } from './components/nav/nav-model-group.js';
 export { PpNavOperation } from './components/nav/nav-operation.js';
 export { PpOperationPage } from './components/operations/operation-page.js';
 export { PpModelPage } from './components/models/model-page.js';

@@ -88,6 +88,9 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 		pp.collectComponents(doc.Components)
 	}
 
+	// Build nav model groups from collected components
+	pp.buildNavModelGroups()
+
 	// Collect webhooks
 	if doc.Webhooks != nil {
 		pp.collectWebhooks(doc.Webhooks)
@@ -610,21 +613,61 @@ func (pp *PrintingPress) assignOperationsToTags() {
 	walk(pp.site.NavTags)
 
 	for _, op := range pp.site.Operations {
+		navOp := &NavOperation{
+			Method:      op.Method,
+			Path:        op.Path,
+			OperationID: op.OperationID,
+			Summary:     op.Summary,
+			Slug:        op.Slug,
+			Deprecated:  op.Deprecated,
+		}
 		if len(op.Tags) == 0 {
+			pp.site.Root.UntaggedOperations = append(pp.site.Root.UntaggedOperations, navOp)
 			continue
 		}
 		for _, tagName := range op.Tags {
 			if nt, ok := tagLookup[tagName]; ok {
-				nt.Operations = append(nt.Operations, &NavOperation{
-					Method:      op.Method,
-					Path:        op.Path,
-					OperationID: op.OperationID,
-					Summary:     op.Summary,
-					Slug:        op.Slug,
-					Deprecated:  op.Deprecated,
-				})
+				nt.Operations = append(nt.Operations, navOp)
 			}
 		}
+	}
+}
+
+// buildNavModelGroups creates NavModelGroup entries from collected site.Models in a fixed display order.
+func (pp *PrintingPress) buildNavModelGroups() {
+	type groupDef struct {
+		name     string
+		typeSlug string
+	}
+	order := []groupDef{
+		{"Schemas", "schemas"},
+		{"Responses", "responses"},
+		{"Parameters", "parameters"},
+		{"Request Bodies", "request-bodies"},
+		{"Headers", "headers"},
+		{"Security Schemes", "security"},
+		{"Examples", "examples"},
+		{"Links", "links"},
+		{"Callbacks", "callbacks"},
+		{"Path Items", "path-items"},
+	}
+	for _, def := range order {
+		pages := pp.site.Models[def.typeSlug]
+		if len(pages) == 0 {
+			continue
+		}
+		group := &NavModelGroup{
+			Name:     def.name,
+			TypeSlug: def.typeSlug,
+		}
+		for _, p := range pages {
+			group.Models = append(group.Models, &NavModel{
+				Name:     p.Name,
+				Slug:     p.Slug,
+				TypeSlug: p.TypeSlug,
+			})
+		}
+		pp.site.NavModelGroups = append(pp.site.NavModelGroups, group)
 	}
 }
 

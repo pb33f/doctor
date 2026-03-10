@@ -10,27 +10,29 @@ import (
 
 // Site is the fully rendered output from the PrintingPress.
 type Site struct {
-	Root       *RootPage
-	Operations []*OperationPage
-	Models     map[string][]*ModelPage // keyed by component type slug (e.g. "schemas")
-	Webhooks   []*OperationPage
-	NavTags    []*NavTag
-	Warnings   []*BuildWarning
+	Root           *RootPage
+	Operations     []*OperationPage
+	Models         map[string][]*ModelPage // keyed by component type slug (e.g. "schemas")
+	Webhooks       []*OperationPage
+	NavTags        []*NavTag
+	NavModelGroups []*NavModelGroup
+	Warnings       []*BuildWarning
 }
 
 // RootPage is the landing page data for the generated documentation.
 type RootPage struct {
-	Title       string
-	Description string
-	DescHTML    string
-	Version     string
-	Contact     *ContactInfo
-	License     *LicenseInfo
-	Servers     []*ServerInfo
-	Security    []map[string][]string
-	ExternalDoc *ExternalDocInfo
-	TagTree     []*NavTag
-	Warnings    []*BuildWarning
+	Title              string
+	Description        string
+	DescHTML           string
+	Version            string
+	Contact            *ContactInfo
+	License            *LicenseInfo
+	Servers            []*ServerInfo
+	Security           []map[string][]string
+	ExternalDoc        *ExternalDocInfo
+	TagTree            []*NavTag
+	UntaggedOperations []*NavOperation
+	Warnings           []*BuildWarning
 }
 
 // ContactInfo holds API contact metadata.
@@ -75,6 +77,20 @@ type NavOperation struct {
 	Summary     string
 	Slug        string
 	Deprecated  bool
+}
+
+// NavModelGroup is a group of models of the same component type for navigation.
+type NavModelGroup struct {
+	Name     string      `json:"Name"`
+	TypeSlug string      `json:"TypeSlug"`
+	Models   []*NavModel `json:"Models"`
+}
+
+// NavModel is a lightweight reference to a model for navigation.
+type NavModel struct {
+	Name     string `json:"Name"`
+	Slug     string `json:"Slug"`
+	TypeSlug string `json:"TypeSlug"`
 }
 
 // OperationPage is the full data for rendering an operation detail page.
