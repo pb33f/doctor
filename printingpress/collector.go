@@ -240,6 +240,10 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 		page.Parameters = append(page.Parameters, pp.collectParameters(pi.Parameters)...)
 	}
 
+	if len(page.Parameters) > 0 {
+		page.ParametersJSON = MustJSON(page.Parameters)
+	}
+
 	// Request body
 	if op.RequestBody != nil {
 		page.RequestBody = pp.collectRequestBody(op.RequestBody)
@@ -248,6 +252,10 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 	// Responses
 	if op.Responses != nil {
 		page.Responses = pp.collectResponses(op.Responses)
+	}
+
+	if len(page.Responses) > 0 {
+		page.ResponsesJSON = MustJSON(page.Responses)
 	}
 
 	// Servers

@@ -39,6 +39,8 @@ export { PpNavTag } from './components/nav/nav-tag.js';
 export { PpNavModelGroup } from './components/nav/nav-model-group.js';
 export { PpNavOperation } from './components/nav/nav-operation.js';
 export { PpOperationPage } from './components/operations/operation-page.js';
+export { PpOperationParameters } from './components/operations/operation-parameters.js';
+export { PpOperationResponses } from './components/operations/operation-responses.js';
 export { PpModelPage } from './components/models/model-page.js';
 export { PpModelCard } from './components/models/model-card.js';
 export { PpCrossRefs } from './components/shared/cross-refs.js';

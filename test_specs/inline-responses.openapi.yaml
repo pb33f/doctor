@@ -1,0 +1,283 @@
+openapi: "3.1.0"
+info:
+  title: Inline Responses Demo
+  version: "1.0.0"
+  description: A sample spec with inline response schemas to demonstrate component rendering.
+paths:
+  /users:
+    get:
+      operationId: listUsers
+      summary: List all users
+      tags:
+        - Users
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of users to return.
+          required: false
+          schema:
+            type: integer
+            format: int32
+        - name: offset
+          in: query
+          description: Number of users to skip for pagination.
+          schema:
+            type: integer
+        - name: status
+          in: query
+          description: Filter by account status.
+          required: true
+          schema:
+            type: string
+            enum: [active, inactive, suspended]
+        - name: X-Request-ID
+          in: header
+          description: Correlation ID for tracing.
+          deprecated: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: A list of users.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    description: Total number of matching users.
+                  users:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        email:
+                          type: string
+                          format: email
+                        status:
+                          type: string
+                          enum: [active, inactive, suspended]
+        "400":
+          description: Invalid query parameters.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Human-readable error message.
+                  code:
+                    type: integer
+                    description: Machine-readable error code.
+        "500":
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  trace:
+                    type: string
+                    description: Internal trace ID for debugging.
+    post:
+      operationId: createUser
+      summary: Create a new user
+      tags:
+        - Users
+      parameters:
+        - name: X-Idempotency-Key
+          in: header
+          description: Idempotency key to prevent duplicate creation.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                role:
+                  type: string
+                  enum: [admin, editor, viewer]
+      responses:
+        "201":
+          description: User created successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  createdAt:
+                    type: string
+                    format: date-time
+        "409":
+          description: A user with this email already exists.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  existingId:
+                    type: integer
+                    description: The ID of the existing user with this email.
+  /users/{userId}:
+    get:
+      operationId: getUser
+      summary: Get a user by ID
+      tags:
+        - Users
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The unique user identifier.
+          schema:
+            type: integer
+            format: int64
+        - name: include
+          in: query
+          description: Comma-separated list of related resources to include.
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        "200":
+          description: The requested user.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  email:
+                    type: string
+                    format: email
+                  bio:
+                    type: string
+                    description: A short biography of the user.
+                  avatarUrl:
+                    type: string
+                    format: uri
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                  metadata:
+                    type: object
+                    description: Arbitrary key-value metadata.
+        "404":
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  requestedId:
+                    type: integer
+    delete:
+      operationId: deleteUser
+      summary: Delete a user
+      deprecated: true
+      tags:
+        - Users
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: X-Confirm
+          in: header
+          required: true
+          description: Must be set to "true" to confirm deletion.
+          schema:
+            type: string
+      responses:
+        "204":
+          description: User deleted successfully.
+        "403":
+          description: Insufficient permissions to delete this user.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  requiredRole:
+                    type: string
+                    description: The role needed to perform this action.
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Service health check
+      tags:
+        - System
+      responses:
+        "200":
+          description: Service is healthy.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, degraded]
+                  uptime:
+                    type: integer
+                    description: Uptime in seconds.
+                  version:
+                    type: string
+            text/plain:
+              schema:
+                type: string
+        "503":
+          description: Service is unavailable.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [down]
+                  reason:
+                    type: string
+tags:
+  - name: Users
+    description: User management operations.
+  - name: System
+    description: Infrastructure and operational endpoints.

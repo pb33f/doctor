@@ -105,10 +105,12 @@ type OperationPage struct {
 	Tags         []string
 	Deprecated   bool
 	Slug         string
-	Parameters   []*ParameterInfo
-	RequestBody  *RequestBodyInfo
-	Responses    []*ResponseInfo
-	Security     []map[string][]string
+	Parameters     []*ParameterInfo
+	ParametersJSON string `json:"-"` // pre-serialized for Lit component; excluded from JSON writer
+	RequestBody    *RequestBodyInfo
+	Responses      []*ResponseInfo
+	ResponsesJSON  string `json:"-"` // pre-serialized for Lit component; excluded from JSON writer
+	Security       []map[string][]string
 	Servers      []*ServerInfo
 	ExternalDoc  *ExternalDocInfo
 	Callbacks    map[string]string // callback name → JSON
@@ -123,13 +125,13 @@ type OperationCrossRefs struct {
 
 // ParameterInfo holds operation parameter data.
 type ParameterInfo struct {
-	Name        string
-	In          string // query, header, path, cookie
-	Description string
-	Required    bool
-	Deprecated  bool
-	SchemaJSON  string
-	Ref         *ComponentLink // set when the parameter is a $ref
+	Name        string         `json:"name"`
+	In          string         `json:"in"`
+	Description string         `json:"description"`
+	Required    bool           `json:"required"`
+	Deprecated  bool           `json:"deprecated"`
+	SchemaJSON  string         `json:"schemaJson"`
+	Ref         *ComponentLink `json:"ref,omitempty"`
 }
 
 // RequestBodyInfo holds request body data.
@@ -142,19 +144,19 @@ type RequestBodyInfo struct {
 
 // MediaTypeInfo holds a single media type entry.
 type MediaTypeInfo struct {
-	MediaType  string
-	SchemaJSON string
-	Examples   map[string]string // example name → JSON
-	SchemaRef  *ComponentLink    // set when the schema is a $ref
+	MediaType  string            `json:"mediaType"`
+	SchemaJSON string            `json:"schemaJson"`
+	Examples   map[string]string `json:"examples,omitempty"`
+	SchemaRef  *ComponentLink    `json:"schemaRef,omitempty"`
 }
 
 // ResponseInfo holds a single response entry.
 type ResponseInfo struct {
-	StatusCode  string
-	Description string
-	Content     []*MediaTypeInfo
-	Headers     map[string]string // header name → JSON
-	Ref         *ComponentLink    // set when the response is a $ref
+	StatusCode  string            `json:"statusCode"`
+	Description string            `json:"description"`
+	Content     []*MediaTypeInfo  `json:"content,omitempty"`
+	Headers     map[string]string `json:"headers,omitempty"`
+	Ref         *ComponentLink    `json:"ref,omitempty"`
 }
 
 // ModelPage is the full data for rendering a component detail page.
@@ -194,10 +196,10 @@ type ComponentRef struct {
 
 // ComponentLink represents a resolved $ref to a component model page.
 type ComponentLink struct {
-	Name          string // original component name
-	ComponentType string // ref segment e.g. "responses"
-	TypeSlug      string // URL segment e.g. "responses", "request-bodies"
-	Slug          string // URL-safe slug for the model page
+	Name          string `json:"name"`          // original component name
+	ComponentType string `json:"componentType"` // ref segment e.g. "responses"
+	TypeSlug      string `json:"typeSlug"`      // URL segment e.g. "responses", "request-bodies"
+	Slug          string `json:"slug"`          // URL-safe slug for the model page
 }
 
 // BuildWarning records a non-fatal issue encountered during documentation generation.
