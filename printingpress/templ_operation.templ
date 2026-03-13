@@ -40,6 +40,7 @@ templ OperationPageTempl(page *OperationPage) {
 							<th>In</th>
 							<th>Required</th>
 							<th>Description</th>
+							<th>Schema</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -53,6 +54,13 @@ templ OperationPageTempl(page *OperationPage) {
 									}
 								</td>
 								<td>{ param.Description }</td>
+								<td>
+									if param.Ref != nil {
+										<a href={ templ.SafeURL("models/" + param.Ref.TypeSlug + "/" + param.Ref.Slug + ".html") }>
+											{ param.Ref.Name }
+										</a>
+									}
+								</td>
 							</tr>
 						}
 					</tbody>
@@ -65,8 +73,25 @@ templ OperationPageTempl(page *OperationPage) {
 				if page.RequestBody.Description != "" {
 					<p>{ page.RequestBody.Description }</p>
 				}
-				for _, mt := range page.RequestBody.Content {
-					<pp-component-section media-type={ mt.MediaType } schema-json={ mt.SchemaJSON }></pp-component-section>
+				if page.RequestBody.Ref != nil {
+					<p>
+						<a href={ templ.SafeURL("models/" + page.RequestBody.Ref.TypeSlug + "/" + page.RequestBody.Ref.Slug + ".html") }>
+							{ page.RequestBody.Ref.Name }
+						</a>
+					</p>
+				} else {
+					for _, mt := range page.RequestBody.Content {
+						if mt.SchemaRef != nil {
+							<div class="pp-media-type-ref">
+								<span class="pp-media-type-label">{ mt.MediaType }</span>
+								<a href={ templ.SafeURL("models/" + mt.SchemaRef.TypeSlug + "/" + mt.SchemaRef.Slug + ".html") }>
+									{ mt.SchemaRef.Name }
+								</a>
+							</div>
+						} else {
+							<pp-component-section media-type={ mt.MediaType } schema-json={ mt.SchemaJSON }></pp-component-section>
+						}
+					}
 				}
 			</div>
 		}
@@ -79,8 +104,23 @@ templ OperationPageTempl(page *OperationPage) {
 							<span class="pp-status-code">{ resp.StatusCode }</span>
 							{ resp.Description }
 						</h4>
-						for _, mt := range resp.Content {
-							<pp-component-section media-type={ mt.MediaType } schema-json={ mt.SchemaJSON }></pp-component-section>
+						if resp.Ref != nil {
+							<a href={ templ.SafeURL("models/" + resp.Ref.TypeSlug + "/" + resp.Ref.Slug + ".html") }>
+								{ resp.Ref.Name }
+							</a>
+						} else {
+							for _, mt := range resp.Content {
+								if mt.SchemaRef != nil {
+									<div class="pp-media-type-ref">
+										<span class="pp-media-type-label">{ mt.MediaType }</span>
+										<a href={ templ.SafeURL("models/" + mt.SchemaRef.TypeSlug + "/" + mt.SchemaRef.Slug + ".html") }>
+											{ mt.SchemaRef.Name }
+										</a>
+									</div>
+								} else {
+									<pp-component-section media-type={ mt.MediaType } schema-json={ mt.SchemaJSON }></pp-component-section>
+								}
+							}
 						}
 					</div>
 				}

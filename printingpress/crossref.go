@@ -5,9 +5,8 @@
 package printingpress
 
 import (
+	"sort"
 	"strings"
-
-	"github.com/pb33f/libopenapi/index"
 )
 
 // CrossRefIndex maps components to the operations and components that reference them.
@@ -17,7 +16,7 @@ type CrossRefIndex struct {
 	ComponentUsesModels  map[string][]*ComponentRef  // component key → components it references
 }
 
-// buildCrossRefs populates cross-reference information on each ModelPage.
+// buildCrossRefs populates cross-reference information on each ModelPage and OperationPage.
 func (pp *PrintingPress) buildCrossRefs() {
 	idx := pp.getCrossRefIndex()
 	if idx == nil {
@@ -41,24 +40,26 @@ func (pp *PrintingPress) buildCrossRefs() {
 			page.CrossRefs = refs
 		}
 	}
-}
 
-// getCrossRefIndex builds the cross-reference index from the DrDocument's SpecIndex.
-func (pp *PrintingPress) getCrossRefIndex() *CrossRefIndex {
-	if pp.config.DrDoc == nil {
-		return nil
-	}
-
-	// Get the spec index from the DrDocument's underlying model
-	var specIdx *index.SpecIndex
-	if pp.config.DrDoc.V3Document != nil &&
-		pp.config.DrDoc.V3Document.Document != nil {
-		low := pp.config.DrDoc.V3Document.Document.GoLow()
-		if low != nil && low.Index != nil {
-			specIdx = low.Index
+	// Apply cross-refs to each operation page
+	opCrossRefs := pp.buildOperationCrossRefs(idx)
+	for _, op := range pp.site.Operations {
+		key := op.Method + " " + op.Path
+		if refs, ok := opCrossRefs[key]; ok {
+			op.CrossRefs = refs
 		}
 	}
-	if specIdx == nil {
+	for _, wh := range pp.site.Webhooks {
+		key := wh.Method + " " + wh.Path
+		if refs, ok := opCrossRefs[key]; ok {
+			wh.CrossRefs = refs
+		}
+	}
+}
+
+// getCrossRefIndex builds the cross-reference index by scanning SchemaJSON content.
+func (pp *PrintingPress) getCrossRefIndex() *CrossRefIndex {
+	if pp.config.DrDoc == nil {
 		return nil
 	}
 
@@ -68,14 +69,8 @@ func (pp *PrintingPress) getCrossRefIndex() *CrossRefIndex {
 		ComponentUsesModels:  make(map[string][]*ComponentRef),
 	}
 
-	// Build slug lookups for operations and models
-	opSlugLookup := make(map[string]*OperationPage) // "METHOD /path" → page
-	for _, op := range pp.site.Operations {
-		key := op.Method + " " + op.Path
-		opSlugLookup[key] = op
-	}
-
-	modelSlugLookup := make(map[string]*ModelPage) // component key → page
+	// Build model slug lookup
+	modelSlugLookup := make(map[string]*ModelPage)
 	for _, pages := range pp.site.Models {
 		for _, page := range pages {
 			key := componentKey(page.ComponentType, page.Name)
@@ -83,36 +78,205 @@ func (pp *PrintingPress) getCrossRefIndex() *CrossRefIndex {
 		}
 	}
 
-	// Get all mapped references from the spec index
-	allRefs := specIdx.GetMappedReferences()
-	for ref := range allRefs {
-		// Only handle #/components/ refs
-		if !strings.HasPrefix(ref, "#/components/") {
-			continue
+	// Build model→model refs by scanning each model's SchemaJSON for $ref patterns.
+	for _, pages := range pp.site.Models {
+		for _, srcPage := range pages {
+			if srcPage.SchemaJSON == "" {
+				continue
+			}
+			srcKey := componentKey(srcPage.ComponentType, srcPage.Name)
+			refs := extractRefsFromJSON(srcPage.SchemaJSON, modelSlugLookup)
+			for _, compRef := range refs {
+				targetKey := componentKey(compRef.ComponentType, compRef.Name)
+				if targetKey == srcKey {
+					continue // skip self-references
+				}
+				// src uses target
+				addComponentRefUnique(&idx.ComponentUsesModels, srcKey, compRef)
+				// target is used by src
+				addComponentRefUnique(&idx.ComponentToComponent, targetKey, &ComponentRef{
+					Name:          srcPage.Name,
+					ComponentType: srcPage.ComponentType,
+					TypeSlug:      srcPage.TypeSlug,
+					Slug:          srcPage.Slug,
+				})
+			}
+		}
+	}
+
+	// Build operation→model and model→operation refs by walking operation pages
+	allOps := make([]*OperationPage, 0, len(pp.site.Operations)+len(pp.site.Webhooks))
+	allOps = append(allOps, pp.site.Operations...)
+	allOps = append(allOps, pp.site.Webhooks...)
+
+	for _, op := range allOps {
+		opRef := &OperationRef{
+			Method: op.Method,
+			Path:   op.Path,
+			Slug:   op.Slug,
 		}
 
-		// Parse ref into component type and name
-		parts := strings.SplitN(strings.TrimPrefix(ref, "#/components/"), "/", 2)
+		referencedModels := pp.extractOperationModelRefs(op)
+		for _, compRef := range referencedModels {
+			targetKey := componentKey(compRef.ComponentType, compRef.Name)
+			addOperationRefUnique(&idx.ComponentToOps, targetKey, opRef)
+		}
+	}
+
+	// Sort all cross-ref lists for deterministic output
+	sortCrossRefIndex(idx)
+
+	return idx
+}
+
+// buildOperationCrossRefs builds OperationCrossRefs for each operation by scanning
+// its request body and response schemas for component references.
+func (pp *PrintingPress) buildOperationCrossRefs(idx *CrossRefIndex) map[string]*OperationCrossRefs {
+	result := make(map[string]*OperationCrossRefs)
+
+	allOps := make([]*OperationPage, 0, len(pp.site.Operations)+len(pp.site.Webhooks))
+	allOps = append(allOps, pp.site.Operations...)
+	allOps = append(allOps, pp.site.Webhooks...)
+
+	modelSlugLookup := make(map[string]*ModelPage)
+	for _, pages := range pp.site.Models {
+		for _, page := range pages {
+			key := componentKey(page.ComponentType, page.Name)
+			modelSlugLookup[key] = page
+		}
+	}
+
+	for _, op := range allOps {
+		key := op.Method + " " + op.Path
+		refs := pp.extractOperationModelRefs(op)
+		if len(refs) > 0 {
+			sort.Slice(refs, func(i, j int) bool {
+				return refs[i].Name < refs[j].Name
+			})
+			result[key] = &OperationCrossRefs{ReferencesModels: refs}
+		}
+	}
+
+	return result
+}
+
+// extractOperationModelRefs scans an operation's SchemaJSON fields for component $ref strings.
+func (pp *PrintingPress) extractOperationModelRefs(op *OperationPage) []*ComponentRef {
+	modelSlugLookup := make(map[string]*ModelPage)
+	for _, pages := range pp.site.Models {
+		for _, page := range pages {
+			key := componentKey(page.ComponentType, page.Name)
+			modelSlugLookup[key] = page
+		}
+	}
+
+	seen := make(map[string]bool)
+	var refs []*ComponentRef
+
+	addRef := func(schemaJSON string) {
+		for _, compRef := range extractRefsFromJSON(schemaJSON, modelSlugLookup) {
+			key := componentKey(compRef.ComponentType, compRef.Name)
+			if !seen[key] {
+				seen[key] = true
+				refs = append(refs, compRef)
+			}
+		}
+	}
+
+	// Scan request body
+	if op.RequestBody != nil {
+		for _, mt := range op.RequestBody.Content {
+			addRef(mt.SchemaJSON)
+		}
+	}
+
+	// Scan responses
+	for _, resp := range op.Responses {
+		for _, mt := range resp.Content {
+			addRef(mt.SchemaJSON)
+		}
+	}
+
+	// Scan parameter schemas
+	for _, p := range op.Parameters {
+		addRef(p.SchemaJSON)
+	}
+
+	return refs
+}
+
+// extractRefsFromJSON finds $ref-like component references in JSON schema strings.
+// Uses simple string scanning rather than full JSON parse for efficiency.
+func extractRefsFromJSON(jsonStr string, lookup map[string]*ModelPage) []*ComponentRef {
+	if jsonStr == "" {
+		return nil
+	}
+
+	var refs []*ComponentRef
+	seen := make(map[string]bool)
+
+	// Scan for component type/name patterns in the JSON
+	// Look for schema names that appear as "$ref":"#/components/..." or inline properties
+	for key, page := range lookup {
+		if seen[key] {
+			continue
+		}
+		parts := strings.SplitN(strings.TrimPrefix(key, "#/components/"), "/", 2)
 		if len(parts) != 2 {
 			continue
 		}
-		targetType := parts[0]
-		targetName := parts[1]
-		targetKey := componentKey(targetType, targetName)
+		compType := parts[0]
+		compName := parts[1]
 
-		// Check if targetKey exists in our models
-		if _, exists := modelSlugLookup[targetKey]; !exists {
-			continue
+		// Check for $ref pattern in JSON
+		refPattern := `"$ref":"#/components/` + compType + `/` + compName + `"`
+		altRefPattern := `"$ref": "#/components/` + compType + `/` + compName + `"`
+		if strings.Contains(jsonStr, refPattern) || strings.Contains(jsonStr, altRefPattern) {
+			seen[key] = true
+			refs = append(refs, &ComponentRef{
+				Name:          compName,
+				ComponentType: compType,
+				TypeSlug:      page.TypeSlug,
+				Slug:          page.Slug,
+			})
 		}
-
-		targetPage := modelSlugLookup[targetKey]
-		targetRef := &ComponentRef{
-			Name:          targetName,
-			ComponentType: targetType,
-			Slug:          targetPage.Slug,
-		}
-		_ = targetRef
 	}
 
-	return idx
+	return refs
+}
+
+func addComponentRefUnique(m *map[string][]*ComponentRef, key string, ref *ComponentRef) {
+	for _, existing := range (*m)[key] {
+		if existing.Name == ref.Name && existing.ComponentType == ref.ComponentType {
+			return
+		}
+	}
+	(*m)[key] = append((*m)[key], ref)
+}
+
+func addOperationRefUnique(m *map[string][]*OperationRef, key string, ref *OperationRef) {
+	for _, existing := range (*m)[key] {
+		if existing.Method == ref.Method && existing.Path == ref.Path {
+			return
+		}
+	}
+	(*m)[key] = append((*m)[key], ref)
+}
+
+func sortCrossRefIndex(idx *CrossRefIndex) {
+	for _, refs := range idx.ComponentToOps {
+		sort.Slice(refs, func(i, j int) bool {
+			return refs[i].Method+" "+refs[i].Path < refs[j].Method+" "+refs[j].Path
+		})
+	}
+	for _, refs := range idx.ComponentToComponent {
+		sort.Slice(refs, func(i, j int) bool {
+			return refs[i].Name < refs[j].Name
+		})
+	}
+	for _, refs := range idx.ComponentUsesModels {
+		sort.Slice(refs, func(i, j int) bool {
+			return refs[i].Name < refs[j].Name
+		})
+	}
 }

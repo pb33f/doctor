@@ -62,35 +62,36 @@ type ExternalDocInfo struct {
 
 // NavTag represents a tag node in the hierarchical navigation tree.
 type NavTag struct {
-	Name       string
-	Summary    string
-	Children   []*NavTag
-	Operations []*NavOperation
-	IsNavOnly  bool // kind: nav (grouping node with no direct operations)
+	Name       string          `json:"name"`
+	Summary    string          `json:"summary"`
+	Children   []*NavTag       `json:"children"`
+	Operations []*NavOperation `json:"operations"`
+	IsNavOnly  bool            `json:"isNavOnly"` // kind: nav (grouping node with no direct operations)
 }
 
 // NavOperation is a lightweight reference to an operation for navigation.
 type NavOperation struct {
-	Method      string
-	Path        string
-	OperationID string
-	Summary     string
-	Slug        string
-	Deprecated  bool
+	Method      string `json:"method"`
+	Path        string `json:"path"`
+	OperationID string `json:"operationId"`
+	Summary     string `json:"summary"`
+	Slug        string `json:"slug"`
+	Deprecated  bool   `json:"deprecated"`
 }
 
 // NavModelGroup is a group of models of the same component type for navigation.
 type NavModelGroup struct {
-	Name     string      `json:"Name"`
-	TypeSlug string      `json:"TypeSlug"`
-	Models   []*NavModel `json:"Models"`
+	Name     string      `json:"name"`
+	TypeSlug string      `json:"typeSlug"`
+	Models   []*NavModel `json:"models"`
 }
 
 // NavModel is a lightweight reference to a model for navigation.
 type NavModel struct {
-	Name     string `json:"Name"`
-	Slug     string `json:"Slug"`
-	TypeSlug string `json:"TypeSlug"`
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	TypeSlug    string `json:"typeSlug"`
+	Description string `json:"description,omitempty"`
 }
 
 // OperationPage is the full data for rendering an operation detail page.
@@ -112,6 +113,12 @@ type OperationPage struct {
 	ExternalDoc  *ExternalDocInfo
 	Callbacks    map[string]string // callback name → JSON
 	SchemaJSON   string            // full operation rendered as JSON for cowboy-components
+	CrossRefs    *OperationCrossRefs
+}
+
+// OperationCrossRefs holds cross-reference information for an operation.
+type OperationCrossRefs struct {
+	ReferencesModels []*ComponentRef // components this operation uses
 }
 
 // ParameterInfo holds operation parameter data.
@@ -122,6 +129,7 @@ type ParameterInfo struct {
 	Required    bool
 	Deprecated  bool
 	SchemaJSON  string
+	Ref         *ComponentLink // set when the parameter is a $ref
 }
 
 // RequestBodyInfo holds request body data.
@@ -129,6 +137,7 @@ type RequestBodyInfo struct {
 	Description string
 	Required    bool
 	Content     []*MediaTypeInfo
+	Ref         *ComponentLink // set when the request body is a $ref
 }
 
 // MediaTypeInfo holds a single media type entry.
@@ -136,6 +145,7 @@ type MediaTypeInfo struct {
 	MediaType  string
 	SchemaJSON string
 	Examples   map[string]string // example name → JSON
+	SchemaRef  *ComponentLink    // set when the schema is a $ref
 }
 
 // ResponseInfo holds a single response entry.
@@ -144,6 +154,7 @@ type ResponseInfo struct {
 	Description string
 	Content     []*MediaTypeInfo
 	Headers     map[string]string // header name → JSON
+	Ref         *ComponentLink    // set when the response is a $ref
 }
 
 // ModelPage is the full data for rendering a component detail page.
@@ -177,7 +188,16 @@ type OperationRef struct {
 type ComponentRef struct {
 	Name          string
 	ComponentType string
+	TypeSlug      string // URL path segment: "request-bodies", "path-items", etc.
 	Slug          string
+}
+
+// ComponentLink represents a resolved $ref to a component model page.
+type ComponentLink struct {
+	Name          string // original component name
+	ComponentType string // ref segment e.g. "responses"
+	TypeSlug      string // URL segment e.g. "responses", "request-bodies"
+	Slug          string // URL-safe slug for the model page
 }
 
 // BuildWarning records a non-fatal issue encountered during documentation generation.

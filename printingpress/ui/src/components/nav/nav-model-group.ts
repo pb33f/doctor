@@ -3,20 +3,20 @@ import {customElement, property, state} from 'lit/decorators.js';
 import navModelGroupCss from './nav-model-group.css.js';
 
 interface NavModelGroup {
-    Name: string;
-    TypeSlug: string;
-    Models: NavModel[] | null;
+    name: string;
+    typeSlug: string;
+    models: NavModel[] | null;
 }
 
 interface NavModel {
-    Name: string;
-    Slug: string;
-    TypeSlug: string;
+    name: string;
+    slug: string;
+    typeSlug: string;
 }
 
 function groupContainsSlug(group: NavModelGroup, slug: string): boolean {
     if (!slug) return false;
-    return group.Models?.some((m) => m.TypeSlug + '/' + m.Slug === slug) ?? false;
+    return group.models?.some((m) => m.typeSlug + '/' + m.slug === slug) ?? false;
 }
 
 @customElement('pp-nav-model-group')
@@ -24,9 +24,9 @@ export class PpNavModelGroup extends LitElement {
     static styles = navModelGroupCss;
 
     @property({type: Object}) group: NavModelGroup = {
-        Name: '',
-        TypeSlug: '',
-        Models: null,
+        name: '',
+        typeSlug: '',
+        models: null,
     };
 
     @property() activeSlug = '';
@@ -50,20 +50,20 @@ export class PpNavModelGroup extends LitElement {
         return html`
             <div class="group-header ${containsActive ? 'active' : ''}" @click=${this.toggle}>
                 <sl-icon name=${open ? 'chevron-down' : 'chevron-right'} class="chevron"></sl-icon>
-                <span>${group.Name}</span>
+                <span>${group.name}</span>
             </div>
-            ${open && group.Models?.length
+            ${open && group.models?.length
                 ? html`
                     <div class="group-body">
                         <ul>
-                            ${group.Models.map(
+                            ${group.models.map(
                                 (model) => {
-                                    const modelSlug = model.TypeSlug + '/' + model.Slug;
+                                    const modelSlug = model.typeSlug + '/' + model.slug;
                                     return html`
                                         <li>
-                                            <a href="models/${model.TypeSlug}/${model.Slug}.html"
+                                            <a href="models/${model.typeSlug}/${model.slug}.html"
                                                class="${modelSlug === activeSlug ? 'active' : ''}">
-                                                <span class="model-name">${model.Name}</span>
+                                                <span class="model-name">${model.name}</span>
                                             </a>
                                         </li>
                                     `;

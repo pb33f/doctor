@@ -6,6 +6,9 @@ package printingpress
 
 import (
 	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/pb33f/doctor/model"
@@ -184,6 +187,108 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 			assert.FileExists(t, outputDir+"/models/"+typeSlug+"/"+page.Slug+".html")
 		}
 	}
+}
+
+func TestHTMLLinkReachability(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	doc, err := libopenapi.NewDocument(specBytes)
+	require.NoError(t, err)
+
+	v3Model, buildErr := doc.BuildV3Model()
+	require.NoError(t, buildErr)
+
+	drDoc := model.NewDrDocument(v3Model)
+
+	pp := New(&PrintingPressConfig{DrDoc: drDoc, Title: "Burger Shop"})
+	site, err := pp.Press()
+	require.NoError(t, err)
+
+	outputDir := t.TempDir()
+	err = WriteHTMLSite(site, outputDir, "")
+	require.NoError(t, err)
+
+	hrefRe := regexp.MustCompile(`href="([^"]+)"`)
+	baseHrefRe := regexp.MustCompile(`<base\s+href="[^"]*"`)
+	skipSchemes := []string{"mailto:", "http://", "https://", "javascript:"}
+
+	var allBroken []string
+	var dotDotHrefs []string
+
+	err = filepath.Walk(outputDir, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil || info.IsDir() || !strings.HasSuffix(path, ".html") {
+			return walkErr
+		}
+
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+
+		content := string(data)
+
+		// Collect base href values to exclude from link checks
+		baseHrefs := make(map[string]bool)
+		for _, bm := range baseHrefRe.FindAllStringSubmatch(content, -1) {
+			if len(bm) > 0 {
+				// Extract href value from the matched <base href="..."> string
+				inner := hrefRe.FindStringSubmatch(bm[0])
+				if len(inner) > 1 {
+					baseHrefs[inner[1]] = true
+				}
+			}
+		}
+
+		matches := hrefRe.FindAllStringSubmatch(content, -1)
+		for _, m := range matches {
+			href := m[1]
+
+			// Skip <base href> values
+			if baseHrefs[href] {
+				continue
+			}
+
+			// Skip anchors and external links
+			if strings.HasPrefix(href, "#") {
+				continue
+			}
+			skip := false
+			for _, scheme := range skipSchemes {
+				if strings.HasPrefix(href, scheme) {
+					skip = true
+					break
+				}
+			}
+			if skip {
+				continue
+			}
+
+			// Strip query and fragment
+			clean := strings.SplitN(href, "?", 2)[0]
+			clean = strings.SplitN(clean, "#", 2)[0]
+
+			// All hrefs must be root-relative (no ../ prefix with <base href>)
+			if strings.HasPrefix(clean, "../") {
+				rel, _ := filepath.Rel(outputDir, path)
+				dotDotHrefs = append(dotDotHrefs, rel+": "+href)
+			}
+
+			// Resolve relative to site root
+			target := filepath.Join(outputDir, filepath.FromSlash(clean))
+			if _, statErr := os.Stat(target); os.IsNotExist(statErr) {
+				rel, _ := filepath.Rel(outputDir, path)
+				allBroken = append(allBroken, rel+" -> "+href)
+			}
+		}
+		return nil
+	})
+	require.NoError(t, err)
+
+	assert.Empty(t, dotDotHrefs, "hrefs must be root-relative (no ../ prefix):\n%s",
+		strings.Join(dotDotHrefs, "\n"))
+	assert.Empty(t, allBroken, "broken links found:\n%s",
+		strings.Join(allBroken, "\n"))
 }
 
 func TestPrintingPress_NoV3Document(t *testing.T) {

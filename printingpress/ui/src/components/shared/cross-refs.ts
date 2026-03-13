@@ -4,8 +4,8 @@ import crossRefsCss from './cross-refs.css.js';
 
 interface CrossRefData {
   UsedByOperations?: {Method: string; Path: string; Slug: string}[];
-  UsedByModels?: {Name: string; ComponentType: string; Slug: string}[];
-  UsesModels?: {Name: string; ComponentType: string; Slug: string}[];
+  UsedByModels?: {Name: string; ComponentType: string; TypeSlug: string; Slug: string}[];
+  UsesModels?: {Name: string; ComponentType: string; TypeSlug: string; Slug: string}[];
 }
 
 @customElement('pp-cross-refs')
@@ -41,7 +41,7 @@ export class PpCrossRefs extends LitElement {
               ${refs.UsedByOperations.map(
                 (op) => html`
                   <li>
-                    <a href="../../operations/${op.Slug}.html">
+                    <a href="operations/${op.Slug}.html">
                       <pb33f-http-method method=${op.Method}></pb33f-http-method>
                       ${op.Path}
                     </a>
@@ -58,7 +58,7 @@ export class PpCrossRefs extends LitElement {
               ${refs.UsedByModels.map(
                 (comp) => html`
                   <li>
-                    <a href="../${comp.ComponentType}/${comp.Slug}.html">
+                    <a href="models/${comp.TypeSlug}/${comp.Slug}.html">
                       ${comp.Name}
                     </a>
                     <span class="type-badge">${comp.ComponentType}</span>
@@ -75,7 +75,7 @@ export class PpCrossRefs extends LitElement {
               ${refs.UsesModels.map(
                 (comp) => html`
                   <li>
-                    <a href="../${comp.ComponentType}/${comp.Slug}.html">
+                    <a href="models/${comp.TypeSlug}/${comp.Slug}.html">
                       ${comp.Name}
                     </a>
                     <span class="type-badge">${comp.ComponentType}</span>
