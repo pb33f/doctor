@@ -13,6 +13,45 @@ import (
 	"github.com/pb33f/libopenapi/orderedmap"
 )
 
+// refSegmentToTypeSlug maps OpenAPI $ref component segments to URL type slugs.
+var refSegmentToTypeSlug = map[string]string{
+	"schemas":         "schemas",
+	"responses":       "responses",
+	"parameters":      "parameters",
+	"requestBodies":   "request-bodies",
+	"headers":         "headers",
+	"securitySchemes": "security",
+	"examples":        "examples",
+	"links":           "links",
+	"callbacks":       "callbacks",
+	"pathItems":       "path-items",
+}
+
+// resolveComponentLink parses a $ref string and looks up the model page.
+// Returns nil if the ref doesn't point to a known component.
+func (pp *PrintingPress) resolveComponentLink(ref string) *ComponentLink {
+	parts := strings.SplitN(strings.TrimPrefix(ref, "#/components/"), "/", 2)
+	if len(parts) != 2 {
+		return nil
+	}
+	segment, name := parts[0], parts[1]
+	typeSlug, ok := refSegmentToTypeSlug[segment]
+	if !ok {
+		return nil
+	}
+	for _, page := range pp.site.Models[typeSlug] {
+		if page.Name == name {
+			return &ComponentLink{
+				Name:          name,
+				ComponentType: segment,
+				TypeSlug:      typeSlug,
+				Slug:          page.Slug,
+			}
+		}
+	}
+	return nil
+}
+
 // visitDocument collects all top-level document data: info, tags, servers, components, webhooks.
 func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 	root := &RootPage{}
@@ -75,21 +114,21 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 	pp.site.NavTags = root.TagTree
 	pp.site.Root = root
 
-	// Visit paths to collect operations
-	if doc.Paths != nil {
-		pp.visitPaths(ctx, doc.Paths)
-	}
-
-	// Assign operations to tags
-	pp.assignOperationsToTags()
-
-	// Collect all component types
+	// Collect all component types FIRST (needed for ref resolution in operations)
 	if doc.Components != nil {
 		pp.collectComponents(doc.Components)
 	}
 
 	// Build nav model groups from collected components
 	pp.buildNavModelGroups()
+
+	// Visit paths to collect operations (can now resolve $refs to components)
+	if doc.Paths != nil {
+		pp.visitPaths(ctx, doc.Paths)
+	}
+
+	// Assign operations to tags
+	pp.assignOperationsToTags()
 
 	// Collect webhooks
 	if doc.Webhooks != nil {
@@ -268,6 +307,13 @@ func (pp *PrintingPress) collectParameters(params []*v3.Parameter) []*ParameterI
 			Required:    ptrBool(p.Value.Required),
 			Deprecated:  p.Value.Deprecated,
 		}
+		if p.Value.IsReference() {
+			if link := pp.resolveComponentLink(p.Value.GetReference()); link != nil {
+				pi.Ref = link
+				result = append(result, pi)
+				continue
+			}
+		}
 		if p.Value.Schema != nil {
 			sch := p.Value.Schema.Schema()
 			if sch != nil {
@@ -291,6 +337,12 @@ func (pp *PrintingPress) collectRequestBody(rb *v3.RequestBody) *RequestBodyInfo
 		Description: val.Description,
 		Required:    ptrBool(val.Required),
 	}
+	if val.IsReference() {
+		if link := pp.resolveComponentLink(val.GetReference()); link != nil {
+			rbi.Ref = link
+			return rbi
+		}
+	}
 	if rb.Content != nil {
 		for pair := rb.Content.First(); pair != nil; pair = pair.Next() {
 			mt := pp.collectMediaType(pair.Key(), pair.Value())
@@ -311,11 +363,16 @@ func (pp *PrintingPress) collectMediaType(mediaTypeName string, mt *v3.MediaType
 	}
 	// Use DrDocument's SchemaProxy field (not Value.Schema)
 	if mt.SchemaProxy != nil && mt.SchemaProxy.Value != nil {
-		sch := mt.SchemaProxy.Value.Schema()
-		if sch != nil {
-			jsonStr, err := sch.MarshalJSON()
-			if err == nil {
-				mti.SchemaJSON = string(jsonStr)
+		if mt.SchemaProxy.Value.IsReference() {
+			mti.SchemaRef = pp.resolveComponentLink(mt.SchemaProxy.Value.GetReference())
+		}
+		if mti.SchemaRef == nil {
+			sch := mt.SchemaProxy.Value.Schema()
+			if sch != nil {
+				jsonStr, err := sch.MarshalJSON()
+				if err == nil {
+					mti.SchemaJSON = string(jsonStr)
+				}
 			}
 		}
 	}
@@ -351,6 +408,13 @@ func (pp *PrintingPress) collectResponses(responses *v3.Responses) []*ResponseIn
 		ri := &ResponseInfo{
 			StatusCode:  code,
 			Description: resp.Value.Description,
+		}
+		if resp.Value.IsReference() {
+			if link := pp.resolveComponentLink(resp.Value.GetReference()); link != nil {
+				ri.Ref = link
+				result = append(result, ri)
+				continue
+			}
 		}
 		if resp.Content != nil {
 			for mtPair := resp.Content.First(); mtPair != nil; mtPair = mtPair.Next() {
@@ -662,9 +726,10 @@ func (pp *PrintingPress) buildNavModelGroups() {
 		}
 		for _, p := range pages {
 			group.Models = append(group.Models, &NavModel{
-				Name:     p.Name,
-				Slug:     p.Slug,
-				TypeSlug: p.TypeSlug,
+				Name:        p.Name,
+				Slug:        p.Slug,
+				TypeSlug:    p.TypeSlug,
+				Description: p.Description,
 			})
 		}
 		pp.site.NavModelGroups = append(pp.site.NavModelGroups, group)

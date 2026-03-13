@@ -44,7 +44,7 @@ templ CrossRefSection(refs *ModelCrossRefs) {
 				<ul>
 					for _, op := range refs.UsedByOperations {
 						<li>
-							<a href={ templ.SafeURL("../../operations/" + op.Slug + ".html") }>
+							<a href={ templ.SafeURL("operations/" + op.Slug + ".html") }>
 								<pb33f-http-method method={ op.Method }></pb33f-http-method>
 								{ op.Path }
 							</a>
@@ -59,7 +59,7 @@ templ CrossRefSection(refs *ModelCrossRefs) {
 				<ul>
 					for _, comp := range refs.UsedByModels {
 						<li>
-							<a href={ templ.SafeURL("../" + comp.ComponentType + "/" + comp.Slug + ".html") }>
+							<a href={ templ.SafeURL("models/" + comp.TypeSlug + "/" + comp.Slug + ".html") }>
 								{ comp.Name }
 							</a>
 							<span class="pp-component-type">{ comp.ComponentType }</span>
@@ -74,7 +74,7 @@ templ CrossRefSection(refs *ModelCrossRefs) {
 				<ul>
 					for _, comp := range refs.UsesModels {
 						<li>
-							<a href={ templ.SafeURL("../" + comp.ComponentType + "/" + comp.Slug + ".html") }>
+							<a href={ templ.SafeURL("models/" + comp.TypeSlug + "/" + comp.Slug + ".html") }>
 								{ comp.Name }
 							</a>
 							<span class="pp-component-type">{ comp.ComponentType }</span>

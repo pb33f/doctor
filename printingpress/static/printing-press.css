@@ -250,6 +250,24 @@ main {
 /* Request body */
 .pp-request-body { margin-bottom: 1.5rem; }
 
+/* Component reference links in operation pages */
+.pp-response a, .pp-request-body a, .pp-param-table a {
+  color: var(--primary-color);
+}
+.pp-media-type-ref {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+.pp-media-type-label {
+  font-family: var(--font-stack-bold);
+  color: var(--primary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.85em;
+}
+
 /* Operations overview on root page */
 .pp-operations-overview {
   margin-top: 2rem;

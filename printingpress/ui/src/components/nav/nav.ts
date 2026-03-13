@@ -3,32 +3,32 @@ import {customElement, property, state} from 'lit/decorators.js';
 import navCss from './nav.css.js';
 
 interface NavTag {
-  Name: string;
-  Summary: string;
-  Children: NavTag[] | null;
-  Operations: NavOperation[] | null;
-  IsNavOnly: boolean;
+  name: string;
+  summary: string;
+  children: NavTag[] | null;
+  operations: NavOperation[] | null;
+  isNavOnly: boolean;
 }
 
 interface NavOperation {
-  Method: string;
-  Path: string;
-  OperationID: string;
-  Summary: string;
-  Slug: string;
-  Deprecated: boolean;
+  method: string;
+  path: string;
+  operationId: string;
+  summary: string;
+  slug: string;
+  deprecated: boolean;
 }
 
 interface NavModelGroup {
-  Name: string;
-  TypeSlug: string;
-  Models: NavModel[] | null;
+  name: string;
+  typeSlug: string;
+  models: NavModel[] | null;
 }
 
 interface NavModel {
-  Name: string;
-  Slug: string;
-  TypeSlug: string;
+  name: string;
+  slug: string;
+  typeSlug: string;
 }
 
 @customElement('pp-nav')

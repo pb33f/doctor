@@ -110,6 +110,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	err = printingpress.WriteLLMSite(site, *outputDir)
+	if err != nil {
+		logger.Error("LLM write failed", "error", err)
+		os.Exit(1)
+	}
+
 	logger.Info("site generated",
 		"operations", len(site.Operations),
 		"schemas", len(site.Models["schemas"]),
