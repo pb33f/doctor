@@ -44,7 +44,7 @@ export class PpNav extends LitElement {
     const raw = this.getAttribute('data-nav');
     if (raw) {
       try {
-        this.tags = JSON.parse(raw);
+        this.tags = JSON.parse(raw) || [];
       } catch {
         // ignore parse errors
       }
@@ -52,7 +52,7 @@ export class PpNav extends LitElement {
     const modelsRaw = this.getAttribute('data-models');
     if (modelsRaw) {
       try {
-        this.modelGroups = JSON.parse(modelsRaw);
+        this.modelGroups = JSON.parse(modelsRaw) || [];
       } catch {
         // ignore parse errors
       }

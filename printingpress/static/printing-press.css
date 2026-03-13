@@ -128,50 +128,6 @@ main {
   letter-spacing: 0.05em;
 }
 
-/* Parameter table */
-.pp-param-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 1.5rem;
-  font-size: 0.9em;
-}
-.pp-param-table th, .pp-param-table td {
-  text-align: left;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px dotted var(--secondary-color-dimmer);
-}
-.pp-param-table th {
-  background: var(--pp-table-header-bg);
-  font-weight: 600;
-  font-family: var(--font-stack-bold);
-  font-size: 0.75em;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--font-color-sub1);
-}
-.pp-required {
-  font-size: 0.75em;
-  font-family: var(--font-stack-bold);
-  color: var(--error-color);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-/* Response sections */
-.pp-response {
-  margin-bottom: 1.5rem;
-  border: 1px dashed var(--hrcolor);
-  border-radius: 0;
-  padding: 1rem;
-  background: rgba(35, 35, 35, 0.2);
-}
-.pp-status-code {
-  font-family: var(--font-stack-bold);
-  font-weight: 700;
-  margin-right: 0.5em;
-  color: var(--primary-color);
-}
-
 /* Model pages */
 .pp-model-header {
   display: flex;
@@ -251,7 +207,7 @@ main {
 .pp-request-body { margin-bottom: 1.5rem; }
 
 /* Component reference links in operation pages */
-.pp-response a, .pp-request-body a, .pp-param-table a {
+.pp-request-body a {
   color: var(--primary-color);
 }
 .pp-media-type-ref {
