@@ -207,8 +207,13 @@ main {
 .pp-request-body { margin-bottom: 1.5rem; }
 
 /* Component reference links in operation pages */
-.pp-request-body a {
-  color: var(--primary-color);
+.pp-ref-link {
+  color: var(--terminal-text);
+  text-decoration: none;
+  font-family: var(--font-stack);
+}
+.pp-ref-link:hover {
+  text-decoration: underline;
 }
 .pp-media-type-ref {
   display: flex;
@@ -275,6 +280,67 @@ main {
 .op-summary {
   font-size: 0.8em;
   color: var(--font-color-sub1);
+}
+
+/* Common response headers */
+.pp-common-headers {
+  margin-bottom: 1.5rem;
+}
+.pp-common-headers h3 {
+  color: var(--secondary-color);
+  font-family: var(--font-stack-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+.pp-common-header-entry {
+  padding: 0.35rem 0.75rem;
+  border-bottom: 1px dotted var(--hrcolor);
+}
+.pp-common-header-entry:last-child {
+  border-bottom: none;
+}
+a.pp-common-header-name {
+  color: var(--terminal-text);
+}
+a.pp-common-header-name:hover {
+  color: var(--terminal-text);
+  text-decoration: underline;
+}
+span.pp-common-header-name {
+  font-family: var(--font-stack-bold);
+  color: var(--font-color);
+}
+.pp-common-header-type {
+  color: var(--primary-color);
+  margin-left: 0.5rem;
+  font-family: var(--font-stack);
+}
+.pp-common-header-desc {
+  color: var(--font-color-sub1);
+  margin-top: 0.2rem;
+  font-size: 0.9em;
+}
+.pp-header-constraints {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.1rem 0.75rem;
+  margin-top: 0.3rem;
+  font-size: 0.85em;
+  font-family: var(--font-stack);
+}
+.pp-constraint-label {
+  color: var(--font-color-sub2);
+  text-align: right;
+}
+.pp-constraint-value {
+  color: var(--font-color-sub1);
+}
+.pp-constraint-value code {
+  color: var(--warn-400);
+}
+.pp-enum-value {
+  color: var(--warn-400);
 }
 
 /* Method badge (fallback for when JS hasn't loaded) */

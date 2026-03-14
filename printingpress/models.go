@@ -17,6 +17,7 @@ type Site struct {
 	NavTags        []*NavTag
 	NavModelGroups []*NavModelGroup
 	Warnings       []*BuildWarning
+	SpecFormat     string // "yaml" or "json" — the input spec format
 }
 
 // RootPage is the landing page data for the generated documentation.
@@ -110,6 +111,8 @@ type OperationPage struct {
 	RequestBody            *RequestBodyInfo
 	Responses              []*ResponseInfo
 	ResponsesJSON          string `json:"-"` // pre-serialized for Lit component; excluded from JSON writer
+	CommonHeaders          []*HeaderInfo
+	CommonHeadersJSON      string `json:"-"` // pre-serialized for templ rendering
 	Security               []map[string][]string
 	Servers                []*ServerInfo
 	ExternalDoc            *ExternalDocInfo
@@ -165,14 +168,28 @@ type MediaTypeInfo struct {
 
 // ResponseInfo holds a single response entry.
 type ResponseInfo struct {
-	StatusCode  string            `json:"statusCode"`
-	Description string            `json:"description"`
-	Content     []*MediaTypeInfo  `json:"content,omitempty"`
-	Headers     map[string]string `json:"headers,omitempty"`
-	Ref         *ComponentLink    `json:"ref,omitempty"`
-	RawJSON     string            `json:"rawJson,omitempty"`
-	RawYAML     string            `json:"rawYaml,omitempty"`
-	SourceLine  int               `json:"sourceLine,omitempty"`
+	StatusCode  string           `json:"statusCode"`
+	Description string           `json:"description"`
+	Content     []*MediaTypeInfo `json:"content,omitempty"`
+	Headers     []*HeaderInfo    `json:"headers,omitempty"`
+	Ref         *ComponentLink   `json:"ref,omitempty"`
+	RawJSON     string           `json:"rawJson,omitempty"`
+	RawYAML     string           `json:"rawYaml,omitempty"`
+	SourceLine  int              `json:"sourceLine,omitempty"`
+}
+
+// HeaderInfo holds a single response header entry.
+type HeaderInfo struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	SchemaType  string         `json:"schemaType,omitempty"`
+	Ref         *ComponentLink `json:"ref,omitempty"`
+	Example     string         `json:"example,omitempty"`
+	Minimum     *float64       `json:"minimum,omitempty"`
+	Maximum     *float64       `json:"maximum,omitempty"`
+	Default     string         `json:"default,omitempty"`
+	Enum        []string       `json:"enum,omitempty"`
+	Pattern     string         `json:"pattern,omitempty"`
 }
 
 // ModelPage is the full data for rendering a component detail page.
@@ -186,6 +203,9 @@ type ModelPage struct {
 	SchemaJSON            string // JSON representation for cowboy-components rendering
 	SchemaHighlightedHTML string `json:"-"` // chroma output, templ only
 	RawYAML               string `json:"-"` // re-rendered YAML from Render(), for raw viewer
+	SchemaRawYAML         string `json:"-"` // schema-only YAML for inline viewer (parameters, headers)
+	SchemaRawJSON         string `json:"-"` // schema-only JSON for inline viewer (parameters, headers)
+	SchemaStartLine       int    `json:"-"` // 1-based source line where schema content begins (parameters, headers)
 	MockJSON              string
 	Examples              map[string]string
 	ExamplesJSON          string // pre-serialized for Lit component

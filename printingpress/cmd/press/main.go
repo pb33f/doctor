@@ -44,6 +44,9 @@ func main() {
 	if base == "" {
 		base = filepath.Dir(*specPath)
 	}
+	if abs, err := filepath.Abs(base); err == nil {
+		base = abs
+	}
 
 	var drDoc *model.DrDocument
 	var origins bundler.ComponentOriginMap
@@ -90,12 +93,16 @@ func main() {
 		logger.Info("bundled spec", "origins", len(origins))
 	}
 
+	specFormat := printingpress.DetectSpecFormat(specBytes)
+
 	pp := printingpress.New(&printingpress.PrintingPressConfig{
-		DrDoc:     drDoc,
-		Origins:   origins,
-		OutputDir: *outputDir,
-		Title:     *title,
-		Logger:    logger,
+		DrDoc:      drDoc,
+		Origins:    origins,
+		OutputDir:  *outputDir,
+		Title:      *title,
+		Logger:     logger,
+		SpecFormat: specFormat,
+		SpecRoot:   base,
 	})
 
 	site, err := pp.Press()

@@ -41,7 +41,28 @@ templ ModelPageTempl(page *ModelPage) {
 			</pp-raw-viewer-btn>
 		}
 		if page.SchemaJSON != "" {
-			<pp-model-page model-json={ page.SchemaJSON } name={ page.Name }></pp-model-page>
+			<pp-model-page
+				model-json={ page.SchemaJSON }
+				name={ page.Name }
+				if page.SchemaRawYAML != "" {
+					schema-raw-yaml={ page.SchemaRawYAML }
+				}
+				if page.SchemaRawJSON != "" {
+					schema-raw-json={ page.SchemaRawJSON }
+				}
+				if page.SchemaStartLine > 0 {
+					schema-start-line={ fmt.Sprintf("%d", page.SchemaStartLine) }
+				}
+				if page.RawYAML != "" {
+					raw-yaml={ page.RawYAML }
+				}
+				if page.Origin != nil && page.Origin.Line > 0 {
+					start-line={ fmt.Sprintf("%d", page.Origin.Line) }
+				}
+				if page.Origin != nil && page.Origin.OriginalFile != "" {
+					location={ page.Origin.OriginalFile }
+				}>
+			</pp-model-page>
 		}
 		if page.ExamplesJSON != "" {
 			<pp-example-selector examples-data={ page.ExamplesJSON }></pp-example-selector>

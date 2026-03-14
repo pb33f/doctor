@@ -1,5 +1,9 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
+import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
+import '@shoelace-style/shoelace/dist/components/menu/menu.js';
+import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
+import '@shoelace-style/shoelace/dist/components/button/button.js';
 import type {ShowExampleDetail} from './example-drawer.js';
 import exampleSelectorCss from './example-selector.css.js';
 
@@ -75,6 +79,15 @@ export class PpExampleSelector extends LitElement {
     document.dispatchEvent(event);
   }
 
+  private handleSelect(e: CustomEvent) {
+    const value = e.detail?.item?.value;
+    if (value === undefined) return;
+    const idx = parseInt(value, 10);
+    if (idx >= 0 && idx < this.entries.length) {
+      this.showExample(this.entries[idx]);
+    }
+  }
+
   render() {
     if (!this.entries.length) return nothing;
 
@@ -88,19 +101,17 @@ export class PpExampleSelector extends LitElement {
       `;
     }
 
-    // Multiple entries: dropdown
+    // Multiple entries: Shoelace dropdown
     return html`
       <div class="selector">
-        <select @change=${(e: Event) => {
-          const idx = (e.target as HTMLSelectElement).selectedIndex - 1;
-          if (idx >= 0 && idx < this.entries.length) {
-            this.showExample(this.entries[idx]);
-            (e.target as HTMLSelectElement).selectedIndex = 0;
-          }
-        }}>
-          <option disabled selected>View Example...</option>
-          ${this.entries.map(entry => html`<option>${entry.key}</option>`)}
-        </select>
+        <sl-dropdown skidding="5" distance="5">
+          <sl-button slot="trigger" caret>View Example...</sl-button>
+          <sl-menu @sl-select=${this.handleSelect}>
+            ${this.entries.map((entry, i) => html`
+              <sl-menu-item value="${i}">${entry.key}</sl-menu-item>
+            `)}
+          </sl-menu>
+        </sl-dropdown>
       </div>
     `;
   }
