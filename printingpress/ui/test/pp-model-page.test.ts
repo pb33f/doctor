@@ -37,4 +37,14 @@ describe('pp-model-page', () => {
     const content = el.shadowRoot?.textContent;
     expect(content).toContain('string');
   });
+
+  it('should not render schema dump in shadow DOM (moved to chroma light DOM)', async () => {
+    const el = document.createElement('pp-model-page');
+    el.setAttribute('model-json', JSON.stringify({ type: 'object', properties: { id: { type: 'integer' } } }));
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const pre = el.shadowRoot?.querySelector('pre');
+    expect(pre).toBeNull();
+  });
 });

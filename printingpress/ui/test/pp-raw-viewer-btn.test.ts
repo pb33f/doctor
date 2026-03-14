@@ -1,0 +1,61 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import '../src/components/shared/raw-viewer-btn.js';
+
+describe('pp-raw-viewer-btn', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('should render a button when raw-json is set', async () => {
+    const el = document.createElement('pp-raw-viewer-btn');
+    el.setAttribute('raw-json', '{"a":1}');
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const btn = el.shadowRoot?.querySelector('button');
+    expect(btn).toBeTruthy();
+    expect(btn?.textContent?.trim()).toBe('View Raw');
+  });
+
+  it('should render a button when raw-yaml is set', async () => {
+    const el = document.createElement('pp-raw-viewer-btn');
+    el.setAttribute('raw-yaml', 'a: 1');
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const btn = el.shadowRoot?.querySelector('button');
+    expect(btn).toBeTruthy();
+  });
+
+  it('should render nothing when both are empty', async () => {
+    const el = document.createElement('pp-raw-viewer-btn');
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const btn = el.shadowRoot?.querySelector('button');
+    expect(btn).toBeNull();
+  });
+
+  it('should dispatch pp-show-example with json and yaml', async () => {
+    const el = document.createElement('pp-raw-viewer-btn');
+    el.setAttribute('title', 'Test Title');
+    el.setAttribute('raw-json', '{"x":1}');
+    el.setAttribute('raw-yaml', 'x: 1');
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const handler = vi.fn();
+    document.addEventListener('pp-show-example', handler);
+
+    const btn = el.shadowRoot?.querySelector('button');
+    btn?.click();
+
+    expect(handler).toHaveBeenCalledOnce();
+    const detail = handler.mock.calls[0][0].detail;
+    expect(detail.title).toBe('Test Title');
+    expect(detail.json).toBe('{"x":1}');
+    expect(detail.yaml).toBe('x: 1');
+
+    document.removeEventListener('pp-show-example', handler);
+  });
+});

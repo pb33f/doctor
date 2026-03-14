@@ -12,7 +12,9 @@
   "dependencies": {
     "@pb33f/cowboy-components": "file:../../../cowboy-components",
     "@shoelace-style/shoelace": "^2.20.1",
-    "lit": "^3.2.0"
+    "@types/prismjs": "^1.26.6",
+    "lit": "^3.2.0",
+    "prismjs": "^1.30.0"
   },
   "devDependencies": {
     "jsdom": "^25.0.0",

@@ -33,6 +33,38 @@ func yamlToJSON(yamlBytes []byte) (string, error) {
 	return string(jsonBytes), nil
 }
 
+// isComplexSchemaJSON returns true if the schema JSON represents a complex type
+// (object, array, or composition) worth generating a mock for.
+// Returns false for scalar types like string, integer, number, boolean.
+func isComplexSchemaJSON(schemaJSON string) bool {
+	if schemaJSON == "" {
+		return false
+	}
+	var m map[string]any
+	if json.Unmarshal([]byte(schemaJSON), &m) != nil {
+		return false
+	}
+	if t, ok := m["type"]; ok {
+		switch v := t.(type) {
+		case string:
+			return v == "object" || v == "array"
+		case []any:
+			for _, item := range v {
+				if s, ok := item.(string); ok && (s == "object" || s == "array") {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	for _, key := range []string{"properties", "allOf", "anyOf", "oneOf", "items"} {
+		if _, ok := m[key]; ok {
+			return true
+		}
+	}
+	return false
+}
+
 // marshalJSON is a convenience wrapper for json.Marshal that returns a string.
 func marshalJSON(v any) (string, error) {
 	b, err := json.Marshal(v)

@@ -30,12 +30,26 @@ templ OperationPageTempl(page *OperationPage) {
 				}
 			</div>
 		}
+		if page.RawYAML != "" || page.SchemaJSON != "" {
+			<pp-raw-viewer-btn
+				title={ page.Method + " " + page.Path }
+				raw-json={ page.SchemaJSON }
+				raw-yaml={ page.RawYAML }>
+			</pp-raw-viewer-btn>
+		}
 		if page.ParametersJSON != "" {
 			<pp-operation-parameters parameters-json={ page.ParametersJSON }></pp-operation-parameters>
 		}
 		if page.RequestBody != nil {
 			<div class="pp-request-body">
 				<h3>Request Body</h3>
+				if page.RequestBody.RawYAML != "" || page.RequestBody.RawJSON != "" {
+					<pp-raw-viewer-btn
+						title="Request Body"
+						raw-json={ page.RequestBody.RawJSON }
+						raw-yaml={ page.RequestBody.RawYAML }>
+					</pp-raw-viewer-btn>
+				}
 				if page.RequestBody.Description != "" {
 					<p>{ page.RequestBody.Description }</p>
 				}
@@ -54,8 +68,15 @@ templ OperationPageTempl(page *OperationPage) {
 									{ mt.SchemaRef.Name }
 								</a>
 							</div>
-						} else {
-							<pp-component-section media-type={ mt.MediaType } schema-json={ mt.SchemaJSON }></pp-component-section>
+						} else if mt.SchemaJSON != "" {
+							<div class="pp-media-type-label">{ mt.MediaType }</div>
+							<pp-model-page model-json={ mt.SchemaJSON }></pp-model-page>
+							if mt.MockJSON != "" || len(mt.Examples) > 0 {
+								<pp-example-selector
+									mock-json={ mt.MockJSON }
+									examples-json={ MustJSON(mt.Examples) }>
+								</pp-example-selector>
+							}
 						}
 					}
 				}
@@ -63,9 +84,6 @@ templ OperationPageTempl(page *OperationPage) {
 		}
 		if page.ResponsesJSON != "" {
 			<pp-operation-responses responses-json={ page.ResponsesJSON }></pp-operation-responses>
-		}
-		if page.SchemaJSON != "" {
-			<pp-operation-page operation-json={ page.SchemaJSON }></pp-operation-page>
 		}
 	</div>
 }
