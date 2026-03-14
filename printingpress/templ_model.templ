@@ -31,7 +31,13 @@ templ ModelPageTempl(page *ModelPage) {
 			<pp-raw-viewer-btn
 				title={ page.Name }
 				raw-json={ page.SchemaJSON }
-				raw-yaml={ page.RawYAML }>
+				raw-yaml={ page.RawYAML }
+				if page.Origin != nil && page.Origin.Line > 0 {
+					start-line={ fmt.Sprintf("%d", page.Origin.Line) }
+				}
+				if page.Origin != nil && page.Origin.OriginalFile != "" {
+					location={ page.Origin.OriginalFile }
+				}>
 			</pp-raw-viewer-btn>
 		}
 		if page.SchemaJSON != "" {

@@ -42,23 +42,8 @@ export default css`
     box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
     background: var(--secondary-color-lowalpha);
   }
-  pre {
-    margin: 0;
-    padding: 1.5rem;
-    overflow-x: auto;
-    background: var(--terminal-background, #0a0a0a);
-    color: var(--font-color, #e8e9ed);
-    font-family: var(--font-stack, monospace);
-    font-size: 0.8rem;
-    line-height: 1.5;
+  pp-code-viewer {
     width: 100%;
-    box-sizing: border-box;
-  }
-  code {
-    background: none;
-    padding: 0;
-    border: none;
-    color: inherit;
   }
   sl-drawer::part(footer) {
     background: var(--card-background-color, rgba(35, 35, 35, 0.55));

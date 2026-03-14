@@ -48,3 +48,4 @@ export { PpExampleBlock } from './components/shared/example-block.js';
 export { PpExampleDrawer } from './components/shared/example-drawer.js';
 export { PpExampleSelector } from './components/shared/example-selector.js';
 export { PpRawViewerBtn } from './components/shared/raw-viewer-btn.js';
+export { PpCodeViewer } from './components/shared/code-viewer.js';

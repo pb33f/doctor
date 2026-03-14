@@ -1,28 +1,32 @@
 import {LitElement, html} from 'lit';
 import {customElement, state, query} from 'lit/decorators.js';
-import {unsafeHTML} from 'lit/directives/unsafe-html.js';
-import Prism from 'prismjs';
-Prism.manual = true;
-import 'prismjs/components/prism-json.js';
-import 'prismjs/components/prism-yaml.js';
+import './code-viewer.js';
+import type {PpCodeViewer} from './code-viewer.js';
 import exampleDrawerCss from './example-drawer.css.js';
-import prismCss from '../../styles/prism.css.js';
 
 export interface ShowExampleDetail {
   title: string;
   json: string;
   yaml?: string;
+  rawMode?: boolean;
+  highlightLines?: string;
+  startLine?: number;
+  location?: string;
 }
 
 @customElement('pp-example-drawer')
 export class PpExampleDrawer extends LitElement {
-  static styles = [exampleDrawerCss, prismCss];
+  static styles = [exampleDrawerCss];
 
   @state() private title = '';
   @state() private json = '';
   @state() private yaml = '';
   @state() private format: 'json' | 'yaml' = 'json';
   @state() private copied = false;
+  @state() private rawMode = false;
+  @state() private highlightLines = '';
+  @state() private startLine = 1;
+  @state() private location = '';
   @query('sl-drawer') private drawer: any;
 
   connectedCallback() {
@@ -40,11 +44,14 @@ export class PpExampleDrawer extends LitElement {
     this.title = detail.title;
     this.json = detail.json;
     this.yaml = detail.yaml || '';
+    this.rawMode = detail.rawMode ?? false;
+    this.highlightLines = detail.highlightLines || '';
+    this.startLine = detail.startLine ?? 1;
+    this.location = detail.location || '';
     this.format = detail.json ? 'json' : (detail.yaml ? 'yaml' : 'json');
     this.updateComplete.then(() => {
       const d = this.drawer;
       if (d) {
-        // Ensure sl-drawer has finished its own upgrade/update before calling show
         if (d.updateComplete) {
           d.updateComplete.then(() => d.show());
         } else {
@@ -54,25 +61,11 @@ export class PpExampleDrawer extends LitElement {
     });
   };
 
-  private get displayJson(): string {
-    if (!this.json) return '';
-    try { return JSON.stringify(JSON.parse(this.json), null, 2); }
-    catch { return this.json; }
-  }
-
-  private highlighted() {
-    const isYaml = this.format === 'yaml' && this.yaml;
-    const code = isYaml ? this.yaml : this.displayJson;
-    if (!code) return '';
-    const lang = isYaml ? 'yaml' : 'json';
-    try {
-      return Prism.highlight(code, Prism.languages[lang], lang);
-    } catch { return code; }
-  }
-
   private get copyText(): string {
+    const viewer = this.shadowRoot?.querySelector('pp-code-viewer') as PpCodeViewer | null;
+    if (viewer) return viewer.displayCode;
     if (this.format === 'yaml' && this.yaml) return this.yaml;
-    return this.displayJson;
+    return this.json;
   }
 
   private async copyToClipboard() {
@@ -86,6 +79,8 @@ export class PpExampleDrawer extends LitElement {
   }
 
   render() {
+    const code = this.format === 'yaml' && this.yaml ? this.yaml : this.json;
+    const lang = this.format === 'yaml' ? 'yaml' : 'json';
     return html`
       <sl-drawer label=${this.title || 'Example'} placement="end">
         ${this.yaml ? html`
@@ -97,7 +92,15 @@ export class PpExampleDrawer extends LitElement {
                     @click=${() => this.format = 'yaml'}>YAML</button>
           </div>
         ` : ''}
-        <pre class="${this.format}"><code>${unsafeHTML(this.highlighted())}</code></pre>
+        <pp-code-viewer
+          .code=${code}
+          .language=${lang}
+          ?line-numbers=${this.rawMode}
+          .pretty=${lang === 'json'}
+          .startLine=${this.startLine}
+          .location=${this.location}
+          highlight-lines=${this.highlightLines}>
+        </pp-code-viewer>
         <button
           slot="footer"
           class="copy-btn ${this.copied ? 'copied' : ''}"

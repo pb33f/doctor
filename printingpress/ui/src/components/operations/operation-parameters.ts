@@ -15,6 +15,7 @@ interface ParameterData {
   ref?: {name: string; componentType: string; typeSlug: string; slug: string};
   rawJson?: string;
   rawYaml?: string;
+  sourceLine?: number;
 }
 
 interface ParsedSchema {
@@ -98,7 +99,8 @@ export class PpOperationParameters extends LitElement {
               ? html`<pp-raw-viewer-btn
                   title="${p.name} (${p.in})"
                   raw-json=${p.rawJson || ''}
-                  raw-yaml=${p.rawYaml || ''}>
+                  raw-yaml=${p.rawYaml || ''}
+                  start-line=${p.sourceLine || 1}>
                 </pp-raw-viewer-btn>`
               : nothing}
             ${p.mockJson || (p.examples && Object.keys(p.examples).length > 0)
