@@ -16,12 +16,14 @@ import (
 
 // PrintingPressConfig configures the PrintingPress documentation generator.
 type PrintingPressConfig struct {
-	DrDoc     *model.DrDocument
-	Origins   bundler.ComponentOriginMap
-	OutputDir string
-	BaseURL   string
-	Title     string
-	Logger    *slog.Logger
+	DrDoc      *model.DrDocument
+	Origins    bundler.ComponentOriginMap
+	OutputDir  string
+	BaseURL    string
+	Title      string
+	Logger     *slog.Logger
+	SpecFormat string // "yaml" or "json" — caller should set based on input format
+	SpecRoot   string // root directory of the spec; absolute paths are made relative to this
 }
 
 // PrintingPress generates static HTML documentation from a DrDocument.
@@ -65,6 +67,10 @@ func (pp *PrintingPress) Press() (*Site, error) {
 	pp.buildCrossRefs()
 
 	pp.site.Warnings = pp.warnings
+	pp.site.SpecFormat = pp.config.SpecFormat
+	if pp.site.SpecFormat == "" {
+		pp.site.SpecFormat = "yaml"
+	}
 
 	return pp.site, nil
 }

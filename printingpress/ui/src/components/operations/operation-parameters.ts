@@ -72,16 +72,12 @@ export class PpOperationParameters extends LitElement {
     return html`
       <h3>Parameters</h3>
       ${this.params.map(p => {
-        const schema = p.ref ? null : parseSchema(p.schemaJson);
-        const type = p.ref ? p.ref.name : (schema?.type || '');
+        const schema = parseSchema(p.schemaJson);
+        const type = schema?.type || '';
         return html`
           <div class="parameter">
             <span class="param-name">${p.name}</span>
-            ${type
-              ? p.ref
-                ? html`<span class="param-type"><a href="models/${p.ref.typeSlug}/${p.ref.slug}.html">${type}</a></span>`
-                : html`<span class="param-type">${type}</span>`
-              : nothing}
+            ${type ? html`<span class="param-type">${type}</span>` : nothing}
             <span class="param-in">${p.in}</span>
             ${p.required
               ? html`<span class="required-badge">required</span>`
@@ -94,6 +90,9 @@ export class PpOperationParameters extends LitElement {
               : nothing}
             ${schema?.enumValues
               ? html`<div class="enum-values">Enum: ${schema.enumValues.map((v: string, i: number) => html`${i > 0 ? ', ' : ''}<span class="enum-value">${v}</span>`)}</div>`
+              : nothing}
+            ${p.ref
+              ? html`<div class="param-ref"><a class="ref-link" href="models/${p.ref.typeSlug}/${p.ref.slug}.html">\u279c ${p.ref.name}</a></div>`
               : nothing}
             ${p.rawJson || p.rawYaml
               ? html`<pp-raw-viewer-btn

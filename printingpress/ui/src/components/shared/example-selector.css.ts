@@ -12,39 +12,50 @@ export default css`
   }
   button {
     cursor: pointer;
-    background: var(--card-background-color, rgba(35, 35, 35, 0.55));
-    border: 1px dashed var(--hrcolor, #3d3d3d);
+    background: var(--card-background-color);
+    border: 1px dashed var(--hrcolor);
     border-radius: 0;
     padding: 0.3rem 0.6rem;
-    font-family: var(--font-stack-bold, monospace);
+    font-family: var(--font-stack-bold);
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--font-color-sub1, #a7a7a7);
+    color: var(--font-color-sub1);
     transition: color 0.15s, border-color 0.15s;
   }
   button:hover {
-    color: var(--primary-color, rgba(98, 196, 255, 1.0));
-    border-color: var(--primary-color, rgba(98, 196, 255, 1.0));
+    color: var(--primary-color);
+    border-color: var(--primary-color);
   }
-  select {
-    cursor: pointer;
-    background: var(--card-background-color, rgba(35, 35, 35, 0.55));
-    border: 1px dashed var(--hrcolor, #3d3d3d);
+  sl-button::part(base) {
+    border: 1px solid var(--primary-color);
     border-radius: 0;
-    padding: 0.3rem 0.6rem;
-    font-family: var(--font-stack-bold, monospace);
+    font-family: var(--font-stack);
+    background-color: var(--background-color);
+    color: var(--primary-color);
+    min-height: 20px;
+    max-height: 20px;
+    min-width: 150px;
+    max-width: 220px;
+  }
+  sl-button::part(label) {
+    line-height: 17px;
     font-size: 0.7rem;
+    overflow-x: hidden;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--font-color-sub1, #a7a7a7);
   }
-  select:hover {
-    color: var(--primary-color, rgba(98, 196, 255, 1.0));
-    border-color: var(--primary-color, rgba(98, 196, 255, 1.0));
+  sl-menu {
+    border: 1px solid var(--primary-color);
+    border-radius: 0;
   }
-  option {
-    background: var(--card-background-color, #1a1a1a);
-    color: var(--font-color, #e8e9ed);
+  sl-menu-item::part(base) {
+    color: var(--primary-color);
+    font-family: var(--font-stack);
+    line-height: 17px;
+    font-size: 0.7rem;
+    --sl-color-neutral-100: var(--secondary-color-lowalpha);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 `

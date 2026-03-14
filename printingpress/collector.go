@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi/bundler"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"go.yaml.in/yaml/v4"
 )
@@ -257,6 +258,10 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 	}
 
 	if len(page.Responses) > 0 {
+		page.CommonHeaders = computeCommonHeaders(page.Responses)
+		if len(page.CommonHeaders) > 0 {
+			page.CommonHeadersJSON = MustJSON(page.CommonHeaders)
+		}
 		page.ResponsesJSON = MustJSON(page.Responses)
 	}
 
@@ -321,11 +326,9 @@ func (pp *PrintingPress) collectParameters(params []*v3.Parameter) []*ParameterI
 		if p.ValueNode != nil {
 			pi.SourceLine = p.ValueNode.Line
 		}
-		if p.Value.IsReference() {
-			if link := pp.resolveComponentLink(p.Value.GetReference()); link != nil {
+		if low := p.Value.GoLow(); low != nil && low.IsReference() {
+			if link := pp.resolveComponentLink(low.GetReference()); link != nil {
 				pi.Ref = link
-				result = append(result, pi)
-				continue
 			}
 		}
 		if p.Value.Schema != nil {
@@ -472,18 +475,53 @@ func (pp *PrintingPress) collectResponses(responses *v3.Responses) []*ResponseIn
 			}
 		}
 		if resp.Headers != nil {
-			ri.Headers = make(map[string]string)
 			for hPair := resp.Headers.First(); hPair != nil; hPair = hPair.Next() {
 				h := hPair.Value()
-				if h != nil && h.Value != nil {
-					yamlBytes, err := h.Value.Render()
-					if err == nil {
-						jsonStr, err := yamlToJSON(yamlBytes)
-						if err == nil {
-							ri.Headers[hPair.Key()] = jsonStr
+				if h == nil || h.Value == nil {
+					continue
+				}
+				hi := &HeaderInfo{Name: hPair.Key()}
+				if low := h.Value.GoLow(); low != nil && low.IsReference() {
+					if link := pp.resolveComponentLink(low.GetReference()); link != nil {
+						hi.Ref = link
+					}
+				}
+				hi.Description = h.Value.Description
+				if h.Schema != nil && h.Schema.Value != nil {
+					sch := h.Schema.Value.Schema()
+					if sch != nil {
+						t := ""
+						if sch.Type != nil {
+							for i, st := range sch.Type {
+								if i > 0 {
+									t += " | "
+								}
+								t += st
+							}
+						}
+						if sch.Format != "" && t != "" {
+							t += " (" + sch.Format + ")"
+						}
+						hi.SchemaType = t
+						hi.Minimum = sch.Minimum
+						hi.Maximum = sch.Maximum
+						if sch.Example != nil {
+							hi.Example = yamlNodeToJSON(sch.Example)
+						}
+						if sch.Default != nil {
+							hi.Default = yamlNodeToJSON(sch.Default)
+						}
+						if sch.Pattern != "" {
+							hi.Pattern = sch.Pattern
+						}
+						if len(sch.Enum) > 0 {
+							for _, e := range sch.Enum {
+								hi.Enum = append(hi.Enum, yamlNodeToJSON(e))
+							}
 						}
 					}
 				}
+				ri.Headers = append(ri.Headers, hi)
 			}
 		}
 		result = append(result, ri)
@@ -497,31 +535,31 @@ func (pp *PrintingPress) collectComponents(comp *v3.Components) {
 		pp.collectSchemaComponents(comp.Schemas)
 	}
 	if comp.Responses != nil {
-		collectRenderable(pp, comp.Responses, "responses", "responses", descResponse)
+		collectRenderable(pp, comp.Responses, "responses", "responses", descResponse, nil)
 	}
 	if comp.Parameters != nil {
-		collectRenderable(pp, comp.Parameters, "parameters", "parameters", descParameter)
+		collectRenderable(pp, comp.Parameters, "parameters", "parameters", descParameter, schemaFromParameter)
 	}
 	if comp.Examples != nil {
-		collectRenderable(pp, comp.Examples, "examples", "examples", descExample)
+		collectRenderable(pp, comp.Examples, "examples", "examples", descExample, nil)
 	}
 	if comp.RequestBodies != nil {
-		collectRenderable(pp, comp.RequestBodies, "requestBodies", "request-bodies", descRequestBody)
+		collectRenderable(pp, comp.RequestBodies, "requestBodies", "request-bodies", descRequestBody, nil)
 	}
 	if comp.Headers != nil {
-		collectRenderable(pp, comp.Headers, "headers", "headers", descHeader)
+		collectRenderable(pp, comp.Headers, "headers", "headers", descHeader, schemaFromHeader)
 	}
 	if comp.SecuritySchemes != nil {
-		collectRenderable(pp, comp.SecuritySchemes, "securitySchemes", "security", descSecurityScheme)
+		collectRenderable(pp, comp.SecuritySchemes, "securitySchemes", "security", descSecurityScheme, nil)
 	}
 	if comp.Links != nil {
-		collectRenderable(pp, comp.Links, "links", "links", descLink)
+		collectRenderable(pp, comp.Links, "links", "links", descLink, nil)
 	}
 	if comp.Callbacks != nil {
-		collectRenderable(pp, comp.Callbacks, "callbacks", "callbacks", descNone[*v3.Callback])
+		collectRenderable(pp, comp.Callbacks, "callbacks", "callbacks", descNone[*v3.Callback], nil)
 	}
 	if comp.PathItems != nil {
-		collectRenderable(pp, comp.PathItems, "pathItems", "path-items", descPathItem)
+		collectRenderable(pp, comp.PathItems, "pathItems", "path-items", descPathItem, nil)
 	}
 }
 
@@ -571,12 +609,7 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 			}{page.MockJSON, page.Examples})
 		}
 
-		if pp.config.Origins != nil {
-			key := componentKey("schemas", name)
-			if origin, ok := pp.config.Origins[key]; ok {
-				page.Origin = origin
-			}
-		}
+		page.Origin = pp.resolveOrigin("schemas", name)
 
 		pp.site.Models["schemas"] = append(pp.site.Models["schemas"], page)
 	}
@@ -633,6 +666,21 @@ func descPathItem(v *v3.PathItem) string {
 }
 func descNone[V any](_ V) string { return "" }
 
+// schema extractors for component types that have a nested schema
+func schemaFromParameter(v *v3.Parameter) valueRenderer {
+	if v.Value != nil && v.Value.Schema != nil {
+		return v.Value.Schema
+	}
+	return nil
+}
+
+func schemaFromHeader(v *v3.Header) valueRenderer {
+	if v.Value != nil && v.Value.Schema != nil {
+		return v.Value.Schema
+	}
+	return nil
+}
+
 // captureRawData calls Render() on renderable, populating rawYAML, schemaJSON, and
 // highlightedHTML progressively. If Render() fails, nothing is set. If yamlToJSON()
 // fails, only rawYAML is set (the drawer supports YAML-only display).
@@ -642,7 +690,7 @@ func (pp *PrintingPress) captureRawData(renderable interface{ Render() ([]byte, 
 		pp.warn("failed to render to YAML", context, err)
 		return
 	}
-	*rawYAML = string(yamlBytes)
+	*rawYAML = strings.TrimRight(string(yamlBytes), "\n")
 	jsonStr, jsonErr := yamlToJSON(yamlBytes)
 	if jsonErr != nil {
 		pp.warn("failed to convert YAML to JSON", context, jsonErr)
@@ -678,6 +726,7 @@ func collectRenderable[V interface{ GetValue() any }](
 	m *orderedmap.Map[string, V],
 	componentType, typeSlug string,
 	getDesc func(V) string,
+	getSchema func(V) valueRenderer,
 ) {
 	for pair := m.First(); pair != nil; pair = pair.Next() {
 		name := pair.Key()
@@ -701,11 +750,17 @@ func collectRenderable[V interface{ GetValue() any }](
 				&page.RawYAML, &page.SchemaJSON, &page.SchemaHighlightedHTML)
 		}
 
-		if pp.config.Origins != nil {
-			key := componentKey(componentType, name)
-			if origin, ok := pp.config.Origins[key]; ok {
-				page.Origin = origin
+		if getSchema != nil {
+			if sr := getSchema(val); sr != nil {
+				pp.captureRawData(sr, fmt.Sprintf("%s/%s/schema", componentType, name),
+					&page.SchemaRawYAML, &page.SchemaRawJSON, nil)
 			}
+		}
+
+		page.Origin = pp.resolveOrigin(componentType, name)
+
+		if page.SchemaRawYAML != "" && page.RawYAML != "" {
+			page.SchemaStartLine = computeSchemaStartLine(page.RawYAML, page.Origin)
 		}
 
 		pp.site.Models[typeSlug] = append(pp.site.Models[typeSlug], page)
@@ -846,6 +901,74 @@ func yamlNodeToJSON(node *yaml.Node) string {
 		return ""
 	}
 	return string(b)
+}
+
+// computeCommonHeaders finds headers that appear in 2+ responses and returns the
+// first occurrence of each. Used to deduplicate repeated headers (e.g. RateLimit-*)
+// into a single "Common Headers" section on the operation page.
+func computeCommonHeaders(responses []*ResponseInfo) []*HeaderInfo {
+	counts := make(map[string]int)
+	first := make(map[string]*HeaderInfo)
+	for _, resp := range responses {
+		for _, h := range resp.Headers {
+			counts[h.Name]++
+			if _, ok := first[h.Name]; !ok {
+				first[h.Name] = h
+			}
+		}
+	}
+	var common []*HeaderInfo
+	// Preserve insertion order by iterating responses again
+	seen := make(map[string]bool)
+	for _, resp := range responses {
+		for _, h := range resp.Headers {
+			if counts[h.Name] >= 2 && !seen[h.Name] {
+				common = append(common, first[h.Name])
+				seen[h.Name] = true
+			}
+		}
+	}
+	return common
+}
+
+// resolveOrigin looks up a component origin and strips the SpecRoot prefix from OriginalFile
+// so rendered paths are relative (e.g. "schemas/user.yaml" not "/home/user/project/api-spec/schemas/user.yaml").
+func (pp *PrintingPress) resolveOrigin(componentType, name string) *bundler.ComponentOrigin {
+	if pp.config.Origins == nil {
+		return nil
+	}
+	key := componentKey(componentType, name)
+	origin, ok := pp.config.Origins[key]
+	if !ok || origin == nil {
+		return nil
+	}
+	if pp.config.SpecRoot != "" && strings.HasPrefix(origin.OriginalFile, pp.config.SpecRoot) {
+		trimmed := strings.TrimPrefix(origin.OriginalFile, pp.config.SpecRoot)
+		trimmed = strings.TrimPrefix(trimmed, "/")
+		cp := *origin
+		cp.OriginalFile = trimmed
+		return &cp
+	}
+	return origin
+}
+
+// computeSchemaStartLine finds where schema content begins within the rendered
+// parent YAML and returns the 1-based source line number. This makes the Schema
+// inline code block line numbers match the raw viewer.
+func computeSchemaStartLine(rawYAML string, origin *bundler.ComponentOrigin) int {
+	originLine := 1
+	if origin != nil && origin.Line > 0 {
+		originLine = origin.Line
+	}
+	lines := strings.Split(rawYAML, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "schema:" || strings.HasPrefix(trimmed, "schema:") {
+			// Schema content starts on the line after "schema:"
+			return originLine + i + 1
+		}
+	}
+	return 1
 }
 
 func ptrBool(b *bool) bool {

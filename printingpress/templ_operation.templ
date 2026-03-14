@@ -2,6 +2,44 @@ package printingpress
 
 import "fmt"
 
+templ headerConstraints(h *HeaderInfo) {
+	if h.Example != "" || h.Default != "" || h.Minimum != nil || h.Maximum != nil || h.Pattern != "" || len(h.Enum) > 0 {
+		<div class="pp-header-constraints">
+			if h.Example != "" {
+				<span class="pp-constraint-label">example</span>
+				<span class="pp-constraint-value">{ h.Example }</span>
+			}
+			if h.Default != "" {
+				<span class="pp-constraint-label">default</span>
+				<span class="pp-constraint-value">{ h.Default }</span>
+			}
+			if h.Minimum != nil {
+				<span class="pp-constraint-label">min</span>
+				<span class="pp-constraint-value">{ fmt.Sprintf("%g", *h.Minimum) }</span>
+			}
+			if h.Maximum != nil {
+				<span class="pp-constraint-label">max</span>
+				<span class="pp-constraint-value">{ fmt.Sprintf("%g", *h.Maximum) }</span>
+			}
+			if h.Pattern != "" {
+				<span class="pp-constraint-label">pattern</span>
+				<span class="pp-constraint-value"><code>{ h.Pattern }</code></span>
+			}
+			if len(h.Enum) > 0 {
+				<span class="pp-constraint-label">enum</span>
+				<span class="pp-constraint-value">
+					for i, v := range h.Enum {
+						if i > 0 {
+							{ ", " }
+						}
+						<span class="pp-enum-value">{ v }</span>
+					}
+				</span>
+			}
+		</div>
+	}
+}
+
 templ OperationPageTempl(page *OperationPage) {
 	<div class="pp-operation">
 		<div class="pp-operation-header">
@@ -63,8 +101,8 @@ templ OperationPageTempl(page *OperationPage) {
 				}
 				if page.RequestBody.Ref != nil {
 					<p>
-						<a href={ templ.SafeURL("models/" + page.RequestBody.Ref.TypeSlug + "/" + page.RequestBody.Ref.Slug + ".html") }>
-							{ page.RequestBody.Ref.Name }
+						<a class="pp-ref-link" href={ templ.SafeURL("models/" + page.RequestBody.Ref.TypeSlug + "/" + page.RequestBody.Ref.Slug + ".html") }>
+							&#10140; { page.RequestBody.Ref.Name }
 						</a>
 					</p>
 				} else {
@@ -72,8 +110,8 @@ templ OperationPageTempl(page *OperationPage) {
 						if mt.SchemaRef != nil {
 							<div class="pp-media-type-ref">
 								<span class="pp-media-type-label">{ mt.MediaType }</span>
-								<a href={ templ.SafeURL("models/" + mt.SchemaRef.TypeSlug + "/" + mt.SchemaRef.Slug + ".html") }>
-									{ mt.SchemaRef.Name }
+								<a class="pp-ref-link" href={ templ.SafeURL("models/" + mt.SchemaRef.TypeSlug + "/" + mt.SchemaRef.Slug + ".html") }>
+									&#10140; { mt.SchemaRef.Name }
 								</a>
 							</div>
 						} else if mt.SchemaJSON != "" {
@@ -87,6 +125,29 @@ templ OperationPageTempl(page *OperationPage) {
 							}
 						}
 					}
+				}
+			</div>
+		}
+		if page.CommonHeadersJSON != "" {
+			<div class="pp-common-headers">
+				<h3>Common Response Headers</h3>
+				for _, h := range page.CommonHeaders {
+					<div class="pp-common-header-entry" id={ "header-" + h.Name }>
+						if h.Ref != nil {
+							<a class="pp-ref-link pp-common-header-name" href={ templ.SafeURL("models/" + h.Ref.TypeSlug + "/" + h.Ref.Slug + ".html") }>
+								&#10140; { h.Name }
+							</a>
+						} else {
+							<span class="pp-common-header-name">{ h.Name }</span>
+						}
+						if h.SchemaType != "" {
+							<span class="pp-common-header-type">{ h.SchemaType }</span>
+						}
+						if h.Description != "" {
+							<div class="pp-common-header-desc">{ h.Description }</div>
+						}
+						@headerConstraints(h)
+					</div>
 				}
 			</div>
 		}

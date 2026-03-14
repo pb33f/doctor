@@ -48,7 +48,14 @@ export class PpExampleDrawer extends LitElement {
     this.highlightLines = detail.highlightLines || '';
     this.startLine = detail.startLine ?? 1;
     this.location = detail.location || '';
-    this.format = detail.json ? 'json' : (detail.yaml ? 'yaml' : 'json');
+    const specFmt = document.body.getAttribute('data-spec-format');
+    if (specFmt === 'yaml' && detail.yaml) {
+      this.format = 'yaml';
+    } else if (specFmt === 'json' && detail.json) {
+      this.format = 'json';
+    } else {
+      this.format = detail.yaml ? 'yaml' : 'json';
+    }
     this.updateComplete.then(() => {
       const d = this.drawer;
       if (d) {

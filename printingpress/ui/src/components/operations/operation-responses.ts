@@ -18,11 +18,24 @@ interface MediaTypeData {
   schemaRef?: ComponentLinkData;
 }
 
+interface HeaderData {
+  name: string;
+  description?: string;
+  schemaType?: string;
+  ref?: ComponentLinkData;
+  example?: string;
+  minimum?: number;
+  maximum?: number;
+  default?: string;
+  enum?: string[];
+  pattern?: string;
+}
+
 interface ResponseData {
   statusCode: string;
   description: string;
   content?: MediaTypeData[];
-  headers?: Record<string, string>;
+  headers?: HeaderData[];
   ref?: ComponentLinkData;
   rawJson?: string;
   rawYaml?: string;
@@ -50,9 +63,7 @@ function getSchemaType(prop: any): string {
 /** Return the nested schema to recurse into, if any. */
 function getNestedSchema(prop: any): any | null {
   if (!prop) return null;
-  // object with properties
   if (prop.properties) return prop;
-  // array whose items have properties
   if (prop.type === 'array' && prop.items?.properties) return prop.items;
   return null;
 }
@@ -121,14 +132,16 @@ export class PpOperationResponses extends LitElement {
     );
   }
 
+  private renderRefLink(ref: ComponentLinkData) {
+    return html`<a class="ref-link" href="models/${ref.typeSlug}/${ref.slug}.html">\u279c ${ref.name}</a>`;
+  }
+
   private renderMediaType(mt: MediaTypeData) {
     if (mt.schemaRef) {
       return html`
         <div class="media-type-ref">
           <span class="media-type-label">${mt.mediaType}</span>
-          <a class="ref-link" href="models/${mt.schemaRef.typeSlug}/${mt.schemaRef.slug}.html">
-            ${mt.schemaRef.name}
-          </a>
+          ${this.renderRefLink(mt.schemaRef)}
         </div>
       `;
     }
@@ -152,7 +165,80 @@ export class PpOperationResponses extends LitElement {
     `;
   }
 
-  private renderResponse(resp: ResponseData) {
+  private computeCommonHeaders(): { common: HeaderData[], commonNames: Set<string> } {
+    const counts = new Map<string, number>();
+    const first = new Map<string, HeaderData>();
+    for (const resp of this.responses) {
+      for (const h of resp.headers ?? []) {
+        counts.set(h.name, (counts.get(h.name) ?? 0) + 1);
+        if (!first.has(h.name)) first.set(h.name, h);
+      }
+    }
+    const common: HeaderData[] = [];
+    const commonNames = new Set<string>();
+    for (const [name, count] of counts) {
+      if (count >= 2) {
+        common.push(first.get(name)!);
+        commonNames.add(name);
+      }
+    }
+    return { common, commonNames };
+  }
+
+  private scrollToHeader(name: string) {
+    const el = document.getElementById('header-' + name);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  private renderHeaderConstraints(h: HeaderData) {
+    const has = h.example !== undefined || h.minimum !== undefined || h.maximum !== undefined
+      || h.default !== undefined || h.pattern || h.enum?.length;
+    if (!has) return nothing;
+    return html`
+      <div class="header-constraints">
+        ${h.example !== undefined ? html`<span class="constraint-label">example</span><span class="constraint-value">${h.example}</span>` : nothing}
+        ${h.default !== undefined ? html`<span class="constraint-label">default</span><span class="constraint-value">${h.default}</span>` : nothing}
+        ${h.minimum !== undefined ? html`<span class="constraint-label">min</span><span class="constraint-value">${h.minimum}</span>` : nothing}
+        ${h.maximum !== undefined ? html`<span class="constraint-label">max</span><span class="constraint-value">${h.maximum}</span>` : nothing}
+        ${h.pattern ? html`<span class="constraint-label">pattern</span><span class="constraint-value"><code>${h.pattern}</code></span>` : nothing}
+        ${h.enum?.length ? html`<span class="constraint-label">enum</span><span class="constraint-value">${h.enum.map((v, i) => html`${i > 0 ? ', ' : ''}<span class="enum-value">${v}</span>`)}</span>` : nothing}
+      </div>
+    `;
+  }
+
+  private renderHeaderEntry(h: HeaderData) {
+    return html`
+      <div class="header-entry">
+        ${h.ref
+          ? html`<a class="ref-link header-name" href="models/${h.ref.typeSlug}/${h.ref.slug}.html">\u279c ${h.name}</a>`
+          : html`<span class="header-name">${h.name}</span>`}
+        ${h.schemaType ? html`<span class="header-type">${h.schemaType}</span>` : nothing}
+        ${h.description ? html`<div class="header-desc">${h.description}</div>` : nothing}
+        ${this.renderHeaderConstraints(h)}
+      </div>
+    `;
+  }
+
+  private renderHeaders(headers: HeaderData[], commonNames: Set<string>) {
+    if (!headers || !headers.length) return nothing;
+    const unique = headers.filter(h => !commonNames.has(h.name));
+    const common = headers.filter(h => commonNames.has(h.name));
+    if (!unique.length && !common.length) return nothing;
+    return html`
+      <div class="headers-section">
+        <div class="headers-label">Headers</div>
+        ${common.length ? html`
+          <div class="common-header-links">
+            <span class="common-link-label">\u2191 common:</span>
+            ${common.map(h => html`<a class="header-anchor" @click=${(e: Event) => { e.preventDefault(); this.scrollToHeader(h.name); }}>${h.name}</a>`)}
+          </div>
+        ` : nothing}
+        ${unique.map(h => this.renderHeaderEntry(h))}
+      </div>
+    `;
+  }
+
+  private renderResponse(resp: ResponseData, commonNames: Set<string>) {
     return html`
       <div class="response">
         <h4>
@@ -168,18 +254,20 @@ export class PpOperationResponses extends LitElement {
             : nothing}
         </h4>
         ${resp.ref
-          ? html`<a class="ref-link" href="models/${resp.ref.typeSlug}/${resp.ref.slug}.html">${resp.ref.name}</a>`
+          ? this.renderRefLink(resp.ref)
           : resp.content?.map(mt => this.renderMediaType(mt)) ?? nothing}
+        ${this.renderHeaders(resp.headers ?? [], commonNames)}
       </div>
     `;
   }
 
   render() {
     if (!this.responses.length) return nothing;
+    const { commonNames } = this.computeCommonHeaders();
 
     return html`
       <h3>Responses</h3>
-      ${this.responses.map(r => this.renderResponse(r))}
+      ${this.responses.map(r => this.renderResponse(r, commonNames))}
     `;
   }
 }

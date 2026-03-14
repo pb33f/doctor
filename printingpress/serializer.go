@@ -5,10 +5,20 @@
 package printingpress
 
 import (
+	"bytes"
 	"encoding/json"
 
 	"go.yaml.in/yaml/v4"
 )
+
+// DetectSpecFormat returns "json" or "yaml" based on the first non-whitespace byte.
+func DetectSpecFormat(data []byte) string {
+	trimmed := bytes.TrimLeft(data, " \t\r\n")
+	if len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[') {
+		return "json"
+	}
+	return "yaml"
+}
 
 // renderableToJSON converts any object that has a Render() method (returning YAML bytes)
 // into a JSON string suitable for cowboy-components.
