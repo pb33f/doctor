@@ -117,6 +117,7 @@ type OperationPage struct {
 	SchemaJSON             string            // full operation rendered as JSON for cowboy-components
 	SchemaHighlightedHTML  string            `json:"-"` // chroma output, templ only
 	RawYAML                string            `json:"-"` // re-rendered YAML from Render(), for raw viewer
+	SourceLine             int               `json:"-"` // 1-based YAML line number of the operation
 	CrossRefs              *OperationCrossRefs
 }
 
@@ -138,6 +139,7 @@ type ParameterInfo struct {
 	Ref         *ComponentLink    `json:"ref,omitempty"`
 	RawJSON     string            `json:"rawJson,omitempty"`
 	RawYAML     string            `json:"rawYaml,omitempty"`
+	SourceLine  int               `json:"sourceLine,omitempty"`
 }
 
 // RequestBodyInfo holds request body data.
@@ -148,6 +150,7 @@ type RequestBodyInfo struct {
 	Ref         *ComponentLink // set when the request body is a $ref
 	RawJSON     string
 	RawYAML     string
+	SourceLine  int
 }
 
 // MediaTypeInfo holds a single media type entry.
@@ -169,6 +172,7 @@ type ResponseInfo struct {
 	Ref         *ComponentLink    `json:"ref,omitempty"`
 	RawJSON     string            `json:"rawJson,omitempty"`
 	RawYAML     string            `json:"rawYaml,omitempty"`
+	SourceLine  int               `json:"sourceLine,omitempty"`
 }
 
 // ModelPage is the full data for rendering a component detail page.

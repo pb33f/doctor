@@ -1,5 +1,7 @@
 package printingpress
 
+import "fmt"
+
 templ OperationPageTempl(page *OperationPage) {
 	<div class="pp-operation">
 		<div class="pp-operation-header">
@@ -34,7 +36,10 @@ templ OperationPageTempl(page *OperationPage) {
 			<pp-raw-viewer-btn
 				title={ page.Method + " " + page.Path }
 				raw-json={ page.SchemaJSON }
-				raw-yaml={ page.RawYAML }>
+				raw-yaml={ page.RawYAML }
+				if page.SourceLine > 0 {
+					start-line={ fmt.Sprintf("%d", page.SourceLine) }
+				}>
 			</pp-raw-viewer-btn>
 		}
 		if page.ParametersJSON != "" {
@@ -47,7 +52,10 @@ templ OperationPageTempl(page *OperationPage) {
 					<pp-raw-viewer-btn
 						title="Request Body"
 						raw-json={ page.RequestBody.RawJSON }
-						raw-yaml={ page.RequestBody.RawYAML }>
+						raw-yaml={ page.RequestBody.RawYAML }
+						if page.RequestBody.SourceLine > 0 {
+							start-line={ fmt.Sprintf("%d", page.RequestBody.SourceLine) }
+						}>
 					</pp-raw-viewer-btn>
 				}
 				if page.RequestBody.Description != "" {

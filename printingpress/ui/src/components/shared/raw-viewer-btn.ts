@@ -10,12 +10,23 @@ export class PpRawViewerBtn extends LitElement {
     @property({attribute: 'title'}) btnTitle = '';
     @property({attribute: 'raw-json'}) rawJson = '';
     @property({attribute: 'raw-yaml'}) rawYaml = '';
+    @property({attribute: 'highlight-lines'}) highlightLines = '';
+    @property({attribute: 'start-line', type: Number}) startLine = 1;
+    @property() location = '';
 
     private showRaw() {
         const event = new CustomEvent<ShowExampleDetail>('pp-show-example', {
             bubbles: true,
             composed: true,
-            detail: {title: this.btnTitle || 'Raw Object', json: this.rawJson, yaml: this.rawYaml},
+            detail: {
+                title: this.btnTitle || 'Raw Object',
+                json: this.rawJson,
+                yaml: this.rawYaml,
+                rawMode: true,
+                highlightLines: this.highlightLines || undefined,
+                startLine: this.startLine > 1 ? this.startLine : undefined,
+                location: this.location || undefined,
+            },
         });
         document.dispatchEvent(event);
     }

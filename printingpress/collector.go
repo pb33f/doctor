@@ -297,6 +297,10 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 	pp.captureRawData(val, fmt.Sprintf("%s %s", method, path),
 		&page.RawYAML, &page.SchemaJSON, &page.SchemaHighlightedHTML)
 
+	if op.ValueNode != nil {
+		page.SourceLine = op.ValueNode.Line
+	}
+
 	pp.site.Operations = append(pp.site.Operations, page)
 }
 
@@ -314,6 +318,9 @@ func (pp *PrintingPress) collectParameters(params []*v3.Parameter) []*ParameterI
 			Deprecated:  p.Value.Deprecated,
 		}
 		pp.captureRawData(p.Value, p.Value.Name, &pi.RawYAML, &pi.RawJSON, nil)
+		if p.ValueNode != nil {
+			pi.SourceLine = p.ValueNode.Line
+		}
 		if p.Value.IsReference() {
 			if link := pp.resolveComponentLink(p.Value.GetReference()); link != nil {
 				pi.Ref = link
@@ -365,6 +372,9 @@ func (pp *PrintingPress) collectRequestBody(rb *v3.RequestBody) *RequestBodyInfo
 		Required:    ptrBool(val.Required),
 	}
 	pp.captureRawData(val, "requestBody", &rbi.RawYAML, &rbi.RawJSON, nil)
+	if rb.ValueNode != nil {
+		rbi.SourceLine = rb.ValueNode.Line
+	}
 	if val.IsReference() {
 		if link := pp.resolveComponentLink(val.GetReference()); link != nil {
 			rbi.Ref = link
@@ -443,6 +453,9 @@ func (pp *PrintingPress) collectResponses(responses *v3.Responses) []*ResponseIn
 			Description: resp.Value.Description,
 		}
 		pp.captureRawData(resp.Value, code, &ri.RawYAML, &ri.RawJSON, nil)
+		if resp.ValueNode != nil {
+			ri.SourceLine = resp.ValueNode.Line
+		}
 		if resp.Value.IsReference() {
 			if link := pp.resolveComponentLink(resp.Value.GetReference()); link != nil {
 				ri.Ref = link

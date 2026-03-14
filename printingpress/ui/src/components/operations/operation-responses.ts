@@ -26,6 +26,7 @@ interface ResponseData {
   ref?: ComponentLinkData;
   rawJson?: string;
   rawYaml?: string;
+  sourceLine?: number;
 }
 
 function getSchemaType(prop: any): string {
@@ -161,7 +162,8 @@ export class PpOperationResponses extends LitElement {
             ? html`<pp-raw-viewer-btn
                 title="Response ${resp.statusCode}"
                 raw-json=${resp.rawJson || ''}
-                raw-yaml=${resp.rawYaml || ''}>
+                raw-yaml=${resp.rawYaml || ''}
+                start-line=${resp.sourceLine || 1}>
               </pp-raw-viewer-btn>`
             : nothing}
         </h4>
