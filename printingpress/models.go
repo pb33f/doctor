@@ -105,17 +105,19 @@ type OperationPage struct {
 	Tags         []string
 	Deprecated   bool
 	Slug         string
-	Parameters     []*ParameterInfo
-	ParametersJSON string `json:"-"` // pre-serialized for Lit component; excluded from JSON writer
-	RequestBody    *RequestBodyInfo
-	Responses      []*ResponseInfo
-	ResponsesJSON  string `json:"-"` // pre-serialized for Lit component; excluded from JSON writer
-	Security       []map[string][]string
-	Servers      []*ServerInfo
-	ExternalDoc  *ExternalDocInfo
-	Callbacks    map[string]string // callback name → JSON
-	SchemaJSON   string            // full operation rendered as JSON for cowboy-components
-	CrossRefs    *OperationCrossRefs
+	Parameters             []*ParameterInfo
+	ParametersJSON         string `json:"-"` // pre-serialized for Lit component; excluded from JSON writer
+	RequestBody            *RequestBodyInfo
+	Responses              []*ResponseInfo
+	ResponsesJSON          string `json:"-"` // pre-serialized for Lit component; excluded from JSON writer
+	Security               []map[string][]string
+	Servers                []*ServerInfo
+	ExternalDoc            *ExternalDocInfo
+	Callbacks              map[string]string // callback name → JSON
+	SchemaJSON             string            // full operation rendered as JSON for cowboy-components
+	SchemaHighlightedHTML  string            `json:"-"` // chroma output, templ only
+	RawYAML                string            `json:"-"` // re-rendered YAML from Render(), for raw viewer
+	CrossRefs              *OperationCrossRefs
 }
 
 // OperationCrossRefs holds cross-reference information for an operation.
@@ -125,13 +127,17 @@ type OperationCrossRefs struct {
 
 // ParameterInfo holds operation parameter data.
 type ParameterInfo struct {
-	Name        string         `json:"name"`
-	In          string         `json:"in"`
-	Description string         `json:"description"`
-	Required    bool           `json:"required"`
-	Deprecated  bool           `json:"deprecated"`
-	SchemaJSON  string         `json:"schemaJson"`
-	Ref         *ComponentLink `json:"ref,omitempty"`
+	Name        string            `json:"name"`
+	In          string            `json:"in"`
+	Description string            `json:"description"`
+	Required    bool              `json:"required"`
+	Deprecated  bool              `json:"deprecated"`
+	SchemaJSON  string            `json:"schemaJson"`
+	MockJSON    string            `json:"mockJson,omitempty"`
+	Examples    map[string]string `json:"examples,omitempty"`
+	Ref         *ComponentLink    `json:"ref,omitempty"`
+	RawJSON     string            `json:"rawJson,omitempty"`
+	RawYAML     string            `json:"rawYaml,omitempty"`
 }
 
 // RequestBodyInfo holds request body data.
@@ -140,14 +146,18 @@ type RequestBodyInfo struct {
 	Required    bool
 	Content     []*MediaTypeInfo
 	Ref         *ComponentLink // set when the request body is a $ref
+	RawJSON     string
+	RawYAML     string
 }
 
 // MediaTypeInfo holds a single media type entry.
 type MediaTypeInfo struct {
-	MediaType  string            `json:"mediaType"`
-	SchemaJSON string            `json:"schemaJson"`
-	Examples   map[string]string `json:"examples,omitempty"`
-	SchemaRef  *ComponentLink    `json:"schemaRef,omitempty"`
+	MediaType             string            `json:"mediaType"`
+	SchemaJSON            string            `json:"schemaJson"`
+	SchemaHighlightedHTML string            `json:"-"` // chroma output, templ only
+	MockJSON              string            `json:"mockJson,omitempty"`
+	Examples              map[string]string `json:"examples,omitempty"`
+	SchemaRef             *ComponentLink    `json:"schemaRef,omitempty"`
 }
 
 // ResponseInfo holds a single response entry.
@@ -157,19 +167,26 @@ type ResponseInfo struct {
 	Content     []*MediaTypeInfo  `json:"content,omitempty"`
 	Headers     map[string]string `json:"headers,omitempty"`
 	Ref         *ComponentLink    `json:"ref,omitempty"`
+	RawJSON     string            `json:"rawJson,omitempty"`
+	RawYAML     string            `json:"rawYaml,omitempty"`
 }
 
 // ModelPage is the full data for rendering a component detail page.
 type ModelPage struct {
-	Name          string
-	ComponentType string // "schemas", "responses", "parameters", etc.
-	TypeSlug      string // URL path segment for the component type
-	Slug          string
-	Description   string
-	DescHTML      string
-	SchemaJSON    string // JSON representation for cowboy-components rendering
-	Origin        *bundler.ComponentOrigin
-	CrossRefs     *ModelCrossRefs
+	Name                  string
+	ComponentType         string // "schemas", "responses", "parameters", etc.
+	TypeSlug              string // URL path segment for the component type
+	Slug                  string
+	Description           string
+	DescHTML              string
+	SchemaJSON            string // JSON representation for cowboy-components rendering
+	SchemaHighlightedHTML string `json:"-"` // chroma output, templ only
+	RawYAML               string `json:"-"` // re-rendered YAML from Render(), for raw viewer
+	MockJSON              string
+	Examples              map[string]string
+	ExamplesJSON          string // pre-serialized for Lit component
+	Origin                *bundler.ComponentOrigin
+	CrossRefs             *ModelCrossRefs
 }
 
 // ModelCrossRefs holds cross-reference information for a model.

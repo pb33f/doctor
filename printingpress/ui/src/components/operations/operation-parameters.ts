@@ -10,7 +10,11 @@ interface ParameterData {
   required: boolean;
   deprecated: boolean;
   schemaJson: string;
+  mockJson?: string;
+  examples?: Record<string, string>;
   ref?: {name: string; componentType: string; typeSlug: string; slug: string};
+  rawJson?: string;
+  rawYaml?: string;
 }
 
 interface ParsedSchema {
@@ -89,6 +93,19 @@ export class PpOperationParameters extends LitElement {
               : nothing}
             ${schema?.enumValues
               ? html`<div class="enum-values">Enum: ${schema.enumValues.map((v: string, i: number) => html`${i > 0 ? ', ' : ''}<span class="enum-value">${v}</span>`)}</div>`
+              : nothing}
+            ${p.rawJson || p.rawYaml
+              ? html`<pp-raw-viewer-btn
+                  title="${p.name} (${p.in})"
+                  raw-json=${p.rawJson || ''}
+                  raw-yaml=${p.rawYaml || ''}>
+                </pp-raw-viewer-btn>`
+              : nothing}
+            ${p.mockJson || (p.examples && Object.keys(p.examples).length > 0)
+              ? html`<pp-example-selector
+                  mock-json=${p.mockJson || ''}
+                  examples-json=${p.examples ? JSON.stringify(p.examples) : ''}>
+                </pp-example-selector>`
               : nothing}
           </div>
         `;

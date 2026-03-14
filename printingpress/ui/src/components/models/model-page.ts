@@ -54,8 +54,6 @@ export class PpModelPage extends LitElement {
             )}
           `
         : nothing}
-      <h3>Schema Definition</h3>
-      <pre><code>${JSON.stringify(schema, null, 2)}</code></pre>
     `;
   }
 }

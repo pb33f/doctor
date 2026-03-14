@@ -11,6 +11,7 @@ import (
 	"github.com/pb33f/doctor/model"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/bundler"
+	"github.com/pb33f/libopenapi/renderer"
 )
 
 // PrintingPressConfig configures the PrintingPress documentation generator.
@@ -28,6 +29,7 @@ type PrintingPress struct {
 	config   *PrintingPressConfig
 	slugs    *SlugRegistry
 	site     *Site
+	mockGen  *renderer.MockGenerator
 	warnings []*BuildWarning
 }
 
@@ -36,9 +38,13 @@ func New(config *PrintingPressConfig) *PrintingPress {
 	if config.Logger == nil {
 		config.Logger = slog.Default()
 	}
+	mg := renderer.NewMockGenerator(renderer.JSON)
+	mg.SetPretty()
+	mg.DisableRequiredCheck()
 	return &PrintingPress{
-		config: config,
-		slugs:  NewSlugRegistry(),
+		config:  config,
+		slugs:   NewSlugRegistry(),
+		mockGen: mg,
 		site: &Site{
 			Models: make(map[string][]*ModelPage),
 		},

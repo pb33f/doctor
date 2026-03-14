@@ -102,9 +102,29 @@ func TestPrintingPress_PetStoreV3(t *testing.T) {
 	schemas := site.Models["schemas"]
 	assert.NotEmpty(t, schemas, "petstore should have schemas")
 
-	// Each schema should have JSON representation
+	// Each schema should have JSON representation and RawYAML
 	for _, s := range schemas {
 		assert.NotEmpty(t, s.SchemaJSON, "schema %s should have JSON", s.Name)
+		assert.NotEmpty(t, s.RawYAML, "schema %s should have RawYAML", s.Name)
+	}
+
+	// Operations should have RawYAML, and sub-objects should too
+	for _, op := range site.Operations {
+		assert.NotEmpty(t, op.RawYAML, "operation %s %s should have RawYAML", op.Method, op.Path)
+		assert.NotEmpty(t, op.SchemaJSON, "operation %s %s should have SchemaJSON", op.Method, op.Path)
+
+		for _, p := range op.Parameters {
+			assert.NotEmpty(t, p.RawYAML, "param %s should have RawYAML", p.Name)
+			assert.NotEmpty(t, p.RawJSON, "param %s should have RawJSON", p.Name)
+		}
+		for _, r := range op.Responses {
+			assert.NotEmpty(t, r.RawYAML, "response %s should have RawYAML", r.StatusCode)
+			assert.NotEmpty(t, r.RawJSON, "response %s should have RawJSON", r.StatusCode)
+		}
+		if op.RequestBody != nil {
+			assert.NotEmpty(t, op.RequestBody.RawYAML, "request body for %s %s should have RawYAML", op.Method, op.Path)
+			assert.NotEmpty(t, op.RequestBody.RawJSON, "request body for %s %s should have RawJSON", op.Method, op.Path)
+		}
 	}
 }
 

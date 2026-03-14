@@ -6,11 +6,13 @@ package printingpress
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"go.yaml.in/yaml/v4"
 )
 
 // refSegmentToTypeSlug maps OpenAPI $ref component segments to URL type slugs.
@@ -291,13 +293,9 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 		}
 	}
 
-	// Serialize full operation to JSON for cowboy-components
-	jsonStr, err := renderableToJSON(val)
-	if err != nil {
-		pp.warn("failed to serialize operation to JSON", fmt.Sprintf("%s %s", method, path), err)
-	} else {
-		page.SchemaJSON = jsonStr
-	}
+	// Serialize full operation to YAML + JSON for cowboy-components and raw viewer
+	pp.captureRawData(val, fmt.Sprintf("%s %s", method, path),
+		&page.RawYAML, &page.SchemaJSON, &page.SchemaHighlightedHTML)
 
 	pp.site.Operations = append(pp.site.Operations, page)
 }
@@ -315,6 +313,7 @@ func (pp *PrintingPress) collectParameters(params []*v3.Parameter) []*ParameterI
 			Required:    ptrBool(p.Value.Required),
 			Deprecated:  p.Value.Deprecated,
 		}
+		pp.captureRawData(p.Value, p.Value.Name, &pi.RawYAML, &pi.RawJSON, nil)
 		if p.Value.IsReference() {
 			if link := pp.resolveComponentLink(p.Value.GetReference()); link != nil {
 				pi.Ref = link
@@ -328,6 +327,26 @@ func (pp *PrintingPress) collectParameters(params []*v3.Parameter) []*ParameterI
 				jsonStr, err := sch.MarshalJSON()
 				if err == nil {
 					pi.SchemaJSON = string(jsonStr)
+				}
+			}
+		}
+		// Generate mock only for complex schemas (objects, arrays, compositions)
+		if isComplexSchemaJSON(pi.SchemaJSON) {
+			pi.MockJSON = pp.generateMock(p.Value)
+		}
+		// Collect named examples
+		if p.Examples != nil {
+			pi.Examples = make(map[string]string)
+			for pair := p.Examples.First(); pair != nil; pair = pair.Next() {
+				ex := pair.Value()
+				if ex != nil && ex.Value != nil {
+					yamlBytes, err := ex.Value.Render()
+					if err == nil {
+						jsonStr, err := yamlToJSON(yamlBytes)
+						if err == nil {
+							pi.Examples[pair.Key()] = jsonStr
+						}
+					}
 				}
 			}
 		}
@@ -345,6 +364,7 @@ func (pp *PrintingPress) collectRequestBody(rb *v3.RequestBody) *RequestBodyInfo
 		Description: val.Description,
 		Required:    ptrBool(val.Required),
 	}
+	pp.captureRawData(val, "requestBody", &rbi.RawYAML, &rbi.RawJSON, nil)
 	if val.IsReference() {
 		if link := pp.resolveComponentLink(val.GetReference()); link != nil {
 			rbi.Ref = link
@@ -380,6 +400,7 @@ func (pp *PrintingPress) collectMediaType(mediaTypeName string, mt *v3.MediaType
 				jsonStr, err := sch.MarshalJSON()
 				if err == nil {
 					mti.SchemaJSON = string(jsonStr)
+					mti.SchemaHighlightedHTML, _ = highlightJSON(prettyJSON(string(jsonStr)))
 				}
 			}
 		}
@@ -399,6 +420,10 @@ func (pp *PrintingPress) collectMediaType(mediaTypeName string, mt *v3.MediaType
 			}
 		}
 	}
+	// Generate mock only for complex schemas (objects, arrays, compositions)
+	if isComplexSchemaJSON(mti.SchemaJSON) {
+		mti.MockJSON = pp.generateMock(mt.Value)
+	}
 	return mti
 }
 
@@ -417,6 +442,7 @@ func (pp *PrintingPress) collectResponses(responses *v3.Responses) []*ResponseIn
 			StatusCode:  code,
 			Description: resp.Value.Description,
 		}
+		pp.captureRawData(resp.Value, code, &ri.RawYAML, &ri.RawJSON, nil)
 		if resp.Value.IsReference() {
 			if link := pp.resolveComponentLink(resp.Value.GetReference()); link != nil {
 				ri.Ref = link
@@ -504,12 +530,32 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 		if sp.Schema != nil && sp.Schema.Value != nil {
 			page.Description = sp.Schema.Value.Description
 			page.DescHTML = renderMarkdown(sp.Schema.Value.Description)
-			jsonBytes, err := sp.Schema.Value.MarshalJSON()
-			if err != nil {
-				pp.warn("failed to serialize schema to JSON", name, err)
-			} else {
-				page.SchemaJSON = string(jsonBytes)
+			pp.captureRawData(sp.Schema.Value, name,
+				&page.RawYAML, &page.SchemaJSON, &page.SchemaHighlightedHTML)
+			// Generate mock only for complex schemas (objects, arrays, compositions)
+			if isComplexSchemaJSON(page.SchemaJSON) {
+				page.MockJSON = pp.generateMock(sp.Value)
 			}
+			// Collect inline example(s) from schema
+			if sp.Schema.Value.Example != nil || len(sp.Schema.Value.Examples) > 0 {
+				page.Examples = make(map[string]string)
+				if sp.Schema.Value.Example != nil {
+					if s := yamlNodeToJSON(sp.Schema.Value.Example); s != "" {
+						page.Examples["Example"] = s
+					}
+				}
+				for i, ex := range sp.Schema.Value.Examples {
+					if s := yamlNodeToJSON(ex); s != "" {
+						page.Examples[fmt.Sprintf("Example %d", i+1)] = s
+					}
+				}
+			}
+		}
+		if page.MockJSON != "" || len(page.Examples) > 0 {
+			page.ExamplesJSON = MustJSON(struct {
+				MockJSON string            `json:"mockJson,omitempty"`
+				Examples map[string]string `json:"examples,omitempty"`
+			}{page.MockJSON, page.Examples})
 		}
 
 		if pp.config.Origins != nil {
@@ -574,6 +620,27 @@ func descPathItem(v *v3.PathItem) string {
 }
 func descNone[V any](_ V) string { return "" }
 
+// captureRawData calls Render() on renderable, populating rawYAML, schemaJSON, and
+// highlightedHTML progressively. If Render() fails, nothing is set. If yamlToJSON()
+// fails, only rawYAML is set (the drawer supports YAML-only display).
+func (pp *PrintingPress) captureRawData(renderable interface{ Render() ([]byte, error) }, context string, rawYAML, schemaJSON, highlightedHTML *string) {
+	yamlBytes, err := renderable.Render()
+	if err != nil {
+		pp.warn("failed to render to YAML", context, err)
+		return
+	}
+	*rawYAML = string(yamlBytes)
+	jsonStr, jsonErr := yamlToJSON(yamlBytes)
+	if jsonErr != nil {
+		pp.warn("failed to convert YAML to JSON", context, jsonErr)
+		return
+	}
+	*schemaJSON = jsonStr
+	if highlightedHTML != nil {
+		*highlightedHTML, _ = highlightJSON(prettyJSON(jsonStr))
+	}
+}
+
 // valueRenderer extracts the libopenapi Value that has Render() from a DrDocument wrapper.
 type valueRenderer interface {
 	Render() ([]byte, error)
@@ -617,12 +684,8 @@ func collectRenderable[V interface{ GetValue() any }](
 		page.DescHTML = renderMarkdown(desc)
 
 		if r := getValueRenderer(val); r != nil {
-			jsonStr, err := renderableToJSON(r)
-			if err != nil {
-				pp.warn("failed to serialize component to JSON", fmt.Sprintf("%s/%s", componentType, name), err)
-			} else {
-				page.SchemaJSON = jsonStr
-			}
+			pp.captureRawData(r, fmt.Sprintf("%s/%s", componentType, name),
+				&page.RawYAML, &page.SchemaJSON, &page.SchemaHighlightedHTML)
 		}
 
 		if pp.config.Origins != nil {
@@ -666,6 +729,9 @@ func (pp *PrintingPress) collectWebhooks(webhooks *orderedmap.Map[string, *v3.Pa
 			for _, t := range val.Tags {
 				page.Tags = append(page.Tags, t)
 			}
+
+			pp.captureRawData(val, fmt.Sprintf("webhook %s %s", name, method),
+				&page.RawYAML, &page.SchemaJSON, &page.SchemaHighlightedHTML)
 
 			pp.site.Webhooks = append(pp.site.Webhooks, page)
 		}
@@ -742,6 +808,31 @@ func (pp *PrintingPress) buildNavModelGroups() {
 		}
 		pp.site.NavModelGroups = append(pp.site.NavModelGroups, group)
 	}
+}
+
+// generateMock produces a pretty-printed JSON mock from any mockable object.
+func (pp *PrintingPress) generateMock(mockable any) string {
+	mock, err := pp.mockGen.GenerateMock(mockable, "")
+	if err != nil || mock == nil {
+		return ""
+	}
+	return string(mock)
+}
+
+// yamlNodeToJSON converts a *yaml.Node to a JSON string.
+func yamlNodeToJSON(node *yaml.Node) string {
+	if node == nil {
+		return ""
+	}
+	var raw any
+	if err := node.Decode(&raw); err != nil {
+		return ""
+	}
+	b, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }
 
 func ptrBool(b *bool) bool {

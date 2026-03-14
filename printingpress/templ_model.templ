@@ -27,8 +27,18 @@ templ ModelPageTempl(page *ModelPage) {
 				@templ.Raw(page.DescHTML)
 			</div>
 		}
+		if page.RawYAML != "" || page.SchemaJSON != "" {
+			<pp-raw-viewer-btn
+				title={ page.Name }
+				raw-json={ page.SchemaJSON }
+				raw-yaml={ page.RawYAML }>
+			</pp-raw-viewer-btn>
+		}
 		if page.SchemaJSON != "" {
 			<pp-model-page model-json={ page.SchemaJSON } name={ page.Name }></pp-model-page>
+		}
+		if page.ExamplesJSON != "" {
+			<pp-example-selector examples-data={ page.ExamplesJSON }></pp-example-selector>
 		}
 		if page.CrossRefs != nil {
 			@CrossRefSection(page.CrossRefs)

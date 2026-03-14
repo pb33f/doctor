@@ -13,6 +13,7 @@ interface ComponentLinkData {
 interface MediaTypeData {
   mediaType: string;
   schemaJson: string;
+  mockJson?: string;
   examples?: Record<string, string>;
   schemaRef?: ComponentLinkData;
 }
@@ -23,6 +24,8 @@ interface ResponseData {
   content?: MediaTypeData[];
   headers?: Record<string, string>;
   ref?: ComponentLinkData;
+  rawJson?: string;
+  rawYaml?: string;
 }
 
 function getSchemaType(prop: any): string {
@@ -135,9 +138,16 @@ export class PpOperationResponses extends LitElement {
     } catch {
       return nothing;
     }
+    const hasExamples = mt.mockJson || (mt.examples && Object.keys(mt.examples).length > 0);
     return html`
       <div class="media-type-label">${mt.mediaType}</div>
       ${this.renderSchemaProperties(schema)}
+      ${hasExamples
+        ? html`<pp-example-selector
+            mock-json=${mt.mockJson || ''}
+            examples-json=${mt.examples ? JSON.stringify(mt.examples) : ''}>
+          </pp-example-selector>`
+        : nothing}
     `;
   }
 
@@ -147,6 +157,13 @@ export class PpOperationResponses extends LitElement {
         <h4>
           <span class="status-code">${resp.statusCode}</span>
           ${resp.description}
+          ${resp.rawJson || resp.rawYaml
+            ? html`<pp-raw-viewer-btn
+                title="Response ${resp.statusCode}"
+                raw-json=${resp.rawJson || ''}
+                raw-yaml=${resp.rawYaml || ''}>
+              </pp-raw-viewer-btn>`
+            : nothing}
         </h4>
         ${resp.ref
           ? html`<a class="ref-link" href="models/${resp.ref.typeSlug}/${resp.ref.slug}.html">${resp.ref.name}</a>`
