@@ -365,6 +365,12 @@ func TestComputeSchemaStartLine(t *testing.T) {
 			origin:   &bundler.ComponentOrigin{Line: 5},
 			expected: 7, // origin(5) + schemaKeyLine(1, 0-based) + 1
 		},
+		{
+			name:     "schemaVersion key should not match",
+			rawYAML:  "schemaVersion: 2\nschema:\n    type: string",
+			origin:   &bundler.ComponentOrigin{Line: 1},
+			expected: 3, // origin(1) + schemaKeyLine(1, 0-based for "schema:") + 1
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

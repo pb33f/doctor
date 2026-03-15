@@ -13,7 +13,7 @@ type Site struct {
 	Root           *RootPage
 	Operations     []*OperationPage
 	Models         map[string][]*ModelPage // keyed by component type slug (e.g. "schemas")
-	Webhooks       []*OperationPage
+	Webhooks []*OperationPage
 	NavTags        []*NavTag
 	NavModelGroups []*NavModelGroup
 	Warnings       []*BuildWarning
@@ -164,6 +164,8 @@ type MediaTypeInfo struct {
 	MockJSON              string            `json:"mockJson,omitempty"`
 	Examples              map[string]string `json:"examples,omitempty"`
 	SchemaRef             *ComponentLink    `json:"schemaRef,omitempty"`
+	IsArray               bool              `json:"isArray,omitempty"`
+	ItemsRef              *ComponentLink    `json:"itemsRef,omitempty"`
 }
 
 // ResponseInfo holds a single response entry.

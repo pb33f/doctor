@@ -37,6 +37,9 @@ export default css`
   a.ref-link:hover {
     text-decoration: underline;
   }
+  a.ref-link.param-name {
+    font-family: var(--font-stack-bold);
+  }
   .param-in {
     color: var(--font-color-sub2);
     margin-left: 0.5rem;
@@ -61,9 +64,6 @@ export default css`
   }
   .param-desc {
     color: var(--font-color-sub1);
-    margin-top: 0.2rem;
-  }
-  .param-ref {
     margin-top: 0.2rem;
   }
   .enum-values {

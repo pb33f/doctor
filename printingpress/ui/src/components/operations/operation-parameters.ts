@@ -76,7 +76,9 @@ export class PpOperationParameters extends LitElement {
         const type = schema?.type || '';
         return html`
           <div class="parameter">
-            <span class="param-name">${p.name}</span>
+            ${p.ref
+              ? html`<a class="ref-link param-name" href="models/${p.ref.typeSlug}/${p.ref.slug}.html">\u279c ${p.name}</a>`
+              : html`<span class="param-name">${p.name}</span>`}
             ${type ? html`<span class="param-type">${type}</span>` : nothing}
             <span class="param-in">${p.in}</span>
             ${p.required
@@ -91,10 +93,7 @@ export class PpOperationParameters extends LitElement {
             ${schema?.enumValues
               ? html`<div class="enum-values">Enum: ${schema.enumValues.map((v: string, i: number) => html`${i > 0 ? ', ' : ''}<span class="enum-value">${v}</span>`)}</div>`
               : nothing}
-            ${p.ref
-              ? html`<div class="param-ref"><a class="ref-link" href="models/${p.ref.typeSlug}/${p.ref.slug}.html">\u279c ${p.ref.name}</a></div>`
-              : nothing}
-            ${p.rawJson || p.rawYaml
+            ${!p.ref && (p.rawJson || p.rawYaml)
               ? html`<pp-raw-viewer-btn
                   title="${p.name} (${p.in})"
                   raw-json=${p.rawJson || ''}

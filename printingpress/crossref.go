@@ -69,9 +69,12 @@ func (pp *PrintingPress) getCrossRefIndex() *CrossRefIndex {
 		ComponentUsesModels:  make(map[string][]*ComponentRef),
 	}
 
-	// Build model slug lookup
+	// Build model slug lookup (exclude path-items — no HTML pages to link to)
 	modelSlugLookup := make(map[string]*ModelPage)
-	for _, pages := range pp.site.Models {
+	for typeSlug, pages := range pp.site.Models {
+		if typeSlug == "path-items" {
+			continue
+		}
 		for _, page := range pages {
 			key := componentKey(page.ComponentType, page.Name)
 			modelSlugLookup[key] = page
@@ -79,7 +82,11 @@ func (pp *PrintingPress) getCrossRefIndex() *CrossRefIndex {
 	}
 
 	// Build model→model refs by scanning each model's SchemaJSON for $ref patterns.
-	for _, pages := range pp.site.Models {
+	// Skip path-items — they have no HTML pages so cross-ref links would be broken.
+	for typeSlug, pages := range pp.site.Models {
+		if typeSlug == "path-items" {
+			continue
+		}
 		for _, srcPage := range pages {
 			if srcPage.SchemaJSON == "" {
 				continue
@@ -116,7 +123,7 @@ func (pp *PrintingPress) getCrossRefIndex() *CrossRefIndex {
 			Slug:   op.Slug,
 		}
 
-		referencedModels := pp.extractOperationModelRefs(op)
+		referencedModels := pp.extractOperationModelRefs(op, modelSlugLookup)
 		for _, compRef := range referencedModels {
 			targetKey := componentKey(compRef.ComponentType, compRef.Name)
 			addOperationRefUnique(&idx.ComponentToOps, targetKey, opRef)
@@ -148,7 +155,7 @@ func (pp *PrintingPress) buildOperationCrossRefs(idx *CrossRefIndex) map[string]
 
 	for _, op := range allOps {
 		key := op.Method + " " + op.Path
-		refs := pp.extractOperationModelRefs(op)
+		refs := pp.extractOperationModelRefs(op, modelSlugLookup)
 		if len(refs) > 0 {
 			sort.Slice(refs, func(i, j int) bool {
 				return refs[i].Name < refs[j].Name
@@ -161,15 +168,7 @@ func (pp *PrintingPress) buildOperationCrossRefs(idx *CrossRefIndex) map[string]
 }
 
 // extractOperationModelRefs scans an operation's SchemaJSON fields for component $ref strings.
-func (pp *PrintingPress) extractOperationModelRefs(op *OperationPage) []*ComponentRef {
-	modelSlugLookup := make(map[string]*ModelPage)
-	for _, pages := range pp.site.Models {
-		for _, page := range pages {
-			key := componentKey(page.ComponentType, page.Name)
-			modelSlugLookup[key] = page
-		}
-	}
-
+func (pp *PrintingPress) extractOperationModelRefs(op *OperationPage, modelSlugLookup map[string]*ModelPage) []*ComponentRef {
 	seen := make(map[string]bool)
 	var refs []*ComponentRef
 

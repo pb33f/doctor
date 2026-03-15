@@ -92,7 +92,7 @@ export class PpModelPage extends LitElement {
     `;
   }
 
-  private renderParameter(data: any) {
+  private renderComponentWithSchema(data: any, traitsHtml: unknown) {
     const schema = data.schema || {};
     const schemaJson = this.schemaRawJson || JSON.stringify(schema, null, 2);
     const schemaYaml = this.schemaRawYaml;
@@ -100,18 +100,7 @@ export class PpModelPage extends LitElement {
       <div class="traits">
         <h3>Traits</h3>
         <div class="constraints">
-          <span class="constraint-label">name</span>
-          <span class="constraint-value">${data.name}</span>
-          <span class="constraint-label">in</span>
-          <span class="constraint-value">${data.in}</span>
-          ${data.required !== undefined ? html`
-            <span class="constraint-label">required</span>
-            <span class="constraint-value">${data.required}</span>
-          ` : nothing}
-          ${data.deprecated ? html`
-            <span class="constraint-label">deprecated</span>
-            <span class="constraint-value">true</span>
-          ` : nothing}
+          ${traitsHtml}
           ${schema.type ? html`
             <span class="constraint-label">type</span>
             <span class="constraint-value">${schema.type}${schema.format ? ` (${schema.format})` : ''}</span>
@@ -133,41 +122,34 @@ export class PpModelPage extends LitElement {
     `;
   }
 
+  private renderParameter(data: any) {
+    return this.renderComponentWithSchema(data, html`
+      <span class="constraint-label">name</span>
+      <span class="constraint-value">${data.name}</span>
+      <span class="constraint-label">in</span>
+      <span class="constraint-value">${data.in}</span>
+      ${data.required !== undefined ? html`
+        <span class="constraint-label">required</span>
+        <span class="constraint-value">${data.required}</span>
+      ` : nothing}
+      ${data.deprecated ? html`
+        <span class="constraint-label">deprecated</span>
+        <span class="constraint-value">true</span>
+      ` : nothing}
+    `);
+  }
+
   private renderHeader(data: any) {
-    const schema = data.schema || {};
-    const schemaJson = this.schemaRawJson || JSON.stringify(schema, null, 2);
-    const schemaYaml = this.schemaRawYaml;
-    return html`
-      <div class="traits">
-        <h3>Traits</h3>
-        <div class="constraints">
-          ${schema.type ? html`
-            <span class="constraint-label">type</span>
-            <span class="constraint-value">${schema.type}${schema.format ? ` (${schema.format})` : ''}</span>
-          ` : nothing}
-          ${data.required ? html`
-            <span class="constraint-label">required</span>
-            <span class="constraint-value">true</span>
-          ` : nothing}
-          ${data.deprecated ? html`
-            <span class="constraint-label">deprecated</span>
-            <span class="constraint-value">true</span>
-          ` : nothing}
-        </div>
-        ${this.renderConstraints(schema)}
-      </div>
-      ${data.examples ? this.renderExampleObjects(data.examples) : nothing}
-      ${!data.examples && data.example !== undefined
-        ? html`<pp-inline-code raw-json=${JSON.stringify(data.example, null, 2)} title="Example"></pp-inline-code>`
-        : nothing}
-      ${Object.keys(schema).length
-        ? html`<pp-inline-code
-            raw-json=${schemaJson}
-            raw-yaml=${schemaYaml}
-            start-line=${this.schemaStartLine}
-            title="Schema"></pp-inline-code>`
-        : nothing}
-    `;
+    return this.renderComponentWithSchema(data, html`
+      ${data.required ? html`
+        <span class="constraint-label">required</span>
+        <span class="constraint-value">true</span>
+      ` : nothing}
+      ${data.deprecated ? html`
+        <span class="constraint-label">deprecated</span>
+        <span class="constraint-value">true</span>
+      ` : nothing}
+    `);
   }
 
   private renderSchema(schema: any) {

@@ -4,7 +4,7 @@ templ ModelsIndexTempl(models map[string][]*ModelPage) {
 	<div class="pp-models-index">
 		<h1>Models</h1>
 		for typeSlug, pages := range models {
-			if len(pages) > 0 {
+			if len(pages) > 0 && typeSlug != "path-items" {
 				<div class="pp-model-category">
 					<h2>{ typeSlug }</h2>
 					<div class="pp-model-cards">
