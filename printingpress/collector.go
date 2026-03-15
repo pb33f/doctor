@@ -407,12 +407,20 @@ func (pp *PrintingPress) collectMediaType(mediaTypeName string, mt *v3.MediaType
 		if mt.SchemaProxy.Value.IsReference() {
 			mti.SchemaRef = pp.resolveComponentLink(mt.SchemaProxy.Value.GetReference())
 		}
-		if mti.SchemaRef == nil {
-			sch := mt.SchemaProxy.Value.Schema()
-			if sch != nil {
-				jsonStr, err := sch.MarshalJSON()
-				if err == nil {
-					mti.SchemaJSON = string(jsonStr)
+		sch := mt.SchemaProxy.Value.Schema()
+		if sch != nil {
+			// Detect array schemas with $ref items (e.g. type: array, items: $ref: ...)
+			if len(sch.Type) > 0 && sch.Type[0] == "array" && sch.Items != nil && sch.Items.IsA() {
+				mti.IsArray = true
+				if sch.Items.A.IsReference() {
+					mti.ItemsRef = pp.resolveComponentLink(sch.Items.A.GetReference())
+				}
+			}
+			jsonStr, err := sch.MarshalJSON()
+			if err == nil {
+				mti.SchemaJSON = string(jsonStr)
+				// Only generate highlighted HTML for inline schemas (not refs — they link out)
+				if mti.SchemaRef == nil && mti.ItemsRef == nil {
 					mti.SchemaHighlightedHTML, _ = highlightJSON(prettyJSON(string(jsonStr)))
 				}
 			}
@@ -855,7 +863,7 @@ func (pp *PrintingPress) buildNavModelGroups() {
 		{"Examples", "examples"},
 		{"Links", "links"},
 		{"Callbacks", "callbacks"},
-		{"Path Items", "path-items"},
+		// path-items omitted from nav — after bundling they duplicate operation pages
 	}
 	for _, def := range order {
 		pages := pp.site.Models[def.typeSlug]
@@ -963,7 +971,7 @@ func computeSchemaStartLine(rawYAML string, origin *bundler.ComponentOrigin) int
 	lines := strings.Split(rawYAML, "\n")
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == "schema:" || strings.HasPrefix(trimmed, "schema:") {
+		if trimmed == "schema:" || strings.HasPrefix(trimmed, "schema: ") {
 			// Schema content starts on the line after "schema:"
 			return originLine + i + 1
 		}

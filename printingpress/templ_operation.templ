@@ -84,75 +84,83 @@ templ OperationPageTempl(page *OperationPage) {
 			<pp-operation-parameters parameters-json={ page.ParametersJSON }></pp-operation-parameters>
 		}
 		if page.RequestBody != nil {
-			<div class="pp-request-body">
-				<h3>Request Body</h3>
-				if page.RequestBody.RawYAML != "" || page.RequestBody.RawJSON != "" {
-					<pp-raw-viewer-btn
-						title="Request Body"
-						raw-json={ page.RequestBody.RawJSON }
-						raw-yaml={ page.RequestBody.RawYAML }
-						if page.RequestBody.SourceLine > 0 {
-							start-line={ fmt.Sprintf("%d", page.RequestBody.SourceLine) }
-						}>
-					</pp-raw-viewer-btn>
-				}
-				if page.RequestBody.Description != "" {
-					<p>{ page.RequestBody.Description }</p>
-				}
-				if page.RequestBody.Ref != nil {
-					<p>
-						<a class="pp-ref-link" href={ templ.SafeURL("models/" + page.RequestBody.Ref.TypeSlug + "/" + page.RequestBody.Ref.Slug + ".html") }>
-							&#10140; { page.RequestBody.Ref.Name }
-						</a>
-					</p>
-				} else {
-					for _, mt := range page.RequestBody.Content {
-						if mt.SchemaRef != nil {
-							<div class="pp-media-type-ref">
-								<span class="pp-media-type-label">{ mt.MediaType }</span>
-								<a class="pp-ref-link" href={ templ.SafeURL("models/" + mt.SchemaRef.TypeSlug + "/" + mt.SchemaRef.Slug + ".html") }>
-									&#10140; { mt.SchemaRef.Name }
-								</a>
-							</div>
-						} else if mt.SchemaJSON != "" {
-							<div class="pp-media-type-label">{ mt.MediaType }</div>
-							<pp-model-page model-json={ mt.SchemaJSON }></pp-model-page>
-							if mt.MockJSON != "" || len(mt.Examples) > 0 {
-								<pp-example-selector
-									mock-json={ mt.MockJSON }
-									examples-json={ MustJSON(mt.Examples) }>
-								</pp-example-selector>
-							}
-						}
-					}
-				}
-			</div>
+			@RequestBodySection(page.RequestBody)
 		}
 		if page.CommonHeadersJSON != "" {
-			<div class="pp-common-headers">
-				<h3>Common Response Headers</h3>
-				for _, h := range page.CommonHeaders {
-					<div class="pp-common-header-entry" id={ "header-" + h.Name }>
-						if h.Ref != nil {
-							<a class="pp-ref-link pp-common-header-name" href={ templ.SafeURL("models/" + h.Ref.TypeSlug + "/" + h.Ref.Slug + ".html") }>
-								&#10140; { h.Name }
-							</a>
-						} else {
-							<span class="pp-common-header-name">{ h.Name }</span>
-						}
-						if h.SchemaType != "" {
-							<span class="pp-common-header-type">{ h.SchemaType }</span>
-						}
-						if h.Description != "" {
-							<div class="pp-common-header-desc">{ h.Description }</div>
-						}
-						@headerConstraints(h)
-					</div>
-				}
-			</div>
+			@CommonHeadersSection(page.CommonHeaders, page.CommonHeadersJSON)
 		}
 		if page.ResponsesJSON != "" {
 			<pp-operation-responses responses-json={ page.ResponsesJSON }></pp-operation-responses>
+		}
+	</div>
+}
+
+templ RequestBodySection(rb *RequestBodyInfo) {
+	<div class="pp-request-body">
+		<h3>Request Body</h3>
+		if rb.RawYAML != "" || rb.RawJSON != "" {
+			<pp-raw-viewer-btn
+				title="Request Body"
+				raw-json={ rb.RawJSON }
+				raw-yaml={ rb.RawYAML }
+				if rb.SourceLine > 0 {
+					start-line={ fmt.Sprintf("%d", rb.SourceLine) }
+				}>
+			</pp-raw-viewer-btn>
+		}
+		if rb.Description != "" {
+			<p>{ rb.Description }</p>
+		}
+		if rb.Ref != nil {
+			<p>
+				<a class="pp-ref-link" href={ templ.SafeURL("models/" + rb.Ref.TypeSlug + "/" + rb.Ref.Slug + ".html") }>
+					&#10140; { rb.Ref.Name }
+				</a>
+			</p>
+		} else {
+			for _, mt := range rb.Content {
+				if mt.SchemaRef != nil {
+					<div class="pp-media-type-ref">
+						<span class="pp-media-type-label">{ mt.MediaType }</span>
+						<a class="pp-ref-link" href={ templ.SafeURL("models/" + mt.SchemaRef.TypeSlug + "/" + mt.SchemaRef.Slug + ".html") }>
+							&#10140; { mt.SchemaRef.Name }
+						</a>
+					</div>
+				} else if mt.SchemaJSON != "" {
+					<div class="pp-media-type-label">{ mt.MediaType }</div>
+					<pp-model-page model-json={ mt.SchemaJSON }></pp-model-page>
+					if mt.MockJSON != "" || len(mt.Examples) > 0 {
+						<pp-example-selector
+							mock-json={ mt.MockJSON }
+							examples-json={ MustJSON(mt.Examples) }>
+						</pp-example-selector>
+					}
+				}
+			}
+		}
+	</div>
+}
+
+templ CommonHeadersSection(headers []*HeaderInfo, headersJSON string) {
+	<div class="pp-common-headers">
+		<h3>Common Response Headers</h3>
+		for _, h := range headers {
+			<div class="pp-common-header-entry" id={ "header-" + h.Name }>
+				if h.Ref != nil {
+					<a class="pp-ref-link pp-common-header-name" href={ templ.SafeURL("models/" + h.Ref.TypeSlug + "/" + h.Ref.Slug + ".html") }>
+						&#10140; { h.Name }
+					</a>
+				} else {
+					<span class="pp-common-header-name">{ h.Name }</span>
+				}
+				if h.SchemaType != "" {
+					<span class="pp-common-header-type">{ h.SchemaType }</span>
+				}
+				if h.Description != "" {
+					<div class="pp-common-header-desc">{ h.Description }</div>
+				}
+				@headerConstraints(h)
+			</div>
 		}
 	</div>
 }

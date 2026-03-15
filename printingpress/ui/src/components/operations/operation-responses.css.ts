@@ -52,6 +52,10 @@ export default css`
     letter-spacing: 0.03em;
     font-size: 0.85em;
   }
+  .array-type {
+    font-family: var(--font-stack);
+    color: var(--font-color-sub1);
+  }
   .schema-type {
     color: var(--font-color-sub2);
     font-family: var(--font-stack);
@@ -158,13 +162,13 @@ export default css`
   .constraint-value code {
     color: var(--warn-400);
   }
-  /* ── Common header compact links ── */
-  .common-header-links {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.25rem 0.5rem;
+  /* ── Common header grid ── */
+  .common-header-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.15rem 0.75rem;
     padding: 0.3rem 0.75rem;
+    align-items: baseline;
   }
   .common-link-label {
     color: var(--font-color-sub2);
@@ -172,16 +176,69 @@ export default css`
     font-size: 0.8em;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    grid-column: 1 / -1;
+    margin-bottom: 0.15rem;
   }
   .header-anchor {
     color: var(--primary-color);
     text-decoration: none;
-    font-family: var(--font-stack);
+    font-family: var(--font-stack-bold);
     cursor: pointer;
-    font-size: 0.9em;
   }
   .header-anchor:hover {
     color: var(--font-color);
     text-decoration: underline;
+  }
+  .common-header-desc {
+    color: var(--font-color-sub1);
+  }
+  /* ── Inline examples ── */
+  .inline-example {
+    margin-top: 0.5rem;
+  }
+  .inline-example-label {
+    font-family: var(--font-stack);
+    color: var(--font-color-sub2);
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+  /* ── Response group headings ── */
+  .response-group-heading {
+    margin-top: 1.5rem;
+  }
+  /* ── Common errors ── */
+  .common-error-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+  }
+  .error-anchor {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-family: var(--font-stack);
+    cursor: pointer;
+    font-size: 0.85em;
+  }
+  .error-anchor:hover {
+    color: var(--font-color);
+    text-decoration: underline;
+  }
+  .common-error-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.15rem 0.75rem;
+    margin-bottom: 0.5rem;
+    align-items: baseline;
+  }
+  .common-error-code {
+    font-family: var(--font-stack-bold);
+    font-weight: 700;
+    color: var(--primary-color);
+  }
+  .common-error-desc {
+    color: var(--font-color-sub1);
   }
 `

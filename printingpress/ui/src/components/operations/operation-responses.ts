@@ -2,6 +2,7 @@ import {LitElement, html, nothing, TemplateResult} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
 import operationResponsesCss from './operation-responses.css.js';
+import '../shared/code-viewer.js';
 
 interface ComponentLinkData {
   name: string;
@@ -16,6 +17,8 @@ interface MediaTypeData {
   mockJson?: string;
   examples?: Record<string, string>;
   schemaRef?: ComponentLinkData;
+  isArray?: boolean;
+  itemsRef?: ComponentLinkData;
 }
 
 interface HeaderData {
@@ -136,13 +139,49 @@ export class PpOperationResponses extends LitElement {
     return html`<a class="ref-link" href="models/${ref.typeSlug}/${ref.slug}.html">\u279c ${ref.name}</a>`;
   }
 
+  private renderInlineExamples(mt: MediaTypeData) {
+    const entries: Array<{key: string; json: string}> = [];
+    if (mt.examples) {
+      for (const [key, json] of Object.entries(mt.examples)) {
+        if (json) entries.push({key, json});
+      }
+    }
+    if (mt.mockJson) {
+      entries.push({key: 'Generated Example', json: mt.mockJson});
+    }
+    if (!entries.length) return nothing;
+    return entries.map(entry => {
+      let formatted = entry.json;
+      try { formatted = JSON.stringify(JSON.parse(entry.json), null, 2); } catch { /* use as-is */ }
+      return html`
+        <div class="inline-example">
+          <div class="inline-example-label">${entry.key}</div>
+          <pp-code-viewer
+            .code=${formatted}
+            language="json">
+          </pp-code-viewer>
+        </div>
+      `;
+    });
+  }
+
   private renderMediaType(mt: MediaTypeData) {
+    if (mt.isArray && mt.itemsRef) {
+      return html`
+        <div class="media-type-ref">
+          <span class="media-type-label">${mt.mediaType}</span>
+          <span class="array-type">Array&lt;${this.renderRefLink(mt.itemsRef)}&gt;</span>
+        </div>
+        ${this.renderInlineExamples(mt)}
+      `;
+    }
     if (mt.schemaRef) {
       return html`
         <div class="media-type-ref">
           <span class="media-type-label">${mt.mediaType}</span>
           ${this.renderRefLink(mt.schemaRef)}
         </div>
+        ${this.renderInlineExamples(mt)}
       `;
     }
     if (!mt.schemaJson) return nothing;
@@ -152,16 +191,10 @@ export class PpOperationResponses extends LitElement {
     } catch {
       return nothing;
     }
-    const hasExamples = mt.mockJson || (mt.examples && Object.keys(mt.examples).length > 0);
     return html`
       <div class="media-type-label">${mt.mediaType}</div>
       ${this.renderSchemaProperties(schema)}
-      ${hasExamples
-        ? html`<pp-example-selector
-            mock-json=${mt.mockJson || ''}
-            examples-json=${mt.examples ? JSON.stringify(mt.examples) : ''}>
-          </pp-example-selector>`
-        : nothing}
+      ${this.renderInlineExamples(mt)}
     `;
   }
 
@@ -228,9 +261,12 @@ export class PpOperationResponses extends LitElement {
       <div class="headers-section">
         <div class="headers-label">Headers</div>
         ${common.length ? html`
-          <div class="common-header-links">
-            <span class="common-link-label">\u2191 common:</span>
-            ${common.map(h => html`<a class="header-anchor" @click=${(e: Event) => { e.preventDefault(); this.scrollToHeader(h.name); }}>${h.name}</a>`)}
+          <div class="common-header-grid">
+            <div class="common-link-label">\u2191 common</div>
+            ${common.map(h => html`
+              <a class="header-anchor" @click=${(e: Event) => { e.preventDefault(); this.scrollToHeader(h.name); }}>${h.name}</a>
+              <span class="common-header-desc">${h.description || ''}</span>
+            `)}
           </div>
         ` : nothing}
         ${unique.map(h => this.renderHeaderEntry(h))}
@@ -238,7 +274,56 @@ export class PpOperationResponses extends LitElement {
     `;
   }
 
-  private renderResponse(resp: ResponseData, commonNames: Set<string>) {
+  /** Get a dedup key for an error response based on its schema/response ref. */
+  private errorRefKey(resp: ResponseData): string | null {
+    if (resp.ref) return `ref:${resp.ref.slug}`;
+    if (resp.content?.length) {
+      const mt = resp.content[0];
+      if (mt.schemaRef) return `schema:${mt.schemaRef.slug}`;
+      if (mt.isArray && mt.itemsRef) return `items:${mt.itemsRef.slug}`;
+    }
+    return null;
+  }
+
+  /**
+   * Find error schemas used by 2+ status codes.
+   * Returns the set of common ref keys, plus one representative response per key.
+   */
+  private computeCommonErrors(errors: ResponseData[]): {
+    commonKeys: Set<string>;
+    commonResponses: Map<string, { resp: ResponseData; codeDescs: Array<{code: string; description: string}> }>;
+  } {
+    const counts = new Map<string, { resp: ResponseData; codeDescs: Array<{code: string; description: string}> }>();
+    for (const r of errors) {
+      const key = this.errorRefKey(r);
+      if (!key) continue;
+      const existing = counts.get(key);
+      if (existing) {
+        existing.codeDescs.push({ code: r.statusCode, description: r.description });
+      } else {
+        counts.set(key, { resp: r, codeDescs: [{ code: r.statusCode, description: r.description }] });
+      }
+    }
+    const commonKeys = new Set<string>();
+    const commonResponses = new Map<string, { resp: ResponseData; codeDescs: Array<{code: string; description: string}> }>();
+    for (const [key, entry] of counts) {
+      if (entry.codeDescs.length >= 2) {
+        commonKeys.add(key);
+        commonResponses.set(key, entry);
+      }
+    }
+    return { commonKeys, commonResponses };
+  }
+
+  private scrollToCommonError(key: string) {
+    const el = this.shadowRoot?.getElementById('common-error-' + key);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  private renderResponse(resp: ResponseData, commonNames: Set<string>, commonErrorKeys?: Set<string>) {
+    const errorKey = commonErrorKeys ? this.errorRefKey(resp) : null;
+    const isCommonError = errorKey != null && commonErrorKeys?.has(errorKey);
+
     return html`
       <div class="response">
         <h4>
@@ -253,11 +338,59 @@ export class PpOperationResponses extends LitElement {
               </pp-raw-viewer-btn>`
             : nothing}
         </h4>
-        ${resp.ref
-          ? this.renderRefLink(resp.ref)
-          : resp.content?.map(mt => this.renderMediaType(mt)) ?? nothing}
+        ${isCommonError
+          ? html`
+              <div class="common-error-link">
+                ${resp.ref ? this.renderRefLink(resp.ref) : nothing}
+                ${!resp.ref && resp.content?.length ? this.renderMediaTypeHeader(resp.content[0]) : nothing}
+                <a class="error-anchor" @click=${(e: Event) => { e.preventDefault(); this.scrollToCommonError(errorKey!); }}>\u2191 see common example</a>
+              </div>`
+          : resp.ref
+            ? this.renderRefLink(resp.ref)
+            : resp.content?.map(mt => this.renderMediaType(mt)) ?? nothing}
         ${this.renderHeaders(resp.headers ?? [], commonNames)}
       </div>
+    `;
+  }
+
+  /** Render just the media type label + ref link without the inline example. */
+  private renderMediaTypeHeader(mt: MediaTypeData) {
+    if (mt.isArray && mt.itemsRef) {
+      return html`
+        <span class="media-type-label">${mt.mediaType}</span>
+        <span class="array-type">Array&lt;${this.renderRefLink(mt.itemsRef)}&gt;</span>
+      `;
+    }
+    if (mt.schemaRef) {
+      return html`
+        <span class="media-type-label">${mt.mediaType}</span>
+        ${this.renderRefLink(mt.schemaRef)}
+      `;
+    }
+    return nothing;
+  }
+
+  private renderCommonErrors(
+    commonResponses: Map<string, { resp: ResponseData; codeDescs: Array<{code: string; description: string}> }>,
+    commonNames: Set<string>,
+  ) {
+    if (!commonResponses.size) return nothing;
+    return html`
+      <h3 class="response-group-heading">Common Error Responses</h3>
+      ${[...commonResponses.entries()].map(([key, { resp, codeDescs }]) => html`
+        <div class="response common-error-response" id="common-error-${key}">
+          <div class="common-error-grid">
+            ${codeDescs.map(({ code, description }) => html`
+              <span class="common-error-code">${code}</span>
+              <span class="common-error-desc">${description}</span>
+            `)}
+          </div>
+          ${resp.ref
+            ? this.renderRefLink(resp.ref)
+            : resp.content?.map(mt => this.renderMediaType(mt)) ?? nothing}
+          ${this.renderHeaders(resp.headers ?? [], commonNames)}
+        </div>
+      `)}
     `;
   }
 
@@ -265,9 +398,37 @@ export class PpOperationResponses extends LitElement {
     if (!this.responses.length) return nothing;
     const { commonNames } = this.computeCommonHeaders();
 
+    const sorted = [...this.responses].sort((a, b) =>
+      parseInt(a.statusCode, 10) - parseInt(b.statusCode, 10)
+    );
+    const success: ResponseData[] = [];
+    const redirect: ResponseData[] = [];
+    const error: ResponseData[] = [];
+    for (const r of sorted) {
+      const code = parseInt(r.statusCode, 10);
+      if (code >= 400) {
+        error.push(r);
+      } else if (code >= 300) {
+        redirect.push(r);
+      } else {
+        success.push(r);
+      }
+    }
+
+    const { commonKeys, commonResponses } = this.computeCommonErrors(error);
+
     return html`
       <h3>Responses</h3>
-      ${this.responses.map(r => this.renderResponse(r, commonNames))}
+      ${success.map(r => this.renderResponse(r, commonNames))}
+      ${redirect.length ? html`
+        <h3 class="response-group-heading">Redirect Responses</h3>
+        ${redirect.map(r => this.renderResponse(r, commonNames))}
+      ` : nothing}
+      ${this.renderCommonErrors(commonResponses, commonNames)}
+      ${error.length ? html`
+        <h3 class="response-group-heading">Error Responses</h3>
+        ${error.map(r => this.renderResponse(r, commonNames, commonKeys))}
+      ` : nothing}
     `;
   }
 }

@@ -37,7 +37,6 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 		"models/security",
 		"models/links",
 		"models/callbacks",
-		"models/path-items",
 		"static",
 		"static/fonts",
 		"static/shoelace/assets/icons",
@@ -79,7 +78,12 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 	}
 
 	// Write model pages (2 levels deep: models/{type}/)
+	// Skip path-items — after bundling they duplicate operation pages with no added value.
+	// They remain in site.Models for JSON/manifest/agent-writer output.
 	for typeSlug, pages := range site.Models {
+		if typeSlug == "path-items" {
+			continue
+		}
 		for _, page := range pages {
 			modelContent := ModelPageTempl(page)
 			pageTitle := fmt.Sprintf("%s - %s", page.Name, title)

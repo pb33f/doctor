@@ -35,6 +35,9 @@ func (s *gitHubService) GetCommitList(ctx context.Context, session *GitHubSessio
 	if options != nil {
 		config.Page = options.Page
 		config.PerPage = options.PerPage
+		if options.MaxResults > 0 {
+			config.MaxResults = options.MaxResults
+		}
 	}
 
 	results, err := FetchPaginated(ctx, rh,

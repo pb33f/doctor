@@ -244,9 +244,10 @@ type PullRequestListOptions struct {
 // Supports filtering by SHA, file path, author, and date ranges.
 type CommitListOptions struct {
 	ListOptions
-	SHA    string    `json:"sha,omitempty"`
-	Path   string    `json:"path,omitempty"`
-	Author string    `json:"author,omitempty"`
-	Since  time.Time `json:"since,omitempty"`
-	Until  time.Time `json:"until,omitempty"`
+	SHA        string    `json:"sha,omitempty"`
+	Path       string    `json:"path,omitempty"`
+	Author     string    `json:"author,omitempty"`
+	Since      time.Time `json:"since,omitempty"`
+	Until      time.Time `json:"until,omitempty"`
+	MaxResults int       `json:"max_results,omitempty"`
 }
