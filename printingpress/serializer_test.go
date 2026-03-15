@@ -44,8 +44,3 @@ func TestIsComplexSchemaJSON(t *testing.T) {
 	assert.True(t, isComplexSchemaJSON(`{"type":["object","null"]}`))
 }
 
-func TestMarshalJSON(t *testing.T) {
-	result, err := marshalJSON(map[string]string{"key": "value"})
-	require.NoError(t, err)
-	assert.Equal(t, `{"key":"value"}`, result)
-}

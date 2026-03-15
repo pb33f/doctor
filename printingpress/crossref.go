@@ -5,8 +5,8 @@
 package printingpress
 
 import (
+	"regexp"
 	"sort"
-	"strings"
 )
 
 // CrossRefIndex maps components to the operations and components that reference them.
@@ -18,7 +18,7 @@ type CrossRefIndex struct {
 
 // buildCrossRefs populates cross-reference information on each ModelPage and OperationPage.
 func (pp *PrintingPress) buildCrossRefs() {
-	idx := pp.getCrossRefIndex()
+	idx, modelSlugLookup := pp.getCrossRefIndex()
 	if idx == nil {
 		return
 	}
@@ -42,7 +42,7 @@ func (pp *PrintingPress) buildCrossRefs() {
 	}
 
 	// Apply cross-refs to each operation page
-	opCrossRefs := pp.buildOperationCrossRefs(idx)
+	opCrossRefs := pp.buildOperationCrossRefs(idx, modelSlugLookup)
 	for _, op := range pp.site.Operations {
 		key := op.Method + " " + op.Path
 		if refs, ok := opCrossRefs[key]; ok {
@@ -58,9 +58,9 @@ func (pp *PrintingPress) buildCrossRefs() {
 }
 
 // getCrossRefIndex builds the cross-reference index by scanning SchemaJSON content.
-func (pp *PrintingPress) getCrossRefIndex() *CrossRefIndex {
+func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPage) {
 	if pp.config.DrDoc == nil {
-		return nil
+		return nil, nil
 	}
 
 	idx := &CrossRefIndex{
@@ -133,25 +133,17 @@ func (pp *PrintingPress) getCrossRefIndex() *CrossRefIndex {
 	// Sort all cross-ref lists for deterministic output
 	sortCrossRefIndex(idx)
 
-	return idx
+	return idx, modelSlugLookup
 }
 
 // buildOperationCrossRefs builds OperationCrossRefs for each operation by scanning
 // its request body and response schemas for component references.
-func (pp *PrintingPress) buildOperationCrossRefs(idx *CrossRefIndex) map[string]*OperationCrossRefs {
+func (pp *PrintingPress) buildOperationCrossRefs(idx *CrossRefIndex, modelSlugLookup map[string]*ModelPage) map[string]*OperationCrossRefs {
 	result := make(map[string]*OperationCrossRefs)
 
 	allOps := make([]*OperationPage, 0, len(pp.site.Operations)+len(pp.site.Webhooks))
 	allOps = append(allOps, pp.site.Operations...)
 	allOps = append(allOps, pp.site.Webhooks...)
-
-	modelSlugLookup := make(map[string]*ModelPage)
-	for _, pages := range pp.site.Models {
-		for _, page := range pages {
-			key := componentKey(page.ComponentType, page.Name)
-			modelSlugLookup[key] = page
-		}
-	}
 
 	for _, op := range allOps {
 		key := op.Method + " " + op.Path
@@ -204,34 +196,28 @@ func (pp *PrintingPress) extractOperationModelRefs(op *OperationPage, modelSlugL
 	return refs
 }
 
-// extractRefsFromJSON finds $ref-like component references in JSON schema strings.
-// Uses simple string scanning rather than full JSON parse for efficiency.
+var refPattern = regexp.MustCompile(`"\$ref"\s*:\s*"#/components/([^"]+)/([^"]+)"`)
+
+// extractRefsFromJSON finds $ref component references in a JSON schema string
+// using regex matching, then looks up each match in the provided map.
 func extractRefsFromJSON(jsonStr string, lookup map[string]*ModelPage) []*ComponentRef {
 	if jsonStr == "" {
 		return nil
 	}
-
+	matches := refPattern.FindAllStringSubmatch(jsonStr, -1)
+	if len(matches) == 0 {
+		return nil
+	}
 	var refs []*ComponentRef
 	seen := make(map[string]bool)
-
-	// Scan for component type/name patterns in the JSON
-	// Look for schema names that appear as "$ref":"#/components/..." or inline properties
-	for key, page := range lookup {
+	for _, m := range matches {
+		compType, compName := m[1], m[2]
+		key := componentKey(compType, compName)
 		if seen[key] {
 			continue
 		}
-		parts := strings.SplitN(strings.TrimPrefix(key, "#/components/"), "/", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		compType := parts[0]
-		compName := parts[1]
-
-		// Check for $ref pattern in JSON
-		refPattern := `"$ref":"#/components/` + compType + `/` + compName + `"`
-		altRefPattern := `"$ref": "#/components/` + compType + `/` + compName + `"`
-		if strings.Contains(jsonStr, refPattern) || strings.Contains(jsonStr, altRefPattern) {
-			seen[key] = true
+		seen[key] = true
+		if page, ok := lookup[key]; ok {
 			refs = append(refs, &ComponentRef{
 				Name:          compName,
 				ComponentType: compType,
@@ -240,7 +226,6 @@ func extractRefsFromJSON(jsonStr string, lookup map[string]*ModelPage) []*Compon
 			})
 		}
 	}
-
 	return refs
 }
 

@@ -2,6 +2,7 @@ import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
 import operationParametersCss from './operation-parameters.css.js';
+import {ComponentLinkData} from '../../utils/schema.js';
 
 interface ParameterData {
   name: string;
@@ -12,7 +13,7 @@ interface ParameterData {
   schemaJson: string;
   mockJson?: string;
   examples?: Record<string, string>;
-  ref?: {name: string; componentType: string; typeSlug: string; slug: string};
+  ref?: ComponentLinkData;
   rawJson?: string;
   rawYaml?: string;
   sourceLine?: number;

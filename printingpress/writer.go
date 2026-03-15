@@ -18,20 +18,8 @@ func WriteSite(site *Site, outputDir string) error {
 	}
 
 	// Create subdirectories
-	dirs := []string{
-		"operations",
-		"models/schemas",
-		"models/responses",
-		"models/parameters",
-		"models/examples",
-		"models/request-bodies",
-		"models/headers",
-		"models/security",
-		"models/links",
-		"models/callbacks",
-		"models/path-items",
-		"static",
-	}
+	dirs := append([]string{"operations"}, modelDirs()...)
+	dirs = append(dirs, "static")
 	for _, dir := range dirs {
 		if err := os.MkdirAll(filepath.Join(outputDir, dir), 0o755); err != nil {
 			return fmt.Errorf("creating directory %s: %w", dir, err)

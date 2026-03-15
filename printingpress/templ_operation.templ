@@ -126,19 +126,34 @@ templ RequestBodySection(rb *RequestBodyInfo) {
 							&#10140; { mt.SchemaRef.Name }
 						</a>
 					</div>
+					if mt.MockJSON != "" || len(mt.Examples) > 0 {
+						@InlineExamples(mt)
+					}
 				} else if mt.SchemaJSON != "" {
 					<div class="pp-media-type-label">{ mt.MediaType }</div>
 					<pp-model-page model-json={ mt.SchemaJSON }></pp-model-page>
 					if mt.MockJSON != "" || len(mt.Examples) > 0 {
-						<pp-example-selector
-							mock-json={ mt.MockJSON }
-							examples-json={ MustJSON(mt.Examples) }>
-						</pp-example-selector>
+						@InlineExamples(mt)
 					}
 				}
 			}
 		}
 	</div>
+}
+
+templ InlineExamples(mt *MediaTypeInfo) {
+	for name, ex := range mt.Examples {
+		<div class="pp-inline-example">
+			<div class="pp-inline-example-label">{ name }</div>
+			<pp-code-viewer code={ prettyJSON(ex) } language="json"></pp-code-viewer>
+		</div>
+	}
+	if mt.MockJSON != "" {
+		<div class="pp-inline-example">
+			<div class="pp-inline-example-label">Generated Example</div>
+			<pp-code-viewer code={ prettyJSON(mt.MockJSON) } language="json"></pp-code-viewer>
+		</div>
+	}
 }
 
 templ CommonHeadersSection(headers []*HeaderInfo, headersJSON string) {

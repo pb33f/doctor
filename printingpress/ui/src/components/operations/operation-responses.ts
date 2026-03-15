@@ -3,13 +3,7 @@ import {customElement, property, state} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
 import operationResponsesCss from './operation-responses.css.js';
 import '../shared/code-viewer.js';
-
-interface ComponentLinkData {
-  name: string;
-  componentType: string;
-  typeSlug: string;
-  slug: string;
-}
+import {ComponentLinkData, deriveSchemaType} from '../../utils/schema.js';
 
 interface MediaTypeData {
   mediaType: string;
@@ -45,24 +39,6 @@ interface ResponseData {
   sourceLine?: number;
 }
 
-function getSchemaType(prop: any): string {
-  if (!prop) return '';
-  if (prop.type === 'array' && prop.items) {
-    const itemType = prop.items.type || prop.items.$ref?.split('/').pop() || 'any';
-    return `array<${itemType}>`;
-  }
-  if (prop.type) {
-    let t = Array.isArray(prop.type) ? prop.type.join(' | ') : prop.type;
-    if (prop.format) t += ` (${prop.format})`;
-    return t;
-  }
-  if (prop.oneOf) return 'oneOf';
-  if (prop.anyOf) return 'anyOf';
-  if (prop.allOf) return 'allOf';
-  if (prop.$ref) return prop.$ref.split('/').pop();
-  return '';
-}
-
 /** Return the nested schema to recurse into, if any. */
 function getNestedSchema(prop: any): any | null {
   if (!prop) return null;
@@ -89,7 +65,7 @@ export class PpOperationResponses extends LitElement {
   }
 
   private renderProperty(name: string, prop: any, required: Set<string>, depth: number): TemplateResult {
-    const type = getSchemaType(prop);
+    const type = deriveSchemaType(prop);
     const nested = getNestedSchema(prop);
     const isArrayItems = prop?.type === 'array' && nested;
 
@@ -126,7 +102,7 @@ export class PpOperationResponses extends LitElement {
     const propEntries = Object.entries(properties);
 
     if (!propEntries.length) {
-      const t = getSchemaType(schema);
+      const t = deriveSchemaType(schema);
       return t ? html`<div class="schema-type">Type: ${t}</div>` : nothing;
     }
 
