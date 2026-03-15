@@ -12,7 +12,7 @@ templ ModelsIndexTempl(models map[string][]*ModelPage) {
 							<a href={ templ.SafeURL("models/" + typeSlug + "/" + page.Slug + ".html") } class="pp-model-card">
 								<strong>{ page.Name }</strong>
 								if page.Description != "" {
-									<p>{ truncate(page.Description, 120) }</p>
+									<p>{ truncateDesc(page.Description, 120) }</p>
 								}
 							</a>
 						}
@@ -23,9 +23,3 @@ templ ModelsIndexTempl(models map[string][]*ModelPage) {
 	</div>
 }
 
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
-}

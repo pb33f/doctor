@@ -25,6 +25,7 @@ export class PpCodeViewer extends LitElement {
     private _segmentCache: { code: string; language: string; segments: string[] } = {
         code: '', language: '', segments: []
     };
+    private _highlightCache: { spec: string; parsed: Set<number> } = { spec: '', parsed: new Set() };
 
     get displayCode(): string {
         if (!this.code) return '';
@@ -104,14 +105,21 @@ export class PpCodeViewer extends LitElement {
         return segments;
     }
 
+    private get parsedHighlights(): Set<number> {
+        if (this._highlightCache.spec !== this.highlightLines) {
+            this._highlightCache = { spec: this.highlightLines, parsed: this.parseHighlightSpec(this.highlightLines) };
+        }
+        return this._highlightCache.parsed;
+    }
+
     private get effectiveHighlights(): Set<number> {
-        const predefined = this.parseHighlightSpec(this.highlightLines);
+        const predefined = this.parsedHighlights;
         if (predefined.size > 0) return predefined;
         return this.selectedLines;
     }
 
     private get isLocked(): boolean {
-        return this.parseHighlightSpec(this.highlightLines).size > 0;
+        return this.parsedHighlights.size > 0;
     }
 
     private handleLineClick(lineNum: number, e: MouseEvent) {

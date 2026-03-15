@@ -21,19 +21,7 @@ func WriteLLMSite(site *Site, outputDir string) error {
 	}
 
 	// Create subdirectories for individual files
-	dirs := []string{
-		"operations",
-		"models/schemas",
-		"models/responses",
-		"models/parameters",
-		"models/request-bodies",
-		"models/headers",
-		"models/security",
-		"models/examples",
-		"models/links",
-		"models/callbacks",
-		"models/path-items",
-	}
+	dirs := append([]string{"operations"}, modelDirs()...)
 	for _, dir := range dirs {
 		if err := os.MkdirAll(filepath.Join(outputDir, dir), 0o755); err != nil {
 			return fmt.Errorf("creating directory %s: %w", dir, err)

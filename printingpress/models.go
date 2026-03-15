@@ -5,6 +5,8 @@
 package printingpress
 
 import (
+	"sort"
+
 	"github.com/pb33f/libopenapi/bundler"
 )
 
@@ -126,7 +128,7 @@ type OperationPage struct {
 
 // OperationCrossRefs holds cross-reference information for an operation.
 type OperationCrossRefs struct {
-	ReferencesModels []*ComponentRef // components this operation uses
+	ReferencesModels []*ComponentRef `json:"referencesModels,omitempty"` // components this operation uses
 }
 
 // ParameterInfo holds operation parameter data.
@@ -217,24 +219,24 @@ type ModelPage struct {
 
 // ModelCrossRefs holds cross-reference information for a model.
 type ModelCrossRefs struct {
-	UsedByOperations []*OperationRef
-	UsedByModels     []*ComponentRef
-	UsesModels       []*ComponentRef
+	UsedByOperations []*OperationRef `json:"usedByOperations,omitempty"`
+	UsedByModels     []*ComponentRef `json:"usedByModels,omitempty"`
+	UsesModels       []*ComponentRef `json:"usesModels,omitempty"`
 }
 
 // OperationRef is a lightweight reference to an operation from a cross-ref.
 type OperationRef struct {
-	Method string
-	Path   string
-	Slug   string
+	Method string `json:"method"`
+	Path   string `json:"path"`
+	Slug   string `json:"slug"`
 }
 
 // ComponentRef is a lightweight reference to a component from a cross-ref.
 type ComponentRef struct {
-	Name          string
-	ComponentType string
-	TypeSlug      string // URL path segment: "request-bodies", "path-items", etc.
-	Slug          string
+	Name          string `json:"name"`
+	ComponentType string `json:"componentType"`
+	TypeSlug      string `json:"typeSlug"` // URL path segment: "request-bodies", "path-items", etc.
+	Slug          string `json:"slug"`
 }
 
 // ComponentLink represents a resolved $ref to a component model page.
@@ -250,4 +252,14 @@ type BuildWarning struct {
 	Message string
 	Context string // e.g. path, component name
 	Err     error
+}
+
+// modelDirs returns the list of model subdirectory paths derived from refSegmentToTypeSlug.
+func modelDirs() []string {
+	dirs := make([]string, 0, len(refSegmentToTypeSlug))
+	for _, slug := range refSegmentToTypeSlug {
+		dirs = append(dirs, "models/"+slug)
+	}
+	sort.Strings(dirs)
+	return dirs
 }

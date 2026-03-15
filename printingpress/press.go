@@ -77,13 +77,8 @@ func (pp *PrintingPress) Press() (*Site, error) {
 
 // Visit implements the Tardis visitor interface.
 func (pp *PrintingPress) Visit(ctx context.Context, object any) {
-	switch obj := object.(type) {
-	case *v3.Document:
-		pp.visitDocument(ctx, obj)
-	case *v3.Paths:
-		pp.visitPaths(ctx, obj)
-	case *v3.PathItem:
-		pp.visitPathItem(ctx, obj)
+	if doc, ok := object.(*v3.Document); ok {
+		pp.visitDocument(ctx, doc)
 	}
 }
 

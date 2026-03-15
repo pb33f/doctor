@@ -26,21 +26,8 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 		return fmt.Errorf("creating output directory: %w", err)
 	}
 
-	dirs := []string{
-		"operations",
-		"models/schemas",
-		"models/responses",
-		"models/parameters",
-		"models/examples",
-		"models/request-bodies",
-		"models/headers",
-		"models/security",
-		"models/links",
-		"models/callbacks",
-		"static",
-		"static/fonts",
-		"static/shoelace/assets/icons",
-	}
+	dirs := append([]string{"operations"}, modelDirs()...)
+	dirs = append(dirs, "static", "static/fonts", "static/shoelace/assets/icons")
 	for _, dir := range dirs {
 		if err := os.MkdirAll(filepath.Join(outputDir, dir), 0o755); err != nil {
 			return fmt.Errorf("creating directory %s: %w", dir, err)

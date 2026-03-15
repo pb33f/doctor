@@ -20,16 +20,6 @@ func DetectSpecFormat(data []byte) string {
 	return "yaml"
 }
 
-// renderableToJSON converts any object that has a Render() method (returning YAML bytes)
-// into a JSON string suitable for cowboy-components.
-func renderableToJSON(renderable interface{ Render() ([]byte, error) }) (string, error) {
-	yamlBytes, err := renderable.Render()
-	if err != nil {
-		return "", err
-	}
-	return yamlToJSON(yamlBytes)
-}
-
 // yamlToJSON converts raw YAML bytes to a JSON string.
 func yamlToJSON(yamlBytes []byte) (string, error) {
 	var intermediate any
@@ -75,11 +65,3 @@ func isComplexSchemaJSON(schemaJSON string) bool {
 	return false
 }
 
-// marshalJSON is a convenience wrapper for json.Marshal that returns a string.
-func marshalJSON(v any) (string, error) {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
-}

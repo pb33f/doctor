@@ -198,9 +198,6 @@ func (pp *PrintingPress) visitPaths(ctx context.Context, paths *v3.Paths) {
 	}
 }
 
-// visitPathItem is a stub satisfying the Visit type switch.
-func (pp *PrintingPress) visitPathItem(_ context.Context, _ *v3.PathItem) {}
-
 // collectPathItemOperations iterates all HTTP methods on a PathItem.
 func (pp *PrintingPress) collectPathItemOperations(path string, pi *v3.PathItem) {
 	ops := pi.GetOperations()

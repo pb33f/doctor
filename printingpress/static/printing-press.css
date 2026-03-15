@@ -206,13 +206,29 @@ main {
 /* Request body */
 .pp-request-body { margin-bottom: 1.5rem; }
 
+/* Inline examples (templ-rendered) */
+.pp-inline-example {
+  margin-top: 0.5rem;
+}
+.pp-inline-example-label {
+  font-family: var(--font-stack);
+  color: var(--font-color-sub2);
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
 /* Component reference links in operation pages */
-.pp-ref-link {
+a.pp-ref-link,
+a.pp-ref-link:visited,
+a.pp-ref-link:active {
   color: var(--terminal-text);
   text-decoration: none;
   font-family: var(--font-stack);
 }
-.pp-ref-link:hover {
+a.pp-ref-link:hover {
+  color: var(--terminal-text);
   text-decoration: underline;
 }
 .pp-media-type-ref {

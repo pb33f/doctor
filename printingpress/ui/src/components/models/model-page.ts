@@ -3,6 +3,7 @@ import {customElement, property, state} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
 import modelPageCss from './model-page.css.js';
 import '../shared/inline-code.js';
+import {deriveSchemaType} from '../../utils/schema.js';
 
 @customElement('pp-model-page')
 export class PpModelPage extends LitElement {
@@ -60,15 +61,9 @@ export class PpModelPage extends LitElement {
 
   private renderType(prop: any) {
     if (!prop) return nothing;
-    let type = '';
-    if (prop.type) {
-      type = Array.isArray(prop.type) ? prop.type.join(' | ') : prop.type;
-    }
+    const type = deriveSchemaType(prop);
     if (!type) return nothing;
-    return html`
-      <span class="prop-type">${type}</span>
-      ${prop.format ? html`<span class="prop-format">(${prop.format})</span>` : nothing}
-    `;
+    return html`<span class="prop-type">${type}</span>`;
   }
 
   private renderExampleObjects(examples: Record<string, any>) {
