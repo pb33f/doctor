@@ -31,6 +31,7 @@ registerIconLibrary('default', {
 
 // Import cowboy-components
 import '@pb33f/cowboy-components/components/http-method/http-method.js';
+import '@pb33f/cowboy-components/components/render-operation-path/render-operation-path.js';
 import '@pb33f/cowboy-components/components/header/header.js';
 import '@pb33f/cowboy-components/components/theme-switcher/theme-switcher.js';
 
