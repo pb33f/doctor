@@ -43,11 +43,30 @@ export function resolveRefLink(ref: string): RefLink | null {
   return {name, href: `models/${typeSlug}/${sanitizeSlug(name)}.html`};
 }
 
+export function extractEnumValues(schemaJson: string): string[] | null {
+  if (!schemaJson) return null;
+  try {
+    const s = JSON.parse(schemaJson);
+    return Array.isArray(s.enum) ? s.enum : null;
+  } catch {
+    return null;
+  }
+}
+
+export function deriveSchemaTypeFromJson(schemaJson: string): string {
+  if (!schemaJson) return '';
+  try {
+    return deriveSchemaType(JSON.parse(schemaJson));
+  } catch {
+    return '';
+  }
+}
+
 export function deriveSchemaType(schema: any): string {
   if (!schema) return '';
   if (schema.type === 'array' && schema.items) {
     const itemType = schema.items.type || schema.items.$ref?.split('/').pop() || 'any';
-    return `array<${itemType}>`;
+    return `Array<${itemType}>`;
   }
   if (schema.type) {
     let t = Array.isArray(schema.type) ? schema.type.join(' | ') : schema.type;

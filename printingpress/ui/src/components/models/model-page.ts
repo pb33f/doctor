@@ -3,6 +3,7 @@ import {customElement, property, state} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
 import modelPageCss from './model-page.css.js';
 import '../shared/inline-code.js';
+import '../shared/schema-properties.js';
 import {deriveSchemaType, resolveRefLink} from '../../utils/schema.js';
 
 @customElement('pp-model-page')
@@ -165,10 +166,6 @@ export class PpModelPage extends LitElement {
   }
 
   private renderSchema(schema: any) {
-    const properties = schema.properties || {};
-    const required = new Set(schema.required || []);
-    const propEntries = Object.entries(properties);
-
     const exampleJson = schema.example !== undefined
       ? JSON.stringify(schema.example, null, 2) : '';
 
@@ -176,24 +173,10 @@ export class PpModelPage extends LitElement {
       ${schema.type
         ? html`<div><strong>Type:</strong> ${schema.type}</div>`
         : nothing}
-      ${propEntries.length
+      ${schema.properties
         ? html`
             <h3>Properties</h3>
-            ${propEntries.map(
-              ([name, prop]: [string, any]) => html`
-                <div class="property">
-                  <span class="prop-name">${name}</span>
-                  ${this.renderType(prop)}
-                  ${required.has(name)
-                    ? html`<span class="required-badge">required</span>`
-                    : nothing}
-                  ${prop.description
-                    ? html`<div class="prop-desc">${prop.description}</div>`
-                    : nothing}
-                  ${this.renderConstraints(prop)}
-                </div>
-              `
-            )}
+            <pp-schema-properties schema-json=${this.modelJson}></pp-schema-properties>
           `
         : nothing}
       ${exampleJson

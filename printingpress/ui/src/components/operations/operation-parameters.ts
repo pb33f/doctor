@@ -2,7 +2,7 @@ import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
 import operationParametersCss from './operation-parameters.css.js';
-import {ComponentLinkData} from '../../utils/schema.js';
+import {ComponentLinkData, deriveSchemaTypeFromJson, extractEnumValues} from '../../utils/schema.js';
 
 interface ParameterData {
   name: string;
@@ -17,37 +17,6 @@ interface ParameterData {
   rawJson?: string;
   rawYaml?: string;
   sourceLine?: number;
-}
-
-interface ParsedSchema {
-  type: string;
-  enumValues: string[] | null;
-}
-
-function parseSchema(schemaJson: string): ParsedSchema {
-  if (!schemaJson) return {type: '', enumValues: null};
-  try {
-    const s = JSON.parse(schemaJson);
-    let type = '';
-    if (s.type === 'array' && s.items) {
-      const itemType = s.items.type || s.items.$ref?.split('/').pop() || 'any';
-      type = `array<${itemType}>`;
-    } else if (s.type) {
-      type = Array.isArray(s.type) ? s.type.join(' | ') : s.type;
-      if (s.format) type += ` (${s.format})`;
-    } else if (s.oneOf) {
-      type = 'oneOf';
-    } else if (s.anyOf) {
-      type = 'anyOf';
-    } else if (s.allOf) {
-      type = 'allOf';
-    } else if (s.$ref) {
-      type = s.$ref.split('/').pop();
-    }
-    return {type, enumValues: Array.isArray(s.enum) ? s.enum : null};
-  } catch {
-    return {type: '', enumValues: null};
-  }
 }
 
 @customElement('pp-operation-parameters')
@@ -71,10 +40,9 @@ export class PpOperationParameters extends LitElement {
     if (!this.params.length) return nothing;
 
     return html`
-      <h3>Parameters</h3>
       ${this.params.map(p => {
-        const schema = parseSchema(p.schemaJson);
-        const type = schema?.type || '';
+        const type = deriveSchemaTypeFromJson(p.schemaJson);
+        const enumValues = extractEnumValues(p.schemaJson);
         return html`
           <div class="parameter">
             ${p.ref
@@ -91,8 +59,8 @@ export class PpOperationParameters extends LitElement {
             ${p.description
               ? html`<div class="param-desc">${p.description}</div>`
               : nothing}
-            ${schema?.enumValues
-              ? html`<div class="enum-values">Enum: ${schema.enumValues.map((v: string, i: number) => html`${i > 0 ? ', ' : ''}<span class="enum-value">${v}</span>`)}</div>`
+            ${enumValues
+              ? html`<div class="enum-values">Enum: ${enumValues.map((v: string, i: number) => html`${i > 0 ? ', ' : ''}<span class="enum-value">${v}</span>`)}</div>`
               : nothing}
             ${!p.ref && (p.rawJson || p.rawYaml)
               ? html`<pp-raw-viewer-btn

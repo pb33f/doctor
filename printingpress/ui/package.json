@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && cp dist/printing-press.js ../static/printing-press.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
