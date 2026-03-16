@@ -56,58 +56,6 @@ export default css`
     font-family: var(--font-stack);
     color: var(--font-color-sub1);
   }
-  .schema-type {
-    color: var(--font-color-sub2);
-    font-family: var(--font-stack);
-    font-size: 0.85em;
-    margin-top: 0.25rem;
-  }
-  .property {
-    margin-bottom: 0;
-    padding: 0.5rem 0.75rem;
-    border-bottom: 1px dotted var(--secondary-color-dimmer);
-  }
-  .prop-name {
-    font-family: var(--font-stack-bold);
-    color: var(--font-color);
-  }
-  .prop-type {
-    color: var(--primary-color);
-    margin-left: 0.5rem;
-    font-family: var(--font-stack);
-  }
-  .prop-desc {
-    color: var(--font-color-sub1);
-    margin-top: 0.2rem;
-  }
-  .required-badge {
-    color: var(--error-color);
-    font-family: var(--font-stack-bold);
-    margin-left: 0.5rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  .enum-values {
-    color: var(--font-color-sub2);
-    font-size: 0.85em;
-    margin-top: 0.15rem;
-  }
-  .enum-value {
-    color: var(--warn-400);
-    font-family: var(--font-stack);
-  }
-  .nested {
-    margin-left: 1rem;
-    border-left: 1px dashed var(--secondary-color-dimmer);
-  }
-  .items-label {
-    font-family: var(--font-stack);
-    font-size: 0.8em;
-    color: var(--font-color-sub2);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 0.3rem 0.75rem 0;
-  }
   /* ── Headers section ── */
   .headers-section {
     margin-top: 0.75rem;

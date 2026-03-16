@@ -1,9 +1,11 @@
-import {LitElement, html, nothing, TemplateResult} from 'lit';
+import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
 import operationResponsesCss from './operation-responses.css.js';
+import detailsCss from '../../styles/details.css.js';
 import '../shared/code-viewer.js';
-import {ComponentLinkData, deriveSchemaType} from '../../utils/schema.js';
+import '../shared/schema-properties.js';
+import {ComponentLinkData} from '../../utils/schema.js';
 
 interface MediaTypeData {
   mediaType: string;
@@ -39,20 +41,17 @@ interface ResponseData {
   sourceLine?: number;
 }
 
-/** Return the nested schema to recurse into, if any. */
-function getNestedSchema(prop: any): any | null {
-  if (!prop) return null;
-  if (prop.properties) return prop;
-  if (prop.type === 'array' && prop.items?.properties) return prop.items;
-  return null;
-}
-
 @customElement('pp-operation-responses')
 export class PpOperationResponses extends LitElement {
-  static styles = [sharedCss, operationResponsesCss];
+  static styles = [sharedCss, operationResponsesCss, detailsCss];
 
   @property({attribute: 'responses-json'}) responsesJson = '';
+  @property({attribute: 'common-headers-json'}) commonHeadersJson = '';
   @state() private responses: ResponseData[] = [];
+  @state() private commonResponseHeaders: HeaderData[] = [];
+  @state() private commonHeaderNames = new Set<string>();
+  @state() private commonErrorKeys = new Set<string>();
+  @state() private commonErrorResponses = new Map<string, { resp: ResponseData; codeDescs: Array<{code: string; description: string}> }>();
 
   willUpdate(changed: Map<string, unknown>) {
     if (changed.has('responsesJson') && this.responsesJson) {
@@ -61,54 +60,22 @@ export class PpOperationResponses extends LitElement {
       } catch {
         this.responses = [];
       }
+      const { commonNames } = this.computeCommonHeaders();
+      this.commonHeaderNames = commonNames;
+
+      const sorted = [...this.responses].sort((a, b) => parseInt(a.statusCode, 10) - parseInt(b.statusCode, 10));
+      const errors = sorted.filter(r => parseInt(r.statusCode, 10) >= 400);
+      const { commonKeys, commonResponses } = this.computeCommonErrors(errors);
+      this.commonErrorKeys = commonKeys;
+      this.commonErrorResponses = commonResponses;
     }
-  }
-
-  private renderProperty(name: string, prop: any, required: Set<string>, depth: number): TemplateResult {
-    const type = deriveSchemaType(prop);
-    const nested = getNestedSchema(prop);
-    const isArrayItems = prop?.type === 'array' && nested;
-
-    return html`
-      <div class="property">
-        <span class="prop-name">${name}</span>
-        ${type ? html`<span class="prop-type">${type}</span>` : nothing}
-        ${required.has(name)
-          ? html`<span class="required-badge">required</span>`
-          : nothing}
-        ${prop.description
-          ? html`<div class="prop-desc">${prop.description}</div>`
-          : nothing}
-        ${prop.enum
-          ? html`<div class="enum-values">Enum: ${prop.enum.map((v: string, i: number) => html`${i > 0 ? ', ' : ''}<span class="enum-value">${v}</span>`)}</div>`
-          : nothing}
-      </div>
-      ${nested && depth < 4
-        ? html`
-            <div class="nested">
-              ${isArrayItems ? html`<div class="items-label">items</div>` : nothing}
-              ${this.renderSchemaProperties(nested, depth + 1)}
-            </div>
-          `
-        : nothing}
-    `;
-  }
-
-  private renderSchemaProperties(schema: any, depth = 0) {
-    if (!schema) return nothing;
-
-    const properties = schema.properties || {};
-    const required = new Set<string>(schema.required || []);
-    const propEntries = Object.entries(properties);
-
-    if (!propEntries.length) {
-      const t = deriveSchemaType(schema);
-      return t ? html`<div class="schema-type">Type: ${t}</div>` : nothing;
+    if (changed.has('commonHeadersJson') && this.commonHeadersJson) {
+      try {
+        this.commonResponseHeaders = JSON.parse(this.commonHeadersJson);
+      } catch {
+        this.commonResponseHeaders = [];
+      }
     }
-
-    return propEntries.map(([name, prop]: [string, any]) =>
-      this.renderProperty(name, prop, required, depth)
-    );
   }
 
   private renderRefLink(ref: ComponentLinkData) {
@@ -148,6 +115,7 @@ export class PpOperationResponses extends LitElement {
           <span class="media-type-label">${mt.mediaType}</span>
           <span class="array-type">Array&lt;${this.renderRefLink(mt.itemsRef)}&gt;</span>
         </div>
+        ${mt.schemaJson ? html`<pp-schema-properties schema-json=${mt.schemaJson}></pp-schema-properties>` : nothing}
         ${this.renderInlineExamples(mt)}
       `;
     }
@@ -157,19 +125,14 @@ export class PpOperationResponses extends LitElement {
           <span class="media-type-label">${mt.mediaType}</span>
           ${this.renderRefLink(mt.schemaRef)}
         </div>
+        ${mt.schemaJson ? html`<pp-schema-properties schema-json=${mt.schemaJson}></pp-schema-properties>` : nothing}
         ${this.renderInlineExamples(mt)}
       `;
     }
     if (!mt.schemaJson) return nothing;
-    let schema: any;
-    try {
-      schema = JSON.parse(mt.schemaJson);
-    } catch {
-      return nothing;
-    }
     return html`
       <div class="media-type-label">${mt.mediaType}</div>
-      ${this.renderSchemaProperties(schema)}
+      <pp-schema-properties schema-json=${mt.schemaJson}></pp-schema-properties>
       ${this.renderInlineExamples(mt)}
     `;
   }
@@ -352,7 +315,7 @@ export class PpOperationResponses extends LitElement {
   ) {
     if (!commonResponses.size) return nothing;
     return html`
-      <h3 class="response-group-heading">Common Error Responses</h3>
+      <div class="response-group-heading">Common Error Responses</div>
       ${[...commonResponses.entries()].map(([key, { resp, codeDescs }]) => html`
         <div class="response common-error-response" id="common-error-${key}">
           <div class="common-error-grid">
@@ -372,7 +335,7 @@ export class PpOperationResponses extends LitElement {
 
   render() {
     if (!this.responses.length) return nothing;
-    const { commonNames } = this.computeCommonHeaders();
+    const commonNames = this.commonHeaderNames;
 
     const sorted = [...this.responses].sort((a, b) =>
       parseInt(a.statusCode, 10) - parseInt(b.statusCode, 10)
@@ -391,19 +354,33 @@ export class PpOperationResponses extends LitElement {
       }
     }
 
-    const { commonKeys, commonResponses } = this.computeCommonErrors(error);
+    const commonKeys = this.commonErrorKeys;
+    const commonResponses = this.commonErrorResponses;
+
+    const hasErrors = error.length > 0 || commonResponses.size > 0;
+    const hasRedirects = redirect.length > 0;
 
     return html`
       <h3>Responses</h3>
       ${success.map(r => this.renderResponse(r, commonNames))}
-      ${redirect.length ? html`
-        <h3 class="response-group-heading">Redirect Responses</h3>
-        ${redirect.map(r => this.renderResponse(r, commonNames))}
+      ${hasRedirects ? html`
+        <sl-details class="pp-details">
+          <span slot="summary" class="pp-details-summary">Redirect Responses</span>
+          ${redirect.map(r => this.renderResponse(r, commonNames))}
+        </sl-details>
       ` : nothing}
-      ${this.renderCommonErrors(commonResponses, commonNames)}
-      ${error.length ? html`
-        <h3 class="response-group-heading">Error Responses</h3>
-        ${error.map(r => this.renderResponse(r, commonNames, commonKeys))}
+      ${this.commonResponseHeaders.length ? html`
+        <sl-details class="pp-details">
+          <span slot="summary" class="pp-details-summary">Common Response Headers</span>
+          ${this.commonResponseHeaders.map(h => this.renderHeaderEntry(h))}
+        </sl-details>
+      ` : nothing}
+      ${hasErrors ? html`
+        <sl-details class="pp-details">
+          <span slot="summary" class="pp-details-summary">Error Responses</span>
+          ${this.renderCommonErrors(commonResponses, commonNames)}
+          ${error.map(r => this.renderResponse(r, commonNames, commonKeys))}
+        </sl-details>
       ` : nothing}
     `;
   }

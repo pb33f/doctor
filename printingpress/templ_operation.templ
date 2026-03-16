@@ -85,16 +85,21 @@ templ OperationPageTempl(page *OperationPage) {
 			</pp-raw-viewer-btn>
 		}
 		if page.ParametersJSON != "" {
-			<pp-operation-parameters parameters-json={ page.ParametersJSON }></pp-operation-parameters>
+			<sl-details class="pp-details">
+				<span slot="summary" class="pp-details-summary">Parameters</span>
+				<pp-operation-parameters parameters-json={ page.ParametersJSON }></pp-operation-parameters>
+			</sl-details>
 		}
 		if page.RequestBody != nil {
 			@RequestBodySection(page.RequestBody)
 		}
-		if page.CommonHeadersJSON != "" {
-			@CommonHeadersSection(page.CommonHeaders, page.CommonHeadersJSON)
-		}
 		if page.ResponsesJSON != "" {
-			<pp-operation-responses responses-json={ page.ResponsesJSON }></pp-operation-responses>
+			<pp-operation-responses
+				responses-json={ page.ResponsesJSON }
+				if page.CommonHeadersJSON != "" {
+					common-headers-json={ page.CommonHeadersJSON }
+				}>
+			</pp-operation-responses>
 		}
 	</div>
 }
@@ -130,6 +135,9 @@ templ RequestBodySection(rb *RequestBodyInfo) {
 							&#10140; { mt.SchemaRef.Name }
 						</a>
 					</div>
+					if mt.SchemaJSON != "" {
+						<pp-schema-properties schema-json={ mt.SchemaJSON }></pp-schema-properties>
+					}
 					if mt.MockJSON != "" || len(mt.Examples) > 0 {
 						@InlineExamples(mt)
 					}
@@ -162,7 +170,6 @@ templ InlineExamples(mt *MediaTypeInfo) {
 
 templ CommonHeadersSection(headers []*HeaderInfo, headersJSON string) {
 	<div class="pp-common-headers">
-		<h3>Common Response Headers</h3>
 		for _, h := range headers {
 			<div class="pp-common-header-entry" id={ "header-" + h.Name }>
 				if h.Ref != nil {
