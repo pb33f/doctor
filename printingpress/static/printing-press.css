@@ -200,6 +200,49 @@ main {
   padding: 0.25rem 0;
 }
 
+/* Operations cross-ref grid */
+.pp-ops-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 1rem;
+  align-items: center;
+}
+a.pp-ops-grid-path,
+a.pp-ops-grid-path:visited,
+a.pp-ops-grid-path:active {
+  color: var(--font-color);
+  text-decoration: none;
+  font-family: var(--font-stack);
+  font-size: 0.9rem;
+}
+a.pp-ops-grid-path:hover {
+  text-decoration: underline;
+}
+
+/* References grid */
+.pp-ref-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 1rem;
+  align-items: baseline;
+}
+.pp-ref-grid-type {
+  font-family: var(--font-stack);
+  font-size: 0.85rem;
+  color: var(--font-color-sub1);
+}
+.pp-ref-grid a.pp-ref-link,
+.pp-ref-grid a.pp-ref-link:visited,
+.pp-ref-grid a.pp-ref-link:active {
+  color: var(--terminal-text);
+  text-decoration: none;
+  font-family: var(--font-stack);
+  font-size: 0.9rem;
+}
+.pp-ref-grid a.pp-ref-link:hover {
+  text-decoration: underline;
+}
+
 /* Security section */
 .pp-security ul { list-style: none; }
 

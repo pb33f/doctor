@@ -78,16 +78,14 @@ templ CrossRefSection(refs *ModelCrossRefs) {
 		if len(refs.UsedByOperations) > 0 {
 			<div class="pp-used-by-ops">
 				<h3>Used by Operations</h3>
-				<ul>
+				<div class="pp-ops-grid">
 					for _, op := range refs.UsedByOperations {
-						<li>
-							<a href={ templ.SafeURL("operations/" + op.Slug + ".html") }>
-								<pb33f-http-method method={ op.Method }></pb33f-http-method>
-								{ op.Path }
-							</a>
-						</li>
+						<pb33f-http-method method={ op.Method } tiny></pb33f-http-method>
+						<a class="pp-ops-grid-path" href={ templ.SafeURL("operations/" + op.Slug + ".html") }>
+							<pb33f-render-operation-path path={ op.Path } nowrap></pb33f-render-operation-path>
+						</a>
 					}
-				</ul>
+				</div>
 			</div>
 		}
 		if len(refs.UsedByModels) > 0 {
@@ -108,16 +106,14 @@ templ CrossRefSection(refs *ModelCrossRefs) {
 		if len(refs.UsesModels) > 0 {
 			<div class="pp-uses-models">
 				<h3>References</h3>
-				<ul>
+				<div class="pp-ref-grid">
 					for _, comp := range refs.UsesModels {
-						<li>
-							<a href={ templ.SafeURL("models/" + comp.TypeSlug + "/" + comp.Slug + ".html") }>
-								{ comp.Name }
-							</a>
-							<span class="pp-component-type">{ comp.ComponentType }</span>
-						</li>
+						<span class="pp-ref-grid-type">{ comp.ComponentType }</span>
+						<a class="pp-ref-link" href={ templ.SafeURL("models/" + comp.TypeSlug + "/" + comp.Slug + ".html") }>
+							&#x279c; { comp.Name }
+						</a>
 					}
-				</ul>
+				</div>
 			</div>
 		}
 	</div>

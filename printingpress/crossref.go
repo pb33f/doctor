@@ -159,7 +159,8 @@ func (pp *PrintingPress) buildOperationCrossRefs(idx *CrossRefIndex, modelSlugLo
 	return result
 }
 
-// extractOperationModelRefs scans an operation's SchemaJSON fields for component $ref strings.
+// extractOperationModelRefs finds all component references in an operation by scanning
+// SchemaJSON content for $ref patterns AND checking explicit ComponentLink fields.
 func (pp *PrintingPress) extractOperationModelRefs(op *OperationPage, modelSlugLookup map[string]*ModelPage) []*ComponentRef {
 	seen := make(map[string]bool)
 	var refs []*ComponentRef
@@ -174,23 +175,49 @@ func (pp *PrintingPress) extractOperationModelRefs(op *OperationPage, modelSlugL
 		}
 	}
 
+	addLink := func(link *ComponentLink) {
+		if link == nil {
+			return
+		}
+		key := componentKey(link.ComponentType, link.Name)
+		if seen[key] {
+			return
+		}
+		if _, ok := modelSlugLookup[key]; ok {
+			seen[key] = true
+			refs = append(refs, &ComponentRef{
+				Name:          link.Name,
+				ComponentType: link.ComponentType,
+				TypeSlug:      link.TypeSlug,
+				Slug:          link.Slug,
+			})
+		}
+	}
+
 	// Scan request body
 	if op.RequestBody != nil {
+		addLink(op.RequestBody.Ref)
 		for _, mt := range op.RequestBody.Content {
 			addRef(mt.SchemaJSON)
+			addLink(mt.SchemaRef)
+			addLink(mt.ItemsRef)
 		}
 	}
 
 	// Scan responses
 	for _, resp := range op.Responses {
+		addLink(resp.Ref)
 		for _, mt := range resp.Content {
 			addRef(mt.SchemaJSON)
+			addLink(mt.SchemaRef)
+			addLink(mt.ItemsRef)
 		}
 	}
 
 	// Scan parameter schemas
 	for _, p := range op.Parameters {
 		addRef(p.SchemaJSON)
+		addLink(p.Ref)
 	}
 
 	return refs

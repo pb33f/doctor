@@ -25,3 +25,17 @@ const (
 	// this is a "sub 2" level grey (~60% opacity equivalent) for subtle dimming
 	Grey = "\033[38;5;240m"
 )
+
+// lipgloss-compatible color constants for use with lipgloss.Color().
+// these are the same ANSI 256 palette values as above, plus the pb33f brand colors.
+// use these across all pb33f tools for a consistent terminal color palette.
+const (
+	LipglossGreen  = "46"
+	LipglossYellow = "220"
+	LipglossRed    = "196"
+	LipglossGrey   = "240"
+
+	// pb33f brand colors (hex, for lipgloss true-color support)
+	LipglossPrimaryBlue   = "#62c4ff"
+	LipglossSecondaryPink = "#f83aff"
+)
