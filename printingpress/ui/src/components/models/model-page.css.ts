@@ -112,4 +112,14 @@ export default css`
   .example-external a:hover {
     text-decoration: underline;
   }
+  a.ref-type-link,
+  a.ref-type-link:visited,
+  a.ref-type-link:active {
+    color: var(--terminal-text);
+    text-decoration: none;
+    font-family: var(--font-stack);
+  }
+  a.ref-type-link:hover {
+    text-decoration: underline;
+  }
 `

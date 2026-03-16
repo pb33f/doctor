@@ -3,7 +3,7 @@ import {customElement, property, state} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
 import modelPageCss from './model-page.css.js';
 import '../shared/inline-code.js';
-import {deriveSchemaType} from '../../utils/schema.js';
+import {deriveSchemaType, resolveRefLink} from '../../utils/schema.js';
 
 @customElement('pp-model-page')
 export class PpModelPage extends LitElement {
@@ -61,6 +61,23 @@ export class PpModelPage extends LitElement {
 
   private renderType(prop: any) {
     if (!prop) return nothing;
+
+    // Array with $ref items: "Array<→Name>"
+    if (prop.type === 'array' && prop.items?.$ref) {
+      const link = resolveRefLink(prop.items.$ref);
+      if (link) {
+        return html`<span class="prop-type">Array&lt;<a class="ref-type-link" href="${link.href}">\u279c ${link.name}</a>&gt;</span>`;
+      }
+    }
+
+    // Direct $ref: "→Name"
+    if (prop.$ref) {
+      const link = resolveRefLink(prop.$ref);
+      if (link) {
+        return html`<span class="prop-type"><a class="ref-type-link" href="${link.href}">\u279c ${link.name}</a></span>`;
+      }
+    }
+
     const type = deriveSchemaType(prop);
     if (!type) return nothing;
     return html`<span class="prop-type">${type}</span>`;
@@ -104,8 +121,8 @@ export class PpModelPage extends LitElement {
         ${this.renderConstraints(schema)}
       </div>
       ${data.examples ? this.renderExampleObjects(data.examples) : nothing}
-      ${!data.examples && data.example !== undefined
-        ? html`<pp-inline-code raw-json=${JSON.stringify(data.example, null, 2)} title="Example"></pp-inline-code>`
+      ${!data.examples && (data.example !== undefined || schema.example !== undefined)
+        ? html`<pp-inline-code raw-json=${JSON.stringify(data.example ?? schema.example, null, 2)} title="Example"></pp-inline-code>`
         : nothing}
       ${Object.keys(schema).length
         ? html`<pp-inline-code

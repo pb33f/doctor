@@ -40,6 +40,17 @@ export class PpNavModelGroup extends LitElement {
         }
     }
 
+    protected updated(changed: Map<string, unknown>) {
+        if (changed.has('activeSlug') || changed.has('group')) {
+            if (this.open && this.activeSlug) {
+                requestAnimationFrame(() => {
+                    const active = this.renderRoot.querySelector('a.active');
+                    active?.scrollIntoView({block: 'center', behavior: 'smooth'});
+                });
+            }
+        }
+    }
+
     private toggle() {
         this.open = !this.open;
     }
