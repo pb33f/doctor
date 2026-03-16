@@ -540,31 +540,31 @@ func (pp *PrintingPress) collectComponents(comp *v3.Components) {
 		pp.collectSchemaComponents(comp.Schemas)
 	}
 	if comp.Responses != nil {
-		collectRenderable(pp, comp.Responses, "responses", "responses", descResponse, nil)
+		collectRenderable(pp, comp.Responses, "responses", "responses", descResponse, nil, nil)
 	}
 	if comp.Parameters != nil {
-		collectRenderable(pp, comp.Parameters, "parameters", "parameters", descParameter, schemaFromParameter)
+		collectRenderable(pp, comp.Parameters, "parameters", "parameters", descParameter, schemaFromParameter, examplesFromParameter)
 	}
 	if comp.Examples != nil {
-		collectRenderable(pp, comp.Examples, "examples", "examples", descExample, nil)
+		collectRenderable(pp, comp.Examples, "examples", "examples", descExample, nil, nil)
 	}
 	if comp.RequestBodies != nil {
-		collectRenderable(pp, comp.RequestBodies, "requestBodies", "request-bodies", descRequestBody, nil)
+		collectRenderable(pp, comp.RequestBodies, "requestBodies", "request-bodies", descRequestBody, nil, nil)
 	}
 	if comp.Headers != nil {
-		collectRenderable(pp, comp.Headers, "headers", "headers", descHeader, schemaFromHeader)
+		collectRenderable(pp, comp.Headers, "headers", "headers", descHeader, schemaFromHeader, examplesFromHeader)
 	}
 	if comp.SecuritySchemes != nil {
-		collectRenderable(pp, comp.SecuritySchemes, "securitySchemes", "security", descSecurityScheme, nil)
+		collectRenderable(pp, comp.SecuritySchemes, "securitySchemes", "security", descSecurityScheme, nil, nil)
 	}
 	if comp.Links != nil {
-		collectRenderable(pp, comp.Links, "links", "links", descLink, nil)
+		collectRenderable(pp, comp.Links, "links", "links", descLink, nil, nil)
 	}
 	if comp.Callbacks != nil {
-		collectRenderable(pp, comp.Callbacks, "callbacks", "callbacks", descNone[*v3.Callback], nil)
+		collectRenderable(pp, comp.Callbacks, "callbacks", "callbacks", descNone[*v3.Callback], nil, nil)
 	}
 	if comp.PathItems != nil {
-		collectRenderable(pp, comp.PathItems, "pathItems", "path-items", descPathItem, nil)
+		collectRenderable(pp, comp.PathItems, "pathItems", "path-items", descPathItem, nil, nil)
 	}
 }
 
@@ -686,6 +686,20 @@ func schemaFromHeader(v *v3.Header) valueRenderer {
 	return nil
 }
 
+func examplesFromParameter(v *v3.Parameter) examplesMap {
+	if v != nil && v.Examples != nil {
+		return v.Examples
+	}
+	return nil
+}
+
+func examplesFromHeader(v *v3.Header) examplesMap {
+	if v != nil && v.Examples != nil {
+		return v.Examples
+	}
+	return nil
+}
+
 // captureRawData calls Render() on renderable, populating rawYAML, schemaJSON, and
 // highlightedHTML progressively. If Render() fails, nothing is set. If yamlToJSON()
 // fails, only rawYAML is set (the drawer supports YAML-only display).
@@ -725,6 +739,9 @@ func getValueRenderer(drObj any) valueRenderer {
 	return nil
 }
 
+// examplesMap is the common ordered map type for named examples.
+type examplesMap = *orderedmap.Map[string, *v3.Example]
+
 // collectRenderable is a generic collector for component types with a .Value that has Render().
 func collectRenderable[V interface{ GetValue() any }](
 	pp *PrintingPress,
@@ -732,6 +749,7 @@ func collectRenderable[V interface{ GetValue() any }](
 	componentType, typeSlug string,
 	getDesc func(V) string,
 	getSchema func(V) valueRenderer,
+	getExamples func(V) examplesMap,
 ) {
 	for pair := m.First(); pair != nil; pair = pair.Next() {
 		name := pair.Key()
@@ -759,6 +777,29 @@ func collectRenderable[V interface{ GetValue() any }](
 			if sr := getSchema(val); sr != nil {
 				pp.captureRawData(sr, fmt.Sprintf("%s/%s/schema", componentType, name),
 					&page.SchemaRawYAML, &page.SchemaRawJSON, nil)
+			}
+		}
+
+		if getExamples != nil {
+			if examples := getExamples(val); examples != nil {
+				page.Examples = make(map[string]string)
+				for exPair := examples.First(); exPair != nil; exPair = exPair.Next() {
+					ex := exPair.Value()
+					if ex != nil && ex.Value != nil {
+						yamlBytes, err := ex.Value.Render()
+						if err == nil {
+							jsonStr, err := yamlToJSON(yamlBytes)
+							if err == nil {
+								page.Examples[exPair.Key()] = jsonStr
+							}
+						}
+					}
+				}
+				if len(page.Examples) > 0 {
+					page.ExamplesJSON = MustJSON(struct {
+						Examples map[string]string `json:"examples,omitempty"`
+					}{page.Examples})
+				}
 			}
 		}
 

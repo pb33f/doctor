@@ -30,10 +30,15 @@
 
 }
 
+/* Prevent body scroll — the split-panel content-panel owns scrolling */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
 /* Content */
 main {
   padding: 2rem 3rem;
-  max-width: 1000px;
 }
 
 /* Root / Hero */
@@ -83,17 +88,19 @@ main {
 }
 
 /* Operation page */
-.pp-operation-header {
+.pp-operation-path {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-.pp-path {
+  margin-bottom: 0.5rem;
   font-size: 1.1em;
-  font-family: var(--font-stack-bold);
-  word-break: break-all;
-  color: var(--font-color);
+  font-family: var(--font-stack);
+}
+.pp-operation-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0;
 }
 .pp-deprecated {
   font-size: 0.7em;

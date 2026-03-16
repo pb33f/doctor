@@ -31,7 +31,7 @@ export class PpLayout extends LitElement {
 
   render() {
     return html`
-      <pb33f-header name=${this.title} url="index.html" wide>
+      <pb33f-header name=${this.title} url="index.html" fluid>
         <div class="theme-controls">
             <pb33f-theme-switcher></pb33f-theme-switcher>
         </div>

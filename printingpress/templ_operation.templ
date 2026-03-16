@@ -42,16 +42,20 @@ templ headerConstraints(h *HeaderInfo) {
 
 templ OperationPageTempl(page *OperationPage) {
 	<div class="pp-operation">
-		<div class="pp-operation-header">
-			<pb33f-http-method method={ page.Method }></pb33f-http-method>
-			<code class="pp-path">{ page.Path }</code>
+		<div class="pp-operation-path">
+			<pb33f-render-operation-path path={ page.Path } nowrap></pb33f-render-operation-path>
 			if page.Deprecated {
 				<span class="pp-deprecated">Deprecated</span>
 			}
 		</div>
-		if page.Summary != "" {
-			<h2>{ page.Summary }</h2>
-		}
+		<h2 class="pp-operation-title">
+			<pb33f-http-method method={ page.Method }></pb33f-http-method>
+			if page.Summary != "" {
+				{ page.Summary }
+			} else {
+				{ page.Path }
+			}
+		</h2>
 		if page.OperationID != "" {
 			<div class="pp-operation-id">
 				<span class="pp-label">Operation ID:</span>

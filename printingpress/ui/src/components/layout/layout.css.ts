@@ -84,7 +84,5 @@ export default css`
     }
 
     .content-panel {
-        padding: 2rem 3rem;
-        max-width: 1000px;
     }
 `
