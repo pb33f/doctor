@@ -1,6 +1,6 @@
 package printingpress
 
-templ Head(title string, baseURL string) {
+templ Head(title string, baseURL string, extraCSS []string) {
 	<head>
 		<meta charset="UTF-8"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -15,6 +15,9 @@ templ Head(title string, baseURL string) {
 		<link rel="stylesheet" href="static/shoelace-dark.css"/>
 		<link rel="stylesheet" href="static/printing-press.css"/>
 		<link rel="stylesheet" href="static/chroma.css"/>
+		for _, css := range extraCSS {
+			<link rel="stylesheet" href={ css }/>
+		}
 		<script src="static/printing-press.js"></script>
 	</head>
 }

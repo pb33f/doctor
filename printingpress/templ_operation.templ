@@ -42,48 +42,56 @@ templ headerConstraints(h *HeaderInfo) {
 
 templ OperationPageTempl(page *OperationPage) {
 	<div class="pp-operation">
-		<div class="pp-operation-path">
-			<pb33f-render-operation-path path={ page.Path } nowrap></pb33f-render-operation-path>
-			if page.Deprecated {
-				<span class="pp-deprecated">Deprecated</span>
-			}
+	    <div class="title-section">
+
+            <div class="name-path-block">
+                if page.RawYAML != "" || page.SchemaJSON != "" {
+                      <pp-raw-viewer-btn
+                          class="raw-button"
+                          title={ page.Method + " " + page.Path }
+                          raw-json={ page.SchemaJSON }
+                          raw-yaml={ page.RawYAML }
+                          if page.SourceLine > 0 {
+                              start-line={ fmt.Sprintf("%d", page.SourceLine) }
+                          }>
+                      </pp-raw-viewer-btn>
+                  }
+
+                 <h1 class="pp-operation-title">
+                   if page.Summary != "" {
+                       { page.Summary }
+                   } else {
+                       { page.Path }
+                   }
+                </h1>
+                <div class="pp-operation-path">
+                   <pb33f-http-method method={ page.Method }></pb33f-http-method>
+                   <pb33f-render-operation-path path={ page.Path } nowrap></pb33f-render-operation-path>
+                </div>
+
+                if page.OperationID != "" {
+                    <div class="pp-operation-id">
+                        <span class="pp-label">Operation ID:</span>
+                        <code>{ page.OperationID }</code>
+
+                         if page.Deprecated {
+                            <span class="pp-deprecated">
+                            <sl-icon name="exclamation-triangle"></sl-icon>
+                            Deprecated</span>
+                         }
+
+                    </div>
+                }
+
+            </div>
 		</div>
-		<h2 class="pp-operation-title">
-			<pb33f-http-method method={ page.Method }></pb33f-http-method>
-			if page.Summary != "" {
-				{ page.Summary }
-			} else {
-				{ page.Path }
-			}
-		</h2>
-		if page.OperationID != "" {
-			<div class="pp-operation-id">
-				<span class="pp-label">Operation ID:</span>
-				<code>{ page.OperationID }</code>
-			</div>
-		}
+
 		if page.DescHTML != "" {
 			<div class="pp-description">
 				@templ.Raw(page.DescHTML)
 			</div>
 		}
-		if len(page.Tags) > 0 {
-			<div class="pp-tags">
-				for _, tag := range page.Tags {
-					<span class="pp-tag">{ tag }</span>
-				}
-			</div>
-		}
-		if page.RawYAML != "" || page.SchemaJSON != "" {
-			<pp-raw-viewer-btn
-				title={ page.Method + " " + page.Path }
-				raw-json={ page.SchemaJSON }
-				raw-yaml={ page.RawYAML }
-				if page.SourceLine > 0 {
-					start-line={ fmt.Sprintf("%d", page.SourceLine) }
-				}>
-			</pp-raw-viewer-btn>
-		}
+
 		if page.ParametersJSON != "" {
 			<sl-details class="pp-details">
 				<span slot="summary" class="pp-details-summary">Parameters</span>
@@ -106,9 +114,10 @@ templ OperationPageTempl(page *OperationPage) {
 
 templ RequestBodySection(rb *RequestBodyInfo) {
 	<div class="pp-request-body">
-		<h3>Request Body</h3>
+		<h3>Request Body
 		if rb.RawYAML != "" || rb.RawJSON != "" {
 			<pp-raw-viewer-btn
+			    class="raw-button"
 				title="Request Body"
 				raw-json={ rb.RawJSON }
 				raw-yaml={ rb.RawYAML }
@@ -117,6 +126,7 @@ templ RequestBodySection(rb *RequestBodyInfo) {
 				}>
 			</pp-raw-viewer-btn>
 		}
+		</h3>
 		if rb.Description != "" {
 			<p>{ rb.Description }</p>
 		}

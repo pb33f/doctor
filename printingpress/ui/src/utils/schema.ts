@@ -62,6 +62,33 @@ export function deriveSchemaTypeFromJson(schemaJson: string): string {
   }
 }
 
+export interface ConstraintPart {
+  label: string;
+  value: any;
+  isCode?: boolean;
+}
+
+export function collectConstraints(prop: any, opts?: {includeExample?: boolean}): ConstraintPart[] {
+  if (!prop) return [];
+  const parts: ConstraintPart[] = [];
+  if (opts?.includeExample) {
+    if (prop.example !== undefined) parts.push({label: 'example', value: JSON.stringify(prop.example)});
+    if (prop.default !== undefined) parts.push({label: 'default', value: JSON.stringify(prop.default)});
+  }
+  if (prop.minimum !== undefined) parts.push({label: 'min', value: prop.minimum});
+  if (prop.maximum !== undefined) parts.push({label: 'max', value: prop.maximum});
+  if (prop.exclusiveMinimum !== undefined) parts.push({label: 'exclusiveMin', value: prop.exclusiveMinimum});
+  if (prop.exclusiveMaximum !== undefined) parts.push({label: 'exclusiveMax', value: prop.exclusiveMaximum});
+  if (prop.minLength !== undefined) parts.push({label: 'minLength', value: prop.minLength});
+  if (prop.maxLength !== undefined) parts.push({label: 'maxLength', value: prop.maxLength});
+  if (prop.minItems !== undefined) parts.push({label: 'minItems', value: prop.minItems});
+  if (prop.maxItems !== undefined) parts.push({label: 'maxItems', value: prop.maxItems});
+  if (prop.uniqueItems) parts.push({label: 'uniqueItems', value: 'true'});
+  if (prop.pattern) parts.push({label: 'pattern', value: prop.pattern, isCode: true});
+  if (prop.multipleOf !== undefined) parts.push({label: 'multipleOf', value: prop.multipleOf});
+  return parts;
+}
+
 export function deriveSchemaType(schema: any): string {
   if (!schema) return '';
   if (schema.type === 'array' && schema.items) {

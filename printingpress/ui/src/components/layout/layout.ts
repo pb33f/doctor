@@ -1,13 +1,14 @@
 import {LitElement, html} from 'lit';
 import {customElement, state} from 'lit/decorators.js';
 import layoutCss from './layout.css.js';
+import sharedCss from "../../styles/shared.css";
 
 const SPLIT_POS_KEY = 'pp-split-position';
 const DEFAULT_POS = 20;
 
 @customElement('pp-layout')
 export class PpLayout extends LitElement {
-  static styles = layoutCss;
+  static styles = [layoutCss, sharedCss];
 
   @state() title = '';
   @state() private splitPos = DEFAULT_POS;

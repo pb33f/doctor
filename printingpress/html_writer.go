@@ -38,28 +38,39 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 		return fmt.Errorf("copying static assets: %w", err)
 	}
 
-	navJSON := MustJSON(site.NavTags)
-	modelsJSON := MustJSON(site.NavModelGroups)
-	specFormat := site.SpecFormat
 	title := ""
 	if site.Root != nil {
 		title = site.Root.Title
 	}
 
+	params := &pageParams{
+		SiteTitle:    title,
+		NavJSON:      MustJSON(site.NavTags),
+		ModelsJSON:   MustJSON(site.NavModelGroups),
+		RegistryJSON: MustJSON(site.SchemaRegistry),
+		SpecFormat:   site.SpecFormat,
+	}
+
 	// Write root page
 	if site.Root != nil {
+		p := *params
+		p.BaseURL = baseURL
+		p.ExtraCSS = []string{"static/printing-press-index.css"}
 		rootContent := RootPageTempl(site.Root)
-		if err := writeTemplPage(filepath.Join(outputDir, "index.html"), title, title, baseURL, navJSON, modelsJSON, "", specFormat, rootContent); err != nil {
+		if err := writeTemplPage(filepath.Join(outputDir, "index.html"), title, "", &p, rootContent); err != nil {
 			return fmt.Errorf("writing index.html: %w", err)
 		}
 	}
 
 	// Write operation pages (1 level deep: operations/)
 	for _, op := range site.Operations {
+		p := *params
+		p.BaseURL = resolveBase(baseURL, 1)
+		p.ExtraCSS = []string{"static/printing-press-operation.css"}
 		opContent := OperationPageTempl(op)
 		pageTitle := fmt.Sprintf("%s %s - %s", op.Method, op.Path, title)
 		path := filepath.Join(outputDir, "operations", op.Slug+".html")
-		if err := writeTemplPage(path, pageTitle, title, resolveBase(baseURL, 1), navJSON, modelsJSON, op.Slug, specFormat, opContent); err != nil {
+		if err := writeTemplPage(path, pageTitle, op.Slug, &p, opContent); err != nil {
 			return fmt.Errorf("writing operation %s: %w", op.Slug, err)
 		}
 	}
@@ -72,28 +83,39 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 			continue
 		}
 		for _, page := range pages {
+			p := *params
+			p.BaseURL = resolveBase(baseURL, 2)
+			p.ExtraCSS = []string{"static/printing-press-model.css"}
 			modelContent := ModelPageTempl(page)
 			pageTitle := fmt.Sprintf("%s - %s", page.Name, title)
 			path := filepath.Join(outputDir, "models", typeSlug, page.Slug+".html")
 			activeModelSlug := page.TypeSlug + "/" + page.Slug
-			if err := writeTemplPage(path, pageTitle, title, resolveBase(baseURL, 2), navJSON, modelsJSON, activeModelSlug, specFormat, modelContent); err != nil {
+			if err := writeTemplPage(path, pageTitle, activeModelSlug, &p, modelContent); err != nil {
 				return fmt.Errorf("writing model %s/%s: %w", typeSlug, page.Slug, err)
 			}
 		}
 	}
 
 	// Write models index page (1 level deep: models/)
-	indexContent := ModelsIndexTempl(site.Models)
-	if err := writeTemplPage(filepath.Join(outputDir, "models", "index.html"), "Models - "+title, title, resolveBase(baseURL, 1), navJSON, modelsJSON, "", specFormat, indexContent); err != nil {
-		return fmt.Errorf("writing models index: %w", err)
+	{
+		p := *params
+		p.BaseURL = resolveBase(baseURL, 1)
+		p.ExtraCSS = []string{"static/printing-press-index.css"}
+		indexContent := ModelsIndexTempl(site.Models)
+		if err := writeTemplPage(filepath.Join(outputDir, "models", "index.html"), "Models - "+title, "", &p, indexContent); err != nil {
+			return fmt.Errorf("writing models index: %w", err)
+		}
 	}
 
 	// Write webhook pages (1 level deep: operations/)
 	for _, wh := range site.Webhooks {
+		p := *params
+		p.BaseURL = resolveBase(baseURL, 1)
+		p.ExtraCSS = []string{"static/printing-press-operation.css"}
 		whContent := OperationPageTempl(wh)
 		pageTitle := fmt.Sprintf("Webhook: %s %s - %s", wh.Method, wh.Path, title)
 		path := filepath.Join(outputDir, "operations", wh.Slug+".html")
-		if err := writeTemplPage(path, pageTitle, title, resolveBase(baseURL, 1), navJSON, modelsJSON, wh.Slug, specFormat, whContent); err != nil {
+		if err := writeTemplPage(path, pageTitle, wh.Slug, &p, whContent); err != nil {
 			return fmt.Errorf("writing webhook %s: %w", wh.Slug, err)
 		}
 	}
@@ -101,14 +123,25 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 	return nil
 }
 
-func writeTemplPage(path, pageTitle, siteTitle, baseURL, navJSON, modelsJSON, activeSlug, specFormat string, content templ.Component) error {
+// pageParams holds the shared parameters for writing a templ page.
+type pageParams struct {
+	SiteTitle    string
+	BaseURL      string
+	NavJSON      string
+	ModelsJSON   string
+	SpecFormat   string
+	RegistryJSON string
+	ExtraCSS     []string
+}
+
+func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content templ.Component) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	layout := Layout(pageTitle, siteTitle, baseURL, navJSON, modelsJSON, activeSlug, specFormat, content)
+	layout := Layout(pageTitle, p.SiteTitle, p.BaseURL, p.NavJSON, p.ModelsJSON, activeSlug, p.SpecFormat, p.RegistryJSON, p.ExtraCSS, content)
 	return layout.Render(context.Background(), f)
 }
 
