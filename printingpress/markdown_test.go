@@ -22,3 +22,18 @@ func TestRenderMarkdown_GFM(t *testing.T) {
 	result := renderMarkdown(md)
 	assert.Contains(t, result, "<table>")
 }
+
+func TestRenderMarkdown_FencedCodeHighlighted(t *testing.T) {
+	md := "```json\n{\"key\": \"value\"}\n```"
+	result := renderMarkdown(md)
+	assert.Contains(t, result, `class="chroma"`)
+	assert.Contains(t, result, "<span")
+}
+
+func TestRenderMarkdown_FencedCodeUntagged(t *testing.T) {
+	md := "```\nplain text\n```"
+	result := renderMarkdown(md)
+	assert.Contains(t, result, "<pre")
+	assert.Contains(t, result, "<code>")
+	assert.NotContains(t, result, `class="chroma"`)
+}

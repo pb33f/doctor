@@ -1,0 +1,5 @@
+/* printing-press-model.css — per-view overrides for model detail pages.
+ * Loaded after printing-press.css, so rules here win in the cascade.
+ * Use this for model-specific tweaks to light-DOM elements,
+ * CSS custom properties, host selectors, and ::part() selectors.
+ */

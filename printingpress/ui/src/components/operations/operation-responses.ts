@@ -5,6 +5,7 @@ import operationResponsesCss from './operation-responses.css.js';
 import detailsCss from '../../styles/details.css.js';
 import '../shared/code-viewer.js';
 import '../shared/schema-properties.js';
+import '../shared/ref-popover.js';
 import {ComponentLinkData} from '../../utils/schema.js';
 
 interface MediaTypeData {
@@ -78,8 +79,10 @@ export class PpOperationResponses extends LitElement {
     }
   }
 
-  private renderRefLink(ref: ComponentLinkData) {
-    return html`<a class="ref-link" href="models/${ref.typeSlug}/${ref.slug}.html">\u279c ${ref.name}</a>`;
+  private renderRefLink(ref: ComponentLinkData, withPopover = false) {
+    const anchor = html`<a class="ref-link" href="models/${ref.typeSlug}/${ref.slug}.html">\u279c ${ref.name}</a>`;
+    if (!withPopover) return anchor;
+    return html`<pp-ref-popover registry-key="${ref.componentType}/${ref.name}">${anchor}</pp-ref-popover>`;
   }
 
   private renderInlineExamples(mt: MediaTypeData) {
@@ -108,6 +111,9 @@ export class PpOperationResponses extends LitElement {
     });
   }
 
+  // media-type refs intentionally use renderRefLink without popover — the schema
+  // is expanded inline below the link via <pp-schema-properties>, so a popover
+  // would duplicate the same content already visible on the page.
   private renderMediaType(mt: MediaTypeData) {
     if (mt.isArray && mt.itemsRef) {
       return html`
@@ -182,7 +188,7 @@ export class PpOperationResponses extends LitElement {
     return html`
       <div class="header-entry">
         ${h.ref
-          ? html`<a class="ref-link header-name" href="models/${h.ref.typeSlug}/${h.ref.slug}.html">\u279c ${h.name}</a>`
+          ? html`<pp-ref-popover registry-key="${h.ref.componentType}/${h.ref.name}"><a class="ref-link header-name" href="models/${h.ref.typeSlug}/${h.ref.slug}.html">\u279c ${h.name}</a></pp-ref-popover>`
           : html`<span class="header-name">${h.name}</span>`}
         ${h.schemaType ? html`<span class="header-type">${h.schemaType}</span>` : nothing}
         ${h.description ? html`<div class="header-desc">${h.description}</div>` : nothing}
@@ -280,12 +286,12 @@ export class PpOperationResponses extends LitElement {
         ${isCommonError
           ? html`
               <div class="common-error-link">
-                ${resp.ref ? this.renderRefLink(resp.ref) : nothing}
+                ${resp.ref ? this.renderRefLink(resp.ref, true) : nothing}
                 ${!resp.ref && resp.content?.length ? this.renderMediaTypeHeader(resp.content[0]) : nothing}
                 <a class="error-anchor" @click=${(e: Event) => { e.preventDefault(); this.scrollToCommonError(errorKey!); }}>\u2191 see common example</a>
               </div>`
           : resp.ref
-            ? this.renderRefLink(resp.ref)
+            ? this.renderRefLink(resp.ref, true)
             : resp.content?.map(mt => this.renderMediaType(mt)) ?? nothing}
         ${this.renderHeaders(resp.headers ?? [], commonNames)}
       </div>
@@ -325,7 +331,7 @@ export class PpOperationResponses extends LitElement {
             `)}
           </div>
           ${resp.ref
-            ? this.renderRefLink(resp.ref)
+            ? this.renderRefLink(resp.ref, true)
             : resp.content?.map(mt => this.renderMediaType(mt)) ?? nothing}
           ${this.renderHeaders(resp.headers ?? [], commonNames)}
         </div>

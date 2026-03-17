@@ -19,21 +19,13 @@ export default css`
     border: 0;
   }
 
-  code {
-    font-family: var(--font-stack, monospace);
-    background: var(--terminal-background, #000);
-    padding: 0.15em 0.4em;
-    border-radius: 0;
-    border: 1px solid var(--hrcolor, #3d3d3d);
-    color: var(--terminal-text, #00FF00);
-  }
-
+    
   a {
     color: var(--primary-color, rgba(98, 196, 255, 1.0));
     text-decoration: none;
   }
   a:hover {
     text-decoration: underline;
-    color: var(--primary-color, rgba(98, 196, 255, 1.0));
+    color: var(--primary-color);
   }
 `

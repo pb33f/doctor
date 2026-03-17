@@ -27,6 +27,7 @@ require (
 	github.com/pb33f/jsonpath v0.8.1 // indirect
 	github.com/pb33f/ordered-map/v2 v2.3.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

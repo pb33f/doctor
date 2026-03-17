@@ -4,7 +4,8 @@ import sharedCss from '../../styles/shared.css.js';
 import modelPageCss from './model-page.css.js';
 import '../shared/inline-code.js';
 import '../shared/schema-properties.js';
-import {deriveSchemaType, resolveRefLink} from '../../utils/schema.js';
+import '../shared/ref-popover.js';
+import {deriveSchemaType, resolveRefLink, collectConstraints} from '../../utils/schema.js';
 
 @customElement('pp-model-page')
 export class PpModelPage extends LitElement {
@@ -31,20 +32,7 @@ export class PpModelPage extends LitElement {
   }
 
   private renderConstraints(prop: any) {
-    const parts: Array<{label: string, value: any, isCode?: boolean}> = [];
-    if (prop.example !== undefined) parts.push({label: 'example', value: JSON.stringify(prop.example)});
-    if (prop.default !== undefined) parts.push({label: 'default', value: JSON.stringify(prop.default)});
-    if (prop.minimum !== undefined) parts.push({label: 'min', value: prop.minimum});
-    if (prop.maximum !== undefined) parts.push({label: 'max', value: prop.maximum});
-    if (prop.exclusiveMinimum !== undefined) parts.push({label: 'exclusiveMin', value: prop.exclusiveMinimum});
-    if (prop.exclusiveMaximum !== undefined) parts.push({label: 'exclusiveMax', value: prop.exclusiveMaximum});
-    if (prop.minLength !== undefined) parts.push({label: 'minLength', value: prop.minLength});
-    if (prop.maxLength !== undefined) parts.push({label: 'maxLength', value: prop.maxLength});
-    if (prop.minItems !== undefined) parts.push({label: 'minItems', value: prop.minItems});
-    if (prop.maxItems !== undefined) parts.push({label: 'maxItems', value: prop.maxItems});
-    if (prop.uniqueItems) parts.push({label: 'uniqueItems', value: 'true'});
-    if (prop.pattern) parts.push({label: 'pattern', value: prop.pattern, isCode: true});
-    if (prop.multipleOf !== undefined) parts.push({label: 'multipleOf', value: prop.multipleOf});
+    const parts = collectConstraints(prop, {includeExample: true});
     if (!parts.length && !prop.enum?.length) return nothing;
     return html`
       <div class="constraints">
@@ -67,7 +55,7 @@ export class PpModelPage extends LitElement {
     if (prop.type === 'array' && prop.items?.$ref) {
       const link = resolveRefLink(prop.items.$ref);
       if (link) {
-        return html`<span class="prop-type">Array&lt;<a class="ref-type-link" href="${link.href}">\u279c ${link.name}</a>&gt;</span>`;
+        return html`<span class="prop-type">Array&lt;<pp-ref-popover schema-ref="${prop.items.$ref}"><a class="ref-type-link" href="${link.href}">\u279c ${link.name}</a></pp-ref-popover>&gt;</span>`;
       }
     }
 
@@ -75,7 +63,7 @@ export class PpModelPage extends LitElement {
     if (prop.$ref) {
       const link = resolveRefLink(prop.$ref);
       if (link) {
-        return html`<span class="prop-type"><a class="ref-type-link" href="${link.href}">\u279c ${link.name}</a></span>`;
+        return html`<span class="prop-type"><pp-ref-popover schema-ref="${prop.$ref}"><a class="ref-type-link" href="${link.href}">\u279c ${link.name}</a></pp-ref-popover></span>`;
       }
     }
 

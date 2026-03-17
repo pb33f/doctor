@@ -2,7 +2,8 @@ import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
 import operationParametersCss from './operation-parameters.css.js';
-import {ComponentLinkData, deriveSchemaTypeFromJson, extractEnumValues} from '../../utils/schema.js';
+import {ComponentLinkData, deriveSchemaType, collectConstraints} from '../../utils/schema.js';
+import '../shared/ref-popover.js';
 
 interface ParameterData {
   name: string;
@@ -36,46 +37,76 @@ export class PpOperationParameters extends LitElement {
     }
   }
 
+  private renderConstraints(schema: any) {
+    if (!schema) return nothing;
+    const parts = collectConstraints(schema);
+    if (!parts.length && !schema.enum?.length) return nothing;
+    return html`
+      <div class="constraints">
+        ${parts.map(p => html`
+          <span class="constraint-label">${p.label}:</span>
+          <span class="constraint-value">${p.isCode ? html`<code>${p.value}</code>` : p.value}</span>
+        `)}
+        ${schema.enum?.length ? html`
+          <span class="constraint-label">enum:</span>
+          <span class="constraint-value">${schema.enum.map((v: any, i: number) => html`${i > 0 ? ', ' : ''}<span class="enum-value">${v}</span>`)}</span>
+        ` : nothing}
+      </div>
+    `;
+  }
+
+  private parseSchema(schemaJson: string): any {
+    if (!schemaJson) return null;
+    try { return JSON.parse(schemaJson); } catch { return null; }
+  }
+
   render() {
     if (!this.params.length) return nothing;
 
     return html`
       ${this.params.map(p => {
-        const type = deriveSchemaTypeFromJson(p.schemaJson);
-        const enumValues = extractEnumValues(p.schemaJson);
+        const schema = this.parseSchema(p.schemaJson);
+        const type = deriveSchemaType(schema);
         return html`
           <div class="parameter">
-            ${p.ref
-              ? html`<a class="ref-link param-name" href="models/${p.ref.typeSlug}/${p.ref.slug}.html">\u279c ${p.name}</a>`
-              : html`<span class="param-name">${p.name}</span>`}
-            ${type ? html`<span class="param-type">${type}</span>` : nothing}
-            <span class="param-in">${p.in}</span>
-            ${p.required
-              ? html`<span class="required-badge">required</span>`
-              : nothing}
-            ${p.deprecated
-              ? html`<span class="deprecated-badge">deprecated</span>`
-              : nothing}
-            ${p.description
-              ? html`<div class="param-desc">${p.description}</div>`
-              : nothing}
-            ${enumValues
-              ? html`<div class="enum-values">Enum: ${enumValues.map((v: string, i: number) => html`${i > 0 ? ', ' : ''}<span class="enum-value">${v}</span>`)}</div>`
-              : nothing}
-            ${!p.ref && (p.rawJson || p.rawYaml)
-              ? html`<pp-raw-viewer-btn
-                  title="${p.name} (${p.in})"
-                  raw-json=${p.rawJson || ''}
-                  raw-yaml=${p.rawYaml || ''}
-                  start-line=${p.sourceLine || 1}>
-                </pp-raw-viewer-btn>`
-              : nothing}
-            ${p.mockJson || (p.examples && Object.keys(p.examples).length > 0)
-              ? html`<pp-example-selector
-                  mock-json=${p.mockJson || ''}
-                  examples-json=${p.examples ? JSON.stringify(p.examples) : ''}>
-                </pp-example-selector>`
-              : nothing}
+            <div class="param-name-col">
+              ${p.ref
+                ? html`<pp-ref-popover registry-key="${p.ref.componentType}/${p.ref.name}"><a class="ref-link param-name" href="models/${p.ref.typeSlug}/${p.ref.slug}.html">\u279c ${p.name}</a></pp-ref-popover>`
+                : html`<span class="param-name">${p.name}</span>`}
+              ${p.required
+                ? html`<span class="required-badge">req</span>`
+                : nothing}
+              ${p.deprecated
+                ? html`<span class="deprecated-badge">deprecated</span>`
+                : nothing}
+            </div>
+            <div class="param-type-col">
+              ${type ? html`<span class="param-type">${type}</span>` : nothing}
+              <span class="param-in">${p.in}</span>
+              ${this.renderConstraints(schema)}
+            </div>
+            <div class="param-desc-col">
+              ${p.description || nothing}
+            </div>
+            ${(!p.ref && (p.rawJson || p.rawYaml)) || p.mockJson || (p.examples && Object.keys(p.examples).length > 0)
+              ? html`
+                <div class="param-extras">
+                  ${!p.ref && (p.rawJson || p.rawYaml)
+                    ? html`<pp-raw-viewer-btn
+                        title="${p.name} (${p.in})"
+                        raw-json=${p.rawJson || ''}
+                        raw-yaml=${p.rawYaml || ''}
+                        start-line=${p.sourceLine || 1}>
+                      </pp-raw-viewer-btn>`
+                    : nothing}
+                  ${p.mockJson || (p.examples && Object.keys(p.examples).length > 0)
+                    ? html`<pp-example-selector
+                        mock-json=${p.mockJson || ''}
+                        examples-json=${p.examples ? JSON.stringify(p.examples) : ''}>
+                      </pp-example-selector>`
+                    : nothing}
+                </div>
+              ` : nothing}
           </div>
         `;
       })}

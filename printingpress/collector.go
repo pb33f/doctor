@@ -125,6 +125,9 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 	// Build nav model groups from collected components
 	pp.buildNavModelGroups()
 
+	// Build schema registry for hover popovers
+	pp.buildSchemaRegistry()
+
 	// Visit paths to collect operations (can now resolve $refs to components)
 	if doc.Paths != nil {
 		pp.visitPaths(ctx, doc.Paths)
@@ -1015,6 +1018,27 @@ func computeSchemaStartLine(rawYAML string, origin *bundler.ComponentOrigin) int
 		}
 	}
 	return 1
+}
+
+// buildSchemaRegistry populates Site.SchemaRegistry from all collected model pages.
+func (pp *PrintingPress) buildSchemaRegistry() {
+	total := 0
+	for _, pages := range pp.site.Models {
+		total += len(pages)
+	}
+	registry := make(map[string]*SchemaRegistryEntry, total)
+	for _, pages := range pp.site.Models {
+		for _, page := range pages {
+			key := page.ComponentType + "/" + page.Name
+			registry[key] = &SchemaRegistryEntry{
+				Name:          page.Name,
+				ComponentType: page.ComponentType,
+				SchemaJSON:    page.SchemaJSON,
+				MockJSON:      page.MockJSON,
+			}
+		}
+	}
+	pp.site.SchemaRegistry = registry
 }
 
 func ptrBool(b *bool) bool {

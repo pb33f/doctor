@@ -36,9 +36,7 @@ export default css`
         
         color: var(--secondary-color);
         font-family: var(--font-stack), monospace;
-        padding: 2px var(--global-padding) 2px var(--global-padding);
-        font-size: 0.8rem;
-        border: 1px dotted var(--secondary-color-dimmer);
+        font-size: 0.9rem;
         white-space: nowrap;
     }
 
@@ -92,5 +90,39 @@ export default css`
 
     a.ref-type-link:hover {
         text-decoration: underline;
+    }
+
+    :host([compact]) .property {
+        grid-template-columns: 1fr 1fr;
+        padding: 8px 0.5rem;
+    }
+
+    :host([compact]) .prop-desc-col {
+        display: none;
+    }
+
+    .property.scalar {
+        grid-template-columns: auto 1fr;
+    }
+
+    :host([compact]) .property.scalar {
+        grid-template-columns: 1fr;
+    }
+
+    :host([compact]) .property.scalar .prop-type-col {
+        white-space: normal;
+    }
+
+    :host([compact]) .property.scalar .prop-desc-col {
+        display: block;
+    }
+
+    .property.scalar .constraints {
+        grid-template-columns: auto auto;
+        justify-content: start;
+    }
+
+    .property.scalar .constraint-label {
+        text-align: left;
     }
 `

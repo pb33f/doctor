@@ -46,11 +46,10 @@ export default css`
     padding: 0.5rem 0;
   }
   .media-type-label {
-    font-family: var(--font-stack-bold);
+    font-family: var(--font-stack-bold), monospace;
     color: var(--primary-color);
     text-transform: uppercase;
-    letter-spacing: 0.03em;
-    font-size: 0.85em;
+    letter-spacing: 0.05em;
   }
   .array-type {
     font-family: var(--font-stack);

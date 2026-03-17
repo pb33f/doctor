@@ -20,6 +20,15 @@ type Site struct {
 	NavModelGroups []*NavModelGroup
 	Warnings       []*BuildWarning
 	SpecFormat     string // "yaml" or "json" — the input spec format
+	SchemaRegistry map[string]*SchemaRegistryEntry `json:"-"` // keyed by "componentType/name"
+}
+
+// SchemaRegistryEntry holds the data needed for hover popovers on $ref links.
+type SchemaRegistryEntry struct {
+	Name          string `json:"name"`
+	ComponentType string `json:"componentType"`
+	SchemaJSON    string `json:"schemaJson"`
+	MockJSON      string `json:"mockJson,omitempty"`
 }
 
 // RootPage is the landing page data for the generated documentation.
