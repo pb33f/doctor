@@ -394,6 +394,7 @@ func (pp *PrintingPress) collectRequestBody(rb *v3.RequestBody) *RequestBodyInfo
 	val := rb.Value
 	rbi := &RequestBodyInfo{
 		Description: val.Description,
+		DescHTML:    renderMarkdown(val.Description),
 		Required:    ptrBool(val.Required),
 	}
 	pp.captureRawData(val, "requestBody", &rbi.RawYAML, &rbi.RawJSON, nil)
@@ -490,6 +491,7 @@ func (pp *PrintingPress) collectResponses(responses *v3.Responses) []*ResponseIn
 		ri := &ResponseInfo{
 			StatusCode:  code,
 			Description: resp.Value.Description,
+			DescHTML:    renderMarkdown(resp.Value.Description),
 		}
 		pp.captureRawData(resp.Value, code, &ri.RawYAML, &ri.RawJSON, nil)
 		if resp.ValueNode != nil {

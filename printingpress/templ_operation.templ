@@ -134,8 +134,10 @@ templ RequestBodySection(rb *RequestBodyInfo) {
 			</pp-raw-viewer-btn>
 		}
 		</h3>
-		if rb.Description != "" {
-			<p>{ rb.Description }</p>
+		if rb.DescHTML != "" {
+			<div class="pp-description">
+				@templ.Raw(rb.DescHTML)
+			</div>
 		}
 		if rb.Ref != nil {
 			<p>

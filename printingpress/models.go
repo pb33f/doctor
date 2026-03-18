@@ -161,6 +161,7 @@ type ParameterInfo struct {
 // RequestBodyInfo holds request body data.
 type RequestBodyInfo struct {
 	Description string
+	DescHTML    string
 	Required    bool
 	Content     []*MediaTypeInfo
 	Ref         *ComponentLink // set when the request body is a $ref
@@ -186,6 +187,7 @@ type MediaTypeInfo struct {
 type ResponseInfo struct {
 	StatusCode  string           `json:"statusCode"`
 	Description string           `json:"description"`
+	DescHTML    string           `json:"descHtml,omitempty"`
 	Content     []*MediaTypeInfo `json:"content,omitempty"`
 	Headers     []*HeaderInfo    `json:"headers,omitempty"`
 	Ref         *ComponentLink   `json:"ref,omitempty"`

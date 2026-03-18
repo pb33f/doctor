@@ -195,4 +195,8 @@ export default css`
     .common-error-desc {
         color: var(--font-color-sub1);
     }
+
+    pp-raw-viewer-btn {
+        float: right;
+    }
 `
