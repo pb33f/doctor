@@ -415,6 +415,12 @@ func (pp *PrintingPress) collectMediaType(mediaTypeName string, mt *v3.MediaType
 				if sch.Items.A.IsReference() {
 					mti.ItemsRef = pp.resolveComponentLink(sch.Items.A.GetReference())
 				}
+				// Resolve items schema so the UI can render its properties
+				if itemsSch := sch.Items.A.Schema(); itemsSch != nil {
+					if itemsJSON, err := itemsSch.MarshalJSON(); err == nil {
+						mti.ItemsSchemaJSON = string(itemsJSON)
+					}
+				}
 			}
 			jsonStr, err := sch.MarshalJSON()
 			if err == nil {

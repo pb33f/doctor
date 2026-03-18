@@ -45,8 +45,8 @@ templ NavTagItem(tag *NavTag) {
 				for _, op := range tag.Operations {
 					<li>
 						<a href={ templ.SafeURL("operations/" + op.Slug + ".html") }>
-							<pb33f-http-method method={ op.Method }></pb33f-http-method>
 							<span class="pp-nav-path">{ op.Path }</span>
+							<pb33f-http-method mode="nav-naked" method={ op.Method }></pb33f-http-method>
 						</a>
 					</li>
 				}

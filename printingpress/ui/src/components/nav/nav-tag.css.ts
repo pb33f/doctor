@@ -65,8 +65,7 @@ export default css`
 
     li a {
         display: flex;
-        min-height: 22px; 
-        align-items: flex-start;
+        align-items: baseline;
         gap: 0.4rem;
         padding: 0.2rem 0.4rem;
         border-radius: 0;
@@ -89,7 +88,8 @@ export default css`
     }
     
     .op-title {
-        padding-top: 3px; 
+        flex: 1;
+        min-width: 0;
         max-width: var(--nav-op-max-width);
         font-family: var(--font-stack), monospace;
         font-size: var(--smaller-font);

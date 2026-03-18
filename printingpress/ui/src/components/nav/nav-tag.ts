@@ -70,9 +70,9 @@ export class PpNavTag extends LitElement {
                                                     (op) => html`
                                                         <li>
                                                             <a href="operations/${op.slug}.html" class="${op.deprecated ? 'deprecated' : ''} ${op.slug === activeSlug ? 'active' : ''}">
-                                                                <pb33f-http-method tiny
-                                                                        method=${op.method}></pb33f-http-method>
                                                                 <span class="op-title">${op.summary || op.path}</span>
+                                                                <pb33f-http-method mode="nav-naked"
+                                                                        method=${op.method}></pb33f-http-method>
                                                             </a>
                                                         </li>
                                                     `

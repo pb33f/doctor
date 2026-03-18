@@ -16,6 +16,7 @@ interface MediaTypeData {
   schemaRef?: ComponentLinkData;
   isArray?: boolean;
   itemsRef?: ComponentLinkData;
+  itemsSchemaJson?: string;
 }
 
 interface HeaderData {
@@ -93,7 +94,7 @@ export class PpOperationResponses extends LitElement {
       }
     }
     if (mt.mockJson) {
-      entries.push({key: 'Generated Example', json: mt.mockJson});
+      entries.push({key: 'Example', json: mt.mockJson});
     }
     if (!entries.length) return nothing;
     return entries.map(entry => {
@@ -116,12 +117,13 @@ export class PpOperationResponses extends LitElement {
   // would duplicate the same content already visible on the page.
   private renderMediaType(mt: MediaTypeData) {
     if (mt.isArray && mt.itemsRef) {
+      const propsJson = mt.itemsSchemaJson || mt.schemaJson;
       return html`
         <div class="media-type-ref">
           <span class="media-type-label">${mt.mediaType}</span>
           <span class="array-type">Array&lt;${this.renderRefLink(mt.itemsRef)}&gt;</span>
         </div>
-        ${mt.schemaJson ? html`<pp-schema-properties schema-json=${mt.schemaJson}></pp-schema-properties>` : nothing}
+        ${propsJson ? html`<pp-schema-properties schema-json=${propsJson}></pp-schema-properties>` : nothing}
         ${this.renderInlineExamples(mt)}
       `;
     }
