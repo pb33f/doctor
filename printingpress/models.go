@@ -177,6 +177,7 @@ type MediaTypeInfo struct {
 	SchemaRef             *ComponentLink    `json:"schemaRef,omitempty"`
 	IsArray               bool              `json:"isArray,omitempty"`
 	ItemsRef              *ComponentLink    `json:"itemsRef,omitempty"`
+	ItemsSchemaJSON       string            `json:"itemsSchemaJson,omitempty"`
 }
 
 // ResponseInfo holds a single response entry.

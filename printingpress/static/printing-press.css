@@ -16,7 +16,7 @@
     --pp-post: rgba(98, 196, 255, 1.0);
     --pp-put: rgba(98, 196, 255, 0.7);
     --pp-delete: #ff3c74;
-    --pp-patch: #ffd500;
+    --pp-patch: rgba(98, 196, 255, 1.0);
     --pp-options: #585858;
     --pp-head: #585858;
     --pp-trace: #585858;
@@ -413,12 +413,13 @@ gap: 0.25rem 1rem;
 
 /* Inline examples (templ-rendered) */
 .pp-inline-example {
-    margin-top: 0.5rem;
+    margin-top: var(--global-padding-double);
+    margin-bottom: var(--global-padding-double);
 }
 
 .pp-inline-example-label {
-    font-family: var(--font-stack);
-    color: var(--font-color-sub2);
+    font-family: var(--font-stack), monospace;
+    color: var(--font-color-sub1);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 0.25rem;
@@ -430,7 +431,7 @@ a.pp-ref-link:visited,
 a.pp-ref-link:active {
     color: var(--terminal-text);
     text-decoration: none;
-    font-family: var(--font-stack);
+    font-family: var(--font-stack), monospace;
 }
 
 a.pp-ref-link:hover {
@@ -601,6 +602,19 @@ span.pp-common-header-name {
     color: var(--warn-400);
 }
 
+/* Templ server-rendered nav */
+.pp-nav-operations li a {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+}
+
+.pp-nav-path {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+
 /* Method badge (fallback for when JS hasn't loaded) */
 pb33f-http-method:not(:defined) {
     display: inline-block;
@@ -612,5 +626,13 @@ pb33f-http-method:not(:defined) {
     font-family: var(--font-stack-bold);
     background: var(--background-color);
     border: 1px solid var(--hrcolor);
+}
+
+pb33f-http-method[mode="nav-naked"]:not(:defined) {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 0.7rem;
+    color: var(--font-color-sub1);
 }
 
