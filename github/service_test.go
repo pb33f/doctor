@@ -52,6 +52,30 @@ func TestCreateSessionWithConfig(t *testing.T) {
 	assert.Equal(t, 10*time.Second, session.Config.Timeout)
 }
 
+func TestCreateAnonymousSession(t *testing.T) {
+	service := NewGitHubService()
+	session := service.CreateAnonymousSession(nil)
+
+	assert.NotNil(t, session)
+	assert.Empty(t, session.Token)
+	assert.NotNil(t, session.Client)
+	assert.NotNil(t, session.Metadata)
+	assert.NotNil(t, session.Config)
+	assert.True(t, session.IsActive())
+}
+
+func TestCreateSessionWithOptionalToken(t *testing.T) {
+	service := NewGitHubService()
+
+	authenticated := service.CreateSessionWithOptionalToken("test-token-1234567890", nil)
+	assert.NotNil(t, authenticated)
+	assert.Equal(t, "test-token-1234567890", authenticated.Token)
+
+	anonymous := service.CreateSessionWithOptionalToken("", nil)
+	assert.NotNil(t, anonymous)
+	assert.Empty(t, anonymous.Token)
+}
+
 func TestSessionInitialization(t *testing.T) {
 	// Create a mock HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

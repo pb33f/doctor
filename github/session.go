@@ -76,6 +76,42 @@ type GitHubSession struct {
 	channels *EventChannels
 }
 
+func newSessionHTTPClient(config *SessionConfig) *http.Client {
+	if config != nil && config.CustomHTTPClient != nil {
+		return config.CustomHTTPClient
+	}
+	if config != nil && config.Timeout > 0 {
+		return &http.Client{Timeout: config.Timeout}
+	}
+	return &http.Client{}
+}
+
+func newGitHubSession(token string, config *SessionConfig, client *github.Client) *GitHubSession {
+	if config == nil {
+		config = DefaultSessionConfig()
+	}
+	if client == nil {
+		client = github.NewClient(newSessionHTTPClient(config))
+	}
+
+	return &GitHubSession{
+		ID:     uuid.New().String(),
+		Token:  token,
+		Client: client,
+		Metadata: &SessionMetadata{
+			Scopes:       []string{},
+			CreatedAt:    time.Now(),
+			LastActivity: time.Now(),
+			RequestCount: 0,
+			ErrorCount:   0,
+			Custom:       make(map[string]interface{}),
+		},
+		Config:   config,
+		active:   true,
+		channels: config.EventChannels,
+	}
+}
+
 // NewGitHubSession creates a new authenticated GitHub session with security validation.
 // Validates token format, creates GitHub client, and initializes session metadata.
 // Returns nil if token validation fails. Use Initialize() to fetch user information.
@@ -104,34 +140,17 @@ func NewGitHubSession(token string, config *SessionConfig) *GitHubSession {
 		config = DefaultSessionConfig()
 	}
 
-	sessionID := uuid.New().String()
+	return newGitHubSession(token, config, github.NewClient(newSessionHTTPClient(config)).WithAuthToken(token))
+}
 
-	// Create HTTP client with token
-	var client *github.Client
-	if config.CustomHTTPClient != nil {
-		client = github.NewClient(config.CustomHTTPClient).WithAuthToken(token)
-	} else {
-		client = github.NewClient(nil).WithAuthToken(token)
+// NewAnonymousGitHubSession creates a new unauthenticated GitHub session suitable
+// for public repository access. The session is active and validated like an
+// authenticated session, but carries no token and uses an anonymous GitHub client.
+func NewAnonymousGitHubSession(config *SessionConfig) *GitHubSession {
+	if config == nil {
+		config = DefaultSessionConfig()
 	}
-
-	session := &GitHubSession{
-		ID:     sessionID,
-		Token:  token,
-		Client: client,
-		Metadata: &SessionMetadata{
-			Scopes:       []string{},
-			CreatedAt:    time.Now(),
-			LastActivity: time.Now(),
-			RequestCount: 0,
-			ErrorCount:   0,
-			Custom:       make(map[string]interface{}),
-		},
-		Config:   config,
-		active:   true,
-		channels: config.EventChannels,
-	}
-
-	return session
+	return newGitHubSession("", config, github.NewClient(newSessionHTTPClient(config)))
 }
 
 // Initialize fetches the authenticated user's information from GitHub and validates

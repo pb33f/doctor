@@ -9,6 +9,8 @@ package github
 type GitHubService interface {
 	// Session management
 	CreateSession(token string, config *SessionConfig) *GitHubSession
+	CreateAnonymousSession(config *SessionConfig) *GitHubSession
+	CreateSessionWithOptionalToken(token string, config *SessionConfig) *GitHubSession
 
 	// Authentication operations
 	AuthenticationService
@@ -24,6 +26,9 @@ type GitHubService interface {
 
 	// File operations
 	FileService
+
+	// File history operations
+	FileHistoryService
 
 	// Pull request operations
 	PullRequestService
@@ -91,4 +96,19 @@ func (s *gitHubService) CreateSession(token string, config *SessionConfig) *GitH
 		return concreteSession
 	}
 	return nil
+}
+
+// CreateAnonymousSession creates a new unauthenticated GitHub session suitable
+// for public repository access.
+func (s *gitHubService) CreateAnonymousSession(config *SessionConfig) *GitHubSession {
+	return NewAnonymousGitHubSession(config)
+}
+
+// CreateSessionWithOptionalToken creates an authenticated session when a token is
+// available, and otherwise falls back to an anonymous public-access session.
+func (s *gitHubService) CreateSessionWithOptionalToken(token string, config *SessionConfig) *GitHubSession {
+	if token == "" {
+		return s.CreateAnonymousSession(config)
+	}
+	return s.CreateSession(token, config)
 }
