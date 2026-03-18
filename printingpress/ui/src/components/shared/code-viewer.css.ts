@@ -14,7 +14,8 @@ export default css`
         border-left: 5px solid var(--secondary-color);
         border-top: 1px dashed var(--secondary-color-dimmer);
         border-bottom: 1px dashed var(--secondary-color-dimmer);
-        background: var(--background-color);
+        background-color: var(--background-color);
+        background-image: linear-gradient(to right, var(--chroma-gradient-start), var(--background-color));
         color: var(--font-color);
         font-family: var(--font-stack), monospace;
         line-height: 1.5;

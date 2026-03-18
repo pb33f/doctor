@@ -508,3 +508,67 @@ func TestComputeCommonHeaders_PreservesFirstOccurrenceData(t *testing.T) {
 	assert.Equal(t, "First desc", common[0].Description)
 	assert.Equal(t, ref, common[0].Ref)
 }
+
+func TestCollectExtensions_PreservesOrder(t *testing.T) {
+	spec := `openapi: "3.1.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /test:
+    get:
+      operationId: testOp
+      summary: Test
+      x-beta: true
+      x-sunset-date: "2026-06-01"
+      x-rate-limit:
+        requests: 120
+        window: 60s
+      responses:
+        '200':
+          description: OK
+`
+	site := pressFromSpec(t, spec)
+	require.Len(t, site.Operations, 1)
+	op := site.Operations[0]
+
+	require.Len(t, op.Extensions, 3)
+	assert.Equal(t, "beta", op.Extensions[0].Key)
+	assert.Equal(t, true, op.Extensions[0].Value)
+	assert.Equal(t, "sunset-date", op.Extensions[1].Key)
+	assert.Equal(t, "2026-06-01", op.Extensions[1].Value)
+	assert.Equal(t, "rate-limit", op.Extensions[2].Key)
+	// Object value decoded as map
+	rateLimit, ok := op.Extensions[2].Value.(map[string]any)
+	require.True(t, ok)
+	assert.EqualValues(t, 120, rateLimit["requests"])
+
+	// ExtensionsJSON should be non-empty
+	assert.NotEmpty(t, op.ExtensionsJSON)
+	assert.Contains(t, op.ExtensionsJSON, "beta")
+}
+
+func TestCollectExtensions_NoExtensions(t *testing.T) {
+	spec := `openapi: "3.1.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /test:
+    get:
+      operationId: testOp
+      summary: Test
+      responses:
+        '200':
+          description: OK
+`
+	site := pressFromSpec(t, spec)
+	require.Len(t, site.Operations, 1)
+	assert.Nil(t, site.Operations[0].Extensions)
+	assert.Empty(t, site.Operations[0].ExtensionsJSON)
+}
+
+func TestCollectExtensions_NilMap(t *testing.T) {
+	result := collectExtensions(nil)
+	assert.Nil(t, result)
+}

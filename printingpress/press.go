@@ -28,11 +28,12 @@ type PrintingPressConfig struct {
 
 // PrintingPress generates static HTML documentation from a DrDocument.
 type PrintingPress struct {
-	config   *PrintingPressConfig
-	slugs    *SlugRegistry
-	site     *Site
-	mockGen  *renderer.MockGenerator
-	warnings []*BuildWarning
+	config     *PrintingPressConfig
+	slugs      *SlugRegistry
+	site       *Site
+	mockGen    *renderer.MockGenerator
+	warnings   []*BuildWarning
+	modelIndex map[string]*ModelPage // keyed by "typeSlug/name" for O(1) ref resolution
 }
 
 // New creates a new PrintingPress with the given configuration.

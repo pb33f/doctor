@@ -3,55 +3,46 @@ import {css} from "lit";
 export default css`
     :host {
         display: block;
-        margin-top: 1.5rem;
+        margin-top: var(--global-padding-double);
     }
 
-    h3 {
-        margin-bottom: 0.5rem;
-        color: var(--secondary-color);
-        font-family: var(--font-stack-bold);
+    h2 {
+        border-bottom: 1px dashed var(--hrcolor);
+        font-family: var(--font-stack), monospace;
+        padding-bottom: var(--global-padding-double);
+        margin-top: 80px;
         text-transform: uppercase;
         letter-spacing: 0.05em;
+    }
+    
+    h3 {
+        margin-bottom: 40px;
+        font-family: var(--font-stack), monospace;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 1.6rem;
+        margin-top: 0;
     }
 
     .response {
         margin-bottom: 1.5rem;
-        border: 1px dashed var(--hrcolor);
+        border: 1px dashed var(--secondary-color-dimmer);
         border-radius: 0;
         padding: 1rem;
-        background: rgba(35, 35, 35, 0.2);
     }
-
-    h4 {
-        margin: 0 0 0.5rem 0;
-    }
-
+    
     .status-code {
-        font-family: var(--font-stack-bold);
-        font-weight: 700;
-        margin-right: 0.5em;
+        font-family: var(--font-stack-bold), monospace;
+        margin-right: var(--global-padding-double);
         color: var(--primary-color);
     }
 
-    a.ref-link,
-    a.ref-link:hover {
-        color: var(--terminal-text);
-        font-family: var(--font-stack);
-    }
-
-    a.ref-link {
-        text-decoration: none;
-    }
-
-    a.ref-link:hover {
-        text-decoration: underline;
-    }
-
     .media-type-ref {
+        margin-top: 40px;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 0;
+        gap: var(--global-padding-double);
+        padding: var(--global-padding-double) 0;
     }
 
     .media-type-label {
@@ -107,30 +98,6 @@ export default css`
         color: var(--font-color-sub1);
         margin-top: 0.2rem;
         font-size: 0.9em;
-    }
-
-    /* ── Header constraints ── */
-
-    .header-constraints {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 0.1rem 0.75rem;
-        margin-top: 0.3rem;
-        font-size: 0.85em;
-        font-family: var(--font-stack);
-    }
-
-    .constraint-label {
-        color: var(--font-color-sub2);
-        text-align: right;
-    }
-
-    .constraint-value {
-        color: var(--font-color-sub1);
-    }
-
-    .constraint-value code {
-        color: var(--warn-400);
     }
 
     /* ── Common header grid ── */
@@ -201,7 +168,7 @@ export default css`
     .error-anchor {
         color: var(--primary-color);
         text-decoration: none;
-        font-family: var(--font-stack);
+        font-family: var(--font-stack), monospace;
         cursor: pointer;
         font-size: 0.85em;
     }

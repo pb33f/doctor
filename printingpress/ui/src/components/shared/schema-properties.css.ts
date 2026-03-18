@@ -9,7 +9,7 @@ export default css`
         display: grid;
         grid-template-columns: 200px 200px 1fr;
         gap: 0 1rem;
-        padding: 15px 0.75rem;
+        padding: 15px var(--global-padding);
         border-bottom: 1px dotted var(--secondary-color-dimmer);
     }
 
@@ -24,19 +24,16 @@ export default css`
 
     .prop-desc-col {
         color: var(--font-color-sub1);
-        padding-top: 0.15rem;
     }
 
     .prop-name {
-        font-family: var(--font-stack-bold);
+        font-family: var(--font-stack-bold), monospace;
         color: var(--font-color);
     }
 
     .prop-type {
-        
-        color: var(--secondary-color);
+        color: var(--primary-color);
         font-family: var(--font-stack), monospace;
-        font-size: 0.9rem;
         white-space: nowrap;
     }
 
@@ -46,38 +43,13 @@ export default css`
 
     .required-badge {
         color: var(--error-color);
-        font-family: var(--font-stack-bold);
-        margin-left: 0.25rem;
+        border: 1px solid var(--error-color-dimmed);
+        background-color: var(--error-color-verylowalpha);
+        padding: 0 var(--global-padding);
+        font-family: var(--font-stack-bold), monospace;
+        margin-left: var(--global-padding);
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        font-size: 0.8em;
-    }
-
-    .constraints {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 0.1rem 0.75rem;
-        margin-top: 0.3rem;
-        font-size: 0.85em;
-        font-family: var(--font-stack);
-    }
-
-    .constraint-label {
-        color: var(--font-color-sub2);
-        text-align: right;
-    }
-
-    .constraint-value {
-        color: var(--font-color-sub1);
-    }
-
-    .constraint-value code {
-        color: var(--warn-400);
-    }
-
-    .enum-value {
-        color: var(--warn-400);
-        font-family: var(--font-stack);
     }
 
     a.ref-type-link,

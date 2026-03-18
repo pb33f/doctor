@@ -1,6 +1,7 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
+import constraintsCss from '../../styles/constraints.css.js';
 import modelPageCss from './model-page.css.js';
 import '../shared/inline-code.js';
 import '../shared/schema-properties.js';
@@ -9,7 +10,7 @@ import {deriveSchemaType, resolveRefLink, collectConstraints} from '../../utils/
 
 @customElement('pp-model-page')
 export class PpModelPage extends LitElement {
-  static styles = [sharedCss, modelPageCss];
+  static styles = [sharedCss, constraintsCss, modelPageCss];
 
   @property({attribute: 'model-json'}) modelJson = '';
   @property() name = '';
