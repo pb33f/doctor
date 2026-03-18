@@ -167,6 +167,25 @@ type FileContent struct {
 	URL         string `json:"url"`
 }
 
+// FileRevision represents the contents of a file at a specific commit.
+// Used for building a file's revision history across GitHub commits.
+type FileRevision struct {
+	Commit    Commit `json:"commit"`
+	FileBytes []byte `json:"-"`
+}
+
+// FileHistoryOptions controls retrieval of a file's revision history.
+// LimitDays is expressed in whole days to match user-facing history filters.
+type FileHistoryOptions struct {
+	BaseCommit      string `json:"base_commit,omitempty"`
+	Limit           int    `json:"limit,omitempty"`
+	LimitDays       *int   `json:"limit_days,omitempty"`
+	ForceCutoff     bool   `json:"force_cutoff,omitempty"`
+	SizeThresholdKB int    `json:"size_threshold_kb,omitempty"`
+	MaxDownloadSize int64  `json:"max_download_size,omitempty"`
+	MaxWorkers      int    `json:"max_workers,omitempty"`
+}
+
 // Tag represents a Git tag in a GitHub repository.
 // Provides access to tagged commit and downloadable archives.
 type Tag struct {
