@@ -1,4 +1,5 @@
 import {LitElement, html, nothing} from 'lit';
+import {unsafeHTML} from 'lit/directives/unsafe-html.js';
 import {customElement, property, state} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
 import constraintsCss from '../../styles/constraints.css.js';
@@ -38,6 +39,7 @@ interface HeaderData {
 interface ResponseData {
     statusCode: string;
     description: string;
+    descHtml?: string;
     content?: MediaTypeData[];
     headers?: HeaderData[];
     ref?: ComponentLinkData;
@@ -324,19 +326,18 @@ export class PpOperationResponses extends LitElement {
 
         return html`
             <div class="response">
-                    <h3><span class="status-code">${resp.statusCode}</span> ${HTTP_STATUS_TEXT[resp.statusCode] || ''}</h3>
-                    
-                    ${resp.description}
-                    ${resp.rawJson || resp.rawYaml
-                            ? html`
+                    <h3><span class="status-code">${resp.statusCode}</span> ${HTTP_STATUS_TEXT[resp.statusCode] || ''}
+                        ${resp.rawJson || resp.rawYaml
+                                ? html`
                                 <pp-raw-viewer-btn
                                         title="Response ${resp.statusCode}"
                                         raw-json=${resp.rawJson || ''}
                                         raw-yaml=${resp.rawYaml || ''}
                                         start-line=${resp.sourceLine || 1}>
                                 </pp-raw-viewer-btn>`
-                            : nothing}
-             
+                                : nothing}
+                    </h3>
+                    ${resp.descHtml ? html`<div class="response-desc">${unsafeHTML(resp.descHtml)}</div>` : nothing}
                 ${isCommonError
                         ? html`
                             <div class="common-error-link">
