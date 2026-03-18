@@ -92,6 +92,7 @@ templ OperationPageTempl(page *OperationPage) {
 			</div>
 		}
 
+
 		if page.ParametersJSON != "" {
 			<sl-details class="pp-details">
 				<span slot="summary" class="pp-details-summary">Parameters</span>
@@ -109,6 +110,12 @@ templ OperationPageTempl(page *OperationPage) {
 				}>
 			</pp-operation-responses>
 		}
+		if page.ExtensionsJSON != "" {
+            <sl-details class="pp-details">
+                <span slot="summary" class="pp-details-summary">Extensions</span>
+                <pp-extensions extensions-json={ page.ExtensionsJSON }></pp-extensions>
+            </sl-details>
+        }
 	</div>
 }
 

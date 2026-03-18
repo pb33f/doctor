@@ -129,9 +129,8 @@ sl-details.pp-details::part(base) {
 }
 
 sl-details.pp-details::part(header) {
-    padding: 0.6rem 1rem;
-    font-family: var(--font-stack-bold);
-    color: var(--secondary-color);
+    padding: var(--global-padding-double);
+    font-family: var(--font-stack-bold), monospace;
 }
 
 sl-details.pp-details::part(summary-icon) {
@@ -147,7 +146,6 @@ sl-details.pp-details::part(content) {
     font-size: 1.2rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--secondary-color);
 }
 
 /* Operation page */

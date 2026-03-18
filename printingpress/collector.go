@@ -42,17 +42,30 @@ func (pp *PrintingPress) resolveComponentLink(ref string) *ComponentLink {
 	if !ok {
 		return nil
 	}
-	for _, page := range pp.site.Models[typeSlug] {
-		if page.Name == name {
-			return &ComponentLink{
-				Name:          name,
-				ComponentType: segment,
-				TypeSlug:      typeSlug,
-				Slug:          page.Slug,
-			}
+	page, ok := pp.modelIndex[typeSlug+"/"+name]
+	if !ok {
+		return nil
+	}
+	return &ComponentLink{
+		Name:          name,
+		ComponentType: segment,
+		TypeSlug:      typeSlug,
+		Slug:          page.Slug,
+	}
+}
+
+// buildModelIndex creates an O(1) lookup map from "typeSlug/name" to ModelPage.
+func (pp *PrintingPress) buildModelIndex() {
+	total := 0
+	for _, pages := range pp.site.Models {
+		total += len(pages)
+	}
+	pp.modelIndex = make(map[string]*ModelPage, total)
+	for typeSlug, pages := range pp.site.Models {
+		for _, page := range pages {
+			pp.modelIndex[typeSlug+"/"+page.Name] = page
 		}
 	}
-	return nil
 }
 
 // visitDocument collects all top-level document data: info, tags, servers, components, webhooks.
@@ -121,6 +134,9 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 	if doc.Components != nil {
 		pp.collectComponents(doc.Components)
 	}
+
+	// Build model index for O(1) ref resolution
+	pp.buildModelIndex()
 
 	// Build nav model groups from collected components
 	pp.buildNavModelGroups()
@@ -296,6 +312,12 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 			URL:         op.ExternalDocs.Value.URL,
 			Description: op.ExternalDocs.Value.Description,
 		}
+	}
+
+	// Extensions
+	page.Extensions = collectExtensions(val.Extensions)
+	if page.Extensions != nil {
+		page.ExtensionsJSON = MustJSON(page.Extensions)
 	}
 
 	// Serialize full operation to YAML + JSON for cowboy-components and raw viewer
@@ -822,43 +844,18 @@ func collectRenderable[V interface{ GetValue() any }](
 	}
 }
 
-// collectWebhooks collects webhook path items as operations.
+// collectWebhooks collects webhook path items as operations, reusing collectOperation
+// for feature parity (extensions, parameters, responses, etc.) then moving results
+// from site.Operations to site.Webhooks.
 func (pp *PrintingPress) collectWebhooks(webhooks *orderedmap.Map[string, *v3.PathItem]) {
+	before := len(pp.site.Operations)
 	for pair := webhooks.First(); pair != nil; pair = pair.Next() {
-		name := pair.Key()
 		pi := pair.Value()
-		ops := pi.GetOperations()
-		for opPair := ops.First(); opPair != nil; opPair = opPair.Next() {
-			method := opPair.Key()
-			op := opPair.Value()
-			if op == nil || op.Value == nil {
-				continue
-			}
-			val := op.Value
-			preferred := sanitizeSlug(fmt.Sprintf("webhook-%s-%s", name, method))
-			slug := pp.slugs.Register("webhooks", preferred)
-
-			page := &OperationPage{
-				Method:      strings.ToUpper(method),
-				Path:        name,
-				OperationID: val.OperationId,
-				Summary:     val.Summary,
-				Description: val.Description,
-				DescHTML:    renderMarkdown(val.Description),
-				Deprecated:  ptrBool(val.Deprecated),
-				Slug:        slug,
-			}
-
-			for _, t := range val.Tags {
-				page.Tags = append(page.Tags, t)
-			}
-
-			pp.captureRawData(val, fmt.Sprintf("webhook %s %s", name, method),
-				&page.RawYAML, &page.SchemaJSON, &page.SchemaHighlightedHTML)
-
-			pp.site.Webhooks = append(pp.site.Webhooks, page)
-		}
+		pp.collectPathItemOperations(pair.Key(), pi)
 	}
+	// Move newly added operations to Webhooks
+	pp.site.Webhooks = append(pp.site.Webhooks, pp.site.Operations[before:]...)
+	pp.site.Operations = pp.site.Operations[:before]
 }
 
 // assignOperationsToTags distributes operations into the NavTag tree by matching tag names.
@@ -1045,6 +1042,29 @@ func (pp *PrintingPress) buildSchemaRegistry() {
 		}
 	}
 	pp.site.SchemaRegistry = registry
+}
+
+// collectExtensions converts an orderedmap of extension yaml.Nodes to an ordered slice.
+// Returns nil when there are no extensions (so omitempty works).
+// The "x-" prefix is stripped from keys for cleaner documentation display.
+func collectExtensions(extensions *orderedmap.Map[string, *yaml.Node]) []*ExtensionEntry {
+	if extensions == nil || extensions.Len() == 0 {
+		return nil
+	}
+	result := make([]*ExtensionEntry, 0, extensions.Len())
+	for pair := extensions.First(); pair != nil; pair = pair.Next() {
+		if pair.Value() == nil {
+			continue
+		}
+		var decoded any
+		if err := pair.Value().Decode(&decoded); err == nil {
+			result = append(result, &ExtensionEntry{
+				Key:   strings.TrimPrefix(pair.Key(), "x-"),
+				Value: decoded,
+			})
+		}
+	}
+	return result
 }
 
 func ptrBool(b *bool) bool {

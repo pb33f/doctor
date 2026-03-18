@@ -127,6 +127,8 @@ type OperationPage struct {
 	Security               []map[string][]string
 	Servers                []*ServerInfo
 	ExternalDoc            *ExternalDocInfo
+	Extensions             []*ExtensionEntry `json:"extensions,omitempty"`
+	ExtensionsJSON         string            `json:"-"` // pre-serialized for Lit component
 	Callbacks              map[string]string // callback name → JSON
 	SchemaJSON             string            // full operation rendered as JSON for cowboy-components
 	SchemaHighlightedHTML  string            `json:"-"` // chroma output, templ only
@@ -255,6 +257,12 @@ type ComponentLink struct {
 	ComponentType string `json:"componentType"` // ref segment e.g. "responses"
 	TypeSlug      string `json:"typeSlug"`      // URL segment e.g. "responses", "request-bodies"
 	Slug          string `json:"slug"`          // URL-safe slug for the model page
+}
+
+// ExtensionEntry holds a single x-* extension key-value pair, preserving spec order.
+type ExtensionEntry struct {
+	Key   string `json:"key"`
+	Value any    `json:"value"`
 }
 
 // BuildWarning records a non-fatal issue encountered during documentation generation.
