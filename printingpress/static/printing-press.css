@@ -120,6 +120,7 @@ code {
 /* Collapsible details sections */
 sl-details.pp-details {
     margin-top: 40px;
+    position: relative;
 }
 
 sl-details.pp-details::part(base) {

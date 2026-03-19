@@ -13,6 +13,7 @@ import '../shared/ref-popover.js';
 import {ComponentLinkData} from '../../utils/schema.js';
 import {HTTP_STATUS_TEXT, statusColorClass} from '../../utils/http.js';
 import {renderConstraints} from '../../utils/render-helpers.js';
+import '../shared/extensions.js';
 
 interface MediaTypeData {
     mediaType: string;
@@ -23,6 +24,7 @@ interface MediaTypeData {
     isArray?: boolean;
     itemsRef?: ComponentLinkData;
     itemsSchemaJson?: string;
+    extensions?: Array<{key: string; value: any}>;
 }
 
 interface HeaderData {
@@ -36,6 +38,7 @@ interface HeaderData {
     default?: string;
     enum?: string[];
     pattern?: string;
+    extensions?: Array<{key: string; value: any}>;
 }
 
 interface ResponseData {
@@ -48,6 +51,7 @@ interface ResponseData {
     rawJson?: string;
     rawYaml?: string;
     sourceLine?: number;
+    extensions?: Array<{key: string; value: any}>;
 }
 
 @customElement('pp-operation-responses')
@@ -159,6 +163,11 @@ export class PpOperationResponses extends LitElement {
                 ${propsJson ? html`
                     <pp-schema-properties schema-json=${propsJson}></pp-schema-properties>` : nothing}
                 ${this.renderInlineExamples(mt)}
+                ${mt.extensions?.length ? html`
+                    <div class="media-type-extensions">
+                        <h4>${mt.mediaType} Response Extensions</h4>
+                        <pp-extensions extensions-json=${JSON.stringify(mt.extensions)}></pp-extensions>
+                    </div>` : nothing}
             `;
         }
         if (mt.schemaRef) {
@@ -170,6 +179,11 @@ export class PpOperationResponses extends LitElement {
                 ${mt.schemaJson ? html`
                     <pp-schema-properties schema-json=${mt.schemaJson}></pp-schema-properties>` : nothing}
                 ${this.renderInlineExamples(mt)}
+                ${mt.extensions?.length ? html`
+                    <div class="media-type-extensions">
+                        <h4>${mt.mediaType} Response Extensions</h4>
+                        <pp-extensions extensions-json=${JSON.stringify(mt.extensions)}></pp-extensions>
+                    </div>` : nothing}
             `;
         }
         if (!mt.schemaJson) return nothing;
@@ -177,6 +191,11 @@ export class PpOperationResponses extends LitElement {
             <div class="media-type-label">${mt.mediaType}</div>
             <pp-schema-properties schema-json=${mt.schemaJson}></pp-schema-properties>
             ${this.renderInlineExamples(mt)}
+            ${mt.extensions?.length ? html`
+                <div class="media-type-extensions">
+                    <h4>${mt.mediaType} Response Extensions</h4>
+                    <pp-extensions extensions-json=${JSON.stringify(mt.extensions)}></pp-extensions>
+                </div>` : nothing}
         `;
     }
 
@@ -224,6 +243,22 @@ export class PpOperationResponses extends LitElement {
                     ${h.description || nothing}
                 </div>
             </div>
+            ${h.extensions?.length ? html`
+                <div class="header-entry header-entry-extensions">
+                    <div class="header-name-col">
+                        &nbsp;    
+                    </div>
+                    <div class="header-type-col">
+                        &nbsp;
+                    </div>
+                    <div class="header-desc-col">
+                        <div class="header-extensions">
+                            <h4>${h.name} Header Extensions</h4>
+                            <pp-extensions extensions-json=${JSON.stringify(h.extensions)}></pp-extensions>
+                        </div>
+                    </div>
+                </div>    
+            ` : nothing}
         `;
     }
 
@@ -234,7 +269,7 @@ export class PpOperationResponses extends LitElement {
         if (!unique.length && !common.length) return nothing;
         return html`
             <div class="headers-section">
-                <div class="headers-label">Response Headers</div>
+                <h4 class="headers-label">Response Headers</h4>
                     ${unique.length ? html`
                         <div class="headers-values">
                             ${unique.map(h => this.renderHeaderEntry(h))}
@@ -324,6 +359,7 @@ export class PpOperationResponses extends LitElement {
                                 : nothing}
                     </h3>
                     ${resp.descHtml ? html`<div class="response-desc">${unsafeHTML(resp.descHtml)}</div>` : nothing}
+              
                 ${isCommonError
                         ? html`
                             <div class="common-error-link">
@@ -338,6 +374,11 @@ export class PpOperationResponses extends LitElement {
                                 ? this.renderRefLink(resp.ref, true)
                                 : resp.content?.map(mt => this.renderMediaType(mt)) ?? nothing}
                 ${this.renderHeaders(resp.headers ?? [], commonNames)}
+                ${resp.extensions?.length ? html`
+                    <div class="response-extensions">
+                        <h4>Response ${resp.statusCode} Extensions</h4>
+                        <pp-extensions extensions-json=${JSON.stringify(resp.extensions)}></pp-extensions>
+                    </div>` : nothing}
             </div>
         `;
     }

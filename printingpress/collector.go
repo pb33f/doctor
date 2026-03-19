@@ -320,6 +320,14 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 		page.ExtensionsJSON = MustJSON(page.Extensions)
 	}
 
+	// Path item extensions
+	if pi != nil && pi.Value != nil {
+		page.PathExtensions = collectExtensions(pi.Value.Extensions)
+		if page.PathExtensions != nil {
+			page.PathExtensionsJSON = MustJSON(page.PathExtensions)
+		}
+	}
+
 	// Serialize full operation to YAML + JSON for cowboy-components and raw viewer
 	pp.captureRawData(val, fmt.Sprintf("%s %s", method, path),
 		&page.RawYAML, &page.SchemaJSON, &page.SchemaHighlightedHTML)
@@ -382,6 +390,7 @@ func (pp *PrintingPress) collectParameters(params []*v3.Parameter) []*ParameterI
 				}
 			}
 		}
+		pi.Extensions = collectExtensions(p.Value.Extensions)
 		result = append(result, pi)
 	}
 	return result
@@ -400,6 +409,10 @@ func (pp *PrintingPress) collectRequestBody(rb *v3.RequestBody) *RequestBodyInfo
 	pp.captureRawData(val, "requestBody", &rbi.RawYAML, &rbi.RawJSON, nil)
 	if rb.ValueNode != nil {
 		rbi.SourceLine = rb.ValueNode.Line
+	}
+	rbi.Extensions = collectExtensions(val.Extensions)
+	if rbi.Extensions != nil {
+		rbi.ExtensionsJSON = MustJSON(rbi.Extensions)
 	}
 	if val.IsReference() {
 		if link := pp.resolveComponentLink(val.GetReference()); link != nil {
@@ -474,6 +487,7 @@ func (pp *PrintingPress) collectMediaType(mediaTypeName string, mt *v3.MediaType
 	if isComplexSchemaJSON(mti.SchemaJSON) {
 		mti.MockJSON = pp.generateMock(mt.Value)
 	}
+	mti.Extensions = collectExtensions(mt.Value.Extensions)
 	return mti
 }
 
@@ -497,6 +511,7 @@ func (pp *PrintingPress) collectResponses(responses *v3.Responses) []*ResponseIn
 		if resp.ValueNode != nil {
 			ri.SourceLine = resp.ValueNode.Line
 		}
+		ri.Extensions = collectExtensions(resp.Value.Extensions)
 		if resp.Value.IsReference() {
 			if link := pp.resolveComponentLink(resp.Value.GetReference()); link != nil {
 				ri.Ref = link
@@ -559,7 +574,8 @@ func (pp *PrintingPress) collectResponses(responses *v3.Responses) []*ResponseIn
 						}
 					}
 				}
-				ri.Headers = append(ri.Headers, hi)
+				hi.Extensions = collectExtensions(h.Value.Extensions)
+			ri.Headers = append(ri.Headers, hi)
 			}
 		}
 		result = append(result, ri)

@@ -9,7 +9,7 @@ export default css`
 
     pre {
         margin: 0;
-        padding: var(--global-padding-double);
+        padding: var(--global-padding-double) var(--global-padding-double) var(--global-padding-double) 20px;
         overflow-x: auto;
         border-left: 5px solid var(--secondary-color);
         border-top: 1px dashed var(--secondary-color-dimmer);
