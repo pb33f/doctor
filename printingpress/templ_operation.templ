@@ -91,14 +91,6 @@ templ OperationPageTempl(page *OperationPage) {
 				@templ.Raw(page.DescHTML)
 			</div>
 		}
-
-
-		if page.ParametersJSON != "" {
-			<sl-details class="pp-details">
-				<span slot="summary" class="pp-details-summary">Parameters</span>
-				<pp-operation-parameters parameters-json={ page.ParametersJSON }></pp-operation-parameters>
-			</sl-details>
-		}
 		if page.RequestBody != nil {
 			@RequestBodySection(page.RequestBody)
 		}
@@ -110,9 +102,15 @@ templ OperationPageTempl(page *OperationPage) {
 				}>
 			</pp-operation-responses>
 		}
+		if page.ParametersJSON != "" {
+			<sl-details class="pp-details">
+				<span slot="summary" class="pp-details-summary"><h3>Parameters</h3></span>
+				<pp-operation-parameters parameters-json={ page.ParametersJSON }></pp-operation-parameters>
+			</sl-details>
+		}
 		if page.ExtensionsJSON != "" {
             <sl-details class="pp-details">
-                <span slot="summary" class="pp-details-summary">Extensions</span>
+                <span slot="summary" class="pp-details-summary"><h3>Operation Extensions</h3></span>
                 <pp-extensions extensions-json={ page.ExtensionsJSON }></pp-extensions>
             </sl-details>
         }

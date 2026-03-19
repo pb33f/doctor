@@ -4,7 +4,8 @@ import sharedCss from '../../styles/shared.css.js';
 import constraintsCss from '../../styles/constraints.css.js';
 import refLinkCss from '../../styles/ref-link.css.js';
 import operationParametersCss from './operation-parameters.css.js';
-import {ComponentLinkData, deriveSchemaType, collectConstraints} from '../../utils/schema.js';
+import {ComponentLinkData, deriveSchemaType} from '../../utils/schema.js';
+import {renderConstraints} from '../../utils/render-helpers.js';
 import '../shared/ref-popover.js';
 
 interface ParameterData {
@@ -39,23 +40,6 @@ export class PpOperationParameters extends LitElement {
     }
   }
 
-  private renderConstraints(schema: any) {
-    if (!schema) return nothing;
-    const parts = collectConstraints(schema);
-    if (!parts.length && !schema.enum?.length) return nothing;
-    return html`
-      <div class="constraints">
-        ${parts.map(p => html`
-          <span class="constraint-label">${p.label}:</span>
-          <span class="constraint-value">${p.isCode ? html`<code>${p.value}</code>` : p.value}</span>
-        `)}
-        ${schema.enum?.length ? html`
-          <span class="constraint-label">enum:</span>
-          <span class="constraint-value">${schema.enum.map((v: any, i: number) => html`${i > 0 ? ', ' : ''}<span class="enum-value">${v}</span>`)}</span>
-        ` : nothing}
-      </div>
-    `;
-  }
 
   private inIcon(location: string): string {
     switch (location) {
@@ -98,7 +82,7 @@ export class PpOperationParameters extends LitElement {
                 </div>
                 <div class="param-type-col">
                     ${type ? html`<span class="param-type">${type}</span>` : nothing}
-                    ${this.renderConstraints(schema)}
+                    ${renderConstraints(schema, {labelSuffix: ':'})}
                 </div>
                 <div class="param-in-col">
                     <sl-icon class="param-in-icon" name="${this.inIcon(p.in)}"></sl-icon>
