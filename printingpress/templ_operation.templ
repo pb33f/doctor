@@ -120,6 +120,12 @@ templ OperationPageTempl(page *OperationPage) {
                 <pp-extensions extensions-json={ page.PathExtensionsJSON }></pp-extensions>
             </sl-details>
         }
+		if page.CallbacksJSON != "" {
+			<sl-details class="pp-details">
+				<span slot="summary" class="pp-details-summary"><h3>Callbacks</h3></span>
+				<pp-operation-callbacks callbacks-json={ page.CallbacksJSON }></pp-operation-callbacks>
+			</sl-details>
+		}
 	</div>
 }
 

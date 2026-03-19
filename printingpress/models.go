@@ -15,9 +15,10 @@ type Site struct {
 	Root           *RootPage
 	Operations     []*OperationPage
 	Models         map[string][]*ModelPage // keyed by component type slug (e.g. "schemas")
-	Webhooks []*OperationPage
+	Webhooks       []*OperationPage
 	NavTags        []*NavTag
 	NavModelGroups []*NavModelGroup
+	NavWebhooks    []*NavOperation `json:"-"` // webhook nav entries
 	Warnings       []*BuildWarning
 	SpecFormat     string // "yaml" or "json" — the input spec format
 	SchemaRegistry map[string]*SchemaRegistryEntry `json:"-"` // keyed by "componentType/name"
@@ -44,6 +45,7 @@ type RootPage struct {
 	ExternalDoc        *ExternalDocInfo
 	TagTree            []*NavTag
 	UntaggedOperations []*NavOperation
+	Webhooks           []*NavOperation
 	Warnings           []*BuildWarning
 }
 
@@ -131,7 +133,8 @@ type OperationPage struct {
 	ExtensionsJSON         string            `json:"-"` // pre-serialized for Lit component
 	PathExtensions         []*ExtensionEntry `json:"pathExtensions,omitempty"`
 	PathExtensionsJSON     string            `json:"-"`
-	Callbacks              map[string]string // callback name → JSON
+	Callbacks              []*CallbackInfo `json:"callbacks,omitempty"`
+	CallbacksJSON          string          `json:"-"` // pre-serialized for Lit component
 	SchemaJSON             string            // full operation rendered as JSON for cowboy-components
 	SchemaHighlightedHTML  string            `json:"-"` // chroma output, templ only
 	RawYAML                string            `json:"-"` // re-rendered YAML from Render(), for raw viewer
@@ -196,11 +199,39 @@ type ResponseInfo struct {
 	DescHTML    string           `json:"descHtml,omitempty"`
 	Content     []*MediaTypeInfo `json:"content,omitempty"`
 	Headers     []*HeaderInfo    `json:"headers,omitempty"`
+	Links       []*LinkInfo      `json:"links,omitempty"`
 	Ref         *ComponentLink   `json:"ref,omitempty"`
 	RawJSON     string           `json:"rawJson,omitempty"`
 	RawYAML     string           `json:"rawYaml,omitempty"`
 	SourceLine  int              `json:"sourceLine,omitempty"`
 	Extensions  []*ExtensionEntry `json:"extensions,omitempty"`
+}
+
+// LinkInfo holds a single response link entry.
+type LinkInfo struct {
+	Name          string         `json:"name"`
+	OperationId   string         `json:"operationId,omitempty"`
+	OperationSlug string         `json:"operationSlug,omitempty"`
+	OperationRef  string         `json:"operationRef,omitempty"`
+	Description   string         `json:"description,omitempty"`
+	Ref           *ComponentLink `json:"ref,omitempty"`
+}
+
+// CallbackInfo holds a single named callback with its expression operations.
+type CallbackInfo struct {
+	Name       string                   `json:"name"`
+	Ref        *ComponentLink           `json:"ref,omitempty"`
+	Operations []*CallbackOperationInfo `json:"operations"`
+}
+
+// CallbackOperationInfo holds one operation within a callback expression.
+type CallbackOperationInfo struct {
+	Expression  string           `json:"expression"`
+	Method      string           `json:"method"`
+	Description string           `json:"description,omitempty"`
+	DescHTML    string           `json:"descHtml,omitempty"`
+	RequestBody *RequestBodyInfo `json:"requestBody,omitempty"`
+	Responses   []*ResponseInfo  `json:"responses,omitempty"`
 }
 
 // HeaderInfo holds a single response header entry.

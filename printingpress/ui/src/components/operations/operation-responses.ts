@@ -41,12 +41,22 @@ interface HeaderData {
     extensions?: Array<{key: string; value: any}>;
 }
 
+interface LinkData {
+    name: string;
+    operationId?: string;
+    operationSlug?: string;
+    operationRef?: string;
+    description?: string;
+    ref?: ComponentLinkData;
+}
+
 interface ResponseData {
     statusCode: string;
     description: string;
     descHtml?: string;
     content?: MediaTypeData[];
     headers?: HeaderData[];
+    links?: LinkData[];
     ref?: ComponentLinkData;
     rawJson?: string;
     rawYaml?: string;
@@ -289,6 +299,29 @@ export class PpOperationResponses extends LitElement {
         `;
     }
 
+    private renderLinks(links: LinkData[]) {
+        if (!links?.length) return nothing;
+        return html`
+            <div class="links-section">
+                <h4 class="links-label">Response Links</h4>
+                ${links.map(l => html`
+                    <div class="link-entry">
+                        <span class="link-name">${l.ref
+                            ? html`<pp-ref-popover registry-key="links/${l.ref.name}"><a class="ref-link" href="models/${l.ref.typeSlug}/${l.ref.slug}.html">\u279c ${l.name}</a></pp-ref-popover>`
+                            : l.name}</span>
+                        ${l.operationId
+                            ? html`<span class="link-target">\u2192 ${l.operationSlug
+                                ? html`<a class="ref-link" href="operations/${l.operationSlug}.html">${l.operationId}</a>`
+                                : l.operationId}</span>`
+                            : nothing}
+                        ${l.operationRef ? html`<span class="link-target">\u2192 ${l.operationRef}</span>` : nothing}
+                        ${l.description ? html`<span class="link-desc">${l.description}</span>` : nothing}
+                    </div>
+                `)}
+            </div>
+        `;
+    }
+
     /** Get a dedup key for an error response based on its schema/response ref. */
     private errorRefKey(resp: ResponseData): string | null {
         if (resp.ref) return `ref:${resp.ref.slug}`;
@@ -374,6 +407,7 @@ export class PpOperationResponses extends LitElement {
                                 ? this.renderRefLink(resp.ref, true)
                                 : resp.content?.map(mt => this.renderMediaType(mt)) ?? nothing}
                 ${this.renderHeaders(resp.headers ?? [], commonNames)}
+                ${this.renderLinks(resp.links ?? [])}
                 ${resp.extensions?.length ? html`
                     <div class="response-extensions">
                         <h4>Response ${resp.statusCode} Extensions</h4>

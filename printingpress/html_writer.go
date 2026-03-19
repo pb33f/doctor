@@ -47,6 +47,7 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 		SiteTitle:    title,
 		NavJSON:      MustJSON(site.NavTags),
 		ModelsJSON:   MustJSON(site.NavModelGroups),
+		WebhooksJSON: MustJSON(site.NavWebhooks),
 		RegistryJSON: MustJSON(site.SchemaRegistry),
 		SpecFormat:   site.SpecFormat,
 	}
@@ -129,6 +130,7 @@ type pageParams struct {
 	BaseURL      string
 	NavJSON      string
 	ModelsJSON   string
+	WebhooksJSON string
 	SpecFormat   string
 	RegistryJSON string
 	ExtraCSS     []string
@@ -141,7 +143,7 @@ func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content t
 	}
 	defer f.Close()
 
-	layout := Layout(pageTitle, p.SiteTitle, p.BaseURL, p.NavJSON, p.ModelsJSON, activeSlug, p.SpecFormat, p.RegistryJSON, p.ExtraCSS, content)
+	layout := Layout(pageTitle, p.SiteTitle, p.BaseURL, p.NavJSON, p.ModelsJSON, p.WebhooksJSON, activeSlug, p.SpecFormat, p.RegistryJSON, p.ExtraCSS, content)
 	return layout.Render(context.Background(), f)
 }
 

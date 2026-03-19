@@ -311,6 +311,225 @@ func TestHTMLLinkReachability(t *testing.T) {
 		strings.Join(allBroken, "\n"))
 }
 
+func TestPrintingPress_ResponseLinks(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	doc, err := libopenapi.NewDocument(specBytes)
+	require.NoError(t, err)
+
+	v3Model, buildErr := doc.BuildV3Model()
+	require.NoError(t, buildErr)
+
+	drDoc := model.NewDrDocument(v3Model)
+
+	pp := New(&PrintingPressConfig{DrDoc: drDoc})
+	site, err := pp.Press()
+	require.NoError(t, err)
+
+	// Find the createBurger operation (POST /burgers) — its 200 response has links
+	var createBurger *OperationPage
+	for _, op := range site.Operations {
+		if op.OperationID == "createBurger" {
+			createBurger = op
+			break
+		}
+	}
+	require.NotNil(t, createBurger, "createBurger operation should exist")
+
+	// Find the 200 response
+	var resp200 *ResponseInfo
+	for _, r := range createBurger.Responses {
+		if r.StatusCode == "200" {
+			resp200 = r
+			break
+		}
+	}
+	require.NotNil(t, resp200, "200 response should exist on createBurger")
+	require.NotEmpty(t, resp200.Links, "200 response should have links")
+
+	// Check $ref links (LocateBurger, AnotherLocateBurger)
+	linksByName := make(map[string]*LinkInfo)
+	for _, li := range resp200.Links {
+		linksByName[li.Name] = li
+	}
+
+	locateBurger, ok := linksByName["LocateBurger"]
+	require.True(t, ok, "LocateBurger link should exist")
+	assert.Equal(t, "locateBurger", locateBurger.OperationId)
+	assert.NotNil(t, locateBurger.Ref, "LocateBurger should have a $ref")
+	assert.Equal(t, "links", locateBurger.Ref.TypeSlug)
+
+	anotherLocate, ok := linksByName["AnotherLocateBurger"]
+	require.True(t, ok, "AnotherLocateBurger link should exist")
+	assert.NotNil(t, anotherLocate.Ref, "AnotherLocateBurger should have a $ref")
+
+	// Check operationSlug resolution — locateBurger operationId should resolve to a slug
+	assert.NotEmpty(t, locateBurger.OperationSlug, "LocateBurger should have resolved operationSlug")
+
+	// Verify the slug points to an actual operation
+	found := false
+	for _, op := range site.Operations {
+		if op.Slug == locateBurger.OperationSlug {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "operationSlug %q should match an existing operation", locateBurger.OperationSlug)
+
+	// Find ListBurgerDressings link on the locateBurger 200 response (GET /burgers/{burgerId})
+	var locateBurgerOp *OperationPage
+	for _, op := range site.Operations {
+		if op.OperationID == "locateBurger" {
+			locateBurgerOp = op
+			break
+		}
+	}
+	require.NotNil(t, locateBurgerOp, "locateBurger operation should exist")
+
+	var locateResp200 *ResponseInfo
+	for _, r := range locateBurgerOp.Responses {
+		if r.StatusCode == "200" {
+			locateResp200 = r
+			break
+		}
+	}
+	require.NotNil(t, locateResp200, "200 response should exist on locateBurger")
+	require.NotEmpty(t, locateResp200.Links, "locateBurger 200 should have links")
+
+	var dressingsLink *LinkInfo
+	for _, li := range locateResp200.Links {
+		if li.Name == "ListBurgerDressings" {
+			dressingsLink = li
+			break
+		}
+	}
+	require.NotNil(t, dressingsLink, "ListBurgerDressings link should exist")
+	assert.Equal(t, "listBurgerDressings", dressingsLink.OperationId)
+	assert.Equal(t, "Try the ketchup!", dressingsLink.Description)
+	assert.Nil(t, dressingsLink.Ref, "inline link should not have a $ref")
+
+	// ResponsesJSON should contain the resolved operationSlug
+	assert.Contains(t, createBurger.ResponsesJSON, `"operationSlug"`,
+		"ResponsesJSON should include operationSlug after resolution")
+}
+
+func TestPrintingPress_WebhookNav(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	doc, err := libopenapi.NewDocument(specBytes)
+	require.NoError(t, err)
+
+	v3Model, buildErr := doc.BuildV3Model()
+	require.NoError(t, buildErr)
+
+	drDoc := model.NewDrDocument(v3Model)
+
+	pp := New(&PrintingPressConfig{DrDoc: drDoc})
+	site, err := pp.Press()
+	require.NoError(t, err)
+
+	// Webhooks should be collected
+	require.NotEmpty(t, site.Webhooks, "burgershop has webhooks")
+
+	// NavWebhooks should be populated
+	require.NotEmpty(t, site.NavWebhooks, "NavWebhooks should be populated")
+	assert.Len(t, site.NavWebhooks, len(site.Webhooks),
+		"NavWebhooks count should match Webhooks count")
+
+	// Each NavWebhook should have method, path, and slug
+	for _, nw := range site.NavWebhooks {
+		assert.NotEmpty(t, nw.Method, "webhook nav should have method")
+		assert.NotEmpty(t, nw.Path, "webhook nav should have path")
+		assert.NotEmpty(t, nw.Slug, "webhook nav should have slug")
+	}
+
+	// Root page should include webhooks
+	require.NotNil(t, site.Root)
+	assert.NotEmpty(t, site.Root.Webhooks, "root page should include webhooks")
+	assert.Len(t, site.Root.Webhooks, len(site.NavWebhooks))
+
+	// HTML site should write webhook pages
+	outputDir := t.TempDir()
+	err = WriteHTMLSite(site, outputDir, "")
+	require.NoError(t, err)
+
+	for _, wh := range site.Webhooks {
+		assert.FileExists(t, filepath.Join(outputDir, "operations", wh.Slug+".html"),
+			"webhook page should exist: %s", wh.Slug)
+	}
+}
+
+func TestPrintingPress_OperationCallbacks(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	doc, err := libopenapi.NewDocument(specBytes)
+	require.NoError(t, err)
+
+	v3Model, buildErr := doc.BuildV3Model()
+	require.NoError(t, buildErr)
+
+	drDoc := model.NewDrDocument(v3Model)
+
+	pp := New(&PrintingPressConfig{DrDoc: drDoc})
+	site, err := pp.Press()
+	require.NoError(t, err)
+
+	// Find locateBurger operation — has burgerCallback with $ref
+	var locateBurger *OperationPage
+	for _, op := range site.Operations {
+		if op.OperationID == "locateBurger" {
+			locateBurger = op
+			break
+		}
+	}
+	require.NotNil(t, locateBurger, "locateBurger operation should exist")
+
+	// Callbacks should be populated
+	require.NotEmpty(t, locateBurger.Callbacks, "locateBurger should have callbacks")
+
+	cb := locateBurger.Callbacks[0]
+	assert.Equal(t, "burgerCallback", cb.Name)
+
+	// Should have $ref to components/callbacks/BurgerCallback
+	require.NotNil(t, cb.Ref, "callback should have a $ref")
+	assert.Equal(t, "callbacks", cb.Ref.TypeSlug)
+	assert.Equal(t, "BurgerCallback", cb.Ref.Name)
+
+	// Should have operations from the resolved callback
+	require.NotEmpty(t, cb.Operations, "callback should have operations")
+
+	cbOp := cb.Operations[0]
+	assert.Equal(t, "POST", cbOp.Method)
+	assert.Equal(t, "{$request.query.queryUrl}", cbOp.Expression)
+
+	// Callback operation should have a request body
+	require.NotNil(t, cbOp.RequestBody, "callback operation should have request body")
+	require.NotEmpty(t, cbOp.RequestBody.Content, "request body should have content")
+
+	// Callback operation should have a 200 response
+	require.NotEmpty(t, cbOp.Responses, "callback operation should have responses")
+	assert.Equal(t, "200", cbOp.Responses[0].StatusCode)
+
+	// CallbacksJSON should be populated
+	assert.NotEmpty(t, locateBurger.CallbacksJSON)
+	assert.Contains(t, locateBurger.CallbacksJSON, "burgerCallback")
+
+	// Operations without callbacks should have empty Callbacks
+	var createBurger *OperationPage
+	for _, op := range site.Operations {
+		if op.OperationID == "createBurger" {
+			createBurger = op
+			break
+		}
+	}
+	require.NotNil(t, createBurger)
+	assert.Empty(t, createBurger.Callbacks)
+	assert.Empty(t, createBurger.CallbacksJSON)
+}
+
 func TestPrintingPress_NoV3Document(t *testing.T) {
 	drDoc := &model.DrDocument{}
 	pp := New(&PrintingPressConfig{DrDoc: drDoc})
