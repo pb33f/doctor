@@ -73,6 +73,16 @@ templ RootPageTempl(page *RootPage) {
 				}
 			</div>
 		}
+		if len(page.Webhooks) > 0 {
+			<div class="pp-operations-overview">
+				<h2>Webhooks</h2>
+				<ul class="pp-operation-list">
+					for _, wh := range page.Webhooks {
+						@RootOperationItem(wh)
+					}
+				</ul>
+			</div>
+		}
 		if len(page.Warnings) > 0 {
 			<details class="pp-warnings">
 				<summary>Build Warnings ({ fmt.Sprintf("%d", len(page.Warnings)) })</summary>

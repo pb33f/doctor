@@ -228,6 +228,52 @@ export default css`
 
 
 
+    /* ── Links section ── */
+
+    .links-section {
+        margin-top: var(--global-padding-double);
+        padding-top: var(--global-padding-double);
+    }
+
+    .links-label {
+        font-family: var(--font-stack), monospace;
+        font-weight: normal;
+        color: var(--font-color-sub1);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: var(--global-padding-double);
+        border-bottom: 1px dotted var(--hrcolor);
+        padding-bottom: var(--global-padding);
+        margin-top: var(--global-padding-double);
+    }
+
+    .link-entry {
+        display: grid;
+        grid-template-columns: 200px 200px 1fr;
+        gap: 0 1rem;
+        padding: var(--global-padding) var(--global-padding-double);
+        border-top: 1px dotted var(--hrcolor);
+    }
+
+    .link-entry:last-child {
+        border-bottom: none;
+    }
+
+    .link-name {
+        font-family: var(--font-stack-bold), monospace;
+        color: var(--font-color);
+        text-align: right;
+    }
+
+    .link-target {
+        color: var(--primary-color);
+        font-family: var(--font-stack), monospace;
+    }
+
+    .link-desc {
+        color: var(--font-color-sub1);
+    }
+
     /* ── Common errors ── */
 
     .common-error-link {

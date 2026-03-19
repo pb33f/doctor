@@ -5,14 +5,14 @@ import "context"
 import "io"
 import "strings"
 
-templ Layout(pageTitle string, siteTitle string, baseURL string, navJSON string, modelsJSON string, activeSlug string, specFormat string, registryJSON string, extraCSS []string, content templ.Component) {
+templ Layout(pageTitle string, siteTitle string, baseURL string, navJSON string, modelsJSON string, webhooksJSON string, activeSlug string, specFormat string, registryJSON string, extraCSS []string, content templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en" class="sl-theme-dark">
 		@Head(pageTitle, baseURL, extraCSS)
 		<body data-spec-format={ specFormat }>
 			@SchemaRegistryScript(registryJSON)
 			<pp-layout data-title={ siteTitle }>
-				<pp-nav slot="nav" data-nav={ navJSON } data-models={ modelsJSON } data-active={ activeSlug }></pp-nav>
+				<pp-nav slot="nav" data-nav={ navJSON } data-models={ modelsJSON } data-webhooks={ webhooksJSON } data-active={ activeSlug }></pp-nav>
 				<main slot="content">
 					@content
 				</main>

@@ -156,6 +156,9 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 	if doc.Webhooks != nil {
 		pp.collectWebhooks(doc.Webhooks)
 	}
+
+	// Resolve response link operationId → slug after all operations/webhooks are collected
+	pp.resolveOperationLinks()
 }
 
 // buildTagTree creates a hierarchical NavTag tree from flat tag list using Parent/Kind fields.
@@ -325,6 +328,14 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 		page.PathExtensions = collectExtensions(pi.Value.Extensions)
 		if page.PathExtensions != nil {
 			page.PathExtensionsJSON = MustJSON(page.PathExtensions)
+		}
+	}
+
+	// Callbacks
+	if op.Callbacks != nil {
+		page.Callbacks = pp.collectCallbacks(op.Callbacks)
+		if len(page.Callbacks) > 0 {
+			page.CallbacksJSON = MustJSON(page.Callbacks)
 		}
 	}
 
@@ -576,6 +587,26 @@ func (pp *PrintingPress) collectResponses(responses *v3.Responses) []*ResponseIn
 				}
 				hi.Extensions = collectExtensions(h.Value.Extensions)
 			ri.Headers = append(ri.Headers, hi)
+			}
+		}
+		if resp.Links != nil {
+			for lPair := resp.Links.First(); lPair != nil; lPair = lPair.Next() {
+				l := lPair.Value()
+				if l == nil || l.Value == nil {
+					continue
+				}
+				li := &LinkInfo{
+					Name:         lPair.Key(),
+					OperationId:  l.Value.OperationId,
+					OperationRef: l.Value.OperationRef,
+					Description:  l.Value.Description,
+				}
+				if low := l.Value.GoLow(); low != nil && low.IsReference() {
+					if link := pp.resolveComponentLink(low.GetReference()); link != nil {
+						li.Ref = link
+					}
+				}
+				ri.Links = append(ri.Links, li)
 			}
 		}
 		result = append(result, ri)
@@ -874,6 +905,116 @@ func (pp *PrintingPress) collectWebhooks(webhooks *orderedmap.Map[string, *v3.Pa
 	// Move newly added operations to Webhooks
 	pp.site.Webhooks = append(pp.site.Webhooks, pp.site.Operations[before:]...)
 	pp.site.Operations = pp.site.Operations[:before]
+
+	// Build webhook nav entries from all collected webhooks
+	for _, wh := range pp.site.Webhooks {
+		pp.site.NavWebhooks = append(pp.site.NavWebhooks, &NavOperation{
+			Method:      wh.Method,
+			Path:        wh.Path,
+			OperationID: wh.OperationID,
+			Summary:     wh.Summary,
+			Slug:        wh.Slug,
+			Deprecated:  wh.Deprecated,
+		})
+	}
+	pp.site.Root.Webhooks = pp.site.NavWebhooks
+}
+
+// collectCallbacks collects operation-level callbacks into structured CallbackInfo entries.
+func (pp *PrintingPress) collectCallbacks(callbacks *orderedmap.Map[string, *v3.Callback]) []*CallbackInfo {
+	var result []*CallbackInfo
+	for pair := callbacks.First(); pair != nil; pair = pair.Next() {
+		cb := pair.Value()
+		if cb == nil {
+			continue
+		}
+		ci := &CallbackInfo{Name: pair.Key()}
+
+		// Resolve $ref to component callback
+		if cb.Value != nil && cb.Value.GoLow() != nil && cb.Value.GoLow().IsReference() {
+			if link := pp.resolveComponentLink(cb.Value.GoLow().GetReference()); link != nil {
+				ci.Ref = link
+			}
+		}
+
+		// Iterate expressions → path items → operations
+		if cb.Expression != nil {
+			for exprPair := cb.Expression.First(); exprPair != nil; exprPair = exprPair.Next() {
+				expression := exprPair.Key()
+				pi := exprPair.Value()
+				if pi == nil {
+					continue
+				}
+				ops := pi.GetOperations()
+				for opPair := ops.First(); opPair != nil; opPair = opPair.Next() {
+					method := opPair.Key()
+					op := opPair.Value()
+					if op == nil || op.Value == nil {
+						continue
+					}
+					coi := &CallbackOperationInfo{
+						Expression:  expression,
+						Method:      strings.ToUpper(method),
+						Description: op.Value.Description,
+						DescHTML:    renderMarkdown(op.Value.Description),
+					}
+					if op.RequestBody != nil {
+						coi.RequestBody = pp.collectRequestBody(op.RequestBody)
+					}
+					if op.Responses != nil {
+						coi.Responses = pp.collectResponses(op.Responses)
+					}
+					ci.Operations = append(ci.Operations, coi)
+				}
+			}
+		}
+		if len(ci.Operations) > 0 || ci.Ref != nil {
+			result = append(result, ci)
+		}
+	}
+	return result
+}
+
+// resolveOperationLinks builds an operationId→slug index from all operations and webhooks,
+// then fills in OperationSlug on every response LinkInfo that has an operationId.
+func (pp *PrintingPress) resolveOperationLinks() {
+	// Build operationId → slug index
+	opIndex := make(map[string]string)
+	for _, op := range pp.site.Operations {
+		if op.OperationID != "" {
+			opIndex[op.OperationID] = op.Slug
+		}
+	}
+	for _, wh := range pp.site.Webhooks {
+		if wh.OperationID != "" {
+			opIndex[wh.OperationID] = wh.Slug
+		}
+	}
+	if len(opIndex) == 0 {
+		return
+	}
+
+	// Resolve links across all operations and webhooks
+	allOps := make([]*OperationPage, 0, len(pp.site.Operations)+len(pp.site.Webhooks))
+	allOps = append(allOps, pp.site.Operations...)
+	allOps = append(allOps, pp.site.Webhooks...)
+	for _, op := range allOps {
+		resolved := false
+		for _, resp := range op.Responses {
+			for _, li := range resp.Links {
+				if li.OperationId != "" {
+					if slug, ok := opIndex[li.OperationId]; ok {
+						li.OperationSlug = slug
+						resolved = true
+					}
+				}
+			}
+		}
+		// Re-serialize ResponsesJSON since it was frozen before slug resolution
+		if resolved && len(op.Responses) > 0 {
+			op.ResponsesJSON = MustJSON(op.Responses)
+		}
+	}
 }
 
 // assignOperationsToTags distributes operations into the NavTag tree by matching tag names.

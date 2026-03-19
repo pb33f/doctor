@@ -37,6 +37,7 @@ export class PpNav extends LitElement {
 
   @state() private tags: NavTag[] = [];
   @state() private modelGroups: NavModelGroup[] = [];
+  @state() private webhooks: NavOperation[] = [];
   @state() private activeSlug = '';
 
   connectedCallback() {
@@ -57,6 +58,14 @@ export class PpNav extends LitElement {
         // ignore parse errors
       }
     }
+    const whRaw = this.getAttribute('data-webhooks');
+    if (whRaw) {
+      try {
+        this.webhooks = JSON.parse(whRaw) || [];
+      } catch {
+        // ignore parse errors
+      }
+    }
     this.activeSlug = this.getAttribute('data-active') || '';
   }
 
@@ -68,6 +77,17 @@ export class PpNav extends LitElement {
             <div class="nav-section">
               <h4>Operations</h4>
               ${this.tags.map((tag) => html`<pp-nav-tag .tag=${tag} .activeSlug=${this.activeSlug}></pp-nav-tag>`)}
+            </div>
+          `
+        : nothing}
+      ${this.webhooks.length
+        ? html`
+            <div class="nav-section">
+              <h4>Webhooks</h4>
+              <pp-nav-tag
+                .tag=${{name: 'Webhooks', summary: 'Webhooks', children: null, operations: this.webhooks, isNavOnly: false} as NavTag}
+                .activeSlug=${this.activeSlug}
+              ></pp-nav-tag>
             </div>
           `
         : nothing}
