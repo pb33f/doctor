@@ -6,7 +6,8 @@ import modelPageCss from './model-page.css.js';
 import '../shared/inline-code.js';
 import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';
-import {deriveSchemaType, resolveRefLink, collectConstraints} from '../../utils/schema.js';
+import {deriveSchemaType, resolveRefLink} from '../../utils/schema.js';
+import {renderConstraints} from '../../utils/render-helpers.js';
 
 @customElement('pp-model-page')
 export class PpModelPage extends LitElement {
@@ -30,23 +31,6 @@ export class PpModelPage extends LitElement {
         this.parsed = null;
       }
     }
-  }
-
-  private renderConstraints(prop: any) {
-    const parts = collectConstraints(prop, {includeExample: true});
-    if (!parts.length && !prop.enum?.length) return nothing;
-    return html`
-      <div class="constraints">
-        ${parts.map(p => html`
-          <span class="constraint-label">${p.label}</span>
-          <span class="constraint-value">${p.isCode ? html`<code>${p.value}</code>` : p.value}</span>
-        `)}
-        ${prop.enum?.length ? html`
-          <span class="constraint-label">enum</span>
-          <span class="constraint-value">${prop.enum.map((v: any, i: number) => html`${i > 0 ? ', ' : ''}<span class="enum-value">${JSON.stringify(v)}</span>`)}</span>
-        ` : nothing}
-      </div>
-    `;
   }
 
   private renderType(prop: any) {
@@ -108,7 +92,7 @@ export class PpModelPage extends LitElement {
             <span class="constraint-value">${schema.type}${schema.format ? ` (${schema.format})` : ''}</span>
           ` : nothing}
         </div>
-        ${this.renderConstraints(schema)}
+        ${renderConstraints(schema, {includeExample: true})}
       </div>
       ${data.examples ? this.renderExampleObjects(data.examples) : nothing}
       ${!data.examples && (data.example !== undefined || schema.example !== undefined)

@@ -4,13 +4,15 @@ import {customElement, property, state} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
 import constraintsCss from '../../styles/constraints.css.js';
 import refLinkCss from '../../styles/ref-link.css.js';
+import statusColorsCss from '../../styles/status-colors.css.js';
 import operationResponsesCss from './operation-responses.css.js';
 import detailsCss from '../../styles/details.css.js';
 import '../shared/code-viewer.js';
 import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';
 import {ComponentLinkData} from '../../utils/schema.js';
-import {HTTP_STATUS_TEXT} from '../../utils/http.js';
+import {HTTP_STATUS_TEXT, statusColorClass} from '../../utils/http.js';
+import {renderConstraints} from '../../utils/render-helpers.js';
 
 interface MediaTypeData {
     mediaType: string;
@@ -50,7 +52,7 @@ interface ResponseData {
 
 @customElement('pp-operation-responses')
 export class PpOperationResponses extends LitElement {
-    static styles = [sharedCss, constraintsCss, refLinkCss, operationResponsesCss, detailsCss];
+    static styles = [sharedCss, constraintsCss, refLinkCss, statusColorsCss, operationResponsesCss, detailsCss];
 
     @property({attribute: 'responses-json'}) responsesJson = '';
     @property({attribute: 'common-headers-json'}) commonHeadersJson = '';
@@ -203,42 +205,24 @@ export class PpOperationResponses extends LitElement {
         el?.scrollIntoView({behavior: 'smooth', block: 'nearest'});
     }
 
-    private renderHeaderConstraints(h: HeaderData) {
-        const has = h.example !== undefined || h.minimum !== undefined || h.maximum !== undefined
-            || h.default !== undefined || h.pattern || h.enum?.length;
-        if (!has) return nothing;
-        return html`
-            <div class="header-constraints">
-                ${h.example !== undefined ? html`<span class="constraint-label">example</span><span
-                        class="constraint-value">${h.example}</span>` : nothing}
-                ${h.default !== undefined ? html`<span class="constraint-label">default</span><span
-                        class="constraint-value">${h.default}</span>` : nothing}
-                ${h.minimum !== undefined ? html`<span class="constraint-label">min</span><span
-                        class="constraint-value">${h.minimum}</span>` : nothing}
-                ${h.maximum !== undefined ? html`<span class="constraint-label">max</span><span
-                        class="constraint-value">${h.maximum}</span>` : nothing}
-                ${h.pattern ? html`<span class="constraint-label">pattern</span><span
-                        class="constraint-value"><code>${h.pattern}</code></span>` : nothing}
-                ${h.enum?.length ? html`<span class="constraint-label">enum</span><span
-                        class="constraint-value">${h.enum.map((v, i) => html`${i > 0 ? ', ' : ''}<span
-                        class="enum-value">${v}</span>`)}</span>` : nothing}
-            </div>
-        `;
-    }
-
     private renderHeaderEntry(h: HeaderData) {
         return html`
             <div class="header-entry">
-                ${h.ref
-                        ? html`
-                            <pp-ref-popover registry-key="${h.ref.componentType}/${h.ref.name}"><a
-                                    class="ref-link header-name" href="models/${h.ref.typeSlug}/${h.ref.slug}.html">\u279c
-                                ${h.name}</a></pp-ref-popover>`
-                        : html`<span class="header-name">${h.name}</span>`}
-                ${h.schemaType ? html`<span class="header-type">${h.schemaType}</span>` : nothing}
-                ${h.description ? html`
-                    <div class="header-desc">${h.description}</div>` : nothing}
-                ${this.renderHeaderConstraints(h)}
+                <div class="header-name-col">
+                    ${h.ref
+                            ? html`
+                                <pp-ref-popover registry-key="${h.ref.componentType}/${h.ref.name}"><a
+                                        class="ref-link header-name" href="models/${h.ref.typeSlug}/${h.ref.slug}.html">\u279c
+                                    ${h.name}</a></pp-ref-popover>`
+                            : html`<span class="header-name">${h.name}</span>`}
+                </div>
+                <div class="header-type-col">
+                    ${h.schemaType ? html`<span class="header-type">${h.schemaType}</span>` : nothing}
+                    ${renderConstraints(h, {includeExample: true})}
+                </div>
+                <div class="header-desc-col">
+                    ${h.description || nothing}
+                </div>
             </div>
         `;
     }
@@ -250,20 +234,22 @@ export class PpOperationResponses extends LitElement {
         if (!unique.length && !common.length) return nothing;
         return html`
             <div class="headers-section">
-                <div class="headers-label">Headers</div>
+                <div class="headers-label">Response Headers</div>
+                    ${unique.length ? html`
+                        <div class="headers-values">
+                            ${unique.map(h => this.renderHeaderEntry(h))}
+                        </div>` : nothing}
                 ${common.length ? html`
-                    <div class="common-header-grid">
-                        <div class="common-link-label">\u2191 common</div>
+                    <div class="common-link-label">\u2191 common headers</div>
+                    <ul class="common-header-list">
                         ${common.map(h => html`
-                            <a class="header-anchor" @click=${(e: Event) => {
+                            <li><a class="header-anchor" @click=${(e: Event) => {
                                 e.preventDefault();
                                 this.scrollToHeader(h.name);
-                            }}>${h.name}</a>
-                            <span class="common-header-desc">${h.description || ''}</span>
+                            }}>${h.name}</a></li>
                         `)}
-                    </div>
+                    </ul>
                 ` : nothing}
-                ${unique.map(h => this.renderHeaderEntry(h))}
             </div>
         `;
     }
@@ -326,7 +312,7 @@ export class PpOperationResponses extends LitElement {
 
         return html`
             <div class="response">
-                    <h3><span class="status-code">${resp.statusCode}</span> ${HTTP_STATUS_TEXT[resp.statusCode] || ''}
+                    <h3><span class="status-code ${statusColorClass(resp.statusCode)}">${resp.statusCode}</span> ${HTTP_STATUS_TEXT[resp.statusCode] || ''}
                         ${resp.rawJson || resp.rawYaml
                                 ? html`
                                 <pp-raw-viewer-btn
@@ -379,13 +365,13 @@ export class PpOperationResponses extends LitElement {
     ) {
         if (!commonResponses.size) return nothing;
         return html`
-            <div class="response-group-heading">Common Error Responses</div>
+            <div class="response-group-heading"><h4>Common Error Responses</h4></div>
             ${[...commonResponses.entries()].map(([key, {resp, codeDescs}]) => html`
                 <div class="response common-error-response" id="common-error-${key}">
                     <div class="common-error-grid">
                         ${codeDescs.map(({code, description}) => html`
-                            <span class="common-error-code">${code} ${HTTP_STATUS_TEXT[code] || ''}</span>
-                            <span class="common-error-desc">${description}</span>
+                            <div class="common-error-code"><span class="${statusColorClass(code)}">${code}</span> ${HTTP_STATUS_TEXT[code] || ''}</div>
+                            <div class="common-error-desc">${description}</div>
                         `)}
                     </div>
                     ${resp.ref
@@ -408,19 +394,21 @@ export class PpOperationResponses extends LitElement {
             ${this.successResponses.map(r => this.renderResponse(r, commonNames))}
             ${this.redirectResponses.length ? html`
                 <sl-details class="pp-details">
-                    <span slot="summary" class="pp-details-summary">Redirect Responses</span>
+                    <span slot="summary" class="pp-details-summary"><h3>Redirect Responses</h3></span>
                     ${this.redirectResponses.map(r => this.renderResponse(r, commonNames))}
                 </sl-details>
             ` : nothing}
             ${this.commonResponseHeaders.length ? html`
                 <sl-details class="pp-details">
-                    <span slot="summary" class="pp-details-summary">Common Response Headers</span>
-                    ${this.commonResponseHeaders.map(h => this.renderHeaderEntry(h))}
+                    <span slot="summary" class="pp-details-summary"><h3>Common Response Headers</h3></span>
+                    <div class="property-box">
+                        ${this.commonResponseHeaders.map(h => this.renderHeaderEntry(h))}
+                    </div>
                 </sl-details>
             ` : nothing}
             ${this.errorResponses.length || commonResponses.size ? html`
                 <sl-details class="pp-details">
-                    <span slot="summary" class="pp-details-summary">Error Responses</span>
+                    <div slot="summary" class="pp-details-summary"><h3>Error Responses</h3></div>
                     ${this.renderCommonErrors(commonResponses, commonNames)}
                     ${this.errorResponses.map(r => this.renderResponse(r, commonNames, commonKeys))}
                 </sl-details>

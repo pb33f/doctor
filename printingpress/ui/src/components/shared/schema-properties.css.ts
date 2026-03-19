@@ -3,6 +3,7 @@ import {css} from "lit";
 export default css`
     :host {
         display: block;
+        border: 1px dotted var(--hrcolor);
     }
 
     .property {
@@ -10,7 +11,7 @@ export default css`
         grid-template-columns: 200px 200px 1fr;
         gap: 0 1rem;
         padding: 15px var(--global-padding);
-        border-bottom: 1px dotted var(--secondary-color-dimmer);
+        border-bottom: 1px dotted var(--hrcolor);
     }
 
     .prop-name-col {
@@ -23,7 +24,6 @@ export default css`
     }
 
     .prop-desc-col {
-        color: var(--font-color-sub1);
     }
 
     .prop-name {

@@ -119,7 +119,7 @@ code {
 
 /* Collapsible details sections */
 sl-details.pp-details {
-    margin-top: 1.5rem;
+    margin-top: 40px;
 }
 
 sl-details.pp-details::part(base) {
@@ -141,14 +141,19 @@ sl-details.pp-details::part(content) {
     padding: 0 1rem 1rem;
 }
 
-.pp-details-summary {
-    font-family: var(--font-stack-bold), monospace;
-    font-size: 1.2rem;
-    text-transform: uppercase;
+.pp-details-summary h3 {
+    margin: 0;
+    border-bottom: none;
+    padding: 0;
     letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
 /* Operation page */
+
+.pp-operation {
+    padding-bottom: 50px;
+}
 .pp-operation-path {
     display: flex;
     align-items: center;

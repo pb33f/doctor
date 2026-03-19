@@ -10,7 +10,7 @@ export default css`
         border-bottom: 1px dashed var(--hrcolor);
         font-family: var(--font-stack), monospace;
         padding-bottom: var(--global-padding-double);
-        margin-top: 80px;
+        margin-top: 40px;
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
@@ -25,20 +25,32 @@ export default css`
     }
 
     .response {
-        margin-bottom: 1.5rem;
+        margin-bottom: var(--global-padding-double);
         border: 1px dashed var(--secondary-color-dimmer);
         border-radius: 0;
-        padding: 1rem;
+        padding: var(--global-padding-double);
     }
+
+    .response:last-child {
+        margin-bottom: 0;
+    }
+
+
+    .response > h3 {
+        margin-bottom: 20px;
+    }
+
+    .pp-details-summary > h3 {
+        margin-bottom: 0;
+    }
+    
     
     .status-code {
         font-family: var(--font-stack-bold), monospace;
-        margin-right: var(--global-padding-double);
-        color: var(--primary-color);
     }
 
     .media-type-ref {
-        margin-top: 40px;
+        margin-top: 20px;
         display: flex;
         align-items: center;
         gap: var(--global-padding-double);
@@ -60,64 +72,84 @@ export default css`
     /* ── Headers section ── */
 
     .headers-section {
-        margin-top: 0.75rem;
+        margin-top: 20px;
         border-top: 1px dotted var(--hrcolor);
-        padding-top: 0.5rem;
+        padding-top:var(--global-padding-double);
     }
 
     .headers-label {
-        font-family: var(--font-stack-bold);
-        color: var(--font-color-sub2);
+        font-family: var(--font-stack), monospace;
+        color: var(--font-color-sub1);
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        font-size: 0.8em;
-        margin-bottom: 0.25rem;
+        margin-bottom: var(--global-padding-double);
     }
 
     .header-entry {
-        padding: 0.35rem 0.75rem;
+        display: grid;
+        grid-template-columns: 200px 200px 1fr;
+        gap: 0 1rem;
+        padding: var(--global-padding) var(--global-padding-double);
         border-bottom: 1px dotted var(--hrcolor);
     }
 
     .header-entry:last-child {
         border-bottom: none;
     }
+    
+    .headers-values {
+        border: 1px dashed var(--hrcolor);
+    }
+    
+    .header-name-col {
+        text-align: right;
+        white-space: nowrap;
+    }
 
     .header-name {
-        font-family: var(--font-stack-bold);
+        font-family: var(--font-stack-bold), monospace;
         color: var(--font-color);
+    }
+
+    .header-type-col {
+        white-space: nowrap;
     }
 
     .header-type {
         color: var(--primary-color);
-        margin-left: 0.5rem;
-        font-family: var(--font-stack);
+        font-family: var(--font-stack), monospace;
     }
 
-    .header-desc {
+    .header-desc-col {
         color: var(--font-color-sub1);
-        margin-top: 0.2rem;
-        font-size: 0.9em;
     }
 
-    /* ── Common header grid ── */
-
-    .common-header-grid {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 0.15rem 0.75rem;
-        padding: 0.3rem 0.75rem;
-        align-items: baseline;
-    }
+    /* ── Common header list ── */
 
     .common-link-label {
-        color: var(--font-color-sub2);
-        font-family: var(--font-stack);
+        color: var(--font-color-sub1);
+        font-family: var(--font-stack), monospace;
         font-size: 0.8em;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        grid-column: 1 / -1;
-        margin-bottom: 0.15rem;
+        padding: var(--global-padding-double);
+    }
+
+    ul.common-header-list {
+        list-style: none;
+        padding-left: 20px;
+        margin: 0;
+    }
+
+    ul.common-header-list > li {
+        line-height: 1.8em;
+    }
+
+    ul.common-header-list > li::before {
+        color: var(--primary-color);
+        font-family: var(--font-stack-bold), monospace;
+        margin-right: 10px;
+        content: ">";
     }
 
     .header-anchor {
@@ -132,28 +164,35 @@ export default css`
         text-decoration: underline;
     }
 
-    .common-header-desc {
-        color: var(--font-color-sub1);
-    }
-
     /* ── Inline examples ── */
 
     .inline-example {
-        margin-top: var(--global-padding-double);
+        margin-top: 20px;
     }
 
     .inline-example-label {
         font-family: var(--font-stack), monospace;
-        color: var(--font-color-sub2);
+        color: var(--font-color-sub1);
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        margin-bottom: 0.25rem;
+        margin-bottom: var(--global-padding-double);
     }
 
     /* ── Response group headings ── */
 
+    .property-box {
+        border: 1px dotted var(--hrcolor);
+        padding: var(--global-padding);
+    }
+    
     .response-group-heading {
-        margin-top: 1.5rem;
+        margin-bottom: var(--global-padding-double);
+    }
+
+    .response-group-heading h4 {
+        margin: 0;
+        padding: 0;
+        font-size: 1.2rem;
     }
 
     /* ── Common errors ── */
@@ -161,8 +200,8 @@ export default css`
     .common-error-link {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.25rem 0;
+        gap: var(--global-padding-double);
+        padding: var(--global-padding);
     }
 
     .error-anchor {
@@ -170,7 +209,6 @@ export default css`
         text-decoration: none;
         font-family: var(--font-stack), monospace;
         cursor: pointer;
-        font-size: 0.85em;
     }
 
     .error-anchor:hover {
@@ -181,18 +219,19 @@ export default css`
     .common-error-grid {
         display: grid;
         grid-template-columns: auto 1fr;
-        gap: 0.15rem 0.75rem;
-        margin-bottom: 0.5rem;
-        align-items: baseline;
+        margin-bottom: var(--global-padding-double);
+        border: 1px dotted var(--hrcolor);
     }
 
     .common-error-code {
-        font-family: var(--font-stack-bold);
-        font-weight: 700;
-        color: var(--primary-color);
+        font-family: var(--font-stack), monospace;
+        padding: var(--global-padding-double);
+        border-bottom: 1px dotted var(--hrcolor);
     }
 
     .common-error-desc {
+        padding: var(--global-padding-double) var(--global-padding-double) var(--global-padding-double) 40px;
+        border-bottom: dotted 1px var(--hrcolor);
         color: var(--font-color-sub1);
     }
 

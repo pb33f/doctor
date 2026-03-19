@@ -1,3 +1,11 @@
+// Returns a CSS class for color-coding status codes: 1xx-3xx primary, 4xx warn, 5xx error.
+export function statusColorClass(code: string): string {
+    const n = parseInt(code, 10);
+    if (n >= 500) return 'status-error';
+    if (n >= 400) return 'status-warn';
+    return 'status-ok';
+}
+
 // Standard HTTP status text lookup, matching Go's net/http.StatusText.
 export const HTTP_STATUS_TEXT: Record<string, string> = {
     '100': 'Continue', '101': 'Switching Protocols', '102': 'Processing', '103': 'Early Hints',

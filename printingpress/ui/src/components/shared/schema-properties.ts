@@ -2,7 +2,8 @@ import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import constraintsCss from '../../styles/constraints.css.js';
 import schemaPropertiesCss from './schema-properties.css.js';
-import {deriveSchemaType, resolveRefLink, collectConstraints} from '../../utils/schema.js';
+import {deriveSchemaType, resolveRefLink} from '../../utils/schema.js';
+import {renderConstraints} from '../../utils/render-helpers.js';
 import './ref-popover.js';
 
 @customElement('pp-schema-properties')
@@ -21,24 +22,6 @@ export class PpSchemaProperties extends LitElement {
                 this.schema = null;
             }
         }
-    }
-
-    private renderConstraints(prop: any) {
-        const parts = collectConstraints(prop);
-        if (!parts.length && !prop.enum?.length) return nothing;
-        return html`
-            <div class="constraints">
-                ${parts.map(p => html`
-                    <span class="constraint-label">${p.label}:</span>
-                    <span class="constraint-value">${p.isCode ? html`<code>${p.value}</code>` : p.value}</span>
-                `)}
-                ${prop.enum?.length ? html`
-                    <span class="constraint-label">enum:</span>
-                    <span class="constraint-value">${prop.enum.map((v: any, i: number) => html`${i > 0 ? ', ' : ''}<span
-                            class="enum-value">${JSON.stringify(v)}</span>`)}</span>
-                ` : nothing}
-            </div>
-        `;
     }
 
     private renderRefAnchor(ref: string, link: { name: string; href: string }) {
@@ -88,7 +71,7 @@ export class PpSchemaProperties extends LitElement {
                 <div class="property scalar">
                     <div class="prop-type-col">
                         ${type ? html`<span class="prop-type">${type}</span>` : nothing}
-                        ${this.renderConstraints(target)}
+                        ${renderConstraints(target, {labelSuffix: ':'})}
                     </div>
                     <div class="prop-desc-col">
                         ${target.description ? target.description : nothing}
@@ -108,7 +91,7 @@ export class PpSchemaProperties extends LitElement {
                     </div>
                     <div class="prop-type-col">
                         ${this.renderType(prop)}
-                        ${this.renderConstraints(prop)}
+                        ${renderConstraints(prop, {labelSuffix: ':'})}
                     </div>
                     <div class="prop-desc-col">
                         ${prop.description ? prop.description : nothing}

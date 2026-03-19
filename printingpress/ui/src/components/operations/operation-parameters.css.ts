@@ -3,7 +3,9 @@ import {css} from "lit";
 export default css`
     :host {
         display: block;
-        margin-top: 0
+        margin-top: 0;
+        padding: var(--global-padding);
+        border: 1px dotted var(--hrcolor);
     }
 
     .parameter {
@@ -14,6 +16,10 @@ export default css`
         border-top: 1px dotted var(--hrcolor);
     }
 
+    .parameter:first-child {
+        border-top: none;
+    }
+    
     .param-name-col {
         text-align: right;
         white-space: nowrap;
@@ -50,6 +56,7 @@ export default css`
 
     .param-in-icon {
         color: var(--primary-color);
+        padding-top: 1px;
     }
 
     .param-in {
@@ -72,8 +79,8 @@ export default css`
 
     .deprecated-badge {
         color: var(--warn-400);
-        font-family: var(--font-stack-bold);
-        margin-left: 0.25rem;
+        font-family: var(--font-stack-bold), monospace;
+        margin-left: var(--global-padding);
         text-transform: uppercase;
         letter-spacing: 0.05em;
         font-size: 0.8em;
@@ -81,6 +88,6 @@ export default css`
 
     .param-extras {
         grid-column: 1 / -1;
-        padding-top: 0.25rem;
+        padding-top: var(--global-padding);
     }
 `
