@@ -8,15 +8,23 @@ export default css`
         border: 1px dotted var(--hrcolor);
     }
 
-    .parameter {
+    .parameter, .extensions {
         display: grid;
         grid-template-columns: 200px 200px 150px 1fr;
         gap: 0 20px;
         padding: var(--global-padding) var(--global-padding-double);
         border-top: 1px dotted var(--hrcolor);
     }
+    
+    pp-raw-viewer-btn { 
+        float: right;
+    }
 
     .parameter:first-child {
+        border-top: none;
+    }
+
+    .extensions {
         border-top: none;
     }
     
@@ -89,5 +97,18 @@ export default css`
     .param-extras {
         grid-column: 1 / -1;
         padding-top: var(--global-padding);
+    }
+
+    .param-extensions {
+        grid-column: 1 / -1;
+        padding-top: var(--global-padding);
+    }
+    
+    .param-desc-col h4 {
+        margin-top: 0;
+        border-bottom: 1px dotted var(--hrcolor);
+        width: 100%;
+        margin-bottom: var(--global-padding-double);
+        padding-bottom: var(--global-padding);
     }
 `

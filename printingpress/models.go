@@ -129,6 +129,8 @@ type OperationPage struct {
 	ExternalDoc            *ExternalDocInfo
 	Extensions             []*ExtensionEntry `json:"extensions,omitempty"`
 	ExtensionsJSON         string            `json:"-"` // pre-serialized for Lit component
+	PathExtensions         []*ExtensionEntry `json:"pathExtensions,omitempty"`
+	PathExtensionsJSON     string            `json:"-"`
 	Callbacks              map[string]string // callback name → JSON
 	SchemaJSON             string            // full operation rendered as JSON for cowboy-components
 	SchemaHighlightedHTML  string            `json:"-"` // chroma output, templ only
@@ -156,6 +158,7 @@ type ParameterInfo struct {
 	RawJSON     string            `json:"rawJson,omitempty"`
 	RawYAML     string            `json:"rawYaml,omitempty"`
 	SourceLine  int               `json:"sourceLine,omitempty"`
+	Extensions  []*ExtensionEntry `json:"extensions,omitempty"`
 }
 
 // RequestBodyInfo holds request body data.
@@ -165,9 +168,11 @@ type RequestBodyInfo struct {
 	Required    bool
 	Content     []*MediaTypeInfo
 	Ref         *ComponentLink // set when the request body is a $ref
-	RawJSON     string
-	RawYAML     string
-	SourceLine  int
+	RawJSON        string
+	RawYAML        string
+	SourceLine     int
+	Extensions     []*ExtensionEntry
+	ExtensionsJSON string `json:"-"`
 }
 
 // MediaTypeInfo holds a single media type entry.
@@ -181,6 +186,7 @@ type MediaTypeInfo struct {
 	IsArray               bool              `json:"isArray,omitempty"`
 	ItemsRef              *ComponentLink    `json:"itemsRef,omitempty"`
 	ItemsSchemaJSON       string            `json:"itemsSchemaJson,omitempty"`
+	Extensions            []*ExtensionEntry `json:"extensions,omitempty"`
 }
 
 // ResponseInfo holds a single response entry.
@@ -194,6 +200,7 @@ type ResponseInfo struct {
 	RawJSON     string           `json:"rawJson,omitempty"`
 	RawYAML     string           `json:"rawYaml,omitempty"`
 	SourceLine  int              `json:"sourceLine,omitempty"`
+	Extensions  []*ExtensionEntry `json:"extensions,omitempty"`
 }
 
 // HeaderInfo holds a single response header entry.
@@ -207,7 +214,8 @@ type HeaderInfo struct {
 	Maximum     *float64       `json:"maximum,omitempty"`
 	Default     string         `json:"default,omitempty"`
 	Enum        []string       `json:"enum,omitempty"`
-	Pattern     string         `json:"pattern,omitempty"`
+	Pattern     string            `json:"pattern,omitempty"`
+	Extensions  []*ExtensionEntry `json:"extensions,omitempty"`
 }
 
 // ModelPage is the full data for rendering a component detail page.

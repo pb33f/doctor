@@ -72,17 +72,20 @@ export default css`
     /* ── Headers section ── */
 
     .headers-section {
-        margin-top: 20px;
-        border-top: 1px dotted var(--hrcolor);
-        padding-top:var(--global-padding-double);
+        margin-top: var(--global-padding-double);
+        padding-top: var(--global-padding-double);
     }
 
     .headers-label {
         font-family: var(--font-stack), monospace;
+        font-weight: normal;
         color: var(--font-color-sub1);
         text-transform: uppercase;
         letter-spacing: 0.05em;
         margin-bottom: var(--global-padding-double);
+        border-bottom: 1px dotted var(--hrcolor);
+        padding-bottom: var(--global-padding);
+        margin-top: var(--global-padding-double);
     }
 
     .header-entry {
@@ -90,11 +93,15 @@ export default css`
         grid-template-columns: 200px 200px 1fr;
         gap: 0 1rem;
         padding: var(--global-padding) var(--global-padding-double);
-        border-bottom: 1px dotted var(--hrcolor);
+        border-top: 1px dotted var(--hrcolor);
     }
 
-    .header-entry:last-child {
+    .header-entry:first-child {
         border-bottom: none;
+    }
+    
+    .header-entry-extensions {
+        border-top: none;
     }
     
     .headers-values {
@@ -194,6 +201,32 @@ export default css`
         padding: 0;
         font-size: 1.2rem;
     }
+    
+    .response-extensions {
+        margin-top: var(--global-padding-double);
+        padding-top: var(--global-padding-double);
+    }
+    
+    .media-type-extensions h4, 
+    .response-extensions h4,
+    .header-extensions h4 {
+        font-weight: normal;
+        margin-top: 0;
+        border-bottom: 1px dotted var(--hrcolor);
+        width: 100%;
+        margin-bottom: var(--global-padding-double);
+        padding-bottom: var(--global-padding);
+        text-transform: uppercase;
+        color: var(--font-color-sub1);
+        letter-spacing: 0.05em;
+        font-family: var(--font-stack), monospace;
+    }
+
+    .header-extensions {
+        padding: 0;
+    }
+
+
 
     /* ── Common errors ── */
 
@@ -233,6 +266,16 @@ export default css`
         padding: var(--global-padding-double) var(--global-padding-double) var(--global-padding-double) 40px;
         border-bottom: dotted 1px var(--hrcolor);
         color: var(--font-color-sub1);
+    }
+    
+    .media-type-extensions {
+        margin-top: var(--global-padding-double);
+        padding-top: var(--global-padding-double);
+    }
+
+    .header-extensions {
+        grid-column: 1 / -1;
+        padding: var(--global-padding) var(--global-padding-double);
     }
 
     pp-raw-viewer-btn {

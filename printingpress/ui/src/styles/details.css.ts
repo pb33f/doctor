@@ -3,6 +3,7 @@ import {css} from "lit";
 export default css`
     sl-details.pp-details {
         margin-top: 40px;
+        position: relative;
     }
 
     sl-details.pp-details::part(base) {

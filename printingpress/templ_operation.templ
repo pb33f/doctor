@@ -114,6 +114,12 @@ templ OperationPageTempl(page *OperationPage) {
                 <pp-extensions extensions-json={ page.ExtensionsJSON }></pp-extensions>
             </sl-details>
         }
+		if page.PathExtensionsJSON != "" {
+            <sl-details class="pp-details">
+                <span slot="summary" class="pp-details-summary"><h3>Path Extensions</h3></span>
+                <pp-extensions extensions-json={ page.PathExtensionsJSON }></pp-extensions>
+            </sl-details>
+        }
 	</div>
 }
 
@@ -136,6 +142,9 @@ templ RequestBodySection(rb *RequestBodyInfo) {
 			<div class="pp-description">
 				@templ.Raw(rb.DescHTML)
 			</div>
+		}
+		if rb.ExtensionsJSON != "" {
+			<pp-extensions extensions-json={ rb.ExtensionsJSON }></pp-extensions>
 		}
 		if rb.Ref != nil {
 			<p>
