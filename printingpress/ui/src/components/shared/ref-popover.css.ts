@@ -25,7 +25,7 @@ export default css`
         overscroll-behavior: contain;
         background: var(--background-color);
         border: 1px dashed var(--secondary-color);
-        padding: 0.75rem;
+        padding: var(--global-padding);
         text-align: left;
     }
 
@@ -33,43 +33,42 @@ export default css`
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        margin-bottom: 0.5rem;
+        margin-bottom: var(--global-padding);
     }
 
     .type-badge {
         color: var(--secondary-color);
         background: var(--secondary-color-very-lowalpha);
         border: 1px solid var(--secondary-color-dimmer);
-        padding: 0.1em 0.4em;
+        padding: var(--global-padding) var(--global-padding-double);
         text-transform: uppercase;
-        font-family: var(--font-stack-bold);
+        font-family: var(--font-stack-bold), monospace;
         letter-spacing: 0.05em;
-        font-size: 0.75em;
+        font-size: 0.8em;
     }
 
     .component-name {
-        font-family: var(--font-stack-bold);
+        font-family: var(--font-stack-bold), monospace;
         color: var(--font-color);
     }
 
     .popover-body {
         border-top: 1px dotted var(--hrcolor);
-        padding-top: 0.5rem;
+        padding-top: var(--global-padding);
     }
 
     .popover-example {
         border-top: 1px dotted var(--hrcolor);
-        margin-top: 0.5rem;
-        padding-top: 0.5rem;
+        margin-top: var(--global-padding);
+        padding-top: var(--global-padding);
     }
 
     .example-label {
-        font-family: var(--font-stack);
-        color: var(--font-color-sub2);
+        font-family: var(--font-stack), monospace;
+        color: var(--font-color-sub1);
         text-transform: uppercase;
-        font-size: 0.8em;
         letter-spacing: 0.05em;
-        margin-bottom: 0.25rem;
+        margin-bottom: var(--global-padding);
         text-align: left;
     }
 `

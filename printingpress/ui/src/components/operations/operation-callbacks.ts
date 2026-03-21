@@ -5,19 +5,12 @@ import sharedCss from '../../styles/shared.css.js';
 import refLinkCss from '../../styles/ref-link.css.js';
 import statusColorsCss from '../../styles/status-colors.css.js';
 import operationCallbacksCss from './operation-callbacks.css.js';
-import {ComponentLinkData} from '../../utils/schema.js';
+import {ComponentLinkData, MediaTypeData} from '../../utils/schema.js';
 import {HTTP_STATUS_TEXT, statusColorClass} from '../../utils/http.js';
 import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';
-
-interface MediaTypeData {
-    mediaType: string;
-    schemaJson: string;
-    schemaRef?: ComponentLinkData;
-    isArray?: boolean;
-    itemsRef?: ComponentLinkData;
-    itemsSchemaJson?: string;
-}
+import '../shared/example-selector.js';
+import '../shared/media-type-selector.js';
 
 interface ResponseData {
     statusCode: string;
@@ -74,33 +67,6 @@ export class PpOperationCallbacks extends LitElement {
             </pp-ref-popover>`;
     }
 
-    private renderMediaType(mt: MediaTypeData) {
-        if (mt.isArray && mt.itemsRef) {
-            const propsJson = mt.itemsSchemaJson || mt.schemaJson;
-            return html`
-                <div class="media-type-ref">
-                    <span class="media-type-label">${mt.mediaType}</span>
-                    <span class="array-type">Array&lt;${html`<a class="ref-link" href="models/${mt.itemsRef.typeSlug}/${mt.itemsRef.slug}.html">\u279c ${mt.itemsRef.name}</a>`}&gt;</span>
-                </div>
-                ${propsJson ? html`<pp-schema-properties schema-json=${propsJson}></pp-schema-properties>` : nothing}
-            `;
-        }
-        if (mt.schemaRef) {
-            return html`
-                <div class="media-type-ref">
-                    <span class="media-type-label">${mt.mediaType}</span>
-                    <a class="ref-link" href="models/${mt.schemaRef.typeSlug}/${mt.schemaRef.slug}.html">\u279c ${mt.schemaRef.name}</a>
-                </div>
-                ${mt.schemaJson ? html`<pp-schema-properties schema-json=${mt.schemaJson}></pp-schema-properties>` : nothing}
-            `;
-        }
-        if (!mt.schemaJson) return nothing;
-        return html`
-            <div class="media-type-label">${mt.mediaType}</div>
-            <pp-schema-properties schema-json=${mt.schemaJson}></pp-schema-properties>
-        `;
-    }
-
     private renderRequestBody(rb: RequestBodyData) {
         if (rb.Ref) {
             return html`<div class="callback-section-label">Request Body</div>${this.renderRefLink(rb.Ref)}`;
@@ -109,7 +75,7 @@ export class PpOperationCallbacks extends LitElement {
         return html`
             <div class="callback-section-label">Request Body${rb.Required ? ' (required)' : ''}</div>
             ${rb.DescHTML ? html`<div class="callback-desc">${unsafeHTML(rb.DescHTML)}</div>` : nothing}
-            ${rb.Content.map(mt => this.renderMediaType(mt))}
+            <pp-media-type-selector content-json=${JSON.stringify(rb.Content)}></pp-media-type-selector>
         `;
     }
 
@@ -128,7 +94,9 @@ export class PpOperationCallbacks extends LitElement {
                             : nothing}
                 </div>
                 ${r.ref ? this.renderRefLink(r.ref) : nothing}
-                ${!r.ref && r.content?.length ? r.content.map(mt => this.renderMediaType(mt)) : nothing}
+                ${!r.ref && r.content?.length
+                    ? html`<pp-media-type-selector content-json=${JSON.stringify(r.content)}></pp-media-type-selector>`
+                    : nothing}
             `)}
         `;
     }

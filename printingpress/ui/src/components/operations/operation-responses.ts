@@ -10,22 +10,12 @@ import detailsCss from '../../styles/details.css.js';
 import '../shared/code-viewer.js';
 import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';
-import {ComponentLinkData} from '../../utils/schema.js';
+import {ComponentLinkData, MediaTypeData} from '../../utils/schema.js';
 import {HTTP_STATUS_TEXT, statusColorClass} from '../../utils/http.js';
 import {renderConstraints} from '../../utils/render-helpers.js';
 import '../shared/extensions.js';
-
-interface MediaTypeData {
-    mediaType: string;
-    schemaJson: string;
-    mockJson?: string;
-    examples?: Record<string, string>;
-    schemaRef?: ComponentLinkData;
-    isArray?: boolean;
-    itemsRef?: ComponentLinkData;
-    itemsSchemaJson?: string;
-    extensions?: Array<{key: string; value: any}>;
-}
+import '../shared/example-selector.js';
+import '../shared/media-type-selector.js';
 
 interface HeaderData {
     name: string;
@@ -128,85 +118,6 @@ export class PpOperationResponses extends LitElement {
         if (!withPopover) return anchor;
         return html`
             <pp-ref-popover registry-key="${ref.componentType}/${ref.name}">${anchor}</pp-ref-popover>`;
-    }
-
-    private renderInlineExamples(mt: MediaTypeData) {
-        const entries: Array<{ key: string; json: string }> = [];
-        if (mt.examples) {
-            for (const [key, json] of Object.entries(mt.examples)) {
-                if (json) entries.push({key, json});
-            }
-        }
-        if (mt.mockJson) {
-            entries.push({key: 'Example', json: mt.mockJson});
-        }
-        if (!entries.length) return nothing;
-        return entries.map(entry => {
-            let formatted = entry.json;
-            try {
-                formatted = JSON.stringify(JSON.parse(entry.json), null, 2);
-            } catch { /* use as-is */
-            }
-            return html`
-                <div class="inline-example">
-                    <div class="inline-example-label">${entry.key}</div>
-                    <pp-code-viewer
-                            .code=${formatted}
-                            language="json">
-                    </pp-code-viewer>
-                </div>
-            `;
-        });
-    }
-
-    // media-type refs intentionally use renderRefLink without popover — the schema
-    // is expanded inline below the link via <pp-schema-properties>, so a popover
-    // would duplicate the same content already visible on the page.
-    private renderMediaType(mt: MediaTypeData) {
-        if (mt.isArray && mt.itemsRef) {
-            const propsJson = mt.itemsSchemaJson || mt.schemaJson;
-            return html`
-                <div class="media-type-ref">
-                    <span class="media-type-label">${mt.mediaType}</span>
-                    <span class="array-type">Array&lt;${this.renderRefLink(mt.itemsRef)}&gt;</span>
-                </div>
-                ${propsJson ? html`
-                    <pp-schema-properties schema-json=${propsJson}></pp-schema-properties>` : nothing}
-                ${this.renderInlineExamples(mt)}
-                ${mt.extensions?.length ? html`
-                    <div class="media-type-extensions">
-                        <h4>${mt.mediaType} Response Extensions</h4>
-                        <pp-extensions extensions-json=${JSON.stringify(mt.extensions)}></pp-extensions>
-                    </div>` : nothing}
-            `;
-        }
-        if (mt.schemaRef) {
-            return html`
-                <div class="media-type-ref">
-                    <span class="media-type-label">${mt.mediaType}</span>
-                    ${this.renderRefLink(mt.schemaRef)}
-                </div>
-                ${mt.schemaJson ? html`
-                    <pp-schema-properties schema-json=${mt.schemaJson}></pp-schema-properties>` : nothing}
-                ${this.renderInlineExamples(mt)}
-                ${mt.extensions?.length ? html`
-                    <div class="media-type-extensions">
-                        <h4>${mt.mediaType} Response Extensions</h4>
-                        <pp-extensions extensions-json=${JSON.stringify(mt.extensions)}></pp-extensions>
-                    </div>` : nothing}
-            `;
-        }
-        if (!mt.schemaJson) return nothing;
-        return html`
-            <div class="media-type-label">${mt.mediaType}</div>
-            <pp-schema-properties schema-json=${mt.schemaJson}></pp-schema-properties>
-            ${this.renderInlineExamples(mt)}
-            ${mt.extensions?.length ? html`
-                <div class="media-type-extensions">
-                    <h4>${mt.mediaType} Response Extensions</h4>
-                    <pp-extensions extensions-json=${JSON.stringify(mt.extensions)}></pp-extensions>
-                </div>` : nothing}
-        `;
     }
 
     private computeCommonHeaders(): { common: HeaderData[], commonNames: Set<string> } {
@@ -405,7 +316,9 @@ export class PpOperationResponses extends LitElement {
                             </div>`
                         : resp.ref
                                 ? this.renderRefLink(resp.ref, true)
-                                : resp.content?.map(mt => this.renderMediaType(mt)) ?? nothing}
+                                : resp.content?.length
+                                    ? html`<pp-media-type-selector content-json=${JSON.stringify(resp.content)}></pp-media-type-selector>`
+                                    : nothing}
                 ${this.renderHeaders(resp.headers ?? [], commonNames)}
                 ${this.renderLinks(resp.links ?? [])}
                 ${resp.extensions?.length ? html`
@@ -451,7 +364,9 @@ export class PpOperationResponses extends LitElement {
                     </div>
                     ${resp.ref
                             ? this.renderRefLink(resp.ref, true)
-                            : resp.content?.map(mt => this.renderMediaType(mt)) ?? nothing}
+                            : resp.content?.length
+                                ? html`<pp-media-type-selector content-json=${JSON.stringify(resp.content)}></pp-media-type-selector>`
+                                : nothing}
                     ${this.renderHeaders(resp.headers ?? [], commonNames)}
                 </div>
             `)}

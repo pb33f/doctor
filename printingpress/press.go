@@ -32,6 +32,8 @@ type PrintingPress struct {
 	slugs      *SlugRegistry
 	site       *Site
 	mockGen    *renderer.MockGenerator
+	mockGenYAML *renderer.MockGenerator
+	mockGenXML  *renderer.MockGenerator
 	warnings   []*BuildWarning
 	modelIndex map[string]*ModelPage // keyed by "typeSlug/name" for O(1) ref resolution
 }
@@ -44,10 +46,21 @@ func New(config *PrintingPressConfig) *PrintingPress {
 	mg := renderer.NewMockGenerator(renderer.JSON)
 	mg.SetPretty()
 	mg.DisableRequiredCheck()
+
+	mgYAML := renderer.NewMockGenerator(renderer.YAML)
+	mgYAML.SetPretty()
+	mgYAML.DisableRequiredCheck()
+
+	mgXML := renderer.NewMockGenerator(renderer.XML)
+	mgXML.SetPretty()
+	mgXML.DisableRequiredCheck()
+
 	return &PrintingPress{
-		config:  config,
-		slugs:   NewSlugRegistry(),
-		mockGen: mg,
+		config:      config,
+		slugs:       NewSlugRegistry(),
+		mockGen:     mg,
+		mockGenYAML: mgYAML,
+		mockGenXML:  mgXML,
 		site: &Site{
 			Models: make(map[string][]*ModelPage),
 		},

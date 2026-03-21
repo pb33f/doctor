@@ -5,6 +5,20 @@ export interface ComponentLinkData {
   slug: string;
 }
 
+export interface MediaTypeData {
+  mediaType: string;
+  schemaJson: string;
+  mockJson?: string;
+  mockYaml?: string;
+  mockXml?: string;
+  examples?: Record<string, string>;
+  schemaRef?: ComponentLinkData;
+  isArray?: boolean;
+  itemsRef?: ComponentLinkData;
+  itemsSchemaJson?: string;
+  extensions?: Array<{key: string; value: any}>;
+}
+
 const refSegmentToTypeSlug: Record<string, string> = {
   schemas: 'schemas',
   responses: 'responses',

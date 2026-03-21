@@ -98,6 +98,7 @@ export default css`
 
     .header-entry:first-child {
         border-bottom: none;
+        border-top: none;
     }
     
     .header-entry-extensions {
@@ -162,7 +163,7 @@ export default css`
     .header-anchor {
         color: var(--primary-color);
         text-decoration: none;
-        font-family: var(--font-stack-bold);
+        font-family: var(--font-stack-bold), monospace;
         cursor: pointer;
     }
 
@@ -249,12 +250,16 @@ export default css`
 
     .link-entry {
         display: grid;
-        grid-template-columns: 200px 200px 1fr;
+        grid-template-columns: 300px 300px 1fr;
         gap: 0 1rem;
         padding: var(--global-padding) var(--global-padding-double);
         border-top: 1px dotted var(--hrcolor);
     }
 
+    .link-entry:first-of-type {
+        border-top: none;
+    }
+    
     .link-entry:last-child {
         border-bottom: none;
     }
