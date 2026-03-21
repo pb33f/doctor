@@ -62,3 +62,4 @@ export { PpInlineCode } from './components/shared/inline-code.js';
 export { PpSchemaProperties } from './components/shared/schema-properties.js';
 export { PpRefPopover } from './components/shared/ref-popover.js';
 export { PpExtensions } from './components/shared/extensions.js';
+export { PpMediaTypeSelector } from './components/shared/media-type-selector.js';

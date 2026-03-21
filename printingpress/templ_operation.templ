@@ -158,45 +158,22 @@ templ RequestBodySection(rb *RequestBodyInfo) {
 					&#10140; { rb.Ref.Name }
 				</a>
 			</p>
-		} else {
-			for _, mt := range rb.Content {
-				if mt.SchemaRef != nil {
-					<div class="pp-media-type-ref">
-						<span class="pp-media-type-label">{ mt.MediaType }</span>
-						<a class="pp-ref-link" href={ templ.SafeURL("models/" + mt.SchemaRef.TypeSlug + "/" + mt.SchemaRef.Slug + ".html") }>
-							&#10140; { mt.SchemaRef.Name }
-						</a>
-					</div>
-					if mt.SchemaJSON != "" {
-						<pp-schema-properties schema-json={ mt.SchemaJSON }></pp-schema-properties>
-					}
-					if mt.MockJSON != "" || len(mt.Examples) > 0 {
-						@InlineExamples(mt)
-					}
-				} else if mt.SchemaJSON != "" {
-					<div class="pp-media-type-label">{ mt.MediaType }</div>
-					<pp-model-page model-json={ mt.SchemaJSON }></pp-model-page>
-					if mt.MockJSON != "" || len(mt.Examples) > 0 {
-						@InlineExamples(mt)
-					}
-				}
-			}
+		} else if len(rb.Content) > 0 {
+			<pp-media-type-selector content-json={ MustJSON(rb.Content) }></pp-media-type-selector>
 		}
 	</div>
 }
 
 templ InlineExamples(mt *MediaTypeInfo) {
-	for name, ex := range mt.Examples {
-		<div class="pp-inline-example">
-			<div class="pp-inline-example-label">{ name }</div>
-			<pp-code-viewer code={ prettyJSON(ex) } language="json"></pp-code-viewer>
-		</div>
-	}
-	if mt.MockJSON != "" {
-		<div class="pp-inline-example">
-			<div class="pp-inline-example-label">Example</div>
-			<pp-code-viewer code={ prettyJSON(mt.MockJSON) } language="json"></pp-code-viewer>
-		</div>
+	if len(mt.Examples) > 0 || mt.MockJSON != "" {
+		<pp-example-selector mode="inline"
+			if len(mt.Examples) > 0 {
+				examples-json={ MustJSON(mt.Examples) }
+			}
+			if mt.MockJSON != "" {
+				mock-json={ mt.MockJSON }
+			}>
+		</pp-example-selector>
 	}
 }
 

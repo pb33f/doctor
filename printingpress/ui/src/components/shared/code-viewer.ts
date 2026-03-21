@@ -5,6 +5,7 @@ import Prism from 'prismjs';
 Prism.manual = true;
 import 'prismjs/components/prism-json.js';
 import 'prismjs/components/prism-yaml.js';
+import 'prismjs/components/prism-markup.js';
 import codeViewerCss from './code-viewer.css.js';
 
 @customElement('pp-code-viewer')
@@ -12,7 +13,7 @@ export class PpCodeViewer extends LitElement {
     static styles = [codeViewerCss];
 
     @property() code = '';
-    @property() language: 'json' | 'yaml' = 'json';
+    @property() language: 'json' | 'yaml' | 'xml' = 'json';
     @property({type: Boolean}) pretty = false;
     @property({attribute: 'line-numbers', type: Boolean}) lineNumbers = false;
     @property({attribute: 'highlight-lines'}) highlightLines = '';
@@ -56,7 +57,8 @@ export class PpCodeViewer extends LitElement {
         const code = this.displayCode;
         if (!code) return '';
         try {
-            return Prism.highlight(code, Prism.languages[this.language], this.language);
+            const prismLang = this.language === 'xml' ? 'markup' : this.language;
+            return Prism.highlight(code, Prism.languages[prismLang], prismLang);
         } catch { return code; }
     }
 

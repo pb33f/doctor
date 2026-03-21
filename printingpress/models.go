@@ -184,6 +184,8 @@ type MediaTypeInfo struct {
 	SchemaJSON            string            `json:"schemaJson"`
 	SchemaHighlightedHTML string            `json:"-"` // chroma output, templ only
 	MockJSON              string            `json:"mockJson,omitempty"`
+	MockYAML              string            `json:"mockYaml,omitempty"`
+	MockXML               string            `json:"mockXml,omitempty"`
 	Examples              map[string]string `json:"examples,omitempty"`
 	SchemaRef             *ComponentLink    `json:"schemaRef,omitempty"`
 	IsArray               bool              `json:"isArray,omitempty"`

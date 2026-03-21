@@ -7,7 +7,9 @@ package printingpress
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 
+	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -65,3 +67,30 @@ func isComplexSchemaJSON(schemaJSON string) bool {
 	return false
 }
 
+// isComplexSchema returns true if the schema represents a complex type worth
+// generating a mock for, operating directly on the schema object without JSON round-trip.
+func isComplexSchema(sch *highbase.Schema) bool {
+	if sch == nil {
+		return false
+	}
+	for _, t := range sch.Type {
+		if t == "object" || t == "array" {
+			return true
+		}
+	}
+	return sch.Properties != nil || sch.AllOf != nil || sch.AnyOf != nil || sch.OneOf != nil || sch.Items != nil
+}
+
+// mockLanguageForMediaType returns the mock language ("json", "yaml", or "xml")
+// based on the media type string.
+func mockLanguageForMediaType(mediaType string) string {
+	mt := strings.ToLower(mediaType)
+	switch {
+	case strings.Contains(mt, "yaml") || strings.Contains(mt, "x-yaml"):
+		return "yaml"
+	case strings.Contains(mt, "xml"):
+		return "xml"
+	default:
+		return "json"
+	}
+}

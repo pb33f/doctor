@@ -12,7 +12,9 @@ import (
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/bundler"
+	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"github.com/pb33f/libopenapi/renderer"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -372,17 +374,17 @@ func (pp *PrintingPress) collectParameters(params []*v3.Parameter) []*ParameterI
 				pi.Ref = link
 			}
 		}
+		var paramSchema *highbase.Schema
 		if p.Value.Schema != nil {
-			sch := p.Value.Schema.Schema()
-			if sch != nil {
-				jsonStr, err := sch.MarshalJSON()
+			paramSchema = p.Value.Schema.Schema()
+			if paramSchema != nil {
+				jsonStr, err := paramSchema.MarshalJSON()
 				if err == nil {
 					pi.SchemaJSON = string(jsonStr)
 				}
 			}
 		}
-		// Generate mock only for complex schemas (objects, arrays, compositions)
-		if isComplexSchemaJSON(pi.SchemaJSON) {
+		if isComplexSchema(paramSchema) {
 			pi.MockJSON = pp.generateMock(p.Value)
 		}
 		// Collect named examples
@@ -449,12 +451,14 @@ func (pp *PrintingPress) collectMediaType(mediaTypeName string, mt *v3.MediaType
 	mti := &MediaTypeInfo{
 		MediaType: mediaTypeName,
 	}
-	// Use DrDocument's SchemaProxy field (not Value.Schema)
+	// Use DrDocument's SchemaProxy field (not Value.Schema).
+	// Hoist sch to function scope so it's available for XML rendering and complexity check.
+	var sch *highbase.Schema
 	if mt.SchemaProxy != nil && mt.SchemaProxy.Value != nil {
 		if mt.SchemaProxy.Value.IsReference() {
 			mti.SchemaRef = pp.resolveComponentLink(mt.SchemaProxy.Value.GetReference())
 		}
-		sch := mt.SchemaProxy.Value.Schema()
+		sch = mt.SchemaProxy.Value.Schema()
 		if sch != nil {
 			// Detect array schemas with $ref items (e.g. type: array, items: $ref: ...)
 			if len(sch.Type) > 0 && sch.Type[0] == "array" && sch.Items != nil && sch.Items.IsA() {
@@ -479,24 +483,51 @@ func (pp *PrintingPress) collectMediaType(mediaTypeName string, mt *v3.MediaType
 			}
 		}
 	}
+	lang := mockLanguageForMediaType(mediaTypeName)
+
 	if mt.Examples != nil {
 		mti.Examples = make(map[string]string)
 		for pair := mt.Examples.First(); pair != nil; pair = pair.Next() {
 			ex := pair.Value()
-			if ex != nil && ex.Value != nil {
-				yamlBytes, err := ex.Value.Render()
-				if err == nil {
-					jsonStr, err := yamlToJSON(yamlBytes)
-					if err == nil {
-						mti.Examples[pair.Key()] = jsonStr
+			if ex == nil || ex.Value == nil {
+				continue
+			}
+			yamlBytes, err := ex.Value.Render()
+			if err != nil {
+				continue
+			}
+			switch lang {
+			case "yaml":
+				mti.Examples[pair.Key()] = string(yamlBytes)
+			case "xml":
+				var decoded any
+				if yaml.Unmarshal(yamlBytes, &decoded) != nil {
+					continue
+				}
+				if s, ok := decoded.(string); ok && strings.HasPrefix(strings.TrimSpace(s), "<") {
+					mti.Examples[pair.Key()] = s
+				} else {
+					xmlBytes := pp.mockGenXML.RenderXML(decoded, sch)
+					if xmlBytes != nil {
+						mti.Examples[pair.Key()] = string(xmlBytes)
 					}
+				}
+			default:
+				jsonStr, jsonErr := yamlToJSON(yamlBytes)
+				if jsonErr == nil {
+					mti.Examples[pair.Key()] = jsonStr
 				}
 			}
 		}
 	}
-	// Generate mock only for complex schemas (objects, arrays, compositions)
-	if isComplexSchemaJSON(mti.SchemaJSON) {
-		mti.MockJSON = pp.generateMock(mt.Value)
+	if isComplexSchema(sch) {
+		mti.MockJSON = pp.generateMockAs(mt.Value, "json")
+		switch lang {
+		case "yaml":
+			mti.MockYAML = pp.generateMockAs(mt.Value, "yaml")
+		case "xml":
+			mti.MockXML = pp.generateMockAs(mt.Value, "xml")
+		}
 	}
 	mti.Extensions = collectExtensions(mt.Value.Extensions)
 	return mti
@@ -668,9 +699,8 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 			page.DescHTML = renderMarkdown(sp.Schema.Value.Description)
 			pp.captureRawData(sp.Schema.Value, name,
 				&page.RawYAML, &page.SchemaJSON, &page.SchemaHighlightedHTML)
-			// Generate mock only for complex schemas (objects, arrays, compositions)
-			if isComplexSchemaJSON(page.SchemaJSON) {
-				page.MockJSON = pp.generateMock(sp.Value)
+			if isComplexSchema(sp.Schema.Value) {
+				page.MockJSON = pp.generateMock(sp.Schema.Value)
 			}
 			// Collect inline example(s) from schema
 			if sp.Schema.Value.Example != nil || len(sp.Schema.Value.Examples) > 0 {
@@ -1092,6 +1122,24 @@ func (pp *PrintingPress) buildNavModelGroups() {
 // generateMock produces a pretty-printed JSON mock from any mockable object.
 func (pp *PrintingPress) generateMock(mockable any) string {
 	mock, err := pp.mockGen.GenerateMock(mockable, "")
+	if err != nil || mock == nil {
+		return ""
+	}
+	return string(mock)
+}
+
+// generateMockAs produces a mock in the specified language format.
+func (pp *PrintingPress) generateMockAs(mockable any, lang string) string {
+	var gen *renderer.MockGenerator
+	switch lang {
+	case "yaml":
+		gen = pp.mockGenYAML
+	case "xml":
+		gen = pp.mockGenXML
+	default:
+		gen = pp.mockGen
+	}
+	mock, err := gen.GenerateMock(mockable, "")
 	if err != nil || mock == nil {
 		return ""
 	}

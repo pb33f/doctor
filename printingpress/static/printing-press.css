@@ -404,7 +404,24 @@ gap: 0.25rem 1rem;
 
 /* Request body */
 .pp-request-body {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--global-padding-double);
+    border: 1px dashed var(--secondary-color-dimmer);
+    border-radius: 0;
+    padding: var(--global-padding-double);
+}
+
+.pp-request-body > h3 {
+    margin-bottom: 20px;
+    margin-top: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.pp-request-body .pp-description {
+    margin: 0 0 var(--global-padding-double) 0;
+    padding: 0;
+    border-top: none;
+    border-bottom: none;
 }
 
 .pp-request-body > h3 > .raw-button {
@@ -454,8 +471,7 @@ a.pp-ref-link:hover {
     font-family: var(--font-stack-bold);
     color: var(--primary-color);
     text-transform: uppercase;
-    letter-spacing: 0.03em;
-    font-size: 0.85em;
+    letter-spacing: 0.05em;
 }
 
 /* Operations overview on root page */

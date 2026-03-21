@@ -6,6 +6,7 @@ import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import type {ShowExampleDetail} from './example-drawer.js';
 import exampleSelectorCss from './example-selector.css.js';
+import '../shared/code-viewer.js';
 
 interface ExamplesData {
   mockJson?: string;
@@ -21,8 +22,11 @@ export class PpExampleSelector extends LitElement {
   // Or individual attributes for inline use in Lit templates
   @property({attribute: 'mock-json'}) mockJson = '';
   @property({attribute: 'examples-json'}) examplesJson = '';
+  @property() mode: 'drawer' | 'inline' = 'drawer';
+  @property({attribute: 'code-language'}) codeLanguage: 'json' | 'yaml' | 'xml' = 'json';
 
   @state() private entries: Array<{key: string; json: string}> = [];
+  @state() private selectedIndex = 0;
 
   willUpdate(changed: Map<string, unknown>) {
     if (changed.has('examplesData') || changed.has('mockJson') || changed.has('examplesJson')) {
@@ -58,10 +62,11 @@ export class PpExampleSelector extends LitElement {
 
     // Generated mock last
     if (mock) {
-      entries.push({key: 'Generated Example', json: mock});
+      entries.push({key: '', json: mock});
     }
 
     this.entries = entries;
+    this.selectedIndex = 0;
   }
 
   private showExample(entry: {key: string; json: string}) {
@@ -91,6 +96,10 @@ export class PpExampleSelector extends LitElement {
   render() {
     if (!this.entries.length) return nothing;
 
+    if (this.mode === 'inline') {
+      return this.renderInline();
+    }
+
     // Single entry: simple button
     if (this.entries.length === 1) {
       const entry = this.entries[0];
@@ -114,5 +123,40 @@ export class PpExampleSelector extends LitElement {
         </sl-dropdown>
       </div>
     `;
+  }
+
+  private inlineLabel(key: string) {
+    return key.toLowerCase().includes('example') ? key : `${key} Example`;
+  }
+
+  private renderInline() {
+    const current = this.entries[this.selectedIndex];
+
+    if (this.entries.length === 1) {
+      return html`
+        <div class="inline-example-label">${this.inlineLabel(current.key)}</div>
+        <pp-code-viewer .code=${current.json} .language=${this.codeLanguage}
+            ?pretty=${this.codeLanguage === 'json'}></pp-code-viewer>
+      `;
+    }
+
+    return html`
+      <pp-code-viewer .code=${current.json} .language=${this.codeLanguage}
+          ?pretty=${this.codeLanguage === 'json'}></pp-code-viewer>
+      <sl-dropdown skidding="5" distance="5">
+        <sl-button slot="trigger" caret>${this.inlineLabel(current.key)}</sl-button>
+        <sl-menu @sl-select=${this.handleInlineSelect}>
+          ${this.entries.map((e, i) => html`
+            <sl-menu-item value="${i}">${this.inlineLabel(e.key)}</sl-menu-item>
+          `)}
+        </sl-menu>
+      </sl-dropdown>
+    `;
+  }
+
+  private handleInlineSelect(e: CustomEvent) {
+    const value = e.detail?.item?.value;
+    if (value === undefined) return;
+    this.selectedIndex = parseInt(value, 10);
   }
 }
