@@ -23,8 +23,23 @@ export default css`
         color: var(--warn-400);
     }
 
+    .enum-section {
+        grid-column: 1 / -1;
+        margin-top: 0.3rem;
+    }
+
+    .enum-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-top: 0.25rem;
+    }
+
     .enum-value {
         color: var(--warn-400);
         font-family: var(--font-stack);
+        padding: 0.1rem 0.4rem;
+        border: 1px solid var(--border-color-lowalpha);
+        white-space: nowrap;
     }
 `;

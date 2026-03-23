@@ -1,6 +1,7 @@
 export interface RegistryEntry {
     name: string;
     componentType: string;
+    description?: string;
     schemaJson: string;
     mockJson?: string;
 }
@@ -30,4 +31,10 @@ export function getSchemaEntryByRef(ref: string): RegistryEntry | undefined {
     if (!ref?.startsWith('#/components/')) return undefined;
     const key = ref.replace('#/components/', '');
     return getSchemaEntry(key);
+}
+
+/** @internal test-only: reset the registry so a fresh fixture can be injected */
+export function resetRegistry() {
+    registry.clear();
+    initialized = false;
 }
