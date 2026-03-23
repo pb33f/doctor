@@ -1243,6 +1243,7 @@ func (pp *PrintingPress) buildSchemaRegistry() {
 			registry[key] = &SchemaRegistryEntry{
 				Name:          page.Name,
 				ComponentType: page.ComponentType,
+				Description:   page.Description,
 				SchemaJSON:    page.SchemaJSON,
 				MockJSON:      page.MockJSON,
 			}

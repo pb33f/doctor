@@ -1,18 +1,24 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
+import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
+import '@shoelace-style/shoelace/dist/components/menu/menu.js';
+import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
+import '@shoelace-style/shoelace/dist/components/button/button.js';
 import constraintsCss from '../../styles/constraints.css.js';
 import schemaPropertiesCss from './schema-properties.css.js';
 import {deriveSchemaType, resolveRefLink} from '../../utils/schema.js';
-import {renderConstraints} from '../../utils/render-helpers.js';
+import {renderConstraints, renderSchemaType} from '../../utils/render-helpers.js';
+import {getSchemaEntryByRef} from '../../utils/schema-registry.js';
 import './ref-popover.js';
 
 @customElement('pp-schema-properties')
 export class PpSchemaProperties extends LitElement {
-    static styles = [constraintsCss, schemaPropertiesCss];
+    static styles = [constraintsCss, ...schemaPropertiesCss];
 
     @property({attribute: 'schema-json'}) schemaJson = '';
     @property({type: Boolean, reflect: true}) compact = false;
     @state() private schema: any = null;
+    @state() private oneOfSelectedIndex = 0;
 
     willUpdate(changed: Map<string, unknown>) {
         if (changed.has('schemaJson') && this.schemaJson) {
@@ -21,6 +27,7 @@ export class PpSchemaProperties extends LitElement {
             } catch {
                 this.schema = null;
             }
+            this.oneOfSelectedIndex = 0;
         }
     }
 
@@ -32,39 +39,166 @@ export class PpSchemaProperties extends LitElement {
     }
 
     private renderType(prop: any) {
-        if (!prop) return nothing;
+        return renderSchemaType(prop, (ref, link) => this.renderRefAnchor(ref, link));
+    }
 
-        if (prop.type === 'array' && prop.items?.$ref) {
-            const link = resolveRefLink(prop.items.$ref);
-            if (link) {
-                return html`<span
-                        class="prop-type prop-type-link">Array&lt;${this.renderRefAnchor(prop.items.$ref, link)}&gt;</span>`;
+    private renderPropertyTable(properties: Record<string, any>, required: Set<string>) {
+        const propEntries = Object.entries(properties);
+        if (!propEntries.length) return nothing;
+        return propEntries.map(([name, prop]: [string, any]) => html`
+            <div class="property">
+                <div class="prop-name-col">
+                    ${required.has(name) ? html`<span class="required-badge">req</span>` : nothing}
+                    <span class="prop-name">${name}</span>
+                </div>
+                <div class="prop-type-col">
+                    ${this.renderType(prop)}
+                    ${renderConstraints(prop, {labelSuffix: ':'})}
+                </div>
+                <div class="prop-desc-col">
+                    ${prop.description ? prop.description : nothing}
+                </div>
+            </div>
+            ${prop.oneOf && Array.isArray(prop.oneOf)
+                ? html`<div class="property-oneof">${this.renderOneOf(prop.oneOf, 'One of')}</div>`
+                : nothing}
+            ${prop.anyOf && Array.isArray(prop.anyOf)
+                ? html`<div class="property-oneof">${this.renderOneOf(prop.anyOf, 'Any of')}</div>`
+                : nothing}
+        `);
+    }
+
+    private renderCompositionRefs(refs: any[]) {
+        return html`
+            <div class="composition-refs">
+                <span class="composition-label">Composed from</span>
+                ${refs.map(entry => {
+                    const link = resolveRefLink(entry.$ref);
+                    if (!link) return nothing;
+                    const registryEntry = getSchemaEntryByRef(entry.$ref);
+                    const description = registryEntry?.description ?? '';
+                    return html`
+                        <div class="composition-ref-entry">
+                            ${this.renderRefAnchor(entry.$ref, link)}
+                            ${description ? html`<span class="composition-ref-desc">${description}</span>` : nothing}
+                        </div>
+                    `;
+                })}
+            </div>
+        `;
+    }
+
+    private renderComposition(target: any) {
+        const allOf: any[] = target.allOf;
+        const refEntries: any[] = [];
+
+        // Merge required from inline/constraint-only entries + top-level.
+        const mergedRequired = new Set<string>(target.required || []);
+        const mergedProperties: Record<string, any> = {};
+
+        if (target.properties) {
+            Object.assign(mergedProperties, target.properties);
+        }
+
+        for (const entry of allOf) {
+            if (entry.$ref) {
+                refEntries.push(entry);
+            } else {
+                if (entry.properties) {
+                    Object.assign(mergedProperties, entry.properties);
+                }
+                if (entry.required) {
+                    for (const r of entry.required) mergedRequired.add(r);
+                }
             }
         }
 
-        if (prop.$ref) {
-            const link = resolveRefLink(prop.$ref);
-            if (link) {
-                return html`<span class="prop-type prop-type-link">${this.renderRefAnchor(prop.$ref, link)}</span>`;
-            }
+        return html`
+            ${refEntries.length ? this.renderCompositionRefs(refEntries) : nothing}
+            ${Object.keys(mergedProperties).length
+                ? this.renderPropertyTable(mergedProperties, mergedRequired)
+                : nothing}
+        `;
+    }
+
+    private renderOneOf(entries: any[], label = 'One of') {
+        if (!entries.length) return nothing;
+        const selected = entries[this.oneOfSelectedIndex] || entries[0];
+
+        return html`
+            <div class="oneof-container">
+                ${entries.length > 1 ? html`
+                    <div class="oneof-selector">
+                        <span class="composition-label">${label}</span>
+                        <sl-dropdown skidding="5" distance="5">
+                            <sl-button slot="trigger" caret>${selected.title || `Option ${this.oneOfSelectedIndex + 1}`}</sl-button>
+                            <sl-menu @sl-select=${this.handleOneOfSelect}>
+                                ${entries.map((e, i) => html`
+                                    <sl-menu-item value="${i}">${e.title || `Option ${i + 1}`}</sl-menu-item>
+                                `)}
+                            </sl-menu>
+                        </sl-dropdown>
+                    </div>
+                ` : html`
+                    <div class="oneof-selector">
+                        <span class="composition-label">${selected.title || 'Option 1'}</span>
+                    </div>
+                `}
+                ${this.renderOneOfOption(selected)}
+            </div>
+        `;
+    }
+
+    private handleOneOfSelect(e: CustomEvent) {
+        const value = e.detail?.item?.value;
+        if (value === undefined) return;
+        const idx = parseInt(value, 10);
+        if (idx >= 0) this.oneOfSelectedIndex = idx;
+    }
+
+    private renderOneOfOption(entry: any) {
+        if (entry.$ref) {
+            const link = resolveRefLink(entry.$ref);
+            if (!link) return nothing;
+            const registryEntry = getSchemaEntryByRef(entry.$ref);
+            return html`
+                <div class="oneof-option-header">
+                    ${this.renderRefAnchor(entry.$ref, link)}
+                    ${registryEntry?.description ? html`<span class="oneof-option-desc">${registryEntry.description}</span>` : nothing}
+                </div>
+            `;
         }
 
-        const type = deriveSchemaType(prop);
-        if (!type) return nothing;
-        return html`<span class="prop-type">${type}</span>`;
+        const required = new Set<string>(entry.required || []);
+        return html`
+            ${entry.description ? html`<div class="oneof-option-desc">${entry.description}</div>` : nothing}
+            ${entry.properties ? this.renderPropertyTable(entry.properties, required) : nothing}
+        `;
     }
 
     render() {
         if (!this.schema) return nothing;
-        // For arrays, render the items schema properties
-        const target = this.schema.type === 'array' && this.schema.items?.properties
+        const target = this.schema.type === 'array'
+            && (this.schema.items?.properties || this.schema.items?.allOf || this.schema.items?.oneOf || this.schema.items?.anyOf)
             ? this.schema.items
             : this.schema;
+
+        if (target.allOf && Array.isArray(target.allOf)) {
+            return this.renderComposition(target);
+        }
+
+        if (target.oneOf && Array.isArray(target.oneOf)) {
+            return this.renderOneOf(target.oneOf, 'One of');
+        }
+
+        if (target.anyOf && Array.isArray(target.anyOf)) {
+            return this.renderOneOf(target.anyOf, 'Any of');
+        }
+
         const properties = target.properties || {};
         const required = new Set(target.required || []);
         const propEntries = Object.entries(properties);
         if (!propEntries.length) {
-            // Scalar schema (e.g. parameter/header with type but no properties)
             const type = deriveSchemaType(target);
             if (!type && !target.description) return nothing;
             return html`
@@ -80,24 +214,6 @@ export class PpSchemaProperties extends LitElement {
             `;
         }
 
-        return propEntries.map(
-            ([name, prop]: [string, any]) => html`
-                <div class="property">
-                    <div class="prop-name-col">
-                        ${required.has(name)
-                                ? html`<span class="required-badge">req</span>`
-                                : nothing}
-                        <span class="prop-name">${name}</span>
-                    </div>
-                    <div class="prop-type-col">
-                        ${this.renderType(prop)}
-                        ${renderConstraints(prop, {labelSuffix: ':'})}
-                    </div>
-                    <div class="prop-desc-col">
-                        ${prop.description ? prop.description : nothing}
-                    </div>
-                </div>
-            `
-        );
+        return this.renderPropertyTable(properties, required);
     }
 }

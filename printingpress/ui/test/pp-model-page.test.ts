@@ -38,6 +38,25 @@ describe('pp-model-page', () => {
     expect(content).toContain('string');
   });
 
+  it('should show Composition heading for allOf-only schema', async () => {
+    const el = document.createElement('pp-model-page');
+    const schema = {
+      allOf: [
+        { $ref: '#/components/schemas/Base' },
+        { properties: { extra: { type: 'string' } } },
+      ],
+    };
+    el.setAttribute('model-json', JSON.stringify(schema));
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const heading = el.shadowRoot?.querySelector('h3');
+    expect(heading?.textContent).toBe('Composition');
+
+    const schemaProps = el.shadowRoot?.querySelector('pp-schema-properties');
+    expect(schemaProps).toBeTruthy();
+  });
+
   it('should not render schema dump in shadow DOM (moved to chroma light DOM)', async () => {
     const el = document.createElement('pp-model-page');
     el.setAttribute('model-json', JSON.stringify({ type: 'object', properties: { id: { type: 'integer' } } }));

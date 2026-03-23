@@ -28,6 +28,7 @@ type Site struct {
 type SchemaRegistryEntry struct {
 	Name          string `json:"name"`
 	ComponentType string `json:"componentType"`
+	Description   string `json:"description,omitempty"`
 	SchemaJSON    string `json:"schemaJson"`
 	MockJSON      string `json:"mockJson,omitempty"`
 }

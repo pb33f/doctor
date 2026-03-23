@@ -5,8 +5,7 @@ import constraintsCss from '../../styles/constraints.css.js';
 import modelPageCss from './model-page.css.js';
 import '../shared/inline-code.js';
 import '../shared/schema-properties.js';
-import '../shared/ref-popover.js';
-import {deriveSchemaType, resolveRefLink} from '../../utils/schema.js';
+
 import {renderConstraints} from '../../utils/render-helpers.js';
 
 @customElement('pp-model-page')
@@ -31,30 +30,6 @@ export class PpModelPage extends LitElement {
         this.parsed = null;
       }
     }
-  }
-
-  private renderType(prop: any) {
-    if (!prop) return nothing;
-
-    // Array with $ref items: "Array<→Name>"
-    if (prop.type === 'array' && prop.items?.$ref) {
-      const link = resolveRefLink(prop.items.$ref);
-      if (link) {
-        return html`<span class="prop-type">Array&lt;<pp-ref-popover schema-ref="${prop.items.$ref}"><a class="ref-type-link" href="${link.href}">\u279c ${link.name}</a></pp-ref-popover>&gt;</span>`;
-      }
-    }
-
-    // Direct $ref: "→Name"
-    if (prop.$ref) {
-      const link = resolveRefLink(prop.$ref);
-      if (link) {
-        return html`<span class="prop-type"><pp-ref-popover schema-ref="${prop.$ref}"><a class="ref-type-link" href="${link.href}">\u279c ${link.name}</a></pp-ref-popover></span>`;
-      }
-    }
-
-    const type = deriveSchemaType(prop);
-    if (!type) return nothing;
-    return html`<span class="prop-type">${type}</span>`;
   }
 
   private renderExampleObjects(examples: Record<string, any>) {
@@ -146,9 +121,9 @@ export class PpModelPage extends LitElement {
       ${schema.type
         ? html`<div><strong>Type:</strong> ${schema.type}</div>`
         : nothing}
-      ${schema.properties
+      ${schema.properties || schema.allOf || schema.oneOf || schema.anyOf
         ? html`
-            <h3>Properties</h3>
+            <h3>${schema.properties ? 'Properties' : (schema.allOf ? 'Composition' : 'Variants')}</h3>
             <pp-schema-properties schema-json=${this.modelJson}></pp-schema-properties>
           `
         : nothing}

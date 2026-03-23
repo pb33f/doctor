@@ -1,6 +1,7 @@
 import {css} from "lit";
+import dropdownCss from '../../styles/dropdown.css.js';
 
-export default css`
+export default [dropdownCss, css`
     :host {
         display: block;
         border: 1px dotted var(--hrcolor);
@@ -97,4 +98,93 @@ export default css`
     .property.scalar .constraint-label {
         text-align: left;
     }
-`
+
+    .composition-refs {
+        padding: 15px var(--global-padding);
+        border-bottom: 1px dotted var(--hrcolor);
+    }
+
+    .composition-label {
+        display: block;
+        color: var(--font-color-dimmed);
+        font-size: 0.85em;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 6px;
+    }
+
+    .composition-ref-entry {
+        display: flex;
+        align-items: baseline;
+        gap: 1rem;
+        padding: 4px 0;
+    }
+
+    .composition-ref-desc {
+        color: var(--font-color-dimmed);
+        font-size: 0.9em;
+    }
+
+    .composition-separator {
+        color: var(--primary-color);
+        font-weight: bold;
+        margin: 0 0.25em;
+    }
+
+    :host([compact]) .composition-refs {
+        padding: 8px 0.5rem;
+    }
+
+    :host([compact]) .composition-ref-desc {
+        display: none;
+    }
+
+    :host([compact]) .composition-label {
+        display: none;
+    }
+
+    .oneof-container {
+        border-bottom: 1px dotted var(--hrcolor);
+    }
+
+    .oneof-selector {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 15px var(--global-padding);
+    }
+
+    .oneof-selector .composition-label {
+        display: inline;
+        margin-bottom: 0;
+    }
+
+    .oneof-selector sl-dropdown {
+        margin-top: 0;
+    }
+
+    .oneof-option-header {
+        display: flex;
+        align-items: baseline;
+        gap: 1rem;
+        padding: 10px var(--global-padding);
+    }
+
+    .oneof-option-desc {
+        color: var(--font-color-dimmed);
+        font-size: 0.9em;
+        padding: 10px var(--global-padding);
+    }
+
+    .property-oneof {
+        grid-column: 1 / -1;
+    }
+
+    :host([compact]) .oneof-selector {
+        padding: 8px 0.5rem;
+    }
+
+    :host([compact]) .oneof-option-desc {
+        display: none;
+    }
+`]
