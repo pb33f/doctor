@@ -4,7 +4,7 @@ import dropdownCss from '../../styles/dropdown.css.js';
 export default [dropdownCss, css`
     :host {
         display: inline-block;
-        margin: var(--global-padding) 0 0 0;
+        margin: var(--global-padding) 0 var(--global-padding-double) 0;
         width: 100%;
     }
 

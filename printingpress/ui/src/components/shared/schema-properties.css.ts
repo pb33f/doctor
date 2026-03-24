@@ -15,6 +15,10 @@ export default [dropdownCss, css`
         border-bottom: 1px dotted var(--hrcolor);
     }
 
+    .property:last-child, .property:last-of-type {
+        border-bottom: none;
+    }
+    
     .prop-name-col {
         text-align: right;
         white-space: nowrap;
@@ -25,6 +29,7 @@ export default [dropdownCss, css`
     }
 
     .prop-desc-col {
+        color: var(--font-color-sub1)
     }
 
     .prop-name {
@@ -100,29 +105,37 @@ export default [dropdownCss, css`
     }
 
     .composition-refs {
-        padding: 15px var(--global-padding);
+        padding: var(--global-padding-double) var(--global-padding);
         border-bottom: 1px dotted var(--hrcolor);
     }
 
     .composition-label {
         display: block;
-        color: var(--font-color-dimmed);
-        font-size: 0.85em;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        margin-bottom: 6px;
+        font-family: var(--font-stack), monospace;
+        margin-bottom: var(--global-padding);
+        color: var(--font-color-sub1);
+    }
+
+    .composition-label.polymorphic {
+        color: var(--warn-color);
     }
 
     .composition-ref-entry {
-        display: flex;
+        display: grid;
+        grid-template-columns: 200px 200px 1fr;
+        gap: 0 1rem;
         align-items: baseline;
-        gap: 1rem;
         padding: 4px 0;
     }
 
+    .composition-ref-link {
+        grid-column: 1 / 3;
+    }
+
     .composition-ref-desc {
-        color: var(--font-color-dimmed);
-        font-size: 0.9em;
+        color: var(--font-color-sub1);
     }
 
     .composition-separator {
@@ -148,10 +161,12 @@ export default [dropdownCss, css`
     }
 
     .oneof-selector {
-        display: flex;
+        display: grid;
+        grid-template-columns: 200px 200px 1fr;
+        gap: 0 1rem;
         align-items: center;
-        gap: 1rem;
         padding: 15px var(--global-padding);
+        border-bottom: 1px dotted var(--hrcolor);
     }
 
     .oneof-selector .composition-label {
@@ -163,28 +178,45 @@ export default [dropdownCss, css`
         margin-top: 0;
     }
 
+    .oneof-prop-name {
+        white-space: nowrap;
+        text-align: right;
+    }
+
+    .oneof-prop-name .prop-name {
+        font-family: var(--font-stack-bold), monospace;
+        color: var(--font-color);
+    }
+
+    .oneof-prop-desc {
+        color: var(--font-color-sub1);
+    }
+
     .oneof-option-header {
         display: flex;
         align-items: baseline;
-        gap: 1rem;
-        padding: 10px var(--global-padding);
+        gap: var(--global-padding);
+        padding: var(--global-padding-double) var(--global-padding);
+
     }
 
     .oneof-option-desc {
-        color: var(--font-color-dimmed);
-        font-size: 0.9em;
-        padding: 10px var(--global-padding);
+        padding: var(--global-padding-double) var(--global-padding);
     }
 
     .property-oneof {
         grid-column: 1 / -1;
+        border-top: 1px solid var(--warn-color);
+        border-bottom: 1px solid var(--warn-color);
+        border-left: var(--global-padding-double) solid var(--warn-color);
+        padding-left: calc(var(--global-padding-double) * 4);
     }
 
-    :host([compact]) .oneof-selector {
-        padding: 8px 0.5rem;
+    :host([compact]) .property-oneof {
+        display: none;
     }
 
-    :host([compact]) .oneof-option-desc {
+    :host([compact]) .oneof-container {
         display: none;
     }
 `]

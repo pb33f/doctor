@@ -141,8 +141,18 @@ export class PpOperationResponses extends LitElement {
     }
 
     private scrollToHeader(name: string) {
-        const el = document.getElementById('header-' + name);
-        el?.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+        const el = this.shadowRoot?.getElementById('header-' + name);
+        if (!el) return;
+        // Expand the parent <sl-details> if collapsed
+        const details = el.closest('sl-details') as any;
+        if (details && !details.open) {
+            details.open = true;
+            details.updateComplete?.then(() => {
+                el.scrollIntoView({behavior: 'smooth', block: 'center'});
+            });
+        } else {
+            el.scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
     }
 
     private renderHeaderEntry(h: HeaderData) {
@@ -392,7 +402,9 @@ export class PpOperationResponses extends LitElement {
                 <sl-details class="pp-details">
                     <span slot="summary" class="pp-details-summary"><h3>Common Response Headers</h3></span>
                     <div class="property-box">
-                        ${this.commonResponseHeaders.map(h => this.renderHeaderEntry(h))}
+                        ${this.commonResponseHeaders.map(h => html`
+                            <div id="header-${h.name}">${this.renderHeaderEntry(h)}</div>
+                        `)}
                     </div>
                 </sl-details>
             ` : nothing}
