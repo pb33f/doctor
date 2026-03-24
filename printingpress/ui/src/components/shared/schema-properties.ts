@@ -42,10 +42,8 @@ export class PpSchemaProperties extends LitElement {
         return renderSchemaType(prop, (ref, link) => this.renderRefAnchor(ref, link));
     }
 
-    private renderPropertyTable(properties: Record<string, any>, required: Set<string>) {
-        const propEntries = Object.entries(properties);
-        if (!propEntries.length) return nothing;
-        return propEntries.map(([name, prop]: [string, any]) => html`
+    private renderPropertyRow(name: string, prop: any, required: Set<string>) {
+        return html`
             <div class="property">
                 <div class="prop-name-col">
                     ${required.has(name) ? html`<span class="required-badge">req</span>` : nothing}
@@ -59,13 +57,27 @@ export class PpSchemaProperties extends LitElement {
                     ${prop.description ? prop.description : nothing}
                 </div>
             </div>
-            ${prop.oneOf && Array.isArray(prop.oneOf)
-                ? html`<div class="property-oneof">${this.renderOneOf(prop.oneOf, 'One of')}</div>`
-                : nothing}
-            ${prop.anyOf && Array.isArray(prop.anyOf)
-                ? html`<div class="property-oneof">${this.renderOneOf(prop.anyOf, 'Any of')}</div>`
-                : nothing}
-        `);
+        `;
+    }
+
+    private renderPropertyTable(properties: Record<string, any>, required: Set<string>) {
+        const propEntries = Object.entries(properties);
+        if (!propEntries.length) return nothing;
+        return propEntries.map(([name, prop]: [string, any]) => {
+            const variants = prop.oneOf ?? prop.anyOf;
+            if (variants && Array.isArray(variants)) {
+                if (this.compact) {
+                    return this.renderPropertyRow(name, prop, required);
+                }
+                const label = 'polymorphic';
+                return html`
+                    <div class="property-oneof">
+                        ${this.renderOneOf(variants, name, prop.description, required.has(name), label)}
+                    </div>
+                `;
+            }
+            return this.renderPropertyRow(name, prop, required);
+        });
     }
 
     private renderCompositionRefs(refs: any[]) {
@@ -79,7 +91,7 @@ export class PpSchemaProperties extends LitElement {
                     const description = registryEntry?.description ?? '';
                     return html`
                         <div class="composition-ref-entry">
-                            ${this.renderRefAnchor(entry.$ref, link)}
+                            <span class="composition-ref-link">${this.renderRefAnchor(entry.$ref, link)}</span>
                             ${description ? html`<span class="composition-ref-desc">${description}</span>` : nothing}
                         </div>
                     `;
@@ -121,15 +133,21 @@ export class PpSchemaProperties extends LitElement {
         `;
     }
 
-    private renderOneOf(entries: any[], label = 'One of') {
+    private renderOneOf(entries: any[], propName?: string, propDesc?: string, isRequired?: boolean, label?: string) {
         if (!entries.length) return nothing;
         const selected = entries[this.oneOfSelectedIndex] || entries[0];
 
         return html`
             <div class="oneof-container">
-                ${entries.length > 1 ? html`
-                    <div class="oneof-selector">
-                        <span class="composition-label">${label}</span>
+                <div class="oneof-selector">
+                    ${propName ? html`
+                        <div class="oneof-prop-name">
+                            ${isRequired ? html`<span class="required-badge">req</span>` : nothing}
+                            <span class="prop-name">${propName}</span>
+                            ${label ? html`<span class="composition-label polymorphic">(${label})</span>` : nothing}
+                        </div>
+                    ` : nothing}
+                    ${entries.length > 1 ? html`
                         <sl-dropdown skidding="5" distance="5">
                             <sl-button slot="trigger" caret>${selected.title || `Option ${this.oneOfSelectedIndex + 1}`}</sl-button>
                             <sl-menu @sl-select=${this.handleOneOfSelect}>
@@ -138,12 +156,11 @@ export class PpSchemaProperties extends LitElement {
                                 `)}
                             </sl-menu>
                         </sl-dropdown>
-                    </div>
-                ` : html`
-                    <div class="oneof-selector">
+                    ` : html`
                         <span class="composition-label">${selected.title || 'Option 1'}</span>
-                    </div>
-                `}
+                    `}
+                    ${propDesc ? html`<span class="oneof-prop-desc">${propDesc}</span>` : nothing}
+                </div>
                 ${this.renderOneOfOption(selected)}
             </div>
         `;
