@@ -156,60 +156,50 @@ export default [dropdownCss, css`
         display: none;
     }
 
-    .oneof-container {
-        border-bottom: 1px dotted var(--hrcolor);
-    }
-
-    .oneof-selector {
-        display: grid;
-        grid-template-columns: 200px 200px 1fr;
-        gap: 0 1rem;
-        align-items: center;
+    .oneof-property {
+        display: flex;
+        align-items: flex-start;
         padding: 15px var(--global-padding);
         border-bottom: 1px dotted var(--hrcolor);
     }
 
-    .oneof-selector .composition-label {
-        display: inline;
-        margin-bottom: 0;
+    .oneof-property > .oneof-left {
+        width: 400px;
+        min-width: 400px;
+        padding-right: 1rem;
     }
 
-    .oneof-selector sl-dropdown {
-        margin-top: 0;
+    .oneof-property > .oneof-left > .property {
+        border-bottom: none;
+        padding: 0;
     }
 
-    .oneof-prop-name {
-        white-space: nowrap;
-        text-align: right;
-    }
-
-    .oneof-prop-name .prop-name {
-        font-family: var(--font-stack-bold), monospace;
-        color: var(--font-color);
+    .oneof-desc-container {
+        border: 1px solid var(--warn-color);
+        border-left: var(--global-padding-double) solid var(--warn-color);
+        flex: 1;
     }
 
     .oneof-prop-desc {
         color: var(--font-color-sub1);
-    }
-
-    .oneof-option-header {
-        display: flex;
-        align-items: baseline;
-        gap: var(--global-padding);
-        padding: var(--global-padding-double) var(--global-padding);
-
+        padding-top: var(--global-padding-double);
+        padding-left: var(--global-padding-double);
+        
     }
 
     .oneof-option-desc {
-        padding: var(--global-padding-double) var(--global-padding);
+        padding: var(--global-padding-double);
+        color: var(--font-color-sub1);
+        font-size: 0.9em;
+        border-bottom: 1px dotted var(--hrcolor);
+    }
+
+    .prop-type-col sl-dropdown {
+        margin-top: 0;
     }
 
     .property-oneof {
         grid-column: 1 / -1;
-        border-top: 1px solid var(--warn-color);
-        border-bottom: 1px solid var(--warn-color);
-        border-left: var(--global-padding-double) solid var(--warn-color);
-        padding-left: calc(var(--global-padding-double) * 4);
     }
 
     :host([compact]) .property-oneof {

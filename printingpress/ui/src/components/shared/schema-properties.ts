@@ -138,30 +138,38 @@ export class PpSchemaProperties extends LitElement {
         const selected = entries[this.oneOfSelectedIndex] || entries[0];
 
         return html`
-            <div class="oneof-container">
-                <div class="oneof-selector">
-                    ${propName ? html`
-                        <div class="oneof-prop-name">
-                            ${isRequired ? html`<span class="required-badge">req</span>` : nothing}
-                            <span class="prop-name">${propName}</span>
-                            ${label ? html`<span class="composition-label polymorphic">(${label})</span>` : nothing}
+            <div class="oneof-property">
+                <div class="oneof-left">
+                    <div class="property">
+                        <div class="prop-name-col">
+                            ${propName ? html`
+                                ${isRequired ? html`<span class="required-badge">req</span>` : nothing}
+                                <span class="prop-name">${propName}</span>
+                                ${label ? html`<div class="composition-label polymorphic">(${label})</div>` : nothing}
+                            ` : nothing}
                         </div>
-                    ` : nothing}
-                    ${entries.length > 1 ? html`
-                        <sl-dropdown skidding="5" distance="5">
-                            <sl-button slot="trigger" caret>${selected.title || `Option ${this.oneOfSelectedIndex + 1}`}</sl-button>
-                            <sl-menu @sl-select=${this.handleOneOfSelect}>
-                                ${entries.map((e, i) => html`
-                                    <sl-menu-item value="${i}">${e.title || `Option ${i + 1}`}</sl-menu-item>
-                                `)}
-                            </sl-menu>
-                        </sl-dropdown>
-                    ` : html`
-                        <span class="composition-label">${selected.title || 'Option 1'}</span>
-                    `}
-                    ${propDesc ? html`<span class="oneof-prop-desc">${propDesc}</span>` : nothing}
+                        <div class="prop-type-col">
+                            ${entries.length > 1 ? html`
+                                <sl-dropdown skidding="5" distance="5">
+                                    <sl-button slot="trigger" caret>
+                                        ${selected.title || `Option ${this.oneOfSelectedIndex + 1}`}
+                                    </sl-button>
+                                    <sl-menu @sl-select=${this.handleOneOfSelect}>
+                                        ${entries.map((e, i) => html`
+                                            <sl-menu-item value="${i}">${e.title || `Option ${i + 1}`}</sl-menu-item>
+                                        `)}
+                                    </sl-menu>
+                                </sl-dropdown>
+                            ` : html`
+                                <span class="prop-type">${selected.title || 'Option 1'}</span>
+                            `}
+                        </div>
+                    </div>
+                    ${propDesc ? html`<div class="oneof-prop-desc">${propDesc}</div>` : nothing}
                 </div>
-                ${this.renderOneOfOption(selected)}
+                <div class="oneof-desc-container">
+                    ${this.renderOneOfOption(selected)}
+                </div>
             </div>
         `;
     }

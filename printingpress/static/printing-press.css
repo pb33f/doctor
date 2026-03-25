@@ -88,6 +88,46 @@ code {
     margin-bottom: 0.3rem;
 }
 
+.pp-security {
+    margin-bottom: var(--global-padding-double);
+}
+
+.pp-security-scheme {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.25rem 0;
+}
+
+.pp-security-name {
+    font-family: var(--font-stack-bold), monospace;
+    color: var(--primary-color);
+}
+
+.pp-security-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.15rem 0.6rem;
+    border: 1px solid var(--border-color-lowalpha);
+    font-family: var(--font-stack), monospace;
+    font-size: 0.85em;
+}
+
+.pp-security-type-label {
+    color: var(--font-color-sub1);
+}
+
+.pp-security-icon {
+    color: var(--primary-color);
+    font-size: 1.1em;
+}
+
+.pp-security-scopes code {
+    color: var(--warn-400);
+    font-size: 0.9em;
+}
+
 .pp-warnings {
     margin-top: 1.5rem;
     border: 1px dashed var(--warn-400);

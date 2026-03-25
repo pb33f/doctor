@@ -430,7 +430,7 @@ func TestRenderQuickStart(t *testing.T) {
 	site := &Site{
 		Root: &RootPage{
 			Servers:  []*ServerInfo{{URL: "https://api.example.com"}},
-			Security: []map[string][]string{{"bearerAuth": nil}},
+			Security: []*SecurityRequirement{{Name: "bearerAuth"}},
 		},
 		Operations: []*OperationPage{{}, {}, {}},
 		Models: map[string][]*ModelPage{
