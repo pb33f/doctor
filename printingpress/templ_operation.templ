@@ -91,6 +91,50 @@ templ OperationPageTempl(page *OperationPage) {
 				@templ.Raw(page.DescHTML)
 			</div>
 		}
+		if len(page.Security) > 0 {
+			<div class="pp-security">
+				<h3>Security</h3>
+				for _, sec := range page.Security {
+					<div class="pp-security-scheme">
+						if sec.Ref != nil {
+							<a class="pp-ref-link pp-security-name" href={ templ.SafeURL("models/" + sec.Ref.TypeSlug + "/" + sec.Ref.Slug + ".html") }>
+								&#10140; { sec.Name }
+							</a>
+						} else {
+							<span class="pp-security-name">{ sec.Name }</span>
+						}
+						if sec.SchemeType != "" {
+							@SecuritySchemeTypeBadge(sec)
+						}
+						if len(sec.Scopes) > 0 {
+							<span class="pp-security-scopes">
+								for i, scope := range sec.Scopes {
+									if i > 0 {
+										{ ", " }
+									}
+									<code>{ scope }</code>
+								}
+							</span>
+						}
+					</div>
+				}
+			</div>
+		}
+		if len(page.Servers) > 0 {
+			<div class="pp-servers">
+				<h3>Servers</h3>
+				<ul>
+					for _, srv := range page.Servers {
+						<li>
+							<code>{ srv.URL }</code>
+							if srv.Description != "" {
+								<span> &mdash; { srv.Description }</span>
+							}
+						</li>
+					}
+				</ul>
+			</div>
+		}
 		if page.RequestBody != nil {
 			@RequestBodySection(page.RequestBody)
 		}
@@ -198,4 +242,41 @@ templ CommonHeadersSection(headers []*HeaderInfo, headersJSON string) {
 			</div>
 		}
 	</div>
+}
+
+templ SecuritySchemeTypeBadge(sec *SecurityRequirement) {
+	<span class="pp-security-badge">
+		switch sec.SchemeType {
+			case "apiKey":
+				if sec.In == "cookie" {
+					<span class="pp-security-type-label">Cookie</span>
+					<sl-icon name="cookie" class="pp-security-icon"></sl-icon>
+				} else if sec.In == "header" {
+					<span class="pp-security-type-label">API Key</span>
+					<sl-icon name="envelope" class="pp-security-icon"></sl-icon>
+				} else if sec.In == "query" {
+					<span class="pp-security-type-label">API Key</span>
+					<sl-icon name="signpost" class="pp-security-icon"></sl-icon>
+				}
+			case "http":
+				if sec.Scheme == "bearer" {
+					<span class="pp-security-type-label">Bearer</span>
+					<sl-icon name="shield-lock" class="pp-security-icon"></sl-icon>
+				} else if sec.Scheme == "basic" {
+					<span class="pp-security-type-label">Basic Auth</span>
+					<sl-icon name="person-lock" class="pp-security-icon"></sl-icon>
+				} else {
+					<span class="pp-security-type-label">HTTP { sec.Scheme }</span>
+					<sl-icon name="lock" class="pp-security-icon"></sl-icon>
+				}
+			case "oauth2":
+				<span class="pp-security-type-label">OAuth 2.0</span>
+				<sl-icon name="key" class="pp-security-icon"></sl-icon>
+			case "openIdConnect":
+				<span class="pp-security-type-label">OpenID Connect</span>
+				<sl-icon name="fingerprint" class="pp-security-icon"></sl-icon>
+			default:
+				<span class="pp-security-type-label">{ sec.SchemeType }</span>
+		}
+	</span>
 }

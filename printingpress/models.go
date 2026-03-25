@@ -42,7 +42,7 @@ type RootPage struct {
 	Contact            *ContactInfo
 	License            *LicenseInfo
 	Servers            []*ServerInfo
-	Security           []map[string][]string
+	Security           []*SecurityRequirement
 	ExternalDoc        *ExternalDocInfo
 	TagTree            []*NavTag
 	UntaggedOperations []*NavOperation
@@ -127,7 +127,7 @@ type OperationPage struct {
 	ResponsesJSON          string `json:"-"` // pre-serialized for Lit component; excluded from JSON writer
 	CommonHeaders          []*HeaderInfo
 	CommonHeadersJSON      string `json:"-"` // pre-serialized for templ rendering
-	Security               []map[string][]string
+	Security               []*SecurityRequirement
 	Servers                []*ServerInfo
 	ExternalDoc            *ExternalDocInfo
 	Extensions             []*ExtensionEntry `json:"extensions,omitempty"`
@@ -301,6 +301,16 @@ type ComponentLink struct {
 	ComponentType string `json:"componentType"` // ref segment e.g. "responses"
 	TypeSlug      string `json:"typeSlug"`      // URL segment e.g. "responses", "request-bodies"
 	Slug          string `json:"slug"`          // URL-safe slug for the model page
+}
+
+// SecurityRequirement holds a resolved security scheme with type info and model link.
+type SecurityRequirement struct {
+	Name       string         `json:"name"`
+	Scopes     []string       `json:"scopes,omitempty"`
+	SchemeType string         `json:"schemeType,omitempty"` // apiKey, http, oauth2, openIdConnect
+	In         string         `json:"in,omitempty"`         // query, header, cookie (for apiKey)
+	Scheme     string         `json:"scheme,omitempty"`     // bearer, basic (for http)
+	Ref        *ComponentLink `json:"ref,omitempty"`        // link to model page
 }
 
 // ExtensionEntry holds a single x-* extension key-value pair, preserving spec order.

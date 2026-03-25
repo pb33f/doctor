@@ -249,9 +249,7 @@ func renderQuickStart(site *Site) string {
 	if len(site.Root.Security) > 0 {
 		var names []string
 		for _, secReq := range site.Root.Security {
-			for name := range secReq {
-				names = append(names, name)
-			}
+			names = append(names, secReq.Name)
 		}
 		if len(names) > 0 {
 			sort.Strings(names)
@@ -397,19 +395,21 @@ func renderHowToUse(site *Site) string {
 	// Authentication
 	if len(site.Root.Security) > 0 {
 		b.WriteString("### Authentication\n\n")
-		securitySchemes := site.Models["security"]
 		for _, secReq := range site.Root.Security {
-			for name, scopes := range secReq {
-				desc := renderSecuritySchemeInfo(name, securitySchemes)
-				b.WriteString("- **" + name + "**")
-				if desc != "" {
-					b.WriteString(": " + desc)
+			b.WriteString("- **" + secReq.Name + "**")
+			if secReq.SchemeType != "" {
+				b.WriteString(": " + secReq.SchemeType)
+				if secReq.Scheme != "" {
+					b.WriteString(" / " + secReq.Scheme)
 				}
-				if len(scopes) > 0 {
-					b.WriteString(" (scopes: `" + strings.Join(scopes, "`, `") + "`)")
+				if secReq.In != "" {
+					b.WriteString(" (in: " + secReq.In + ")")
 				}
-				b.WriteString("\n")
 			}
+			if len(secReq.Scopes) > 0 {
+				b.WriteString(" (scopes: `" + strings.Join(secReq.Scopes, "`, `") + "`)")
+			}
+			b.WriteString("\n")
 		}
 		b.WriteString("\n")
 	}
@@ -437,35 +437,7 @@ func renderHowToUse(site *Site) string {
 	return b.String()
 }
 
-// renderSecuritySchemeInfo looks up a security scheme from the models and returns a brief description.
-func renderSecuritySchemeInfo(name string, securityModels []*ModelPage) string {
-	if securityModels == nil {
-		return ""
-	}
-	for _, page := range securityModels {
-		if page.Name == name && page.SchemaJSON != "" {
-			var schema map[string]any
-			if err := json.Unmarshal([]byte(page.SchemaJSON), &schema); err != nil {
-				return ""
-			}
-			var parts []string
-			if t, ok := schema["type"].(string); ok {
-				parts = append(parts, t)
-			}
-			if in, ok := schema["in"].(string); ok {
-				parts = append(parts, "("+in+")")
-			}
-			if s, ok := schema["scheme"].(string); ok {
-				parts = append(parts, s)
-			}
-			if bf, ok := schema["bearerFormat"].(string); ok {
-				parts = append(parts, bf)
-			}
-			return strings.Join(parts, " ")
-		}
-	}
-	return ""
-}
+// Removed: renderSecuritySchemeInfo — replaced by SecurityRequirement.SchemeType/Scheme/In fields
 
 // buildResourceTable derives a resources summary table from NavTags.
 func buildResourceTable(site *Site) string {

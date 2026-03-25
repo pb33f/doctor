@@ -118,11 +118,9 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 
 		if doc.Document.Security != nil {
 			for _, sec := range doc.Document.Security {
-				secMap := make(map[string][]string)
 				for pair := sec.Requirements.First(); pair != nil; pair = pair.Next() {
-					secMap[pair.Key()] = pair.Value()
+					root.Security = append(root.Security, pp.resolveSecurityRequirement(pair.Key(), pair.Value()))
 				}
-				root.Security = append(root.Security, secMap)
 			}
 		}
 	}
@@ -302,11 +300,9 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 	if op.Security != nil {
 		for _, sec := range op.Security {
 			if sec.Value != nil && sec.Value.Requirements != nil {
-				secMap := make(map[string][]string)
 				for p := sec.Value.Requirements.First(); p != nil; p = p.Next() {
-					secMap[p.Key()] = p.Value()
+					page.Security = append(page.Security, pp.resolveSecurityRequirement(p.Key(), p.Value()))
 				}
-				page.Security = append(page.Security, secMap)
 			}
 		}
 	}
@@ -1254,6 +1250,41 @@ func (pp *PrintingPress) buildSchemaRegistry() {
 
 // collectExtensions converts an orderedmap of extension yaml.Nodes to an ordered slice.
 // Returns nil when there are no extensions (so omitempty works).
+// resolveSecurityRequirement builds a SecurityRequirement with type info and model page link.
+func (pp *PrintingPress) resolveSecurityRequirement(name string, scopes []string) *SecurityRequirement {
+	req := &SecurityRequirement{
+		Name:   name,
+		Scopes: scopes,
+	}
+	// Look up the security scheme model page for type info and link
+	if pages, ok := pp.site.Models["security"]; ok {
+		for _, page := range pages {
+			if page.Name == name && page.SchemaJSON != "" {
+				req.Ref = &ComponentLink{
+					Name:          page.Name,
+					ComponentType: "securitySchemes",
+					TypeSlug:      page.TypeSlug,
+					Slug:          page.Slug,
+				}
+				var schema map[string]any
+				if json.Unmarshal([]byte(page.SchemaJSON), &schema) == nil {
+					if t, ok := schema["type"].(string); ok {
+						req.SchemeType = t
+					}
+					if in, ok := schema["in"].(string); ok {
+						req.In = in
+					}
+					if s, ok := schema["scheme"].(string); ok {
+						req.Scheme = s
+					}
+				}
+				break
+			}
+		}
+	}
+	return req
+}
+
 // The "x-" prefix is stripped from keys for cleaner documentation display.
 func collectExtensions(extensions *orderedmap.Map[string, *yaml.Node]) []*ExtensionEntry {
 	if extensions == nil || extensions.Len() == 0 {
