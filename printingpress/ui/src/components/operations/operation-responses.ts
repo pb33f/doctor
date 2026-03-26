@@ -12,7 +12,7 @@ import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';
 import {ComponentLinkData, MediaTypeData} from '../../utils/schema.js';
 import {HTTP_STATUS_TEXT, statusColorClass} from '../../utils/http.js';
-import {renderConstraints} from '../../utils/render-helpers.js';
+import {renderConstraints, renderComponentRefLink} from '../../utils/render-helpers.js';
 import '../shared/extensions.js';
 import '../shared/example-selector.js';
 import '../shared/media-type-selector.js';
@@ -114,10 +114,7 @@ export class PpOperationResponses extends LitElement {
     }
 
     private renderRefLink(ref: ComponentLinkData, withPopover = false) {
-        const anchor = html`<a class="ref-link" href="models/${ref.typeSlug}/${ref.slug}.html">\u279c ${ref.name}</a>`;
-        if (!withPopover) return anchor;
-        return html`
-            <pp-ref-popover registry-key="${ref.componentType}/${ref.name}">${anchor}</pp-ref-popover>`;
+        return renderComponentRefLink(ref, withPopover);
     }
 
     private computeCommonHeaders(): { common: HeaderData[], commonNames: Set<string> } {

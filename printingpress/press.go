@@ -101,6 +101,14 @@ func (pp *PrintingPress) GetDoctor() v3.Doctor {
 	return nil
 }
 
+// allOperations returns a combined slice of all operations and webhooks.
+func (pp *PrintingPress) allOperations() []*OperationPage {
+	all := make([]*OperationPage, 0, len(pp.site.Operations)+len(pp.site.Webhooks))
+	all = append(all, pp.site.Operations...)
+	all = append(all, pp.site.Webhooks...)
+	return all
+}
+
 func (pp *PrintingPress) warn(message, context string, err error) {
 	w := &BuildWarning{Message: message, Context: context, Err: err}
 	pp.warnings = append(pp.warnings, w)
