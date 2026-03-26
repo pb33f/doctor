@@ -33,7 +33,7 @@ export function renderSchemaType(
         if (allRefs && refLinks.length > 0) {
             return html`<span class="prop-type prop-type-link">
                 ${refLinks.map((r, i) => html`
-                    ${i > 0 ? html` <span class="composition-separator">&amp;</span> ` : nothing}
+                    ${i > 0 ? html` <span class="composition-separator">+</span> ` : nothing}
                     ${renderRef(r.ref, r.link)}
                 `)}
             </span>`;
@@ -51,7 +51,7 @@ export function renderSchemaType(
         }
         if (allRefs && refLinks.length > 0) {
             return html`<span class="prop-type prop-type-link">Array&lt;${refLinks.map((r, i) => html`
-                ${i > 0 ? html` <span class="composition-separator">&amp;</span> ` : nothing}
+                ${i > 0 ? html` <span class="composition-separator">+</span> ` : nothing}
                 ${renderRef(r.ref, r.link)}
             `)}&gt;</span>`;
         }

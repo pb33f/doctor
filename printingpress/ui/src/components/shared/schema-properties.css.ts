@@ -164,8 +164,8 @@ export default [dropdownCss, css`
     }
 
     .oneof-property > .oneof-left {
-        width: 250px;
-        min-width: 250px;
+        width: 200px;
+        min-width: 200px;
         padding-right: 1rem;
     }
 
@@ -187,7 +187,7 @@ export default [dropdownCss, css`
     }
 
     .oneof-option-desc {
-        padding: var(--global-padding);
+        padding: var(--global-padding-double);
         color: var(--font-color-sub1);
         font-size: 0.9em;
         border-bottom: 1px dotted var(--hrcolor);
@@ -214,6 +214,8 @@ export default [dropdownCss, css`
 
     .oneof-tabs::part(tabs) {
         flex: 1;
+        width: 200px;
+        min-width: 200px;
     }
 
     .oneof-tabs::part(body) {
