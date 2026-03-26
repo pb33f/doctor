@@ -116,13 +116,6 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 			}
 		}
 
-		if doc.Document.Security != nil {
-			for _, sec := range doc.Document.Security {
-				for pair := sec.Requirements.First(); pair != nil; pair = pair.Next() {
-					root.Security = append(root.Security, pp.resolveSecurityRequirement(pair.Key(), pair.Value()))
-				}
-			}
-		}
 	}
 
 	// Build hierarchical tag tree
@@ -137,6 +130,15 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 
 	// Build model index for O(1) ref resolution
 	pp.buildModelIndex()
+
+	// Resolve global security AFTER model index is built (for O(1) lookup)
+	if doc.Document != nil && doc.Document.Security != nil {
+		for _, sec := range doc.Document.Security {
+			for pair := sec.Requirements.First(); pair != nil; pair = pair.Next() {
+				root.Security = append(root.Security, pp.resolveSecurityRequirement(pair.Key(), pair.Value()))
+			}
+		}
+	}
 
 	// Build nav model groups from collected components
 	pp.buildNavModelGroups()
@@ -1021,10 +1023,7 @@ func (pp *PrintingPress) resolveOperationLinks() {
 	}
 
 	// Resolve links across all operations and webhooks
-	allOps := make([]*OperationPage, 0, len(pp.site.Operations)+len(pp.site.Webhooks))
-	allOps = append(allOps, pp.site.Operations...)
-	allOps = append(allOps, pp.site.Webhooks...)
-	for _, op := range allOps {
+	for _, op := range pp.allOperations() {
 		resolved := false
 		for _, resp := range op.Responses {
 			for _, li := range resp.Links {
@@ -1248,43 +1247,39 @@ func (pp *PrintingPress) buildSchemaRegistry() {
 	pp.site.SchemaRegistry = registry
 }
 
-// collectExtensions converts an orderedmap of extension yaml.Nodes to an ordered slice.
-// Returns nil when there are no extensions (so omitempty works).
 // resolveSecurityRequirement builds a SecurityRequirement with type info and model page link.
 func (pp *PrintingPress) resolveSecurityRequirement(name string, scopes []string) *SecurityRequirement {
 	req := &SecurityRequirement{
 		Name:   name,
 		Scopes: scopes,
 	}
-	// Look up the security scheme model page for type info and link
-	if pages, ok := pp.site.Models["security"]; ok {
-		for _, page := range pages {
-			if page.Name == name && page.SchemaJSON != "" {
-				req.Ref = &ComponentLink{
-					Name:          page.Name,
-					ComponentType: "securitySchemes",
-					TypeSlug:      page.TypeSlug,
-					Slug:          page.Slug,
-				}
-				var schema map[string]any
-				if json.Unmarshal([]byte(page.SchemaJSON), &schema) == nil {
-					if t, ok := schema["type"].(string); ok {
-						req.SchemeType = t
-					}
-					if in, ok := schema["in"].(string); ok {
-						req.In = in
-					}
-					if s, ok := schema["scheme"].(string); ok {
-						req.Scheme = s
-					}
-				}
-				break
+	// O(1) lookup via model index
+	page := pp.modelIndex["security/"+name]
+	if page != nil && page.SchemaJSON != "" {
+		req.Ref = &ComponentLink{
+			Name:          page.Name,
+			ComponentType: "securitySchemes",
+			TypeSlug:      page.TypeSlug,
+			Slug:          page.Slug,
+		}
+		var schema map[string]any
+		if json.Unmarshal([]byte(page.SchemaJSON), &schema) == nil {
+			if t, ok := schema["type"].(string); ok {
+				req.SchemeType = t
+			}
+			if in, ok := schema["in"].(string); ok {
+				req.In = in
+			}
+			if s, ok := schema["scheme"].(string); ok {
+				req.Scheme = s
 			}
 		}
 	}
 	return req
 }
 
+// collectExtensions converts an orderedmap of extension yaml.Nodes to an ordered slice.
+// Returns nil when there are no extensions (so omitempty works).
 // The "x-" prefix is stripped from keys for cleaner documentation display.
 func collectExtensions(extensions *orderedmap.Map[string, *yaml.Node]) []*ExtensionEntry {
 	if extensions == nil || extensions.Len() == 0 {

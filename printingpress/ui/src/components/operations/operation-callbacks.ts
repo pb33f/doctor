@@ -6,6 +6,7 @@ import refLinkCss from '../../styles/ref-link.css.js';
 import statusColorsCss from '../../styles/status-colors.css.js';
 import operationCallbacksCss from './operation-callbacks.css.js';
 import {ComponentLinkData, MediaTypeData} from '../../utils/schema.js';
+import {renderComponentRefLink} from '../../utils/render-helpers.js';
 import {HTTP_STATUS_TEXT, statusColorClass} from '../../utils/http.js';
 import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';
@@ -21,11 +22,11 @@ interface ResponseData {
 }
 
 interface RequestBodyData {
-    Description?: string;
-    DescHTML?: string;
-    Required?: boolean;
-    Content?: MediaTypeData[];
-    Ref?: ComponentLinkData;
+    description?: string;
+    descHtml?: string;
+    required?: boolean;
+    content?: MediaTypeData[];
+    ref?: ComponentLinkData;
 }
 
 interface CallbackOperationData {
@@ -61,21 +62,18 @@ export class PpOperationCallbacks extends LitElement {
     }
 
     private renderRefLink(ref: ComponentLinkData) {
-        return html`
-            <pp-ref-popover registry-key="${ref.componentType}/${ref.name}">
-                <a class="ref-link" href="models/${ref.typeSlug}/${ref.slug}.html">\u279c ${ref.name}</a>
-            </pp-ref-popover>`;
+        return renderComponentRefLink(ref, true);
     }
 
     private renderRequestBody(rb: RequestBodyData) {
-        if (rb.Ref) {
-            return html`<div class="callback-section-label">Request Body</div>${this.renderRefLink(rb.Ref)}`;
+        if (rb.ref) {
+            return html`<div class="callback-section-label">Request Body</div>${this.renderRefLink(rb.ref)}`;
         }
-        if (!rb.Content?.length) return nothing;
+        if (!rb.content?.length) return nothing;
         return html`
-            <div class="callback-section-label">Request Body${rb.Required ? ' (required)' : ''}</div>
-            ${rb.DescHTML ? html`<div class="callback-desc">${unsafeHTML(rb.DescHTML)}</div>` : nothing}
-            <pp-media-type-selector content-json=${JSON.stringify(rb.Content)}></pp-media-type-selector>
+            <div class="callback-section-label">Request Body${rb.required ? ' (required)' : ''}</div>
+            ${rb.descHtml ? html`<div class="callback-desc">${unsafeHTML(rb.descHtml)}</div>` : nothing}
+            <pp-media-type-selector content-json=${JSON.stringify(rb.content)}></pp-media-type-selector>
         `;
     }
 

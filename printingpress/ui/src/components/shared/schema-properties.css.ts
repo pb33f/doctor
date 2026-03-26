@@ -158,40 +158,93 @@ export default [dropdownCss, css`
 
     .oneof-property {
         display: flex;
-        align-items: flex-start;
+        align-items: stretch;
         padding: 15px var(--global-padding);
         border-bottom: 1px dotted var(--hrcolor);
     }
 
     .oneof-property > .oneof-left {
-        width: 400px;
-        min-width: 400px;
+        width: 250px;
+        min-width: 250px;
         padding-right: 1rem;
     }
 
-    .oneof-property > .oneof-left > .property {
-        border-bottom: none;
-        padding: 0;
+    .oneof-prop-name {
+        text-align: right;
+        white-space: nowrap;
     }
 
     .oneof-desc-container {
-        border: 1px solid var(--warn-color);
-        border-left: var(--global-padding-double) solid var(--warn-color);
         flex: 1;
+        display: flex;
+        flex-direction: column;
     }
 
     .oneof-prop-desc {
         color: var(--font-color-sub1);
         padding-top: var(--global-padding-double);
-        padding-left: var(--global-padding-double);
-        
+        text-align: right;
     }
 
     .oneof-option-desc {
-        padding: var(--global-padding-double);
+        padding: var(--global-padding);
         color: var(--font-color-sub1);
         font-size: 0.9em;
         border-bottom: 1px dotted var(--hrcolor);
+    }
+
+    .oneof-tabs {
+        --indicator-color: var(--warn-color);
+        --track-color: transparent;
+        --sl-transition-x-fast: 0s;
+        flex: 1;
+    }
+
+    .oneof-tabs::part(base) {
+        height: 100%;
+        gap: 0;
+    }
+
+    .oneof-tabs::part(nav) {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        border-inline-end: var(--global-padding-double) solid var(--warn-color);
+    }
+
+    .oneof-tabs::part(tabs) {
+        flex: 1;
+    }
+
+    .oneof-tabs::part(body) {
+        overflow: auto;
+    }
+
+    .oneof-tabs sl-tab {
+        width: 100%;
+    }
+
+    .oneof-tabs sl-tab::part(base) {
+        display: flex;
+        width: 100%;
+        font-family: var(--font-stack-bold), monospace;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 0.5rem 0.8rem;
+        color: var(--warn-color);
+        border-radius: 0;
+        margin-inline-end: -1px;
+    }
+
+    .oneof-tabs sl-tab[active]::part(base) {
+        color: var(--background-color);
+        background-color: var(--warn-color);
+        border-radius: 0;
+        margin-inline-end: -1px;
+    }
+
+    .oneof-tabs sl-tab-panel::part(base) {
+        padding: 0;
     }
 
     .prop-type-col sl-dropdown {

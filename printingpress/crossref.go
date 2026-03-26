@@ -112,10 +112,7 @@ func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPa
 	}
 
 	// Build operation→model and model→operation refs by walking operation pages
-	allOps := make([]*OperationPage, 0, len(pp.site.Operations)+len(pp.site.Webhooks))
-	allOps = append(allOps, pp.site.Operations...)
-	allOps = append(allOps, pp.site.Webhooks...)
-
+	allOps := pp.allOperations()
 	for _, op := range allOps {
 		opRef := &OperationRef{
 			Method: op.Method,
@@ -141,10 +138,7 @@ func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPa
 func (pp *PrintingPress) buildOperationCrossRefs(idx *CrossRefIndex, modelSlugLookup map[string]*ModelPage) map[string]*OperationCrossRefs {
 	result := make(map[string]*OperationCrossRefs)
 
-	allOps := make([]*OperationPage, 0, len(pp.site.Operations)+len(pp.site.Webhooks))
-	allOps = append(allOps, pp.site.Operations...)
-	allOps = append(allOps, pp.site.Webhooks...)
-
+	allOps := pp.allOperations()
 	for _, op := range allOps {
 		key := op.Method + " " + op.Path
 		refs := pp.extractOperationModelRefs(op, modelSlugLookup)

@@ -167,16 +167,16 @@ type ParameterInfo struct {
 
 // RequestBodyInfo holds request body data.
 type RequestBodyInfo struct {
-	Description string
-	DescHTML    string
-	Required    bool
-	Content     []*MediaTypeInfo
-	Ref         *ComponentLink // set when the request body is a $ref
-	RawJSON        string
-	RawYAML        string
-	SourceLine     int
-	Extensions     []*ExtensionEntry
-	ExtensionsJSON string `json:"-"`
+	Description    string            `json:"description,omitempty"`
+	DescHTML       string            `json:"descHtml,omitempty"`
+	Required       bool              `json:"required,omitempty"`
+	Content        []*MediaTypeInfo  `json:"content,omitempty"`
+	Ref            *ComponentLink    `json:"ref,omitempty"`
+	RawJSON        string            `json:"rawJson,omitempty"`
+	RawYAML        string            `json:"rawYaml,omitempty"`
+	SourceLine     int               `json:"sourceLine,omitempty"`
+	Extensions     []*ExtensionEntry `json:"extensions,omitempty"`
+	ExtensionsJSON string            `json:"-"`
 }
 
 // MediaTypeInfo holds a single media type entry.

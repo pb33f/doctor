@@ -4,6 +4,9 @@ import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
+import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
+import '@shoelace-style/shoelace/dist/components/tab/tab.js';
+import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
 import constraintsCss from '../../styles/constraints.css.js';
 import schemaPropertiesCss from './schema-properties.css.js';
 import {deriveSchemaType, resolveRefLink} from '../../utils/schema.js';
@@ -18,7 +21,6 @@ export class PpSchemaProperties extends LitElement {
     @property({attribute: 'schema-json'}) schemaJson = '';
     @property({type: Boolean, reflect: true}) compact = false;
     @state() private schema: any = null;
-    @state() private oneOfSelectedIndex = 0;
 
     willUpdate(changed: Map<string, unknown>) {
         if (changed.has('schemaJson') && this.schemaJson) {
@@ -27,7 +29,6 @@ export class PpSchemaProperties extends LitElement {
             } catch {
                 this.schema = null;
             }
-            this.oneOfSelectedIndex = 0;
         }
     }
 
@@ -135,50 +136,35 @@ export class PpSchemaProperties extends LitElement {
 
     private renderOneOf(entries: any[], propName?: string, propDesc?: string, isRequired?: boolean, label?: string) {
         if (!entries.length) return nothing;
-        const selected = entries[this.oneOfSelectedIndex] || entries[0];
 
         return html`
             <div class="oneof-property">
                 <div class="oneof-left">
-                    <div class="property">
-                        <div class="prop-name-col">
-                            ${propName ? html`
-                                ${isRequired ? html`<span class="required-badge">req</span>` : nothing}
-                                <span class="prop-name">${propName}</span>
-                                ${label ? html`<div class="composition-label polymorphic">(${label})</div>` : nothing}
-                            ` : nothing}
+                    ${propName ? html`
+                        <div class="oneof-prop-name">
+                            ${isRequired ? html`<span class="required-badge">req</span>` : nothing}
+                            <span class="prop-name">${propName}</span>
+                            ${label ? html`<div class="composition-label polymorphic">(${label})</div>` : nothing}
                         </div>
-                        <div class="prop-type-col">
-                            ${entries.length > 1 ? html`
-                                <sl-dropdown skidding="5" distance="5">
-                                    <sl-button slot="trigger" caret>
-                                        ${selected.title || `Option ${this.oneOfSelectedIndex + 1}`}
-                                    </sl-button>
-                                    <sl-menu @sl-select=${this.handleOneOfSelect}>
-                                        ${entries.map((e, i) => html`
-                                            <sl-menu-item value="${i}">${e.title || `Option ${i + 1}`}</sl-menu-item>
-                                        `)}
-                                    </sl-menu>
-                                </sl-dropdown>
-                            ` : html`
-                                <span class="prop-type">${selected.title || 'Option 1'}</span>
-                            `}
-                        </div>
-                    </div>
+                    ` : nothing}
                     ${propDesc ? html`<div class="oneof-prop-desc">${propDesc}</div>` : nothing}
                 </div>
                 <div class="oneof-desc-container">
-                    ${this.renderOneOfOption(selected)}
+                    <sl-tab-group class="oneof-tabs" placement="start">
+                        ${entries.map((e, i) => html`
+                            <sl-tab slot="nav" panel="oneof-${i}" class="oneof-tab" ?active=${i === 0}>
+                                \u203A ${e.title || e.$ref?.split('/').pop() || `Option ${i + 1}`}
+                            </sl-tab>
+                        `)}
+                        ${entries.map((e, i) => html`
+                            <sl-tab-panel name="oneof-${i}" ?active=${i === 0}>
+                                ${this.renderOneOfOption(e)}
+                            </sl-tab-panel>
+                        `)}
+                    </sl-tab-group>
                 </div>
             </div>
         `;
-    }
-
-    private handleOneOfSelect(e: CustomEvent) {
-        const value = e.detail?.item?.value;
-        if (value === undefined) return;
-        const idx = parseInt(value, 10);
-        if (idx >= 0) this.oneOfSelectedIndex = idx;
     }
 
     private renderOneOfOption(entry: any) {
