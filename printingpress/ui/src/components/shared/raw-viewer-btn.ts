@@ -14,6 +14,8 @@ export class PpRawViewerBtn extends LitElement {
     @property({attribute: 'highlight-lines'}) highlightLines = '';
     @property({attribute: 'start-line', type: Number}) startLine = 1;
     @property() location = '';
+    @property() method = '';
+    @property() path = '';
     @property({type: Boolean}) showTextLabel = false;
 
     private showRaw() {
@@ -28,6 +30,8 @@ export class PpRawViewerBtn extends LitElement {
                 highlightLines: this.highlightLines || undefined,
                 startLine: this.startLine > 1 ? this.startLine : undefined,
                 location: this.location || undefined,
+                method: this.method || undefined,
+                path: this.path || undefined,
             },
         });
         document.dispatchEvent(event);

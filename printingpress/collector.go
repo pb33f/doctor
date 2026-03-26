@@ -343,8 +343,15 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 	pp.captureRawData(val, fmt.Sprintf("%s %s", method, path),
 		&page.RawYAML, &page.SchemaJSON, &page.SchemaHighlightedHTML)
 
-	if op.ValueNode != nil {
+	// Use ValueNode line only for single-file specs; for multi-file bundled specs
+	// the line refers to the bundled output, not the original source file.
+	if op.ValueNode != nil && (pp.config.Origins == nil || len(pp.config.Origins) == 0) {
 		page.SourceLine = op.ValueNode.Line
+	}
+
+	// For multi-file specs, resolve the source file location if available
+	if pp.config.Origins != nil && len(pp.config.Origins) > 0 {
+		page.Location = "(bundled)"
 	}
 
 	pp.site.Operations = append(pp.site.Operations, page)

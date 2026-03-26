@@ -140,6 +140,7 @@ type OperationPage struct {
 	SchemaHighlightedHTML  string            `json:"-"` // chroma output, templ only
 	RawYAML                string            `json:"-"` // re-rendered YAML from Render(), for raw viewer
 	SourceLine             int               `json:"-"` // 1-based YAML line number of the operation
+	Location               string            `json:"-"` // source file path for multi-file specs
 	CrossRefs              *OperationCrossRefs
 }
 

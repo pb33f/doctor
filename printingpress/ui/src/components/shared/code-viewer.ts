@@ -155,8 +155,8 @@ export class PpCodeViewer extends LitElement {
     render() {
         if (!this.lineNumbers) {
             return html`
-              <pre class="language-${this.language}"><code>${unsafeHTML(this.highlightCode())}</code></pre>
               ${this.renderLocation()}
+              <pre class="language-${this.language}"><code>${unsafeHTML(this.highlightCode())}</code></pre>
             `;
         }
 
@@ -168,6 +168,7 @@ export class PpCodeViewer extends LitElement {
         const locked = this.isLocked;
 
         return html`
+          ${this.renderLocation()}
           <div class="lined-code${locked ? ' locked' : ''}" style="--gutter-digits: ${digits}">
             <pre class="language-${this.language}"><code>${segments.map((lineHtml, i) => {
               const num = offset + i;
@@ -179,7 +180,6 @@ export class PpCodeViewer extends LitElement {
 </span>`;
             })}</code></pre>
           </div>
-          ${this.renderLocation()}
         `;
     }
 }

@@ -1,5 +1,7 @@
-import {LitElement, html} from 'lit';
+import {LitElement, html, nothing} from 'lit';
 import {customElement, state, query} from 'lit/decorators.js';
+import '@shoelace-style/shoelace/dist/components/copy-button/copy-button.js';
+import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import './code-viewer.js';
 import type {PpCodeViewer} from './code-viewer.js';
 import exampleDrawerCss from './example-drawer.css.js';
@@ -12,6 +14,8 @@ export interface ShowExampleDetail {
   highlightLines?: string;
   startLine?: number;
   location?: string;
+  method?: string;
+  path?: string;
 }
 
 @customElement('pp-example-drawer')
@@ -22,11 +26,12 @@ export class PpExampleDrawer extends LitElement {
   @state() private json = '';
   @state() private yaml = '';
   @state() private format: 'json' | 'yaml' = 'json';
-  @state() private copied = false;
   @state() private rawMode = false;
   @state() private highlightLines = '';
   @state() private startLine = 1;
   @state() private location = '';
+  @state() private method = '';
+  @state() private path = '';
   @query('sl-drawer') private drawer: any;
 
   connectedCallback() {
@@ -48,6 +53,8 @@ export class PpExampleDrawer extends LitElement {
     this.highlightLines = detail.highlightLines || '';
     this.startLine = detail.startLine ?? 1;
     this.location = detail.location || '';
+    this.method = detail.method || '';
+    this.path = detail.path || '';
     const specFmt = document.body.getAttribute('data-spec-format');
     if (specFmt === 'yaml' && detail.yaml) {
       this.format = 'yaml';
@@ -75,45 +82,51 @@ export class PpExampleDrawer extends LitElement {
     return this.json;
   }
 
-  private async copyToClipboard() {
-    const text = this.copyText;
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      this.copied = true;
-      setTimeout(() => { this.copied = false; }, 2000);
-    } catch { /* clipboard API unavailable */ }
+  private renderHeader() {
+    if (this.method && this.path) {
+      return html`
+        <div class="rich-header">
+          <pb33f-http-method method=${this.method}></pb33f-http-method>
+          <pb33f-render-operation-path path=${this.path} nowrap></pb33f-render-operation-path>
+        </div>
+      `;
+    }
+    return html`<h3 class="drawer-title">${this.title || 'Example'}</h3>`;
   }
 
   render() {
     const code = this.format === 'yaml' && this.yaml ? this.yaml : this.json;
     const lang = this.format === 'yaml' ? 'yaml' : 'json';
     return html`
-      <sl-drawer label=${this.title || 'Example'} placement="end">
-        ${this.yaml ? html`
-          <div slot="header-actions" class="format-toggle">
-            <button class="${this.format === 'json' ? 'active' : ''}"
-                    ?disabled=${!this.json}
-                    @click=${() => this.format = 'json'}>JSON</button>
-            <button class="${this.format === 'yaml' ? 'active' : ''}"
-                    @click=${() => this.format = 'yaml'}>YAML</button>
+      <sl-drawer placement="end" no-header>
+        <div class="drawer-header">
+          ${this.renderHeader()}
+          <div class="header-actions">
+            ${this.yaml ? html`
+              <div class="format-toggle">
+                <button class="${this.format === 'json' ? 'active' : ''}"
+                        ?disabled=${!this.json}
+                        @click=${() => this.format = 'json'}>JSON</button>
+                <button class="${this.format === 'yaml' ? 'active' : ''}"
+                        @click=${() => this.format = 'yaml'}>YAML</button>
+              </div>
+            ` : ''}
+            <sl-icon-button name="x-lg" label="Close" class="close-btn"
+                @click=${() => this.drawer?.hide()}></sl-icon-button>
           </div>
-        ` : ''}
-        <pp-code-viewer
-          .code=${code}
-          .language=${lang}
-          ?line-numbers=${this.rawMode}
-          .pretty=${lang === 'json'}
-          .startLine=${this.startLine}
-          .location=${this.location}
-          highlight-lines=${this.highlightLines}>
-        </pp-code-viewer>
-        <button
-          slot="footer"
-          class="copy-btn ${this.copied ? 'copied' : ''}"
-          @click=${this.copyToClipboard}>
-          ${this.copied ? 'Copied!' : 'Copy to Clipboard'}
-        </button>
+        </div>
+        <div class="code-container">
+          <sl-copy-button .value=${this.copyText} class="floating-copy"></sl-copy-button>
+          <pp-code-viewer
+            .code=${code}
+            .language=${lang}
+            ?line-numbers=${this.rawMode}
+            .pretty=${lang === 'json'}
+            .startLine=${this.startLine}
+            .location=${this.location}
+            highlight-lines=${this.highlightLines}>
+          </pp-code-viewer>
+        </div>
       </sl-drawer>
     `;
   }

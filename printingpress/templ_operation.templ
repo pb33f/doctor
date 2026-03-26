@@ -49,10 +49,15 @@ templ OperationPageTempl(page *OperationPage) {
                       <pp-raw-viewer-btn
                           class="raw-button"
                           title={ page.Method + " " + page.Path }
+                          method={ page.Method }
+                          path={ page.Path }
                           raw-json={ page.SchemaJSON }
                           raw-yaml={ page.RawYAML }
                           if page.SourceLine > 0 {
                               start-line={ fmt.Sprintf("%d", page.SourceLine) }
+                          }
+                          if page.Location != "" {
+                              location={ page.Location }
                           }>
                       </pp-raw-viewer-btn>
                   }
