@@ -11,6 +11,7 @@ export interface ShowExampleDetail {
   title: string;
   json: string;
   yaml?: string;
+  language?: 'json' | 'yaml' | 'xml';
   rawMode?: boolean;
   highlightLines?: string;
   startLine?: number;
@@ -26,7 +27,7 @@ export class PpExampleDrawer extends LitElement {
   @state() private title = '';
   @state() private json = '';
   @state() private yaml = '';
-  @state() private format: 'json' | 'yaml' = 'json';
+  @state() private format: 'json' | 'yaml' | 'xml' = 'json';
   @state() private rawMode = false;
   @state() private highlightLines = '';
   @state() private startLine = 1;
@@ -56,13 +57,17 @@ export class PpExampleDrawer extends LitElement {
     this.location = detail.location || '';
     this.method = detail.method || '';
     this.path = detail.path || '';
-    const specFmt = document.body.getAttribute('data-spec-format');
-    if (specFmt === 'yaml' && detail.yaml) {
-      this.format = 'yaml';
-    } else if (specFmt === 'json' && detail.json) {
-      this.format = 'json';
+    if (detail.language) {
+      this.format = detail.language;
     } else {
-      this.format = detail.yaml ? 'yaml' : 'json';
+      const specFmt = document.body.getAttribute('data-spec-format');
+      if (specFmt === 'yaml' && detail.yaml) {
+        this.format = 'yaml';
+      } else if (specFmt === 'json' && detail.json) {
+        this.format = 'json';
+      } else {
+        this.format = detail.yaml ? 'yaml' : 'json';
+      }
     }
     this.updateComplete.then(() => {
       const d = this.drawer;
@@ -97,7 +102,7 @@ export class PpExampleDrawer extends LitElement {
 
   render() {
     const code = this.format === 'yaml' && this.yaml ? this.yaml : this.json;
-    const lang = this.format === 'yaml' ? 'yaml' : 'json';
+    const lang = this.format;
     return html`
       <sl-drawer placement="end" no-header>
         <div class="drawer-header">
