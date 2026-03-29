@@ -18,7 +18,7 @@ type CrossRefIndex struct {
 
 // buildCrossRefs populates cross-reference information on each ModelPage and OperationPage.
 func (pp *PrintingPress) buildCrossRefs() {
-	idx, modelSlugLookup := pp.getCrossRefIndex()
+	idx, _, opRefsCache := pp.getCrossRefIndex()
 	if idx == nil {
 		return
 	}
@@ -42,7 +42,7 @@ func (pp *PrintingPress) buildCrossRefs() {
 	}
 
 	// Apply cross-refs to each operation page
-	opCrossRefs := pp.buildOperationCrossRefs(idx, modelSlugLookup)
+	opCrossRefs := pp.buildOperationCrossRefs(opRefsCache)
 	for _, op := range pp.site.Operations {
 		key := op.Method + " " + op.Path
 		if refs, ok := opCrossRefs[key]; ok {
@@ -58,9 +58,9 @@ func (pp *PrintingPress) buildCrossRefs() {
 }
 
 // getCrossRefIndex builds the cross-reference index by scanning SchemaJSON content.
-func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPage) {
+func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPage, map[string][]*ComponentRef) {
 	if pp.config.DrDoc == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	idx := &CrossRefIndex{
@@ -111,8 +111,10 @@ func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPa
 		}
 	}
 
-	// Build operation→model and model→operation refs by walking operation pages
+	// Build operation→model and model→operation refs by walking operation pages.
+	// Cache per-operation refs to avoid double extraction in buildOperationCrossRefs.
 	allOps := pp.allOperations()
+	opRefsCache := make(map[string][]*ComponentRef, len(allOps))
 	for _, op := range allOps {
 		opRef := &OperationRef{
 			Method: op.Method,
@@ -120,7 +122,9 @@ func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPa
 			Slug:   op.Slug,
 		}
 
+		key := op.Method + " " + op.Path
 		referencedModels := pp.extractOperationModelRefs(op, modelSlugLookup)
+		opRefsCache[key] = referencedModels
 		for _, compRef := range referencedModels {
 			targetKey := componentKey(compRef.ComponentType, compRef.Name)
 			addOperationRefUnique(&idx.ComponentToOps, targetKey, opRef)
@@ -130,18 +134,14 @@ func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPa
 	// Sort all cross-ref lists for deterministic output
 	sortCrossRefIndex(idx)
 
-	return idx, modelSlugLookup
+	return idx, modelSlugLookup, opRefsCache
 }
 
-// buildOperationCrossRefs builds OperationCrossRefs for each operation by scanning
-// its request body and response schemas for component references.
-func (pp *PrintingPress) buildOperationCrossRefs(idx *CrossRefIndex, modelSlugLookup map[string]*ModelPage) map[string]*OperationCrossRefs {
-	result := make(map[string]*OperationCrossRefs)
+// buildOperationCrossRefs builds OperationCrossRefs from cached per-operation refs.
+func (pp *PrintingPress) buildOperationCrossRefs(opRefsCache map[string][]*ComponentRef) map[string]*OperationCrossRefs {
+	result := make(map[string]*OperationCrossRefs, len(opRefsCache))
 
-	allOps := pp.allOperations()
-	for _, op := range allOps {
-		key := op.Method + " " + op.Path
-		refs := pp.extractOperationModelRefs(op, modelSlugLookup)
+	for key, refs := range opRefsCache {
 		if len(refs) > 0 {
 			sort.Slice(refs, func(i, j int) bool {
 				return refs[i].Name < refs[j].Name
