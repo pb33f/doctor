@@ -9,6 +9,7 @@ interface NavSection {
 }
 
 const COLLAPSED_KEY = 'pp-page-nav-collapsed';
+const HIDDEN_KEY = 'pp-page-nav-hidden';
 
 @customElement('pp-page-nav')
 export class PpPageNav extends LitElement {
@@ -18,6 +19,7 @@ export class PpPageNav extends LitElement {
     @property({attribute: 'sections-json'}) sectionsJson = '';
     @state() private sections: NavSection[] = [];
     @state() private collapsed = false;
+    @state() private navHidden = false;
     @state() private activeId = '';
 
     private scrollContainer: Element | null = null;
@@ -29,14 +31,25 @@ export class PpPageNav extends LitElement {
     connectedCallback() {
         super.connectedCallback();
         this.collapsed = localStorage.getItem(COLLAPSED_KEY) === 'true';
+        this.navHidden = localStorage.getItem(HIDDEN_KEY) === 'true';
     }
 
     disconnectedCallback() {
         super.disconnectedCallback();
         this.scrollContainer?.removeEventListener('scroll', this.boundScrollHandler);
+        this.clearSuppressionTimer();
+    }
+
+    private clearSuppressionTimer() {
         if (this.suppressionTimerId) {
             window.clearTimeout(this.suppressionTimerId);
             this.suppressionTimerId = 0;
+        }
+    }
+
+    updated(changed: Map<string, unknown>) {
+        if (changed.has('navHidden')) {
+            this.toggleAttribute('nav-hidden', this.navHidden);
         }
     }
 
@@ -47,9 +60,7 @@ export class PpPageNav extends LitElement {
             } catch {
                 this.sections = [];
             }
-            // Populate response children after the responses component upgrades
             this.loadResponseChildren();
-            // Set up scroll spy after sections are ready
             requestAnimationFrame(() => this.setupScrollSpy());
         }
     }
@@ -66,11 +77,9 @@ export class PpPageNav extends LitElement {
             }
         };
 
-        // Try immediately, then retry after component upgrades
         tryLoad();
         if (!responsesSection.children?.length) {
             customElements.whenDefined('pp-operation-responses').then(() => {
-                // Wait for render
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => tryLoad());
                 });
@@ -87,20 +96,11 @@ export class PpPageNav extends LitElement {
 
     private suppressScrollSpy() {
         this.scrollSpySuppressed = true;
-        // Clear any existing timer so we don't resume prematurely
-        if (this.suppressionTimerId) {
-            window.clearTimeout(this.suppressionTimerId);
-            this.suppressionTimerId = 0;
-        }
+        this.clearSuppressionTimer();
     }
 
     private scheduleScrollSpyResume() {
-        // Reset the timer on every scroll event during suppression.
-        // The spy resumes only after scrolling has been idle for 150ms,
-        // which means the smooth scroll animation has finished.
-        if (this.suppressionTimerId) {
-            window.clearTimeout(this.suppressionTimerId);
-        }
+        this.clearSuppressionTimer();
         this.suppressionTimerId = window.setTimeout(() => {
             this.scrollSpySuppressed = false;
             this.suppressionTimerId = 0;
@@ -123,7 +123,6 @@ export class PpPageNav extends LitElement {
         const threshold = 100;
         let activeId = '';
 
-        // Check all top-level sections
         for (const s of this.sections) {
             const el = this.findElement(s.id);
             if (el) {
@@ -132,7 +131,6 @@ export class PpPageNav extends LitElement {
                     activeId = s.id;
                 }
             }
-            // Check children (response codes)
             if (s.children) {
                 for (const c of s.children) {
                     const childEl = this.findElement(c.id);
@@ -153,7 +151,6 @@ export class PpPageNav extends LitElement {
     private findElement(id: string): Element | null {
         const el = document.getElementById(id);
         if (el) return el;
-        // Response IDs are inside pp-operation-responses shadow DOM
         const respComp = document.getElementById('section-responses');
         if (respComp?.shadowRoot) {
             return respComp.shadowRoot.getElementById(id);
@@ -162,8 +159,6 @@ export class PpPageNav extends LitElement {
     }
 
     private navigateTo(id: string) {
-        // Suppress scroll spy so it doesn't override the clicked target
-        // during the smooth scroll animation
         this.suppressScrollSpy();
         this.activeId = id;
 
@@ -189,6 +184,31 @@ export class PpPageNav extends LitElement {
         localStorage.setItem(COLLAPSED_KEY, String(this.collapsed));
     }
 
+    private toggleNavHidden() {
+        const tab = this.shadowRoot?.querySelector('.collapse-tab') as HTMLElement;
+        if (tab) {
+            tab.addEventListener('animationend', () => tab.classList.remove('flashing'), {once: true});
+            tab.classList.add('flashing');
+        }
+        const container = this.shadowRoot?.querySelector('.nav-container') as HTMLElement;
+        if (!this.navHidden && container) {
+            // capture current height before hiding so the tab keeps the same size
+            container.style.height = container.offsetHeight + 'px';
+        } else if (this.navHidden && container) {
+            // clear fixed height so nav sizes naturally when shown
+            container.style.height = '';
+        }
+        this.navHidden = !this.navHidden;
+        localStorage.setItem(HIDDEN_KEY, String(this.navHidden));
+    }
+
+    private handleTabKeydown(e: KeyboardEvent) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            this.toggleNavHidden();
+        }
+    }
+
     private statusColorClass(label: string): string {
         const code = label.substring(0, 1);
         if (code === '2') return 'status-2xx';
@@ -200,41 +220,51 @@ export class PpPageNav extends LitElement {
 
     render() {
         return html`
-            <nav aria-label="Page sections">
-                <div class="nav-header" @click=${this.toggleCollapsed}
-                     aria-expanded=${!this.collapsed}>
-                    <span class="nav-title">${this.pageTitle}</span>
-                    <sl-icon name=${this.collapsed ? 'chevron-right' : 'chevron-down'}></sl-icon>
+            <div class="nav-container">
+                <nav aria-label="Page sections">
+                    <div class="nav-header" @click=${this.toggleCollapsed}
+                         aria-expanded=${!this.collapsed}>
+                        <span class="nav-title">${this.pageTitle}</span>
+                        <sl-icon name=${this.collapsed ? 'chevron-right' : 'chevron-down'}></sl-icon>
+                    </div>
+                    ${this.collapsed ? nothing : html`
+                        <ul class="nav-sections">
+                            ${this.sections.map(s => html`
+                                <li>
+                                    <a href="#${s.id}"
+                                       class=${s.id === this.activeId ? 'active' : ''}
+                                       aria-current=${s.id === this.activeId ? 'true' : nothing}
+                                       @click=${(e: Event) => { e.preventDefault(); this.navigateTo(s.id); }}>
+                                        ${s.label}
+                                    </a>
+                                    ${s.children?.length ? html`
+                                        <ul class="nav-children">
+                                            ${s.children.map(c => html`
+                                                <li>
+                                                    <sl-icon name="chevron-right"></sl-icon>
+                                                    <a href="#${c.id}"
+                                                       class="${c.id === this.activeId ? 'active' : ''} ${this.statusColorClass(c.label)}"
+                                                       @click=${(e: Event) => { e.preventDefault(); this.navigateTo(c.id); }}>
+                                                        ${c.label}
+                                                    </a>
+                                                </li>
+                                            `)}
+                                        </ul>
+                                    ` : nothing}
+                                </li>
+                            `)}
+                        </ul>
+                    `}
+                </nav>
+                <div class="collapse-tab"
+                     role="button"
+                     tabindex="0"
+                     aria-label=${this.navHidden ? 'Expand navigation' : 'Collapse navigation'}
+                     @click=${this.toggleNavHidden}
+                     @keydown=${this.handleTabKeydown}>
+                    <sl-icon name=${this.navHidden ? 'chevron-left' : 'chevron-right'}></sl-icon>
                 </div>
-                ${this.collapsed ? nothing : html`
-                    <ul class="nav-sections">
-                        ${this.sections.map(s => html`
-                            <li>
-                                <a href="#${s.id}"
-                                   class=${s.id === this.activeId ? 'active' : ''}
-                                   aria-current=${s.id === this.activeId ? 'true' : nothing}
-                                   @click=${(e: Event) => { e.preventDefault(); this.navigateTo(s.id); }}>
-                                    ${s.label}
-                                </a>
-                                ${s.children?.length ? html`
-                                    <ul class="nav-children">
-                                        ${s.children.map(c => html`
-                                            <li>
-                                                <sl-icon name="chevron-right"></sl-icon>
-                                                <a href="#${c.id}"
-                                                   class="${c.id === this.activeId ? 'active' : ''} ${this.statusColorClass(c.label)}"
-                                                   @click=${(e: Event) => { e.preventDefault(); this.navigateTo(c.id); }}>
-                                                    ${c.label}
-                                                </a>
-                                            </li>
-                                        `)}
-                                    </ul>
-                                ` : nothing}
-                            </li>
-                        `)}
-                    </ul>
-                `}
-            </nav>
+            </div>
         `;
     }
 }

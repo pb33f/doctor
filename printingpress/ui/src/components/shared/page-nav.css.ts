@@ -4,19 +4,77 @@ export default css`
     :host {
         display: block;
         position: fixed;
-        top: calc(var(--pp-header-height, 50px) + 1rem);
-        right: 1rem;
+        top: calc(var(--pp-header-height) + 85px);
+        right: 10px;
         z-index: 5;
         width: 365px;
     }
 
-    nav {
+    :host([nav-hidden]) {
+        width: 22px;
+    }
+
+    .nav-container {
+        display: flex;
+        flex-direction: row;
         border: 1px solid var(--secondary-color);
         background: var(--background-color);
-        padding: var(--global-padding-double);
         max-height: 60vh;
+    }
+
+    .nav-container:has(.collapse-tab:hover) {
+        border-color: var(--primary-color);
+    }
+
+    .nav-container:has(.collapse-tab:active) {
+        border-color: var(--warn-color);
+    }
+
+    nav {
+        flex: 1;
+        min-width: 0;
         overflow-y: auto;
+        overflow-x: hidden;
         scrollbar-width: thin;
+        padding: var(--global-padding-double);
+    }
+
+    :host([nav-hidden]) nav {
+        display: none;
+    }
+
+    .collapse-tab {
+        width: 20px;
+        font-size: 55px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--secondary-color);
+        cursor: pointer;
+    }
+
+    .collapse-tab:hover {
+        background: var(--primary-color);
+    }
+
+    .collapse-tab:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: -2px;
+    }
+
+    .collapse-tab sl-icon {
+        color: var(--background-color);
+        font-size: 0.7em;
+    }
+
+    .collapse-tab.flashing {
+        animation: flash-warn 250ms ease forwards;
+    }
+
+    @keyframes flash-warn {
+        0% { background: var(--warn-color); }
+        100% { background: var(--secondary-color); }
     }
 
     .nav-header {
@@ -85,10 +143,6 @@ export default css`
         font-size: 0.6em;
         color: var(--secondary-color);
         flex-shrink: 0;
-    }
-
-    .nav-header sl-icon {
-        color: var(--secondary-color);
     }
 
     a.status-2xx, a.status-2xx:hover { color: var(--terminal-text); }
