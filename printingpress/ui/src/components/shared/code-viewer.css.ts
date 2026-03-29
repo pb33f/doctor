@@ -30,6 +30,17 @@ export default css`
         color: inherit;
     }
 
+    /* ── Embedded mode: strip decorative chrome when inside a drawer/container ── */
+
+    :host([embedded]) pre {
+        border-left: none;
+        border-top: none;
+        border-bottom: none;
+        background-color: var(--background-color);
+        background-image: none;
+        padding-left: var(--global-padding-double);
+    }
+
     /* YAML: unquoted values are plain text — use secondary color */
 
     pre.language-yaml,
@@ -42,16 +53,16 @@ export default css`
     .lined-code {
         width: 100%;
         overflow-x: auto;
-        background: var(--terminal-background, #0a0a0a);
+        background: var(--background-color);
         scrollbar-width: thin;
-        scrollbar-color: var(--secondary-color-lowalpha) var(--terminal-background);
+        scrollbar-color: var(--secondary-color-lowalpha) var(--background-color);
     }
 
     .lined-code pre {
         margin: 0;
         padding: 0;
         overflow-x: visible;
-        background: var(--terminal-background, #0a0a0a);
+        background: var(--background-color);
         color: var(--font-color, #e8e9ed);
         font-family: var(--font-stack, monospace);
         font-size: 0.8rem;
@@ -100,7 +111,7 @@ export default css`
         position: sticky;
         left: 0;
         z-index: 1;
-        background: var(--terminal-background, #0a0a0a);
+        background: var(--background-color);
         transition: color 0.1s, border-right-color 0.1s;
     }
 
@@ -226,8 +237,7 @@ export default css`
 
     .location {
         padding: 0.5rem 1rem;
-        background: var(--card-background-color, rgba(35, 35, 35, 0.55));
-        border-top: 1px solid var(--hrcolor, #3d3d3d);
+        border-bottom: 1px solid var(--hrcolor, #3d3d3d);
         color: var(--font-color-sub2, #555);
         font-family: var(--font-stack, monospace);
         font-size: 0.75rem;

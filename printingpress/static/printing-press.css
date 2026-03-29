@@ -92,26 +92,30 @@ code {
     margin-bottom: var(--global-padding-double);
 }
 
+.pp-security h3 {
+    margin-top: var(--global-padding-double);
+}
+
 .pp-security-scheme {
-    display: flex;
+    display: grid;
+    grid-template-columns: 200px auto;
+    gap: 0 1rem;
     align-items: baseline;
-    gap: 0.75rem;
     padding: 0.25rem 0;
 }
 
 .pp-security-name {
     font-family: var(--font-stack-bold), monospace;
     color: var(--primary-color);
+    text-align: right;
 }
 
 .pp-security-badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.15rem 0.6rem;
-    border: 1px solid var(--border-color-lowalpha);
+    gap: var(--global-padding-double);
+    padding: var(--global-padding) var(--global-padding-double);
     font-family: var(--font-stack), monospace;
-    font-size: 0.85em;
 }
 
 .pp-security-type-label {
@@ -126,6 +130,41 @@ code {
 .pp-security-scopes code {
     color: var(--warn-400);
     font-size: 0.9em;
+}
+
+.pp-server-entry {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 0 1rem;
+    align-items: baseline;
+    padding: var(--global-padding-double) 0;
+}
+
+.pp-server-name {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--global-padding-double);
+    font-family: var(--font-stack), monospace;
+    color: var(--font-color-sub1);
+    text-align: right;
+}
+
+.pp-server-url,
+.pp-server-url:visited,
+.pp-server-url:active {
+    font-family: var(--font-stack-bold), monospace;
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.pp-server-url:hover {
+    text-decoration: underline;
+}
+
+.pp-server-icon {
+    color: var(--primary-color);
+    font-size: 1.1em;
 }
 
 .pp-warnings {

@@ -98,7 +98,7 @@ templ OperationPageTempl(page *OperationPage) {
 		}
 		if len(page.Security) > 0 {
 			<div class="pp-security">
-				<h3>Security</h3>
+				<h3>SECURITY</h3>
 				for _, sec := range page.Security {
 					<div class="pp-security-scheme">
 						if sec.Ref != nil {
@@ -127,17 +127,18 @@ templ OperationPageTempl(page *OperationPage) {
 		}
 		if len(page.Servers) > 0 {
 			<div class="pp-servers">
-				<h3>Servers</h3>
-				<ul>
-					for _, srv := range page.Servers {
-						<li>
-							<code>{ srv.URL }</code>
+				<h3>SERVERS</h3>
+				for _, srv := range page.Servers {
+					<div class="pp-server-entry">
+						<span class="pp-server-name">
 							if srv.Description != "" {
-								<span> &mdash; { srv.Description }</span>
+								{ srv.Description }
 							}
-						</li>
-					}
-				</ul>
+							<sl-icon name="hdd-network" class="pp-server-icon"></sl-icon>
+						</span>
+						<a class="pp-server-url" href={ templ.SafeURL(srv.URL) } target="_blank" rel="noopener">{ srv.URL }</a>
+					</div>
+				}
 			</div>
 		}
 		if page.RequestBody != nil {
