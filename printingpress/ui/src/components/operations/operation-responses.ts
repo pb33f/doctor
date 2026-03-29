@@ -10,7 +10,7 @@ import detailsCss from '../../styles/details.css.js';
 import '../shared/code-viewer.js';
 import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';
-import {ComponentLinkData, MediaTypeData} from '../../utils/schema.js';
+import {ComponentLinkData, MediaTypeData, ResponseData} from '../../utils/schema.js';
 import {HTTP_STATUS_TEXT, statusColorClass} from '../../utils/http.js';
 import {renderConstraints, renderComponentRefLink} from '../../utils/render-helpers.js';
 import '../shared/extensions.js';
@@ -40,20 +40,6 @@ interface LinkData {
     ref?: ComponentLinkData;
 }
 
-interface ResponseData {
-    statusCode: string;
-    description: string;
-    descHtml?: string;
-    content?: MediaTypeData[];
-    headers?: HeaderData[];
-    links?: LinkData[];
-    ref?: ComponentLinkData;
-    rawJson?: string;
-    rawYaml?: string;
-    sourceLine?: number;
-    extensions?: Array<{key: string; value: any}>;
-}
-
 @customElement('pp-operation-responses')
 export class PpOperationResponses extends LitElement {
     static styles = [sharedCss, constraintsCss, refLinkCss, statusColorsCss, operationResponsesCss, detailsCss];
@@ -79,8 +65,7 @@ export class PpOperationResponses extends LitElement {
             } catch {
                 this.responses = [];
             }
-            const {commonNames} = this.computeCommonHeaders();
-            this.commonHeaderNames = commonNames;
+            // commonHeaderNames will be derived from commonResponseHeaders when that attr is parsed
 
             const sorted = [...this.responses].sort((a, b) => parseInt(a.statusCode, 10) - parseInt(b.statusCode, 10));
             const success: ResponseData[] = [];
@@ -110,7 +95,19 @@ export class PpOperationResponses extends LitElement {
             } catch {
                 this.commonResponseHeaders = [];
             }
+            this.commonHeaderNames = new Set(this.commonResponseHeaders.map(h => h.name));
         }
+    }
+
+    public getResponseNavItems(): Array<{label: string; id: string}> {
+        const items: Array<{label: string; id: string}> = [];
+        for (const r of [...this.successResponses, ...this.redirectResponses, ...this.errorResponses]) {
+            items.push({
+                label: `${r.statusCode} ${HTTP_STATUS_TEXT[r.statusCode] || ''}`.trim(),
+                id: `response-${r.statusCode}`,
+            });
+        }
+        return items;
     }
 
     private renderRefLink(ref: ComponentLinkData, withPopover = false) {
@@ -297,7 +294,7 @@ export class PpOperationResponses extends LitElement {
         const isCommonError = errorKey != null && commonErrorKeys?.has(errorKey);
 
         return html`
-            <div class="response">
+            <div class="response" id="response-${resp.statusCode}">
                     <h3><span class="status-code ${statusColorClass(resp.statusCode)}">${resp.statusCode}</span> ${HTTP_STATUS_TEXT[resp.statusCode] || ''}
                         ${resp.rawJson || resp.rawYaml
                                 ? html`

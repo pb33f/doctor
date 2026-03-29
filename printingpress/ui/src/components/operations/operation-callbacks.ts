@@ -5,21 +5,13 @@ import sharedCss from '../../styles/shared.css.js';
 import refLinkCss from '../../styles/ref-link.css.js';
 import statusColorsCss from '../../styles/status-colors.css.js';
 import operationCallbacksCss from './operation-callbacks.css.js';
-import {ComponentLinkData, MediaTypeData} from '../../utils/schema.js';
+import {ComponentLinkData, MediaTypeData, ResponseData} from '../../utils/schema.js';
 import {renderComponentRefLink} from '../../utils/render-helpers.js';
 import {HTTP_STATUS_TEXT, statusColorClass} from '../../utils/http.js';
 import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';
 import '../shared/example-selector.js';
 import '../shared/media-type-selector.js';
-
-interface ResponseData {
-    statusCode: string;
-    description: string;
-    descHtml?: string;
-    content?: MediaTypeData[];
-    ref?: ComponentLinkData;
-}
 
 interface RequestBodyData {
     description?: string;

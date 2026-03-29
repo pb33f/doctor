@@ -78,22 +78,4 @@ export default css`
         color: var(--font-color-sub1);
     }
 
-    .media-type-ref {
-        display: flex;
-        align-items: center;
-        gap: var(--global-padding-double);
-        padding: var(--global-padding-double) 0;
-    }
-
-    .media-type-label {
-        font-family: var(--font-stack-bold), monospace;
-        color: var(--primary-color);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    .array-type {
-        font-family: var(--font-stack);
-        color: var(--font-color-sub1);
-    }
 `

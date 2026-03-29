@@ -8,6 +8,7 @@ import sharedCss from '../../styles/shared.css.js';
 import refLinkCss from '../../styles/ref-link.css.js';
 import mediaTypeSelectorCss from './media-type-selector.css.js';
 import {ComponentLinkData, MediaTypeData} from '../../utils/schema.js';
+import {renderComponentRefLink} from '../../utils/render-helpers.js';
 import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';
 import '../shared/extensions.js';
@@ -59,7 +60,7 @@ export class PpMediaTypeSelector extends LitElement {
     }
 
     private renderRefLink(ref: ComponentLinkData) {
-        return html`<a class="ref-link" href="models/${ref.typeSlug}/${ref.slug}.html">\u279c ${ref.name}</a>`;
+        return renderComponentRefLink(ref);
     }
 
     private renderSchemaHeader(mt: MediaTypeData) {

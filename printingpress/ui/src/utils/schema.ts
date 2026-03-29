@@ -5,6 +5,20 @@ export interface ComponentLinkData {
   slug: string;
 }
 
+export interface ResponseData {
+  statusCode: string;
+  description: string;
+  descHtml?: string;
+  content?: MediaTypeData[];
+  headers?: Array<{name: string; description?: string; schemaType?: string; ref?: ComponentLinkData; example?: string; minimum?: number; maximum?: number; default?: string; enum?: string[]; pattern?: string; extensions?: Array<{key: string; value: any}>}>;
+  links?: Array<{name: string; operationId?: string; operationSlug?: string; operationRef?: string; description?: string; ref?: ComponentLinkData}>;
+  ref?: ComponentLinkData;
+  rawJson?: string;
+  rawYaml?: string;
+  sourceLine?: number;
+  extensions?: Array<{key: string; value: any}>;
+}
+
 export interface MediaTypeData {
   mediaType: string;
   schemaJson: string;

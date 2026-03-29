@@ -42,6 +42,7 @@ templ headerConstraints(h *HeaderInfo) {
 
 templ OperationPageTempl(page *OperationPage) {
 	<div class="pp-operation">
+		<pp-page-nav page-title={ page.OperationID } sections-json={ operationNavSections(page) }></pp-page-nav>
 	    <div class="title-section">
 
             <div class="name-path-block">
@@ -92,12 +93,12 @@ templ OperationPageTempl(page *OperationPage) {
 		</div>
 
 		if page.DescHTML != "" {
-			<div class="pp-description">
+			<div class="pp-description" id="section-description" data-nav-label="Description">
 				@templ.Raw(page.DescHTML)
 			</div>
 		}
 		if len(page.Security) > 0 {
-			<div class="pp-security">
+			<div class="pp-security" id="section-security" data-nav-label="Security">
 				<h3>SECURITY</h3>
 				for _, sec := range page.Security {
 					<div class="pp-security-scheme">
@@ -126,7 +127,7 @@ templ OperationPageTempl(page *OperationPage) {
 			</div>
 		}
 		if len(page.Servers) > 0 {
-			<div class="pp-servers">
+			<div class="pp-servers" id="section-servers" data-nav-label="Servers">
 				<h3>SERVERS</h3>
 				for _, srv := range page.Servers {
 					<div class="pp-server-entry">
@@ -145,7 +146,7 @@ templ OperationPageTempl(page *OperationPage) {
 			@RequestBodySection(page.RequestBody)
 		}
 		if page.ResponsesJSON != "" {
-			<pp-operation-responses
+			<pp-operation-responses id="section-responses" data-nav-label="Responses"
 				responses-json={ page.ResponsesJSON }
 				if page.CommonHeadersJSON != "" {
 					common-headers-json={ page.CommonHeadersJSON }
@@ -153,34 +154,52 @@ templ OperationPageTempl(page *OperationPage) {
 			</pp-operation-responses>
 		}
 		if page.ParametersJSON != "" {
-			<sl-details class="pp-details">
+			<sl-details class="pp-details" id="section-parameters" data-nav-label="Parameters">
 				<span slot="summary" class="pp-details-summary"><h3>Parameters</h3></span>
 				<pp-operation-parameters parameters-json={ page.ParametersJSON }></pp-operation-parameters>
 			</sl-details>
 		}
 		if page.ExtensionsJSON != "" {
-            <sl-details class="pp-details">
+            <sl-details class="pp-details" id="section-extensions" data-nav-label="Extensions">
                 <span slot="summary" class="pp-details-summary"><h3>Operation Extensions</h3></span>
                 <pp-extensions extensions-json={ page.ExtensionsJSON }></pp-extensions>
             </sl-details>
         }
 		if page.PathExtensionsJSON != "" {
-            <sl-details class="pp-details">
+            <sl-details class="pp-details" id="section-path-extensions" data-nav-label="Path Extensions">
                 <span slot="summary" class="pp-details-summary"><h3>Path Extensions</h3></span>
                 <pp-extensions extensions-json={ page.PathExtensionsJSON }></pp-extensions>
             </sl-details>
         }
 		if page.CallbacksJSON != "" {
-			<sl-details class="pp-details">
+			<sl-details class="pp-details" id="section-callbacks" data-nav-label="Callbacks">
 				<span slot="summary" class="pp-details-summary"><h3>Callbacks</h3></span>
 				<pp-operation-callbacks callbacks-json={ page.CallbacksJSON }></pp-operation-callbacks>
 			</sl-details>
+		}
+		if page.ExternalDoc != nil {
+			<div class="pp-external-docs" id="section-external-docs" data-nav-label="External Docs">
+				<h3>EXTERNAL DOCS</h3>
+				<div class="pp-external-doc-entry">
+					<span class="pp-external-doc-name">
+						if page.ExternalDoc.Description != "" {
+							{ page.ExternalDoc.Description }
+						} else {
+							Documentation
+						}
+						<sl-icon name="box-arrow-up-right" class="pp-external-doc-icon"></sl-icon>
+					</span>
+					<a class="pp-external-doc-url" href={ templ.SafeURL(page.ExternalDoc.URL) } target="_blank" rel="noopener">
+						{ page.ExternalDoc.URL }
+					</a>
+				</div>
+			</div>
 		}
 	</div>
 }
 
 templ RequestBodySection(rb *RequestBodyInfo) {
-	<div class="pp-request-body">
+	<div class="pp-request-body" id="section-request-body" data-nav-label="Request Body">
 		<h3>Request Body
 		if rb.RawYAML != "" || rb.RawJSON != "" {
 			<pp-raw-viewer-btn
