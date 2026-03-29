@@ -199,11 +199,11 @@ export class PpSchemaProperties extends LitElement {
         }
 
         if (target.oneOf && Array.isArray(target.oneOf)) {
-            return this.renderOneOf(target.oneOf, 'One of');
+            return this.renderOneOf(target.oneOf, 'ONE OF', undefined, undefined, 'polymorphic');
         }
 
         if (target.anyOf && Array.isArray(target.anyOf)) {
-            return this.renderOneOf(target.anyOf, 'Any of');
+            return this.renderOneOf(target.anyOf, 'ANY OF', undefined, undefined, 'polymorphic');
         }
 
         const properties = target.properties || {};

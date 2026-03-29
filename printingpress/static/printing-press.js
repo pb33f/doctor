@@ -3826,7 +3826,7 @@ var PrintingPress=(function(d){"use strict";/**
             `}const o=new Set(e.required||[]);return c`
             ${e.description?c`<div class="oneof-option-desc">${e.description}</div>`:m}
             ${e.properties?this.renderPropertyTable(e.properties,o):m}
-        `}render(){var a,i,n,l;if(!this.schema)return m;const e=this.schema.type==="array"&&((a=this.schema.items)!=null&&a.properties||(i=this.schema.items)!=null&&i.allOf||(n=this.schema.items)!=null&&n.oneOf||(l=this.schema.items)!=null&&l.anyOf)?this.schema.items:this.schema;if(e.allOf&&Array.isArray(e.allOf))return this.renderComposition(e);if(e.oneOf&&Array.isArray(e.oneOf))return this.renderOneOf(e.oneOf,"One of");if(e.anyOf&&Array.isArray(e.anyOf))return this.renderOneOf(e.anyOf,"Any of");const o=e.properties||{},r=new Set(e.required||[]);if(!Object.entries(o).length){const p=Hr(e);return!p&&!e.description?m:c`
+        `}render(){var a,i,n,l;if(!this.schema)return m;const e=this.schema.type==="array"&&((a=this.schema.items)!=null&&a.properties||(i=this.schema.items)!=null&&i.allOf||(n=this.schema.items)!=null&&n.oneOf||(l=this.schema.items)!=null&&l.anyOf)?this.schema.items:this.schema;if(e.allOf&&Array.isArray(e.allOf))return this.renderComposition(e);if(e.oneOf&&Array.isArray(e.oneOf))return this.renderOneOf(e.oneOf,"ONE OF",void 0,void 0,"polymorphic");if(e.anyOf&&Array.isArray(e.anyOf))return this.renderOneOf(e.anyOf,"ANY OF",void 0,void 0,"polymorphic");const o=e.properties||{},r=new Set(e.required||[]);if(!Object.entries(o).length){const p=Hr(e);return!p&&!e.description?m:c`
                 <div class="property scalar">
                     <div class="prop-type-col">
                         ${p?c`<span class="prop-type">${p}</span>`:m}
