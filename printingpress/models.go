@@ -163,6 +163,7 @@ type ParameterInfo struct {
 	RawJSON     string            `json:"rawJson,omitempty"`
 	RawYAML     string            `json:"rawYaml,omitempty"`
 	SourceLine  int               `json:"sourceLine,omitempty"`
+	Location    string            `json:"location,omitempty"`
 	Extensions  []*ExtensionEntry `json:"extensions,omitempty"`
 }
 
@@ -176,6 +177,7 @@ type RequestBodyInfo struct {
 	RawJSON        string            `json:"rawJson,omitempty"`
 	RawYAML        string            `json:"rawYaml,omitempty"`
 	SourceLine     int               `json:"sourceLine,omitempty"`
+	Location       string            `json:"location,omitempty"`
 	Extensions     []*ExtensionEntry `json:"extensions,omitempty"`
 	ExtensionsJSON string            `json:"-"`
 }
@@ -208,6 +210,7 @@ type ResponseInfo struct {
 	RawJSON     string           `json:"rawJson,omitempty"`
 	RawYAML     string           `json:"rawYaml,omitempty"`
 	SourceLine  int              `json:"sourceLine,omitempty"`
+	Location    string           `json:"location,omitempty"`
 	Extensions  []*ExtensionEntry `json:"extensions,omitempty"`
 }
 
