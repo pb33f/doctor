@@ -83,9 +83,14 @@ func (p *SchemaWalkPool) processItem(item *SchemaWorkItem) {
 	// perform the actual walk
 	item.Schema.Walk(p.ctx, item.BaseSchema, item.Depth)
 
-	// decrement and signal if we hit zero
+	p.completeWork()
+}
+
+func (p *SchemaWalkPool) completeWork() {
 	if p.inFlight.Add(-1) == 0 {
+		p.mu.Lock()
 		p.cond.Broadcast()
+		p.mu.Unlock()
 	}
 }
 
@@ -125,7 +130,7 @@ func (p *SchemaWalkPool) Submit(sch *SchemaProxy, baseSchema *base.SchemaProxy, 
 		return true // queued successfully
 	default:
 		// queue full - signal sync walk needed
-		p.inFlight.Add(-1) // undo the increment
+		p.completeWork() // undo the increment
 		return false
 	}
 }

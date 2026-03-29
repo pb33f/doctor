@@ -63,11 +63,16 @@ func (p *WalkPool) worker() {
 	for fn := range p.workChan {
 		if fn != nil {
 			fn()
-			// decrement and signal if we hit zero
-			if p.inFlight.Add(-1) == 0 {
-				p.cond.Broadcast()
-			}
+			p.completeWork()
 		}
+	}
+}
+
+func (p *WalkPool) completeWork() {
+	if p.inFlight.Add(-1) == 0 {
+		p.mu.Lock()
+		p.cond.Broadcast()
+		p.mu.Unlock()
 	}
 }
 
@@ -87,7 +92,7 @@ func (p *WalkPool) Submit(fn func()) bool {
 		return true
 	default:
 		// queue full - caller should run synchronously
-		p.inFlight.Add(-1) // undo increment since we're not queuing
+		p.completeWork() // undo increment since we're not queuing
 		return false
 	}
 }
