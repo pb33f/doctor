@@ -5,7 +5,9 @@ import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import type {ShowExampleDetail} from './example-drawer.js';
+import '@shoelace-style/shoelace/dist/components/copy-button/copy-button.js';
 import exampleSelectorCss from './example-selector.css.js';
+import tooltipCss from '../../styles/tooltip.css.js';
 import '../shared/code-viewer.js';
 
 interface ExamplesData {
@@ -15,7 +17,7 @@ interface ExamplesData {
 
 @customElement('pp-example-selector')
 export class PpExampleSelector extends LitElement {
-  static styles = exampleSelectorCss;
+  static styles = [...exampleSelectorCss, tooltipCss];
 
   // Accepts a JSON object with { mockJson, examples }
   @property({attribute: 'examples-data'}) examplesData = '';
@@ -70,16 +72,17 @@ export class PpExampleSelector extends LitElement {
   }
 
   private showExample(entry: {key: string; json: string}) {
-    // Pretty-print if valid JSON
     let formatted = entry.json;
-    try {
-      formatted = JSON.stringify(JSON.parse(entry.json), null, 2);
-    } catch { /* use as-is */ }
+    if (this.codeLanguage === 'json') {
+      try {
+        formatted = JSON.stringify(JSON.parse(entry.json), null, 2);
+      } catch { /* use as-is */ }
+    }
 
     const event = new CustomEvent<ShowExampleDetail>('pp-show-example', {
       bubbles: true,
       composed: true,
-      detail: {title: entry.key, json: formatted},
+      detail: {title: entry.key, json: formatted, language: this.codeLanguage},
     });
     document.dispatchEvent(event);
   }
@@ -129,20 +132,28 @@ export class PpExampleSelector extends LitElement {
     return key.toLowerCase().includes('example') ? key : `${key} Example`;
   }
 
+  private renderCodeBlock(code: string) {
+    return html`
+      <div class="code-container">
+        <sl-copy-button .value=${code} class="floating-copy"></sl-copy-button>
+        <pp-code-viewer .code=${code} .language=${this.codeLanguage}
+            ?pretty=${this.codeLanguage === 'json'}></pp-code-viewer>
+      </div>
+    `;
+  }
+
   private renderInline() {
     const current = this.entries[this.selectedIndex];
 
     if (this.entries.length === 1) {
       return html`
         <div class="inline-example-label">${this.inlineLabel(current.key)}</div>
-        <pp-code-viewer .code=${current.json} .language=${this.codeLanguage}
-            ?pretty=${this.codeLanguage === 'json'}></pp-code-viewer>
+        ${this.renderCodeBlock(current.json)}
       `;
     }
 
     return html`
-      <pp-code-viewer .code=${current.json} .language=${this.codeLanguage}
-          ?pretty=${this.codeLanguage === 'json'}></pp-code-viewer>
+      ${this.renderCodeBlock(current.json)}
       <sl-dropdown skidding="5" distance="5">
         <sl-button slot="trigger" caret>${this.inlineLabel(current.key)}</sl-button>
         <sl-menu @sl-select=${this.handleInlineSelect}>

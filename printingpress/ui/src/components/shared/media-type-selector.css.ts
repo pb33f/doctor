@@ -17,6 +17,7 @@ export default [dropdownCss, css`
         font-family: var(--font-stack-bold), monospace;
         color: var(--primary-color);
         text-transform: uppercase;
+        margin-bottom: var(--global-padding-double);
         letter-spacing: 0.05em;
     }
 
