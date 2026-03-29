@@ -114,26 +114,6 @@ export class PpOperationResponses extends LitElement {
         return renderComponentRefLink(ref, withPopover);
     }
 
-    private computeCommonHeaders(): { common: HeaderData[], commonNames: Set<string> } {
-        const counts = new Map<string, number>();
-        const first = new Map<string, HeaderData>();
-        for (const resp of this.responses) {
-            for (const h of resp.headers ?? []) {
-                counts.set(h.name, (counts.get(h.name) ?? 0) + 1);
-                if (!first.has(h.name)) first.set(h.name, h);
-            }
-        }
-        const common: HeaderData[] = [];
-        const commonNames = new Set<string>();
-        for (const [name, count] of counts) {
-            if (count >= 2) {
-                common.push(first.get(name)!);
-                commonNames.add(name);
-            }
-        }
-        return {common, commonNames};
-    }
-
     private scrollToHeader(name: string) {
         const el = this.shadowRoot?.getElementById('header-' + name);
         if (!el) return;
@@ -302,7 +282,8 @@ export class PpOperationResponses extends LitElement {
                                         title="Response ${resp.statusCode}"
                                         raw-json=${resp.rawJson || ''}
                                         raw-yaml=${resp.rawYaml || ''}
-                                        start-line=${resp.sourceLine || 1}>
+                                        start-line=${resp.sourceLine || 1}
+                                        location=${resp.location || ''}>
                                 </pp-raw-viewer-btn>`
                                 : nothing}
                     </h3>

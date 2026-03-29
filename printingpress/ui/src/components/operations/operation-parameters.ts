@@ -22,6 +22,7 @@ interface ParameterData {
   rawJson?: string;
   rawYaml?: string;
   sourceLine?: number;
+  location?: string;
   extensions?: Array<{key: string; value: any}>;
 }
 
@@ -98,7 +99,8 @@ export class PpOperationParameters extends LitElement {
                         title="${p.name} (${p.in})"
                         raw-json=${p.rawJson || ''}
                         raw-yaml=${p.rawYaml || ''}
-                        start-line=${p.sourceLine || 1}>
+                        start-line=${p.sourceLine || 1}
+                        location=${p.location || ''}>
                     </pp-raw-viewer-btn>`
                   : nothing}
             </div>
@@ -130,8 +132,7 @@ export class PpOperationParameters extends LitElement {
                 <h4>${p.name} Extensions</h4>
                 <pp-extensions extensions-json=${JSON.stringify(p.extensions)}></pp-extensions>
             </div>
-              
-             ` : nothing}
+            </div>` : nothing}
           
         `;
       })}

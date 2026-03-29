@@ -16,6 +16,7 @@ export interface ResponseData {
   rawJson?: string;
   rawYaml?: string;
   sourceLine?: number;
+  location?: string;
   extensions?: Array<{key: string; value: any}>;
 }
 

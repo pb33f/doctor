@@ -209,6 +209,9 @@ templ RequestBodySection(rb *RequestBodyInfo) {
 				raw-yaml={ rb.RawYAML }
 				if rb.SourceLine > 0 {
 					start-line={ fmt.Sprintf("%d", rb.SourceLine) }
+				}
+				if rb.Location != "" {
+					location={ rb.Location }
 				}>
 			</pp-raw-viewer-btn>
 		}

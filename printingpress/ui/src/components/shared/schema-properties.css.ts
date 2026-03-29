@@ -5,6 +5,7 @@ export default [dropdownCss, css`
     :host {
         display: block;
         border: 1px dotted var(--hrcolor);
+        margin-top: var(--global-padding-double);
     }
 
     .property {

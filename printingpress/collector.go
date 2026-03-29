@@ -267,10 +267,16 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 		page.Tags = append(page.Tags, t)
 	}
 
+	// Compute the path item's bundled line for offset calculation
+	var piBundledLine int
+	if piOrigin != nil && pi.ValueNode != nil {
+		piBundledLine = pi.ValueNode.Line
+	}
+
 	// Parameters (operation-level + path-level)
-	page.Parameters = pp.collectParameters(op.Parameters)
+	page.Parameters = pp.collectParameters(op.Parameters, piOrigin, piBundledLine)
 	if pi.Parameters != nil {
-		page.Parameters = append(page.Parameters, pp.collectParameters(pi.Parameters)...)
+		page.Parameters = append(page.Parameters, pp.collectParameters(pi.Parameters, piOrigin, piBundledLine)...)
 	}
 
 	if len(page.Parameters) > 0 {
@@ -279,12 +285,12 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 
 	// Request body
 	if op.RequestBody != nil {
-		page.RequestBody = pp.collectRequestBody(op.RequestBody)
+		page.RequestBody = pp.collectRequestBody(op.RequestBody, piOrigin, piBundledLine)
 	}
 
 	// Responses
 	if op.Responses != nil {
-		page.Responses = pp.collectResponses(op.Responses)
+		page.Responses = pp.collectResponses(op.Responses, piOrigin, piBundledLine)
 	}
 
 	if len(page.Responses) > 0 {
@@ -358,14 +364,8 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 		page.SourceLine = op.ValueNode.Line
 	}
 
-	// Use path item origin for source file location and line number
 	if piOrigin != nil && piOrigin.OriginalFile != "" {
-		loc := piOrigin.OriginalFile
-		if pp.config.SpecRoot != "" && strings.HasPrefix(loc, pp.config.SpecRoot) {
-			loc = strings.TrimPrefix(loc, pp.config.SpecRoot)
-			loc = strings.TrimPrefix(loc, "/")
-		}
-		page.Location = loc
+		page.Location = pp.formatLocation(piOrigin)
 		if piOrigin.Line > 0 {
 			page.SourceLine = piOrigin.Line
 		}
@@ -374,7 +374,7 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 	pp.site.Operations = append(pp.site.Operations, page)
 }
 
-func (pp *PrintingPress) collectParameters(params []*v3.Parameter) []*ParameterInfo {
+func (pp *PrintingPress) collectParameters(params []*v3.Parameter, piOrigin *bundler.ComponentOrigin, piBundledLine int) []*ParameterInfo {
 	var result []*ParameterInfo
 	for _, p := range params {
 		if p.Value == nil {
@@ -389,7 +389,10 @@ func (pp *PrintingPress) collectParameters(params []*v3.Parameter) []*ParameterI
 		}
 		pp.captureRawData(p.Value, p.Value.Name, &pi.RawYAML, &pi.RawJSON, nil)
 		if p.ValueNode != nil {
-			pi.SourceLine = p.ValueNode.Line
+			pi.SourceLine = pp.computeOriginalLine(p.ValueNode.Line, piOrigin, piBundledLine)
+		}
+		if loc, _ := pp.resolveObjectOrigin(p.Value.GoLow(), piOrigin); loc != "" {
+			pi.Location = loc
 		}
 		if low := p.Value.GoLow(); low != nil && low.IsReference() {
 			if link := pp.resolveComponentLink(low.GetReference()); link != nil {
@@ -431,7 +434,7 @@ func (pp *PrintingPress) collectParameters(params []*v3.Parameter) []*ParameterI
 	return result
 }
 
-func (pp *PrintingPress) collectRequestBody(rb *v3.RequestBody) *RequestBodyInfo {
+func (pp *PrintingPress) collectRequestBody(rb *v3.RequestBody, piOrigin *bundler.ComponentOrigin, piBundledLine int) *RequestBodyInfo {
 	if rb.Value == nil {
 		return nil
 	}
@@ -443,7 +446,10 @@ func (pp *PrintingPress) collectRequestBody(rb *v3.RequestBody) *RequestBodyInfo
 	}
 	pp.captureRawData(val, "requestBody", &rbi.RawYAML, &rbi.RawJSON, nil)
 	if rb.ValueNode != nil {
-		rbi.SourceLine = rb.ValueNode.Line
+		rbi.SourceLine = pp.computeOriginalLine(rb.ValueNode.Line, piOrigin, piBundledLine)
+	}
+	if loc, _ := pp.resolveObjectOrigin(val.GoLow(), piOrigin); loc != "" {
+		rbi.Location = loc
 	}
 	rbi.Extensions = collectExtensions(val.Extensions)
 	if rbi.Extensions != nil {
@@ -555,7 +561,7 @@ func (pp *PrintingPress) collectMediaType(mediaTypeName string, mt *v3.MediaType
 	return mti
 }
 
-func (pp *PrintingPress) collectResponses(responses *v3.Responses) []*ResponseInfo {
+func (pp *PrintingPress) collectResponses(responses *v3.Responses, piOrigin *bundler.ComponentOrigin, piBundledLine int) []*ResponseInfo {
 	if responses.Codes == nil {
 		return nil
 	}
@@ -573,7 +579,10 @@ func (pp *PrintingPress) collectResponses(responses *v3.Responses) []*ResponseIn
 		}
 		pp.captureRawData(resp.Value, code, &ri.RawYAML, &ri.RawJSON, nil)
 		if resp.ValueNode != nil {
-			ri.SourceLine = resp.ValueNode.Line
+			ri.SourceLine = pp.computeOriginalLine(resp.ValueNode.Line, piOrigin, piBundledLine)
+		}
+		if loc, _ := pp.resolveObjectOrigin(resp.Value.GoLow(), piOrigin); loc != "" {
+			ri.Location = loc
 		}
 		ri.Extensions = collectExtensions(resp.Value.Extensions)
 		if resp.Value.IsReference() {
@@ -1011,10 +1020,10 @@ func (pp *PrintingPress) collectCallbacks(callbacks *orderedmap.Map[string, *v3.
 						DescHTML:    renderMarkdown(op.Value.Description),
 					}
 					if op.RequestBody != nil {
-						coi.RequestBody = pp.collectRequestBody(op.RequestBody)
+						coi.RequestBody = pp.collectRequestBody(op.RequestBody, nil, 0)
 					}
 					if op.Responses != nil {
-						coi.Responses = pp.collectResponses(op.Responses)
+						coi.Responses = pp.collectResponses(op.Responses, nil, 0)
 					}
 					ci.Operations = append(ci.Operations, coi)
 				}
@@ -1209,8 +1218,49 @@ func computeCommonHeaders(responses []*ResponseInfo) []*HeaderInfo {
 	return common
 }
 
-// resolveOrigin looks up a component origin and strips the SpecRoot prefix from OriginalFile
-// so rendered paths are relative (e.g. "schemas/user.yaml" not "/home/user/project/api-spec/schemas/user.yaml").
+// computeOriginalLine converts a bundled spec line number to the original file
+// line number using the path item origin offset. For single-file specs (no piOrigin),
+// the bundled line IS the original line.
+func (pp *PrintingPress) computeOriginalLine(bundledLine int, piOrigin *bundler.ComponentOrigin, piBundledLine int) int {
+	if piOrigin == nil || piBundledLine == 0 {
+		return bundledLine
+	}
+	return piOrigin.Line + (bundledLine - piBundledLine) - 1
+}
+
+// formatLocation strips the SpecRoot prefix from an origin's file path so rendered
+// paths are relative (e.g. "schemas/user.yaml" not "/home/user/project/api-spec/schemas/user.yaml").
+func (pp *PrintingPress) formatLocation(origin *bundler.ComponentOrigin) string {
+	loc := origin.OriginalFile
+	if pp.config.SpecRoot != "" && strings.HasPrefix(loc, pp.config.SpecRoot) {
+		loc = strings.TrimPrefix(loc, pp.config.SpecRoot)
+		loc = strings.TrimPrefix(loc, "/")
+	}
+	return loc
+}
+
+// resolveObjectOrigin resolves the source file and line number for a sub-object
+// (response, parameter, request body) within an operation. It checks if the object
+// itself is a $ref with its own origin, then falls back to the path item origin.
+func (pp *PrintingPress) resolveObjectOrigin(
+	low interface{ IsReference() bool; GetReference() string },
+	piOrigin *bundler.ComponentOrigin,
+) (location string, sourceLine int) {
+	if pp.config.Origins != nil && low != nil && low.IsReference() {
+		ref := low.GetReference()
+		if origin, ok := pp.config.Origins[ref]; ok && origin != nil {
+			return pp.formatLocation(origin), origin.Line
+		}
+	}
+	// fall back to path item origin — file is correct but we don't know the
+	// exact line for inline objects, so return 0
+	if piOrigin != nil && piOrigin.OriginalFile != "" {
+		return pp.formatLocation(piOrigin), 0
+	}
+	return "", 0
+}
+
+// resolveOrigin looks up a component origin and strips the SpecRoot prefix from OriginalFile.
 func (pp *PrintingPress) resolveOrigin(componentType, name string) *bundler.ComponentOrigin {
 	if pp.config.Origins == nil {
 		return nil
@@ -1220,14 +1270,9 @@ func (pp *PrintingPress) resolveOrigin(componentType, name string) *bundler.Comp
 	if !ok || origin == nil {
 		return nil
 	}
-	if pp.config.SpecRoot != "" && strings.HasPrefix(origin.OriginalFile, pp.config.SpecRoot) {
-		trimmed := strings.TrimPrefix(origin.OriginalFile, pp.config.SpecRoot)
-		trimmed = strings.TrimPrefix(trimmed, "/")
-		cp := *origin
-		cp.OriginalFile = trimmed
-		return &cp
-	}
-	return origin
+	cp := *origin
+	cp.OriginalFile = pp.formatLocation(origin)
+	return &cp
 }
 
 // computeSchemaStartLine finds where schema content begins within the rendered
