@@ -224,16 +224,25 @@ func (pp *PrintingPress) visitPaths(ctx context.Context, paths *v3.Paths) {
 
 // collectPathItemOperations iterates all HTTP methods on a PathItem.
 func (pp *PrintingPress) collectPathItemOperations(path string, pi *v3.PathItem) {
+	// Resolve path item origin for multi-file source tracking
+	var piOrigin *bundler.ComponentOrigin
+	if pp.config.Origins != nil && pi.Value != nil && pi.Value.GoLow() != nil && pi.Value.GoLow().IsReference() {
+		ref := pi.Value.GoLow().GetReference()
+		if origin, ok := pp.config.Origins[ref]; ok {
+			piOrigin = origin
+		}
+	}
+
 	ops := pi.GetOperations()
 	for pair := ops.First(); pair != nil; pair = pair.Next() {
 		method := pair.Key()
 		op := pair.Value()
-		pp.collectOperation(method, path, op, pi)
+		pp.collectOperation(method, path, op, pi, piOrigin)
 	}
 }
 
 // collectOperation builds an OperationPage from a single operation.
-func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation, pi *v3.PathItem) {
+func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation, pi *v3.PathItem, piOrigin *bundler.ComponentOrigin) {
 	if op == nil || op.Value == nil {
 		return
 	}
@@ -349,9 +358,17 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 		page.SourceLine = op.ValueNode.Line
 	}
 
-	// For multi-file specs, resolve the source file location if available
-	if pp.config.Origins != nil && len(pp.config.Origins) > 0 {
-		page.Location = "(bundled)"
+	// Use path item origin for source file location and line number
+	if piOrigin != nil && piOrigin.OriginalFile != "" {
+		loc := piOrigin.OriginalFile
+		if pp.config.SpecRoot != "" && strings.HasPrefix(loc, pp.config.SpecRoot) {
+			loc = strings.TrimPrefix(loc, pp.config.SpecRoot)
+			loc = strings.TrimPrefix(loc, "/")
+		}
+		page.Location = loc
+		if piOrigin.Line > 0 {
+			page.SourceLine = piOrigin.Line
+		}
 	}
 
 	pp.site.Operations = append(pp.site.Operations, page)

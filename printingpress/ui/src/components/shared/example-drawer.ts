@@ -5,6 +5,7 @@ import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import './code-viewer.js';
 import type {PpCodeViewer} from './code-viewer.js';
 import exampleDrawerCss from './example-drawer.css.js';
+import tooltipCss from '../../styles/tooltip.css.js';
 
 export interface ShowExampleDetail {
   title: string;
@@ -20,7 +21,7 @@ export interface ShowExampleDetail {
 
 @customElement('pp-example-drawer')
 export class PpExampleDrawer extends LitElement {
-  static styles = [exampleDrawerCss];
+  static styles = [exampleDrawerCss, tooltipCss];
 
   @state() private title = '';
   @state() private json = '';
@@ -116,7 +117,7 @@ export class PpExampleDrawer extends LitElement {
           </div>
         </div>
         <div class="code-container">
-          <sl-copy-button .value=${this.copyText} class="floating-copy"></sl-copy-button>
+          <sl-copy-button .value=${code} class="floating-copy"></sl-copy-button>
           <pp-code-viewer
             .code=${code}
             .language=${lang}
@@ -124,7 +125,8 @@ export class PpExampleDrawer extends LitElement {
             .pretty=${lang === 'json'}
             .startLine=${this.startLine}
             .location=${this.location}
-            highlight-lines=${this.highlightLines}>
+            highlight-lines=${this.highlightLines}
+            embedded>
           </pp-code-viewer>
         </div>
       </sl-drawer>

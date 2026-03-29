@@ -29,6 +29,7 @@ export default [dropdownCss, css`
     }
 
     .prop-desc-col {
+        padding-left: var(--global-padding);
         color: var(--font-color-sub1)
     }
 

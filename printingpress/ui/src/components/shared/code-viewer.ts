@@ -19,6 +19,7 @@ export class PpCodeViewer extends LitElement {
     @property({attribute: 'highlight-lines'}) highlightLines = '';
     @property({attribute: 'start-line', type: Number}) startLine = 1;
     @property() location = '';
+    @property({type: Boolean, reflect: true}) embedded = false;
 
     @state() private selectedLines: Set<number> = new Set();
     @state() private lastClickedLine: number | null = null;
