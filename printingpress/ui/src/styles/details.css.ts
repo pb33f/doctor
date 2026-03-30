@@ -13,7 +13,7 @@ export default css`
     }
 
     sl-details.pp-details::part(header) {
-        padding: var(--global-padding-double);
+        padding: var(--global-padding);
     }
 
     sl-details.pp-details::part(summary-icon) {
@@ -21,7 +21,7 @@ export default css`
     }
 
     sl-details.pp-details::part(content) {
-        padding: var(--global-padding-double);
+        padding: var(--global-padding);
     }
 
     .pp-details-summary {

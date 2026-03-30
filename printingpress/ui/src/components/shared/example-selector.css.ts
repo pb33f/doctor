@@ -4,7 +4,7 @@ import dropdownCss from '../../styles/dropdown.css.js';
 export default [dropdownCss, css`
     :host {
         display: inline-block;
-        margin: var(--global-padding) 0 var(--global-padding-double) 0;
+        margin: var(--global-padding) 0 var(--global-padding) 0;
         width: 100%;
     }
 
@@ -19,7 +19,7 @@ export default [dropdownCss, css`
         background: var(--background-color);
         border: 1px dashed var(--hrcolor);
         border-radius: 0;
-        padding: var(--global-padding) var(--global-padding-double);
+        padding: var(--global-padding) var(--global-padding);
         font-family: var(--font-stack-bold), monospace;
         text-transform: uppercase;
         letter-spacing: 0.05em;
@@ -48,7 +48,7 @@ export default [dropdownCss, css`
     .floating-copy {
         position: absolute;
         top: var(--global-padding);
-        right: var(--global-padding-double);
+        right: var(--global-padding);
         z-index: 1;
         --sl-color-primary-600: var(--primary-color);
         --sl-tooltip-background-color: var(--background-color);

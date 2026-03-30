@@ -8,12 +8,12 @@ export default css`
     .ext-grid {
         display: grid;
         grid-template-columns: auto 1fr;
-        gap: 0 var(--global-padding-double);
+        gap: 0 var(--global-padding);
     }
     
     .ext-value,
     .ext-key {
-        padding: var(--global-padding-double) 0;
+        padding: var(--global-padding) 0;
     }
     
     .ext-value {

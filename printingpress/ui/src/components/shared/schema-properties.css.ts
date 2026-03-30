@@ -5,7 +5,7 @@ export default [dropdownCss, css`
     :host {
         display: block;
         border: 1px dotted var(--hrcolor);
-        margin-top: var(--global-padding-double);
+        margin-top: var(--global-padding);
     }
 
     .property {
@@ -107,7 +107,7 @@ export default [dropdownCss, css`
     }
 
     .composition-refs {
-        padding: var(--global-padding-double) var(--global-padding);
+        padding: var(--global-padding);
         border-bottom: 1px dotted var(--hrcolor);
     }
 
@@ -184,12 +184,12 @@ export default [dropdownCss, css`
 
     .oneof-prop-desc {
         color: var(--font-color-sub1);
-        padding-top: var(--global-padding-double);
+        padding-top: var(--global-padding);
         text-align: right;
     }
 
     .oneof-option-desc {
-        padding: var(--global-padding-double);
+        padding: var(--global-padding);
         color: var(--font-color-sub1);
         font-size: 0.9em;
         border-bottom: 1px dotted var(--hrcolor);
@@ -211,7 +211,7 @@ export default [dropdownCss, css`
         display: flex;
         flex-direction: column;
         height: 100%;
-        border-inline-end: var(--global-padding-double) solid var(--warn-color);
+        border-inline-end: var(--global-padding) solid var(--warn-color);
     }
 
     .oneof-tabs::part(tabs) {

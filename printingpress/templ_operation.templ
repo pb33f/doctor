@@ -63,13 +63,11 @@ templ OperationPageTempl(page *OperationPage) {
                       </pp-raw-viewer-btn>
                   }
 
-                 <h1 class="pp-operation-title">
-                   if page.Summary != "" {
-                       { page.Summary }
-                   } else {
-                       { page.Path }
-                   }
-                </h1>
+                 if page.Summary != "" {
+                     <pp-icon-title icon="operation" heading={ page.Summary }></pp-icon-title>
+                 } else {
+                     <pp-icon-title icon="operation" heading={ page.Path }></pp-icon-title>
+                 }
                 <div class="pp-operation-path">
                    <pb33f-http-method method={ page.Method }></pb33f-http-method>
                    <pb33f-render-operation-path path={ page.Path } nowrap></pb33f-render-operation-path>
