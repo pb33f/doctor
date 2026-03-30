@@ -5,19 +5,32 @@ import "fmt"
 templ ModelPageTempl(page *ModelPage) {
 	<div class="pp-model">
 		<div class="pp-model-header">
+			<pb33f-model-icon icon={ page.ComponentType } size="huge"></pb33f-model-icon>
 			<h1>{ page.Name }</h1>
-			<span class="pp-component-type">{ page.ComponentType }</span>
+			if page.RawYAML != "" || page.SchemaJSON != "" {
+				<pp-raw-viewer-btn
+					title={ page.Name }
+					raw-json={ page.SchemaJSON }
+					raw-yaml={ page.RawYAML }
+					if page.Origin != nil && page.Origin.Line > 0 {
+						start-line={ fmt.Sprintf("%d", page.Origin.Line) }
+					}
+					if page.Origin != nil && page.Origin.OriginalFile != "" {
+						location={ page.Origin.OriginalFile }
+					}>
+				</pp-raw-viewer-btn>
+			}
 		</div>
 		if page.Origin != nil {
 			<div class="pp-origin">
 				<span class="pp-label">Defined in:</span>
-				<code>{ page.Origin.OriginalFile }</code>
+				{ page.Origin.OriginalFile }
 				if page.Origin.Line > 0 {
 					<span> (line { fmt.Sprintf("%d", page.Origin.Line) })</span>
 				}
 				if page.Origin.WasRenamed {
 					<span class="pp-renamed">
-						Originally: <code>{ page.Origin.OriginalName }</code>
+						Originally: { page.Origin.OriginalName }
 					</span>
 				}
 			</div>
@@ -26,19 +39,6 @@ templ ModelPageTempl(page *ModelPage) {
 			<div class="pp-description">
 				@templ.Raw(page.DescHTML)
 			</div>
-		}
-		if page.RawYAML != "" || page.SchemaJSON != "" {
-			<pp-raw-viewer-btn
-				title={ page.Name }
-				raw-json={ page.SchemaJSON }
-				raw-yaml={ page.RawYAML }
-				if page.Origin != nil && page.Origin.Line > 0 {
-					start-line={ fmt.Sprintf("%d", page.Origin.Line) }
-				}
-				if page.Origin != nil && page.Origin.OriginalFile != "" {
-					location={ page.Origin.OriginalFile }
-				}>
-			</pp-raw-viewer-btn>
 		}
 		if page.SchemaJSON != "" {
 			<pp-model-page
@@ -63,9 +63,6 @@ templ ModelPageTempl(page *ModelPage) {
 					location={ page.Origin.OriginalFile }
 				}>
 			</pp-model-page>
-		}
-		if page.ExamplesJSON != "" {
-			<pp-example-selector examples-data={ page.ExamplesJSON }></pp-example-selector>
 		}
 		if page.CrossRefs != nil {
 			@CrossRefSection(page.CrossRefs)

@@ -7,11 +7,15 @@ export default css`
     }
 
     h3 {
-        margin-bottom: var(--global-padding-double);
-        color: var(--primary-color);
-        font-family: var(--font-stack-bold);
+        margin-top: var(--subheader-margin-top);
+        margin-bottom: 0;
+        padding-bottom: var(--subheader-padding-bottom);
+        font-size: var(--h3-size);
+        font-family: var(--font-stack-bold), monospace;
+        font-weight: normal;
         text-transform: uppercase;
         letter-spacing: 0.05em;
+        border-bottom: 1px dashed var(--hrcolor);
     }
 
     pre {

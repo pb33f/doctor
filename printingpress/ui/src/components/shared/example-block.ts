@@ -5,11 +5,11 @@ import Prism from 'prismjs';
 Prism.manual = true;
 import 'prismjs/components/prism-json.js';
 import exampleBlockCss from './example-block.css.js';
-import prismCss from '../../styles/prism.css.js';
+import {prismBaseCss, prismOverrideCss} from '../../styles/prism.css.js';
 
 @customElement('pp-example-block')
 export class PpExampleBlock extends LitElement {
-  static styles = [exampleBlockCss, prismCss];
+  static styles = [exampleBlockCss, prismBaseCss, prismOverrideCss];
 
   @property() name = '';
   @property({attribute: 'example-json'}) exampleJson = '';

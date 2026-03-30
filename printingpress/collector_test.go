@@ -247,6 +247,86 @@ components:
 	assert.Empty(t, p.SchemaRawJSON, "parameter without schema should have no SchemaRawJSON")
 }
 
+func TestAssignOperationsToTags_UnknownTagsFallBackToUntagged(t *testing.T) {
+	spec := `openapi: "3.1.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      tags:
+        - Pets
+      responses:
+        '200':
+          description: ok
+`
+	site := pressFromSpec(t, spec)
+
+	require.Len(t, site.Operations, 1)
+	require.Len(t, site.Root.UntaggedOperations, 1)
+	assert.Equal(t, site.Operations[0].Slug, site.Root.UntaggedOperations[0].Slug)
+	assert.Nil(t, site.NavTags)
+}
+
+func TestCollectOperation_OperationParametersOverridePathParameters(t *testing.T) {
+	spec := `openapi: "3.1.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /pets/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: path-level
+        schema:
+          type: string
+    get:
+      operationId: getPet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: operation-level
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ok
+`
+	site := pressFromSpec(t, spec)
+
+	require.Len(t, site.Operations, 1)
+	op := site.Operations[0]
+	require.Len(t, op.Parameters, 1)
+	assert.Equal(t, "operation-level", op.Parameters[0].Description)
+
+	var schema map[string]any
+	require.NoError(t, json.Unmarshal([]byte(op.Parameters[0].SchemaJSON), &schema))
+	assert.Equal(t, "integer", schema["type"])
+
+	var paramsJSON []map[string]any
+	require.NoError(t, json.Unmarshal([]byte(op.ParametersJSON), &paramsJSON))
+	require.Len(t, paramsJSON, 1)
+	assert.Equal(t, "operation-level", paramsJSON[0]["description"])
+}
+
+func TestResolveComponentLink_DecodesJSONPointerEscapes(t *testing.T) {
+	pp := &PrintingPress{
+		modelIndex: map[string]*ModelPage{
+			"schemas/Foo~/Bar": {Slug: "foo-bar"},
+		},
+	}
+
+	ref := pp.resolveComponentLink("#/components/schemas/Foo~0~1Bar")
+	require.NotNil(t, ref)
+	assert.Equal(t, "Foo~/Bar", ref.Name)
+	assert.Equal(t, "foo-bar", ref.Slug)
+}
+
 func TestSchemaRawData_OtherComponentTypes_NoSchemaRawFields(t *testing.T) {
 	spec := `openapi: "3.1.0"
 info:

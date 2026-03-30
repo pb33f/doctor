@@ -1,17 +1,20 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import inlineCodeCss from './inline-code.css.js';
+import tooltipCss from '../../styles/tooltip.css.js';
+import '@shoelace-style/shoelace/dist/components/copy-button/copy-button.js';
 import './code-viewer.js';
 
 @customElement('pp-inline-code')
 export class PpInlineCode extends LitElement {
-  static styles = [inlineCodeCss];
+  static styles = [inlineCodeCss, tooltipCss];
 
   @property({attribute: 'raw-json'}) rawJson = '';
   @property({attribute: 'raw-yaml'}) rawYaml = '';
   @property({attribute: 'start-line', type: Number}) startLine = 1;
   @property() title = 'Schema';
   @property() location = '';
+  @property({attribute: 'no-line-numbers', type: Boolean}) noLineNumbers = false;
   @state() private mode: 'json' | 'yaml' = 'yaml';
 
   connectedCallback() {
@@ -30,10 +33,12 @@ export class PpInlineCode extends LitElement {
     const code = this.mode === 'yaml' && hasYaml ? this.rawYaml : this.rawJson;
     const lang = this.mode === 'yaml' && hasYaml ? 'yaml' : 'json';
 
+    const showToggle = hasJson && hasYaml;
     return html`
+      ${this.title || showToggle ? html`
       <div class="toolbar">
-        <h3>${this.title}</h3>
-        ${hasJson && hasYaml ? html`
+        ${this.title ? html`<h3>${this.title}</h3>` : nothing}
+        ${showToggle ? html`
           <div class="toggle-group">
             <button class="toggle-btn ${this.mode === 'json' ? 'active' : ''}"
                     @click=${() => this.mode = 'json'}>JSON</button>
@@ -42,12 +47,14 @@ export class PpInlineCode extends LitElement {
           </div>
         ` : nothing}
       </div>
+      ` : nothing}
       <div class="code-container">
+        <sl-copy-button .value=${code} class="floating-copy"></sl-copy-button>
         <pp-code-viewer
           code=${code}
           language=${lang}
           ?pretty=${lang === 'json'}
-          ?line-numbers=${(lang === 'json' ? (code.includes('\n') || code.startsWith('{') || code.startsWith('[')) : code.split('\n').length > 1)}
+          ?line-numbers=${!this.noLineNumbers && (lang === 'json' ? (code.includes('\n') || code.startsWith('{') || code.startsWith('[')) : code.indexOf('\n') !== -1)}
           start-line=${this.startLine}
           location=${this.location}>
         </pp-code-viewer>
