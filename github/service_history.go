@@ -10,7 +10,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"sync/atomic"
 	"time"
 )
 
@@ -105,9 +104,6 @@ func getFileHistory(ctx context.Context, api historyAPI, session *GitHubSession,
 	resultChan := make(chan fileHistoryResult, totalCommits)
 	sem := make(chan struct{}, settings.maxWorkers)
 
-	var kbSize atomic.Int64
-	var cutoffIndex atomic.Int64
-
 	for i, commit := range processCommits {
 		sem <- struct{}{}
 		go func(idx int, c Commit) {
@@ -135,11 +131,6 @@ func getFileHistory(ctx context.Context, api historyAPI, session *GitHubSession,
 					return
 				}
 
-				fileSizeKB := int64(len(fileBytes)/1024) * 2
-				newSize := kbSize.Add(fileSizeKB)
-				if newSize > settings.sizeThresholdKB {
-					cutoffIndex.CompareAndSwap(0, int64(idx))
-				}
 				break
 			}
 
@@ -169,10 +160,7 @@ func getFileHistory(ctx context.Context, api historyAPI, session *GitHubSession,
 	}
 
 	if settings.forceCutoff {
-		ci := int(cutoffIndex.Load())
-		if ci > 0 {
-			results = results[:ci]
-		}
+		results = applyHistorySizeCutoff(results, settings.sizeThresholdKB)
 	}
 
 	filtered := make([]*FileRevision, 0, len(results))
@@ -182,6 +170,24 @@ func getFileHistory(ctx context.Context, api historyAPI, session *GitHubSession,
 		}
 	}
 	return filtered, nil
+}
+
+func applyHistorySizeCutoff(results []*FileRevision, thresholdKB int64) []*FileRevision {
+	if len(results) == 0 || thresholdKB <= 0 {
+		return results
+	}
+
+	var totalKB int64
+	for i, result := range results {
+		if result == nil {
+			continue
+		}
+		totalKB += int64(len(result.FileBytes)/1024) * 2
+		if totalKB > thresholdKB {
+			return results[:i+1]
+		}
+	}
+	return results
 }
 
 func normalizeFileHistoryOptions(options *FileHistoryOptions) fileHistorySettings {

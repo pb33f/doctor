@@ -3,3 +3,17 @@
  * Use this for model-specific tweaks to light-DOM elements,
  * CSS custom properties, host selectors, and ::part() selectors.
  */
+
+ .pp-model-header pp-raw-viewer-btn {
+     margin-left: auto;
+ }
+
+ h1 {
+     font-size: var(--h1-size);
+     word-spacing: var(--header-spacing);
+     padding-top: var(--global-padding-double);
+     margin-bottom: var(--header-margin-bottom);
+     font-family: var(--font-stack-bold), monospace;
+     scroll-margin-top: var(--scroll-margin);
+     font-weight: normal;
+ }

@@ -21,13 +21,29 @@
     --pp-head: #585858;
     --pp-trace: #585858;
 
-
-    --global-padding: 5px;
-    --global-padding-double: 10px;
+    --global-padding-half: 5px;
+    --global-padding: 10px;
+    --global-padding-double: 20px;
     --nav-op-max-width: 400px;
     --smaller-font: 0.8rem;
 
+    /* Shoelace tooltip overrides */
+    --sl-tooltip-background-color: var(--background-color);
+    --sl-tooltip-color: var(--font-color);
+    --sl-tooltip-border-radius: 0;
+    --sl-tooltip-font-family: var(--font-stack), monospace;
+    --sl-tooltip-font-size: 0.9rem;
+    --sl-tooltip-padding: 0.25rem 0.75rem;
+    --sl-tooltip-arrow-size: 6px;
 
+
+}
+
+/* Global tooltip styling */
+sl-tooltip::part(body) {
+    border: 1px dashed var(--secondary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 /* Prevent body scroll — the split-panel content-panel owns scrolling */
@@ -38,7 +54,7 @@ html, body {
 
 /* Content */
 main {
-    padding: 2rem 3rem;
+    padding: var(--global-padding-double) 40px;
 }
 
 /* Page navigator — hidden on small screens */
@@ -336,20 +352,19 @@ sl-details.pp-details::part(content) {
     color: var(--font-color-sub1);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-right: VAR(--global-padding-double);
+    margin-right: var(--global-padding);
 }
 
 /* Model pages */
 .pp-model-header {
     display: flex;
-    align-items: baseline;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    align-items: center;
+    gap: var(--global-padding-double);
 }
 
 .pp-component-type {
     font-size: 0.7em;
-    font-family: var(--font-stack-bold);
+    font-family: var(--font-stack-bold), monospace;
     color: var(--secondary-color);
     background: var(--secondary-color-very-lowalpha);
     border: 1px solid var(--secondary-color-dimmer);
@@ -360,10 +375,9 @@ sl-details.pp-details::part(content) {
 }
 
 .pp-origin {
-    font-size: 0.85em;
-    color: var(--font-color-sub2);
-    margin-bottom: 1rem;
-    font-family: var(--font-stack);
+    color: var(--font-color-sub1);
+    margin-bottom: var(--global-padding-double);
+    font-family: var(--font-stack), monospace;
 }
 
 .pp-renamed {

@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
@@ -35,11 +36,14 @@ var refSegmentToTypeSlug = map[string]string{
 // resolveComponentLink parses a $ref string and looks up the model page.
 // Returns nil if the ref doesn't point to a known component.
 func (pp *PrintingPress) resolveComponentLink(ref string) *ComponentLink {
+	if idx := strings.Index(ref, "#"); idx >= 0 {
+		ref = ref[idx:]
+	}
 	parts := strings.SplitN(strings.TrimPrefix(ref, "#/components/"), "/", 2)
 	if len(parts) != 2 {
 		return nil
 	}
-	segment, name := parts[0], parts[1]
+	segment, name := decodeJSONPointerToken(parts[0]), decodeJSONPointerToken(parts[1])
 	typeSlug, ok := refSegmentToTypeSlug[segment]
 	if !ok {
 		return nil
@@ -54,6 +58,15 @@ func (pp *PrintingPress) resolveComponentLink(ref string) *ComponentLink {
 		TypeSlug:      typeSlug,
 		Slug:          page.Slug,
 	}
+}
+
+func decodeJSONPointerToken(token string) string {
+	if decoded, err := url.PathUnescape(token); err == nil {
+		token = decoded
+	}
+	token = strings.ReplaceAll(token, "~1", "/")
+	token = strings.ReplaceAll(token, "~0", "~")
+	return token
 }
 
 // buildModelIndex creates an O(1) lookup map from "typeSlug/name" to ModelPage.
@@ -273,11 +286,11 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 		piBundledLine = pi.ValueNode.Line
 	}
 
-	// Parameters (operation-level + path-level)
-	page.Parameters = pp.collectParameters(op.Parameters, piOrigin, piBundledLine)
-	if pi.Parameters != nil {
-		page.Parameters = append(page.Parameters, pp.collectParameters(pi.Parameters, piOrigin, piBundledLine)...)
-	}
+	// Parameters (operation-level overrides path-level by name+in)
+	page.Parameters = mergeOperationParameters(
+		pp.collectParameters(op.Parameters, piOrigin, piBundledLine),
+		pp.collectParameters(pi.Parameters, piOrigin, piBundledLine),
+	)
 
 	if len(page.Parameters) > 0 {
 		page.ParametersJSON = MustJSON(page.Parameters)
@@ -432,6 +445,33 @@ func (pp *PrintingPress) collectParameters(params []*v3.Parameter, piOrigin *bun
 		result = append(result, pi)
 	}
 	return result
+}
+
+func mergeOperationParameters(operationParams, pathParams []*ParameterInfo) []*ParameterInfo {
+	if len(operationParams) == 0 && len(pathParams) == 0 {
+		return nil
+	}
+
+	merged := make([]*ParameterInfo, 0, len(operationParams)+len(pathParams))
+	seen := make(map[string]struct{}, len(operationParams)+len(pathParams))
+
+	appendUnique := func(params []*ParameterInfo) {
+		for _, param := range params {
+			if param == nil {
+				continue
+			}
+			key := param.Name + "\x00" + strings.ToLower(param.In)
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			merged = append(merged, param)
+		}
+	}
+
+	appendUnique(operationParams)
+	appendUnique(pathParams)
+	return merged
 }
 
 func (pp *PrintingPress) collectRequestBody(rb *v3.RequestBody, piOrigin *bundler.ComponentOrigin, piBundledLine int) *RequestBodyInfo {
@@ -648,7 +688,7 @@ func (pp *PrintingPress) collectResponses(responses *v3.Responses, piOrigin *bun
 					}
 				}
 				hi.Extensions = collectExtensions(h.Value.Extensions)
-			ri.Headers = append(ri.Headers, hi)
+				ri.Headers = append(ri.Headers, hi)
 			}
 		}
 		if resp.Links != nil {
@@ -1100,10 +1140,15 @@ func (pp *PrintingPress) assignOperationsToTags() {
 			pp.site.Root.UntaggedOperations = append(pp.site.Root.UntaggedOperations, navOp)
 			continue
 		}
+		matched := false
 		for _, tagName := range op.Tags {
 			if nt, ok := tagLookup[tagName]; ok {
 				nt.Operations = append(nt.Operations, navOp)
+				matched = true
 			}
+		}
+		if !matched {
+			pp.site.Root.UntaggedOperations = append(pp.site.Root.UntaggedOperations, navOp)
 		}
 	}
 }
@@ -1243,7 +1288,10 @@ func (pp *PrintingPress) formatLocation(origin *bundler.ComponentOrigin) string 
 // (response, parameter, request body) within an operation. It checks if the object
 // itself is a $ref with its own origin, then falls back to the path item origin.
 func (pp *PrintingPress) resolveObjectOrigin(
-	low interface{ IsReference() bool; GetReference() string },
+	low interface {
+		IsReference() bool
+		GetReference() string
+	},
 	piOrigin *bundler.ComponentOrigin,
 ) (location string, sourceLine int) {
 	if pp.config.Origins != nil && low != nil && low.IsReference() {

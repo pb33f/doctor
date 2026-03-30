@@ -4,6 +4,7 @@ import sharedCss from '../../styles/shared.css.js';
 import constraintsCss from '../../styles/constraints.css.js';
 import modelPageCss from './model-page.css.js';
 import '../shared/inline-code.js';
+import '../shared/code-viewer.js';
 import '../shared/schema-properties.js';
 
 import {renderConstraints} from '../../utils/render-helpers.js';
@@ -45,7 +46,7 @@ export class PpModelPage extends LitElement {
           </div>
           ${ex.description ? html`<div class="prop-desc">${ex.description}</div>` : nothing}
           ${ex.value !== undefined
-            ? html`<pp-inline-code raw-json=${JSON.stringify(ex.value, null, 2)} title=${name}></pp-inline-code>`
+            ? html`<pp-inline-code raw-json=${JSON.stringify(ex.value, null, 2)} title=${name} no-line-numbers></pp-inline-code>`
             : nothing}
           ${ex.externalValue ? html`<div class="example-external"><a href=${ex.externalValue}>${ex.externalValue}</a></div>` : nothing}
         </div>
@@ -71,7 +72,7 @@ export class PpModelPage extends LitElement {
       </div>
       ${data.examples ? this.renderExampleObjects(data.examples) : nothing}
       ${!data.examples && (data.example !== undefined || schema.example !== undefined)
-        ? html`<pp-inline-code raw-json=${JSON.stringify(data.example ?? schema.example, null, 2)} title="Example"></pp-inline-code>`
+        ? html`<pp-inline-code raw-json=${JSON.stringify(data.example ?? schema.example, null, 2)} title="" no-line-numbers></pp-inline-code>`
         : nothing}
       ${Object.keys(schema).length
         ? html`<pp-inline-code
@@ -116,26 +117,22 @@ export class PpModelPage extends LitElement {
   private renderSchema(schema: any) {
     const exampleJson = schema.example !== undefined
       ? JSON.stringify(schema.example, null, 2) : '';
+    const isComplex = schema.properties || schema.allOf || schema.oneOf || schema.anyOf;
 
     return html`
-      ${schema.type
-        ? html`<div><strong>Type:</strong> ${schema.type}</div>`
+      ${exampleJson
+        ? html`<pp-inline-code raw-json=${exampleJson} title="" no-line-numbers></pp-inline-code>`
         : nothing}
-      ${schema.properties || schema.allOf || schema.oneOf || schema.anyOf
+      ${!isComplex && schema.type
+        ? html`<div><strong>Type:</strong> ${schema.type}${schema.format ? html` <span class="prop-format">(${schema.format})</span>` : nothing}</div>`
+        : nothing}
+      ${!isComplex ? renderConstraints(schema) : nothing}
+      ${isComplex
         ? html`
             <h3>${schema.properties ? 'Properties' : (schema.allOf ? 'Composition' : 'Variants')}</h3>
             <pp-schema-properties schema-json=${this.modelJson}></pp-schema-properties>
           `
         : nothing}
-      ${exampleJson
-        ? html`<pp-inline-code raw-json=${exampleJson} title="Example"></pp-inline-code>`
-        : nothing}
-      <pp-inline-code
-        raw-json=${this.modelJson}
-        raw-yaml=${this.rawYaml}
-        start-line=${this.startLine}
-        location=${this.location}
-        title="Schema"></pp-inline-code>
     `;
   }
 

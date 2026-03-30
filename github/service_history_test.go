@@ -298,6 +298,49 @@ func TestGetFileHistory_SizeCutoff(t *testing.T) {
 	assert.Equal(t, "aaa111", result[0].Commit.SHA)
 }
 
+func TestGetFileHistory_SizeCutoffUsesCommitOrder(t *testing.T) {
+	now := time.Now()
+	session := dummySession()
+	defer session.Close()
+
+	commits := []Commit{
+		makeTestCommit("aaa111", "first", "Alice", "a@t.com", now.Add(-3*time.Hour), nil),
+		makeTestCommit("bbb222", "second", "Bob", "b@t.com", now.Add(-2*time.Hour), nil),
+		makeTestCommit("ccc333", "third", "Charlie", "c@t.com", now.Add(-1*time.Hour), nil),
+	}
+
+	contents := map[string]string{
+		"aaa111": base64.StdEncoding.EncodeToString(make([]byte, 15*1024)),
+		"bbb222": base64.StdEncoding.EncodeToString(make([]byte, 10*1024)),
+		"ccc333": base64.StdEncoding.EncodeToString(make([]byte, 10*1024)),
+	}
+	delays := map[string]time.Duration{
+		"aaa111": 50 * time.Millisecond,
+		"bbb222": 5 * time.Millisecond,
+		"ccc333": 5 * time.Millisecond,
+	}
+
+	mock := &mockHistoryAPI{
+		commitList: makeStaticCommitList(commits),
+		commit:     makeCommitLookup(commits, "spec.yaml"),
+		fileContent: func(_ context.Context, _ *GitHubSession, _, _, _, ref string) (*FileContent, error) {
+			time.Sleep(delays[ref])
+			return &FileContent{Content: contents[ref]}, nil
+		},
+	}
+
+	result, err := getFileHistory(context.Background(), mock, session, "owner", "repo", "spec.yaml", &FileHistoryOptions{
+		ForceCutoff:     true,
+		SizeThresholdKB: 45,
+		MaxWorkers:      3,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, result, 2)
+	assert.Equal(t, "aaa111", result[0].Commit.SHA)
+	assert.Equal(t, "bbb222", result[1].Commit.SHA)
+}
+
 func TestGetFileHistory_DownloadURLFallback(t *testing.T) {
 	session := dummySession()
 	defer session.Close()
