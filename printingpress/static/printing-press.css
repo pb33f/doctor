@@ -191,15 +191,19 @@ code {
 }
 
 .pp-external-docs {
-    margin-top: var(--global-padding-double);
+    margin-top: var(--global-padding);
+}
+
+.pp-external-docs h3 {
+    margin-bottom: var(--global-padding);
 }
 
 .pp-external-doc-entry {
     display: grid;
-    grid-template-columns: 250px 1fr;
+    grid-template-columns: 50% 1fr;
     gap: 0 1rem;
     align-items: baseline;
-    padding: var(--global-padding-double) 0;
+    padding: var(--global-padding) 0;
 }
 
 .pp-external-doc-name {
@@ -271,7 +275,7 @@ sl-details.pp-details::part(base) {
 }
 
 sl-details.pp-details::part(header) {
-    padding: var(--global-padding-double);
+    padding: var(--global-padding);
     font-family: var(--font-stack-bold), monospace;
 }
 
@@ -300,7 +304,7 @@ sl-details.pp-details::part(content) {
     display: flex;
     align-items: center;
     gap: var(--global-padding);
-    margin: var(--global-padding-double) 0 20px 0;
+    margin: var(--global-padding) 0 var(--global-padding-double) 0;
     font-size: 1.4rem;
 }
 
@@ -309,9 +313,6 @@ sl-details.pp-details::part(content) {
     width: 100%;
 }
 
-.pp-operation-title {
-    margin: 0 0 var(--global-padding-double) 0;
-}
 
 .method-block {
     display: flex;
@@ -320,7 +321,6 @@ sl-details.pp-details::part(content) {
 }
 
 .name-path-block {
-    margin-left: var(--global-padding-double);
     width: 100%;
 }
 
@@ -331,7 +331,7 @@ sl-details.pp-details::part(content) {
 .pp-deprecated {
     background: var(--error-color-verylowalpha);
     color: var(--error-color);
-    padding: var(--global-padding) var(--global-padding-double) var(--global-padding) var(--global-padding-double);
+    padding: var(--global-padding-half) var(--global-padding) var(--global-padding-half) var(--global-padding);
     border-radius: 0;
     font-family: var(--font-stack-bold), monospace;
     text-transform: uppercase;
@@ -344,8 +344,12 @@ sl-details.pp-details::part(content) {
 }
 
 .pp-operation-id {
-    margin-top: var(--global-padding-double);
-    margin-bottom: var(--global-padding-double);
+    margin-top: var(--global-padding);
+    margin-bottom: var(--global-padding);
+}
+
+.pp-operation-id > code {
+    padding: var(--global-padding-half) var(--global-padding) var(--global-padding-half) var(--global-padding);
 }
 
 .pp-label {
@@ -359,7 +363,6 @@ sl-details.pp-details::part(content) {
 .pp-model-header {
     display: flex;
     align-items: center;
-    gap: var(--global-padding-double);
 }
 
 .pp-component-type {
@@ -376,7 +379,8 @@ sl-details.pp-details::part(content) {
 
 .pp-origin {
     color: var(--font-color-sub1);
-    margin-bottom: var(--global-padding-double);
+    margin-top: var(--global-padding);
+    margin-bottom: var(--global-padding);
     font-family: var(--font-stack), monospace;
 }
 
@@ -397,8 +401,7 @@ table {
 }
 
 .pp-description > table > thead > tr > th {
-    height: 40px;
-    padding: var(--global-padding) var(--global-padding) var(--global-padding) var(--global-padding-double);
+    padding: var(--global-padding);
     text-align: left;
     border-bottom: 1px solid var(--secondary-color-dimmer);
     color: var(--secondary-color);
@@ -409,7 +412,7 @@ table {
 }
 
 .pp-description > table > tbody > tr > td {
-    padding: var(--global-padding-double) var(--global-padding) var(--global-padding-double) var(--global-padding-double);
+    padding: var(--global-padding) var(--global-padding-half) var(--global-padding) var(--global-padding);
 }
 
 
@@ -433,12 +436,10 @@ ol li::marker {
 
 
 li {
-    margin-top: var(--global-padding-double);
+    margin-top: var(--global-padding);
     padding-bottom: var(--global-padding);
-    margin-bottom: var(--global-padding-double);
+    margin-bottom: var(--global-padding);
 }
-
-
 
 
 /* Models index */
@@ -546,7 +547,7 @@ gap: 0.25rem 1rem;
     margin-bottom: var(--global-padding-double);
     border: 1px dashed var(--secondary-color-dimmer);
     border-radius: 0;
-    padding: var(--global-padding-double);
+    padding: var(--global-padding);
 }
 
 .pp-request-body > h3 {
@@ -557,7 +558,7 @@ gap: 0.25rem 1rem;
 }
 
 .pp-request-body .pp-description {
-    margin: 0 0 var(--global-padding-double) 0;
+    margin: 0 0 var(--global-padding) 0;
     padding: 0;
     border-top: none;
     border-bottom: none;
@@ -573,8 +574,8 @@ gap: 0.25rem 1rem;
 
 /* Inline examples (templ-rendered) */
 .pp-inline-example {
-    margin-top: var(--global-padding-double);
-    margin-bottom: var(--global-padding-double);
+    margin-top: var(--global-padding);
+    margin-bottom: var(--global-padding);
 }
 
 .pp-inline-example-label {

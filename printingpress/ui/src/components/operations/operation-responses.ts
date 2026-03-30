@@ -65,8 +65,6 @@ export class PpOperationResponses extends LitElement {
             } catch {
                 this.responses = [];
             }
-            // commonHeaderNames will be derived from commonResponseHeaders when that attr is parsed
-
             const sorted = [...this.responses].sort((a, b) => parseInt(a.statusCode, 10) - parseInt(b.statusCode, 10));
             const success: ResponseData[] = [];
             const redirect: ResponseData[] = [];

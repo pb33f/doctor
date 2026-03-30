@@ -7,7 +7,7 @@ export default css`
         top: calc(var(--pp-header-height) + 85px);
         right: 10px;
         z-index: 5;
-        width: 365px;
+        width: 438px;
     }
 
     :host([nav-hidden]) {

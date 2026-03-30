@@ -3,13 +3,13 @@ import {css} from "lit";
 export default css`
     :host {
         display: block;
-        margin-top: var(--global-padding-double);
+        margin-top: var(--global-padding);
     }
 
     h2 {
         border-bottom: 1px dashed var(--hrcolor);
         font-family: var(--font-stack), monospace;
-        padding-bottom: var(--global-padding-double);
+        padding-bottom: var(--global-padding);
         margin-top: 40px;
         text-transform: uppercase;
         letter-spacing: 0.05em;
@@ -25,10 +25,10 @@ export default css`
     }
 
     .response {
-        margin-bottom: var(--global-padding-double);
+        margin-bottom: var(--global-padding);
         border: 1px dashed var(--secondary-color-dimmer);
         border-radius: 0;
-        padding: var(--global-padding-double);
+        padding: var(--global-padding);
     }
 
     .response:last-child {
@@ -43,8 +43,7 @@ export default css`
     .pp-details-summary > h3 {
         margin-bottom: 0;
     }
-    
-    
+
     .status-code {
         font-family: var(--font-stack-bold), monospace;
     }
@@ -52,8 +51,8 @@ export default css`
     /* ── Headers section ── */
 
     .headers-section {
-        margin-top: var(--global-padding-double);
-        padding-top: var(--global-padding-double);
+        margin-top: var(--global-padding);
+        padding-top: var(--global-padding);
     }
 
     .headers-label {
@@ -62,17 +61,17 @@ export default css`
         color: var(--font-color-sub1);
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        margin-bottom: var(--global-padding-double);
+        margin-bottom: var(--global-padding);
         border-bottom: 1px dotted var(--hrcolor);
         padding-bottom: var(--global-padding);
-        margin-top: var(--global-padding-double);
+        margin-top: var(--global-padding);
     }
 
     .header-entry {
         display: grid;
         grid-template-columns: 200px 200px 1fr;
         gap: 0 1rem;
-        padding: var(--global-padding) var(--global-padding-double);
+        padding: var(--global-padding) var(--global-padding);
         border-top: 1px dotted var(--hrcolor);
     }
 
@@ -120,7 +119,7 @@ export default css`
         font-size: 0.8em;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        padding: var(--global-padding-double);
+        padding: var(--global-padding);
     }
 
     ul.common-header-list {
@@ -163,7 +162,7 @@ export default css`
         color: var(--font-color-sub1);
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        margin-bottom: var(--global-padding-double);
+        margin-bottom: var(--global-padding);
     }
 
     /* ── Response group headings ── */
@@ -174,9 +173,13 @@ export default css`
     }
     
     .response-group-heading {
-        margin-bottom: var(--global-padding-double);
+        margin-bottom: var(--global-padding);
     }
-
+    
+    .response-desc {
+        margin: var(--global-padding) 0;
+    }
+    
     .response-group-heading h4 {
         margin: 0;
         padding: 0;
@@ -184,8 +187,8 @@ export default css`
     }
     
     .response-extensions {
-        margin-top: var(--global-padding-double);
-        padding-top: var(--global-padding-double);
+        margin-top: var(--global-padding);
+        padding-top: var(--global-padding);
     }
     
     .media-type-extensions h4, 
@@ -195,7 +198,7 @@ export default css`
         margin-top: 0;
         border-bottom: 1px dotted var(--hrcolor);
         width: 100%;
-        margin-bottom: var(--global-padding-double);
+        margin-bottom: var(--global-padding);
         padding-bottom: var(--global-padding);
         text-transform: uppercase;
         color: var(--font-color-sub1);
@@ -212,8 +215,8 @@ export default css`
     /* ── Links section ── */
 
     .links-section {
-        margin-top: var(--global-padding-double);
-        padding-top: var(--global-padding-double);
+        margin-top: var(--global-padding);
+        padding-top: var(--global-padding);
     }
 
     .links-label {
@@ -222,17 +225,17 @@ export default css`
         color: var(--font-color-sub1);
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        margin-bottom: var(--global-padding-double);
+        margin-bottom: var(--global-padding);
         border-bottom: 1px dotted var(--hrcolor);
         padding-bottom: var(--global-padding);
-        margin-top: var(--global-padding-double);
+        margin-top: var(--global-padding);
     }
 
     .link-entry {
         display: grid;
         grid-template-columns: 300px 300px 1fr;
         gap: 0 1rem;
-        padding: var(--global-padding) var(--global-padding-double);
+        padding: var(--global-padding);
         border-top: 1px dotted var(--hrcolor);
     }
 
@@ -264,7 +267,7 @@ export default css`
     .common-error-link {
         display: flex;
         align-items: center;
-        gap: var(--global-padding-double);
+        gap: var(--global-padding);
         padding: var(--global-padding);
     }
 
@@ -283,30 +286,30 @@ export default css`
     .common-error-grid {
         display: grid;
         grid-template-columns: auto 1fr;
-        margin-bottom: var(--global-padding-double);
+        margin-bottom: var(--global-padding);
         border: 1px dotted var(--hrcolor);
     }
 
     .common-error-code {
         font-family: var(--font-stack), monospace;
-        padding: var(--global-padding-double);
+        padding: var(--global-padding);
         border-bottom: 1px dotted var(--hrcolor);
     }
 
     .common-error-desc {
-        padding: var(--global-padding-double) var(--global-padding-double) var(--global-padding-double) 40px;
+        padding: var(--global-padding) var(--global-padding) var(--global-padding) 40px;
         border-bottom: dotted 1px var(--hrcolor);
         color: var(--font-color-sub1);
     }
     
     .media-type-extensions {
-        margin-top: var(--global-padding-double);
-        padding-top: var(--global-padding-double);
+        margin-top: var(--global-padding);
+        padding-top: var(--global-padding);
     }
 
     .header-extensions {
         grid-column: 1 / -1;
-        padding: var(--global-padding) var(--global-padding-double);
+        padding: var(--global-padding);
     }
 
     pp-raw-viewer-btn {
