@@ -3,7 +3,7 @@ import {css} from "lit";
 export default css`
     :host {
         display: block;
-        margin: 0 0 var(--global-padding) 0;
+        margin: 0;
     }
 
     .group-header {
@@ -42,15 +42,14 @@ export default css`
     }
 
     .group-body {
-        padding: var(--global-padding) 0 var(--global-padding) 0;
+        padding: 0 0 var(--global-padding) 0;
     }
 
     ul {
         list-style: none;
-        margin: 0 0 0 15px;
-        padding: var(--global-padding) 0 var(--global-padding) var(--global-padding);
+        margin: 0 0 0 18px;
+        padding: 0 0 var(--global-padding) var(--global-padding);
         border-left: 1px dashed var(--secondary-color-dimmer);
-        border-top: 1px dashed var(--secondary-color-dimmer);
         border-bottom: 1px dashed var(--secondary-color-dimmer);
     }
 
@@ -58,8 +57,8 @@ export default css`
         display: flex;
         min-height: 22px;
         align-items: center;
-        gap: 0.4rem;
-        padding: 0.2rem 0.4rem;
+        gap: 0 var(--global-padding) 0 var(--global-padding);
+        padding: var(--global-padding);
         border-radius: 0;
         color: var(--font-color);
         text-decoration: none;
@@ -81,7 +80,6 @@ export default css`
 
     .model-name {
         font-family: var(--font-stack), monospace;
-        font-size: var(--smaller-font);
         word-wrap: break-word;
         overflow-wrap: break-word;
         white-space: normal;

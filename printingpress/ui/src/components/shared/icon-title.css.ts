@@ -12,5 +12,6 @@ export default css`
         padding: 0;
         font-family: var(--font-stack-bold), monospace;
         font-weight: normal;
+        color: var(--pp-icon-title-color, inherit);
     }
 `;

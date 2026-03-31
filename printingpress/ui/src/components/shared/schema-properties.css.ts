@@ -10,7 +10,7 @@ export default [dropdownCss, css`
 
     .property {
         display: grid;
-        grid-template-columns: 200px 200px 1fr;
+        grid-template-columns: 200px minmax(300px, auto) 1fr;
         gap: 0 1rem;
         padding: 15px var(--global-padding);
         border-bottom: 1px dotted var(--hrcolor);
@@ -126,7 +126,7 @@ export default [dropdownCss, css`
 
     .composition-ref-entry {
         display: grid;
-        grid-template-columns: 200px 200px 1fr;
+        grid-template-columns: 200px minmax(300px, auto) 1fr;
         gap: 0 1rem;
         align-items: baseline;
         padding: 4px 0;

@@ -4,6 +4,7 @@ import refPopoverCss from './ref-popover.css.js';
 import {getSchemaEntry, getSchemaEntryByRef, type RegistryEntry} from '../../utils/schema-registry.js';
 import './schema-properties.js';
 import './code-viewer.js';
+import './icon-title.js';
 
 @customElement('pp-ref-popover')
 export class PpRefPopover extends LitElement {
@@ -96,8 +97,7 @@ export class PpRefPopover extends LitElement {
                         @mouseenter=${this.cancelHide}
                         @mouseleave=${this.hide}>
                         <div class="popover-header">
-                            <span class="type-badge">${this.entry.componentType}</span>
-                            <span class="component-name">${this.entry.name}</span>
+                            <pp-icon-title icon=${this.entry.componentType} heading=${this.entry.name} level=${3} size="medium"></pp-icon-title>
                         </div>
                         <div class="popover-body">
                             <pp-schema-properties compact schema-json=${schemaJson}></pp-schema-properties>

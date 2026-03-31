@@ -122,9 +122,8 @@ code {
 .pp-security-scheme {
     display: grid;
     grid-template-columns: 200px auto;
-    gap: 0 1rem;
+    gap: var(--global-padding);
     align-items: baseline;
-    padding: 0.25rem 0;
 }
 
 .pp-security-name {
@@ -136,8 +135,8 @@ code {
 .pp-security-badge {
     display: inline-flex;
     align-items: center;
-    gap: var(--global-padding-double);
-    padding: var(--global-padding) var(--global-padding-double);
+    gap: var(--global-padding);
+    padding: var(--global-padding);
     font-family: var(--font-stack), monospace;
 }
 
@@ -160,14 +159,14 @@ code {
     grid-template-columns: 250px 1fr;
     gap: 0 1rem;
     align-items: baseline;
-    padding: var(--global-padding-double) 0;
+    padding: var(--global-padding) 0;
 }
 
 .pp-server-name {
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
-    gap: var(--global-padding-double);
+    gap: var(--global-padding);
     font-family: var(--font-stack), monospace;
     color: var(--font-color-sub1);
     text-align: right;
