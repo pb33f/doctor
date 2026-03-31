@@ -10,12 +10,13 @@ export class PpIconTitle extends LitElement {
     @property() icon = '';
     @property() heading = '';
     @property({type: Number}) level = 1;
+    @property() size = 'huge';
 
     render() {
         if (!this.heading) return nothing;
         const tag = unsafeStatic(`h${Math.min(Math.max(this.level, 1), 6)}`);
         return html`
-            <pb33f-model-icon icon=${this.icon} size="huge"></pb33f-model-icon>
+            <pb33f-model-icon icon=${this.icon} size=${this.size}></pb33f-model-icon>
             <${tag}>${this.heading}</${tag}>
         `;
     }

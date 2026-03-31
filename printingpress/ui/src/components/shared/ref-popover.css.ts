@@ -19,7 +19,7 @@ export default css`
     }
 
     .pp-ref-popover-content {
-        max-width: 500px;
+        width: 650px;
         max-height: 400px;
         overflow-y: auto;
         overscroll-behavior: contain;
@@ -36,21 +36,10 @@ export default css`
         margin-bottom: var(--global-padding);
     }
 
-    .type-badge {
-        color: var(--secondary-color);
-        background: var(--secondary-color-very-lowalpha);
-        border: 1px solid var(--secondary-color-dimmer);
-        padding: var(--global-padding) var(--global-padding-double);
-        text-transform: uppercase;
-        font-family: var(--font-stack-bold), monospace;
-        letter-spacing: 0.05em;
-        font-size: 0.8em;
+    .popover-header pp-icon-title {
+        --pp-icon-title-color: var(--font-color);
     }
 
-    .component-name {
-        font-family: var(--font-stack-bold), monospace;
-        color: var(--font-color);
-    }
 
     .popover-body {
         border-top: 1px dotted var(--hrcolor);

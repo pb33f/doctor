@@ -1,55 +1,57 @@
 import {css} from "lit";
 
 export default css`
-  :host {
-    display: block;
-    padding: 0.75rem 0.5rem;
-    font-family: var(--font-stack, BerkeleyMono-Regular, monospace);
-  }
+    :host {
+        display: block;
+        padding: var(--global-padding);
+        font-family: var(--font-stack), monospace;
+    }
 
-  .nav-home {
-    display: block;
-    padding: 0.5rem 0.75rem;
-    font-family: var(--font-stack-bold, monospace);
-    border-radius: 0;
-    color: var(--primary-color, rgba(98, 196, 255, 1.0));
-    text-decoration: none;
-    margin-bottom: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  .nav-home:hover {
-    background: var(--primary-color-verylowalpha, rgba(98, 196, 255, 0.1));
-    text-decoration: none;
-  }
+    .nav-home {
+        display: block;
+        padding: var(--global-padding);
+        font-family: var(--font-stack-bold), monospace;
+        border-radius: 0;
+        color: var(--primary-color);
+        text-decoration: none;
+        margin-bottom: var(--global-padding);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
 
-  .nav-section {
-    margin-bottom: 0.75rem;
-  }
+    .nav-home:hover {
+        background: var(--primary-color-verylowalpha);
+        text-decoration: none;
+    }
 
-  h4 {
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--secondary-color, #f83aff);
-    font-family: var(--font-stack-bold, monospace);
-    margin: 0 0 0.4rem 0.75rem;
-    padding-bottom: 0.25rem;
-    border-bottom: 1px dashed var(--secondary-color-dimmer, rgba(248, 58, 255, 0.45));
-  }
+    .nav-section {
+        margin-bottom: var(--global-padding);
+    }
 
-  .nav-models-section {
-    margin-top: 0.75rem;
-  }
+    h4 {
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--secondary-color);
+        font-family: var(--font-stack-bold), monospace;
+        margin: 0 0 var(--global-padding) 0;
+        padding-bottom: var(--global-padding);
+        border-bottom: 1px dashed var(--secondary-color-dimmer);
+    }
 
-  .nav-models-link {
-    display: block;
-    padding: 0.3rem 0.75rem;
-    color: var(--font-color-sub1, #a7a7a7);
-    text-decoration: none;
-  }
-  .nav-models-link:hover {
-    background: var(--primary-color-verylowalpha, rgba(98, 196, 255, 0.1));
-    color: var(--primary-color, rgba(98, 196, 255, 1.0));
-    text-decoration: none;
-  }
+    .nav-models-section {
+        margin-top: 0.75rem;
+    }
+
+    .nav-models-link {
+        display: block;
+        padding: var(--global-padding);
+        color: var(--font-color-sub1);
+        text-decoration: none;
+    }
+
+    .nav-models-link:hover {
+        background: var(--primary-color-verylowalpha);
+        color: var(--primary-color);
+        text-decoration: none;
+    }
 `

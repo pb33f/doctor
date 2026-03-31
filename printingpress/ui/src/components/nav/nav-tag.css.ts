@@ -3,7 +3,7 @@ import {css} from "lit";
 export default css`
     :host {
         display: block;
-        margin: 0 0 var(--global-padding) 0; 
+        margin: 0; 
     }
 
     .tag-header {
@@ -13,9 +13,8 @@ export default css`
         padding: var(--global-padding) 0 var(--global-padding) 0;
         font-family: var(--font-stack), monospace;
         color: var(--font-color);
-
     }
-
+    
     .tag-header sl-icon {
         margin-right: var(--global-padding);
         padding-left: var(--global-padding);
@@ -33,7 +32,7 @@ export default css`
     }
     
     .tag-body {
-        padding: var(--global-padding) 0 var(--global-padding) 0;
+        padding: var(--global-padding) 0 0 0;
     }
     
     .chevron {
@@ -56,18 +55,17 @@ export default css`
 
     ul {
         list-style: none;
-        margin: 0 0 0 15px;
-        padding: var(--global-padding) 0 var(--global-padding) var(--global-padding);
+        margin: 0 0 0 18px;
+        padding: 0 0 var(--global-padding) var(--global-padding);
         border-left: 1px dashed var(--secondary-color-dimmer);
-        border-top: 1px dashed var(--secondary-color-dimmer);
-        border-bottom: 1px dashed var(--secondary-color-dimmer);
+        border-bottom: 1px dotted var(--secondary-color-dimmer);
     }
 
     li a {
         display: flex;
         align-items: baseline;
-        gap: 0.4rem;
-        padding: 0.2rem 0.4rem;
+        gap: var(--global-padding);
+        padding: var(--global-padding);
         border-radius: 0;
         color: var(--font-color);
         text-decoration: none;
@@ -92,7 +90,6 @@ export default css`
         min-width: 0;
         max-width: var(--nav-op-max-width);
         font-family: var(--font-stack), monospace;
-        font-size: var(--smaller-font);
         word-wrap: break-word;
         overflow-wrap: break-word;
         white-space: normal;
@@ -103,9 +100,10 @@ export default css`
     }
     
     .children {
-        margin-left: 15px;
+        margin-left: 18px;
         margin-bottom: var(--global-padding);
         border-left: 1px dashed var(--secondary-color-dimmer);
+        border-bottom: 1px dotted var(--secondary-color-dimmer);
     }
 
     .deprecated {
