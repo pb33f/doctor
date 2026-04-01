@@ -151,20 +151,6 @@ export default css`
         text-decoration: underline;
     }
 
-    /* ── Inline examples ── */
-
-    .inline-example {
-        margin-top: 20px;
-    }
-
-    .inline-example-label {
-        font-family: var(--font-stack), monospace;
-        color: var(--font-color-sub1);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: var(--global-padding);
-    }
-
     /* ── Response group headings ── */
 
     .property-box {
@@ -205,11 +191,6 @@ export default css`
         letter-spacing: 0.05em;
         font-family: var(--font-stack), monospace;
     }
-
-    .header-extensions {
-        padding: 0;
-    }
-
 
 
     /* ── Links section ── */

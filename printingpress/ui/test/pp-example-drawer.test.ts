@@ -78,7 +78,8 @@ describe('pp-example-drawer', () => {
     expect(toggle).toBeNull();
   });
 
-  it('should default to JSON format when json is present', async () => {
+  it('should default to JSON format when data-spec-format is json', async () => {
+    document.body.setAttribute('data-spec-format', 'json');
     const el = document.createElement('pp-example-drawer');
     document.body.appendChild(el);
     await el.updateComplete;
@@ -93,6 +94,7 @@ describe('pp-example-drawer', () => {
 
     const jsonBtn = el.shadowRoot?.querySelector('.format-toggle button:first-child');
     expect(jsonBtn?.classList.contains('active')).toBe(true);
+    document.body.removeAttribute('data-spec-format');
   });
 
   it('should default to YAML format when json is empty', async () => {

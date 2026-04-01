@@ -27,7 +27,7 @@ var objectTypeToIcon = map[string]string{
 	"Request Body": "requestBody",
 	"Header":       "header",
 	"Media Type":   "mediaType",
-	"Path":         "path",
+	"Path":         "pathItem",
 	"Tag":          "tag",
 	"Security":     "securityScheme",
 	"Server":       "server",
@@ -36,8 +36,9 @@ var objectTypeToIcon = map[string]string{
 	"Example":      "example",
 	"Extension":    "extension",
 	"Components":   "components",
-	"Paths":        "path",
-	"Path Item":    "path",
+	"Paths":        "pathItem",
+	"Path Item":    "pathItem",
+	"PathItem":     "pathItem",
 }
 
 type postProcessor struct {

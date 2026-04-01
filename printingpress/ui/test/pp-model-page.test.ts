@@ -21,10 +21,14 @@ describe('pp-model-page', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const properties = el.shadowRoot?.querySelectorAll('.property');
+    const schemaProps = el.shadowRoot?.querySelector('pp-schema-properties');
+    expect(schemaProps).toBeTruthy();
+    await (schemaProps as any)?.updateComplete;
+
+    const properties = schemaProps?.shadowRoot?.querySelectorAll('.property');
     expect(properties?.length).toBe(2);
 
-    const requiredBadge = el.shadowRoot?.querySelector('.required-badge');
+    const requiredBadge = schemaProps?.shadowRoot?.querySelector('.required-badge');
     expect(requiredBadge).toBeTruthy();
   });
 

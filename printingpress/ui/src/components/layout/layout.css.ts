@@ -58,6 +58,7 @@ export default css`
     .nav-panel,
     .content-panel {
         overflow-y: auto;
+        scroll-behavior: auto;
         height: calc(100vh - var(--pp-header-height, 57px));
         scrollbar-width: thin;
         scrollbar-color: var(--secondary-color-lowalpha) var(--terminal-background);

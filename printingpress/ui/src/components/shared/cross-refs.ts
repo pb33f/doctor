@@ -1,90 +1,58 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import crossRefsCss from './cross-refs.css.js';
+import './ref-list.js';
+import type {OperationRef, ComponentRef} from './ref-list.js';
 
 interface CrossRefData {
-  UsedByOperations?: {Method: string; Path: string; Slug: string}[];
-  UsedByModels?: {Name: string; ComponentType: string; TypeSlug: string; Slug: string}[];
-  UsesModels?: {Name: string; ComponentType: string; TypeSlug: string; Slug: string}[];
+    usedByOperations?: OperationRef[];
+    usedByModels?: ComponentRef[];
+    usesModels?: ComponentRef[];
 }
 
 @customElement('pp-cross-refs')
 export class PpCrossRefs extends LitElement {
-  static styles = crossRefsCss;
+    static styles = crossRefsCss;
 
-  @property({attribute: 'refs-json'}) refsJson = '';
-  @state() private refs: CrossRefData = {};
+    @property({attribute: 'refs-json'}) refsJson = '';
+    @state() private refs: CrossRefData = {};
 
-  willUpdate(changed: Map<string, unknown>) {
-    if (changed.has('refsJson') && this.refsJson) {
-      try {
-        this.refs = JSON.parse(this.refsJson);
-      } catch {
-        this.refs = {};
-      }
+    willUpdate(changed: Map<string, unknown>) {
+        if (changed.has('refsJson') && this.refsJson) {
+            try {
+                this.refs = JSON.parse(this.refsJson);
+            } catch {
+                this.refs = {};
+            }
+        }
     }
-  }
 
-  render() {
-    const {refs} = this;
-    const hasRefs =
-      refs.UsedByOperations?.length ||
-      refs.UsedByModels?.length ||
-      refs.UsesModels?.length;
-    if (!hasRefs) return nothing;
+    render() {
+        const {refs} = this;
+        const hasOps = (refs.usedByOperations?.length ?? 0) > 0;
+        const hasRefBy = (refs.usedByModels?.length ?? 0) > 0;
+        const hasUses = (refs.usesModels?.length ?? 0) > 0;
+        if (!hasOps && !hasRefBy && !hasUses) return nothing;
 
-    return html`
-      ${refs.UsedByOperations?.length
-        ? html`
-            <h3>Used by Operations</h3>
-            <ul>
-              ${refs.UsedByOperations.map(
-                (op) => html`
-                  <li>
-                    <a href="operations/${op.Slug}.html">
-                      <pb33f-http-method method=${op.Method}></pb33f-http-method>
-                      ${op.Path}
-                    </a>
-                  </li>
-                `
-              )}
-            </ul>
-          `
-        : nothing}
-      ${refs.UsedByModels?.length
-        ? html`
-            <h3>Referenced by</h3>
-            <ul>
-              ${refs.UsedByModels.map(
-                (comp) => html`
-                  <li>
-                    <a href="models/${comp.TypeSlug}/${comp.Slug}.html">
-                      ${comp.Name}
-                    </a>
-                    <span class="type-badge">${comp.ComponentType}</span>
-                  </li>
-                `
-              )}
-            </ul>
-          `
-        : nothing}
-      ${refs.UsesModels?.length
-        ? html`
-            <h3>References</h3>
-            <ul>
-              ${refs.UsesModels.map(
-                (comp) => html`
-                  <li>
-                    <a href="models/${comp.TypeSlug}/${comp.Slug}.html">
-                      ${comp.Name}
-                    </a>
-                    <span class="type-badge">${comp.ComponentType}</span>
-                  </li>
-                `
-              )}
-            </ul>
-          `
-        : nothing}
-    `;
-  }
+        return html`
+            ${hasOps ? html`
+                <pp-ref-list
+                    type="operations"
+                    heading="Consumed By"
+                    .items=${refs.usedByOperations!}>
+                </pp-ref-list>` : nothing}
+            ${hasRefBy ? html`
+                <pp-ref-list
+                    type="components"
+                    heading="Referenced By"
+                    .items=${refs.usedByModels!}>
+                </pp-ref-list>` : nothing}
+            ${hasUses ? html`
+                <pp-ref-list
+                    type="components"
+                    heading="References"
+                    .items=${refs.usesModels!}>
+                </pp-ref-list>` : nothing}
+        `;
+    }
 }

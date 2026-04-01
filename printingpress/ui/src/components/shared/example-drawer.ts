@@ -71,7 +71,7 @@ export class PpExampleDrawer extends LitElement {
     }
     this.updateComplete.then(() => {
       const d = this.drawer;
-      if (d) {
+      if (d && typeof d.show === 'function') {
         if (d.updateComplete) {
           d.updateComplete.then(() => d.show());
         } else {
