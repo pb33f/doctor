@@ -116,14 +116,14 @@ export class PpOperationResponses extends LitElement {
         const el = this.shadowRoot?.getElementById('header-' + name);
         if (!el) return;
         // Expand the parent <sl-details> if collapsed
-        const details = el.closest('sl-details') as any;
+        const details = el.closest('sl-details') as (HTMLElement & {open: boolean; updateComplete: Promise<void>}) | null;
         if (details && !details.open) {
             details.open = true;
             details.updateComplete?.then(() => {
-                el.scrollIntoView({behavior: 'smooth', block: 'center'});
+                el.scrollIntoView({behavior: 'auto', block: 'center'});
             });
         } else {
-            el.scrollIntoView({behavior: 'smooth', block: 'center'});
+            el.scrollIntoView({behavior: 'auto', block: 'center'});
         }
     }
 
@@ -264,7 +264,7 @@ export class PpOperationResponses extends LitElement {
 
     private scrollToCommonError(key: string) {
         const el = this.shadowRoot?.getElementById('common-error-' + key);
-        el?.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+        el?.scrollIntoView({behavior: 'auto', block: 'nearest'});
     }
 
     private renderResponse(resp: ResponseData, commonNames: Set<string>, commonErrorKeys?: Set<string>) {

@@ -275,6 +275,7 @@ type ModelPage struct {
 	ExamplesJSON          string // pre-serialized for Lit component
 	Origin                *bundler.ComponentOrigin
 	CrossRefs             *ModelCrossRefs
+	CrossRefsJSON         string `json:"-"`
 }
 
 // ModelCrossRefs holds cross-reference information for a model.

@@ -21,6 +21,7 @@ export class PpModelPage extends LitElement {
   @property({attribute: 'schema-start-line', type: Number}) schemaStartLine = 1;
   @property({attribute: 'start-line', type: Number}) startLine = 1;
   @property() location = '';
+  @property({attribute: 'mock-json'}) mockJson = '';
   @state() private parsed: any = null;
 
   willUpdate(changed: Map<string, unknown>) {
@@ -116,7 +117,8 @@ export class PpModelPage extends LitElement {
 
   private renderSchema(schema: any) {
     const exampleJson = schema.example !== undefined
-      ? JSON.stringify(schema.example, null, 2) : '';
+      ? JSON.stringify(schema.example, null, 2)
+      : this.mockJson || '';
     const isComplex = schema.properties || schema.allOf || schema.oneOf || schema.anyOf;
 
     return html`

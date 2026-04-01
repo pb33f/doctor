@@ -45,7 +45,7 @@ export class PpNavModelGroup extends LitElement {
             if (this.open && this.activeSlug) {
                 requestAnimationFrame(() => {
                     const active = this.renderRoot.querySelector('a.active');
-                    active?.scrollIntoView({block: 'center', behavior: 'smooth'});
+                    active?.scrollIntoView({block: 'center', behavior: 'auto'});
                 });
             }
         }

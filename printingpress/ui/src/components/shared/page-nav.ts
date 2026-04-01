@@ -165,17 +165,14 @@ export class PpPageNav extends LitElement {
         const el = this.findElement(id);
         if (!el) return;
 
-        const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        const behavior: ScrollBehavior = prefersReduced ? 'auto' : 'smooth';
-
         const details = el.closest('sl-details') as any;
         if (details && !details.open) {
             details.addEventListener('sl-after-show', () => {
-                el.scrollIntoView({behavior, block: 'center'});
+                el.scrollIntoView({behavior: 'auto', block: 'center'});
             }, {once: true});
             details.open = true;
         } else {
-            el.scrollIntoView({behavior, block: 'center'});
+            el.scrollIntoView({behavior: 'auto', block: 'center'});
         }
     }
 

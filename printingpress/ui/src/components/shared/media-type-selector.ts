@@ -44,7 +44,7 @@ export class PpMediaTypeSelector extends LitElement {
 
     private schemaFingerprint(mt: MediaTypeData): string {
         if (mt.isArray && mt.itemsRef) return `array:${mt.itemsRef.slug}:${mt.itemsSchemaJson || mt.schemaJson}`;
-        if (mt.schemaRef) return `ref:${mt.schemaRef.slug}`;
+        if (mt.schemaRef) return `ref:${mt.schemaRef.componentType}/${mt.schemaRef.slug}`;
         return `inline:${mt.schemaJson}`;
     }
 

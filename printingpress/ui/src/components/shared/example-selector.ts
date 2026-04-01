@@ -84,7 +84,7 @@ export class PpExampleSelector extends LitElement {
       composed: true,
       detail: {title: entry.key, json: formatted, language: this.codeLanguage},
     });
-    document.dispatchEvent(event);
+    this.dispatchEvent(event);
   }
 
   private handleSelect(e: CustomEvent) {

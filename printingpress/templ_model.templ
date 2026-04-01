@@ -43,6 +43,9 @@ templ ModelPageTempl(page *ModelPage) {
 			<pp-model-page
 				model-json={ page.SchemaJSON }
 				name={ page.Name }
+				if page.MockJSON != "" {
+					mock-json={ page.MockJSON }
+				}
 				if page.SchemaRawYAML != "" {
 					schema-raw-yaml={ page.SchemaRawYAML }
 				}
@@ -63,52 +66,8 @@ templ ModelPageTempl(page *ModelPage) {
 				}>
 			</pp-model-page>
 		}
-		if page.CrossRefs != nil {
-			@CrossRefSection(page.CrossRefs)
-		}
-	</div>
-}
-
-templ CrossRefSection(refs *ModelCrossRefs) {
-	<div class="pp-cross-refs">
-		if len(refs.UsedByOperations) > 0 {
-			<div class="pp-used-by-ops">
-				<h3>Used by Operations</h3>
-				<div class="pp-ops-grid">
-					for _, op := range refs.UsedByOperations {
-						<pb33f-http-method method={ op.Method } tiny></pb33f-http-method>
-						<a class="pp-ops-grid-path" href={ templ.SafeURL("operations/" + op.Slug + ".html") }>
-							<pb33f-render-operation-path path={ op.Path } nowrap></pb33f-render-operation-path>
-						</a>
-					}
-				</div>
-			</div>
-		}
-		if len(refs.UsedByModels) > 0 {
-			<div class="pp-used-by-models">
-				<h3>Referenced by</h3>
-				<div class="pp-ref-grid">
-					for _, comp := range refs.UsedByModels {
-						<span class="pp-ref-grid-type">{ comp.ComponentType }</span>
-						<a class="pp-ref-link" href={ templ.SafeURL("models/" + comp.TypeSlug + "/" + comp.Slug + ".html") }>
-							&#x279c; { comp.Name }
-						</a>
-					}
-				</div>
-			</div>
-		}
-		if len(refs.UsesModels) > 0 {
-			<div class="pp-uses-models">
-				<h3>References</h3>
-				<div class="pp-ref-grid">
-					for _, comp := range refs.UsesModels {
-						<span class="pp-ref-grid-type">{ comp.ComponentType }</span>
-						<a class="pp-ref-link" href={ templ.SafeURL("models/" + comp.TypeSlug + "/" + comp.Slug + ".html") }>
-							&#x279c; { comp.Name }
-						</a>
-					}
-				</div>
-			</div>
+		if page.CrossRefsJSON != "" {
+			<pp-cross-refs refs-json={ page.CrossRefsJSON }></pp-cross-refs>
 		}
 	</div>
 }

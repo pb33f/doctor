@@ -34,7 +34,7 @@ export class PpRawViewerBtn extends LitElement {
                 path: this.path || undefined,
             },
         });
-        document.dispatchEvent(event);
+        this.dispatchEvent(event);
     }
 
     render() {
