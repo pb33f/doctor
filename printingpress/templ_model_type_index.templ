@@ -1,0 +1,21 @@
+package printingpress
+
+templ ModelTypeIndexTempl(group *NavModelGroup, breadcrumb []BreadcrumbItem) {
+	<div class="pp-root">
+		@Breadcrumb(breadcrumb)
+		<pp-icon-title icon={ group.TypeSlug } heading={ group.Name }></pp-icon-title>
+		<div class="pp-model-category">
+			<div class="pp-model-cards">
+				for _, model := range group.Models {
+					<a href={ templ.SafeURL("models/" + model.TypeSlug + "/" + model.Slug + ".html") } class="pp-model-card">
+						<pb33f-model-icon icon={ model.TypeSlug } size="small"></pb33f-model-icon>
+						<strong>{ model.Name }</strong>
+						if model.Description != "" {
+							<p>{ truncateDesc(model.Description, 120) }</p>
+						}
+					</a>
+				}
+			</div>
+		</div>
+	</div>
+}

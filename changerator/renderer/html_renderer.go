@@ -115,5 +115,6 @@ func newChangeHTMLRenderer(config *RenderConfig) renderer.NodeRenderer {
 // changeHTMLRenderer implements custom rendering for change report elements.
 type changeHTMLRenderer struct {
 	html.Config
-	config *RenderConfig
+	config           *RenderConfig
+	skipNextCodeSpan bool
 }

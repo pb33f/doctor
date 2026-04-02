@@ -26,7 +26,7 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 		return fmt.Errorf("creating output directory: %w", err)
 	}
 
-	dirs := append([]string{"operations"}, modelDirs()...)
+	dirs := append([]string{"operations", "tags"}, modelDirs()...)
 	dirs = append(dirs, "static", "static/fonts", "static/shoelace/assets/icons")
 	for _, dir := range dirs {
 		if err := os.MkdirAll(filepath.Join(outputDir, dir), 0o755); err != nil {
@@ -102,10 +102,52 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 		p := *params
 		p.BaseURL = resolveBase(baseURL, 1)
 		p.ExtraCSS = []string{"static/printing-press-index.css"}
-		indexContent := ModelsIndexTempl(site.Models)
+		indexContent := ModelsIndexTempl(site.NavModelGroups, modelsIndexBreadcrumb())
 		if err := writeTemplPage(filepath.Join(outputDir, "models", "index.html"), "Models - "+title, "", &p, indexContent); err != nil {
 			return fmt.Errorf("writing models index: %w", err)
 		}
+	}
+
+	// Write model type index pages (2 levels deep: models/{typeSlug}/)
+	for _, group := range site.NavModelGroups {
+		p := *params
+		p.BaseURL = resolveBase(baseURL, 2)
+		p.ExtraCSS = []string{"static/printing-press-index.css"}
+		bc := modelTypeIndexBreadcrumb(group.Name)
+		content := ModelTypeIndexTempl(group, bc)
+		pageTitle := fmt.Sprintf("%s - %s", group.Name, title)
+		path := filepath.Join(outputDir, "models", group.TypeSlug, "index.html")
+		if err := writeTemplPage(path, pageTitle, "", &p, content); err != nil {
+			return fmt.Errorf("writing model type index %s: %w", group.TypeSlug, err)
+		}
+	}
+
+	// Write tag index pages (1 level deep: tags/)
+	tagParentMap := buildTagParentMap(site.NavTags)
+	var writeTagPages func([]*NavTag) error
+	writeTagPages = func(tags []*NavTag) error {
+		for _, tag := range tags {
+			if tag.IsNavOnly && len(tag.Operations) == 0 && len(tag.Children) == 0 && tag.DescHTML == "" {
+				continue
+			}
+			p := *params
+			p.BaseURL = resolveBase(baseURL, 1)
+			p.ExtraCSS = []string{"static/printing-press-index.css"}
+			bc := tagIndexBreadcrumb(tag, tagParentMap)
+			content := TagIndexTempl(tag, bc)
+			pageTitle := fmt.Sprintf("%s - %s", tag.DisplayName(), title)
+			path := filepath.Join(outputDir, "tags", tag.Slug+".html")
+			if err := writeTemplPage(path, pageTitle, "", &p, content); err != nil {
+				return fmt.Errorf("writing tag index %s: %w", tag.Slug, err)
+			}
+			if err := writeTagPages(tag.Children); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := writeTagPages(site.NavTags); err != nil {
+		return err
 	}
 
 	// Write webhook pages (1 level deep: operations/)

@@ -36,7 +36,7 @@ func TestFinalVerification(t *testing.T) {
 			markdown: `**Responses:**
 
 - Response ` + "`200`" + `:
-  - Content ` + "`application/json`" + `:
+  - Media Type ` + "`application/json`" + `:
     - Example ` + "`value`" + ` added:
 
       ` + "```yaml" + `
@@ -67,7 +67,7 @@ func TestFinalVerification(t *testing.T) {
 		{
 			name: "nested_response_example_with_multiple_value_changes",
 			markdown: `- Response ` + "`200`" + `:
-  - Content ` + "`application/json`" + `:
+  - Media Type ` + "`application/json`" + `:
     - Example ` + "`Card`" + `:
       - ` + "`value`" + ` changed to:
 

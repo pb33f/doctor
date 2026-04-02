@@ -77,11 +77,22 @@ type ExternalDocInfo struct {
 
 // NavTag represents a tag node in the hierarchical navigation tree.
 type NavTag struct {
-	Name       string          `json:"name"`
-	Summary    string          `json:"summary"`
-	Children   []*NavTag       `json:"children"`
-	Operations []*NavOperation `json:"operations"`
-	IsNavOnly  bool            `json:"isNavOnly"` // kind: nav (grouping node with no direct operations)
+	Name        string          `json:"name"`
+	Summary     string          `json:"summary"`
+	Slug        string          `json:"slug"`
+	Description string          `json:"description,omitempty"`
+	DescHTML    string          `json:"-"`
+	Children    []*NavTag       `json:"children"`
+	Operations  []*NavOperation `json:"operations"`
+	IsNavOnly   bool            `json:"isNavOnly"` // kind: nav (grouping node with no direct operations)
+}
+
+// DisplayName returns Summary if set, otherwise Name.
+func (t *NavTag) DisplayName() string {
+	if t.Summary != "" {
+		return t.Summary
+	}
+	return t.Name
 }
 
 // NavOperation is a lightweight reference to an operation for navigation.
@@ -118,6 +129,8 @@ type OperationPage struct {
 	Description  string
 	DescHTML     string
 	Tags         []string
+	TagPath      []string // hierarchical tag path from root to leaf (summaries)
+	TagSlugs     []string // parallel to TagPath: slug for each tag's index page
 	Deprecated   bool
 	Slug         string
 	Parameters             []*ParameterInfo

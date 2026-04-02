@@ -165,8 +165,9 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 		pp.visitPaths(ctx, doc.Paths)
 	}
 
-	// Assign operations to tags
+	// assign operations to tags and compute hierarchical tag paths for breadcrumbs
 	pp.assignOperationsToTags()
+	pp.populateTagPaths()
 
 	// Collect webhooks
 	if doc.Webhooks != nil {
@@ -192,9 +193,12 @@ func (pp *PrintingPress) buildTagTree(tags []*v3.Tag) []*NavTag {
 			continue
 		}
 		nt := &NavTag{
-			Name:      tag.Value.Name,
-			Summary:   tag.Value.Summary,
-			IsNavOnly: strings.EqualFold(tag.Value.Kind, "nav"),
+			Name:        tag.Value.Name,
+			Summary:     tag.Value.Summary,
+			Slug:        pp.slugs.Register("tags", sanitizeSlug(tag.Value.Name)),
+			Description: tag.Value.Description,
+			DescHTML:    renderMarkdown(tag.Value.Description),
+			IsNavOnly:   strings.EqualFold(tag.Value.Kind, "nav"),
 		}
 		tagMap[tag.Value.Name] = nt
 		allTags = append(allTags, nt)
@@ -1176,6 +1180,52 @@ func (pp *PrintingPress) assignOperationsToTags() {
 		if !matched {
 			pp.site.Root.UntaggedOperations = append(pp.site.Root.UntaggedOperations, navOp)
 		}
+	}
+}
+
+// populateTagPaths sets TagPath on each OperationPage by walking the NavTag tree
+// to find the full hierarchy from root to the operation's matched tag.
+func (pp *PrintingPress) populateTagPaths() {
+	// single walk: build parent map, summary map, and slug map
+	parentMap := make(map[string]string)
+	summaryMap := make(map[string]string)
+	slugMap := make(map[string]string)
+	var walk func([]*NavTag)
+	walk = func(tags []*NavTag) {
+		for _, tag := range tags {
+			if tag.Summary != "" {
+				summaryMap[tag.Name] = tag.Summary
+			} else {
+				summaryMap[tag.Name] = tag.Name
+			}
+			slugMap[tag.Name] = tag.Slug
+			for _, child := range tag.Children {
+				parentMap[child.Name] = tag.Name
+			}
+			walk(tag.Children)
+		}
+	}
+	walk(pp.site.NavTags)
+
+	for _, op := range pp.site.Operations {
+		if len(op.Tags) == 0 {
+			continue
+		}
+		// Use the first tag to build the path
+		tagName := op.Tags[0]
+		var path []string
+		var slugs []string
+		for cur := tagName; cur != ""; cur = parentMap[cur] {
+			path = append(path, summaryMap[cur])
+			slugs = append(slugs, slugMap[cur])
+		}
+		// Reverse to get root-first order
+		for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
+			path[i], path[j] = path[j], path[i]
+			slugs[i], slugs[j] = slugs[j], slugs[i]
+		}
+		op.TagPath = path
+		op.TagSlugs = slugs
 	}
 }
 
