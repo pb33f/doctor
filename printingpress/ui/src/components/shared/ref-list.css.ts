@@ -4,7 +4,7 @@ export default css`
     :host {
         display: block;
         margin-bottom: var(--global-padding);
-        margin-top: var(--subheader-margin-top);
+        margin-top: var(--global-padding-double);
     }
 
     h3 {
@@ -34,8 +34,9 @@ export default css`
     pb33f-paginator-navigation::part(values) {
         max-height: none;
         overflow-y: visible;
+        padding-top: var(--global-padding-half);
     }
-
+    
     .empty-state {
         color: var(--font-color-sub2);
         font-family: var(--font-stack), monospace;

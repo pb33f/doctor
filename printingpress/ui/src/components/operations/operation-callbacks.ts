@@ -53,13 +53,9 @@ export class PpOperationCallbacks extends LitElement {
         }
     }
 
-    private renderRefLink(ref: ComponentLinkData) {
-        return renderComponentRefLink(ref, true);
-    }
-
     private renderRequestBody(rb: RequestBodyData) {
         if (rb.ref) {
-            return html`<div class="callback-section-label">Request Body</div>${this.renderRefLink(rb.ref)}`;
+            return html`<div class="callback-section-label">Request Body</div>${renderComponentRefLink(rb.ref, true)}`;
         }
         if (!rb.content?.length) return nothing;
         return html`
@@ -83,7 +79,7 @@ export class PpOperationCallbacks extends LitElement {
                             ? html`<span class="callback-response-desc">${r.description}</span>`
                             : nothing}
                 </div>
-                ${r.ref ? this.renderRefLink(r.ref) : nothing}
+                ${r.ref ? renderComponentRefLink(r.ref, true) : nothing}
                 ${!r.ref && r.content?.length
                     ? html`<pp-media-type-selector content-json=${JSON.stringify(r.content)}></pp-media-type-selector>`
                     : nothing}
@@ -111,7 +107,7 @@ export class PpOperationCallbacks extends LitElement {
             ${this.callbacks.map(cb => html`
                 <div class="callback-entry">
                     <div class="callback-name">
-                        ${cb.ref ? this.renderRefLink(cb.ref) : nothing}
+                        ${cb.ref ? renderComponentRefLink(cb.ref, true) : nothing}
                         ${cb.name}
                     </div>
                     ${cb.operations.map(op => this.renderCallbackOperation(op))}

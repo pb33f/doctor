@@ -16,48 +16,26 @@ templ RootPageTempl(page *RootPage) {
 				@templ.Raw(page.DescHTML)
 			</div>
 		}
-		if page.Contact != nil {
-			<div class="pp-contact">
-				<h3>Contact</h3>
-				if page.Contact.Name != "" {
-					<span>{ page.Contact.Name }</span>
-				}
-				if page.Contact.Email != "" {
-					<a href={ templ.SafeURL("mailto:" + page.Contact.Email) }>{ page.Contact.Email }</a>
-				}
-				if page.Contact.URL != "" {
-					<a href={ templ.SafeURL(page.Contact.URL) }>{ page.Contact.URL }</a>
-				}
-			</div>
-		}
-		if page.License != nil {
-			<div class="pp-license">
-				<h3>License</h3>
-				if page.License.URL != "" {
-					<a href={ templ.SafeURL(page.License.URL) }>{ page.License.Name }</a>
-				} else {
-					<span>{ page.License.Name }</span>
-				}
-			</div>
-		}
+
 		if len(page.Servers) > 0 {
 			<div class="pp-servers">
-				<h3>Servers</h3>
-				<ul>
-					for _, srv := range page.Servers {
-						<li>
-							<code>{ srv.URL }</code>
+				<h2>SERVERS</h2>
+				for _, srv := range page.Servers {
+					<div class="pp-server-entry">
+						<span class="pp-server-name">
 							if srv.Description != "" {
-								<span> &mdash; { srv.Description }</span>
+								{ srv.Description }
 							}
-						</li>
-					}
-				</ul>
+							<sl-icon name="hdd-network" class="pp-server-icon"></sl-icon>
+						</span>
+						<a class="pp-server-url" href={ templ.SafeURL(srv.URL) } target="_blank" rel="noopener">{ srv.URL }</a>
+					</div>
+				}
 			</div>
 		}
 		if len(page.TagTree) > 0 || len(page.UntaggedOperations) > 0 {
 			<div class="pp-operations-overview">
-				<h2>Operations</h2>
+				<h2>OPERATIONS</h2>
 				for _, tag := range page.TagTree {
 					@RootTagSection(tag, 0)
 				}
@@ -75,7 +53,7 @@ templ RootPageTempl(page *RootPage) {
 		}
 		if len(page.Webhooks) > 0 {
 			<div class="pp-operations-overview">
-				<h2>Webhooks</h2>
+				<h2>WEBHOOKS</h2>
 				<ul class="pp-operation-list">
 					for _, wh := range page.Webhooks {
 						@RootOperationItem(wh)
@@ -83,9 +61,37 @@ templ RootPageTempl(page *RootPage) {
 				</ul>
 			</div>
 		}
+
+		if page.Contact != nil {
+            <div class="pp-contact">
+                <h3>CONTACT INFORMATION</h3>
+                if page.Contact.Name != "" {
+                    <span>{ page.Contact.Name }</span>
+                }
+                if page.Contact.Email != "" {
+                    &lt;<a href={ templ.SafeURL("mailto:" + page.Contact.Email) }>{ page.Contact.Email }</a>&gt;
+                }
+
+                if page.Contact.URL != "" {
+                    <br/><br/>
+                    <a href={ templ.SafeURL(page.Contact.URL) }>{ page.Contact.URL }</a>
+                }
+            </div>
+        }
+        if page.License != nil {
+            <div class="pp-license">
+                <h3>LICENSE</h3>
+                if page.License.URL != "" {
+                    <a href={ templ.SafeURL(page.License.URL) }>{ page.License.Name }</a>
+                } else {
+                    <span>{ page.License.Name }</span>
+                }
+            </div>
+        }
+
 		if len(page.Warnings) > 0 {
 			<details class="pp-warnings">
-				<summary>Build Warnings ({ fmt.Sprintf("%d", len(page.Warnings)) })</summary>
+				<summary>BUILD WARNINGS ({ fmt.Sprintf("%d", len(page.Warnings)) })</summary>
 				<ul>
 					for _, w := range page.Warnings {
 						<li>
@@ -107,7 +113,7 @@ templ RootTagSection(tag *NavTag, depth int) {
 			if depth == 0 {
 				<h3>{ tag.Summary }</h3>
 			} else {
-				<h4>{ tag.Summary }</h4>
+				<h4><span class="blue-chevron">&gt; { tag.Summary }</span></h4>
 			}
 			if len(tag.Operations) > 0 {
 				<ul class="pp-operation-list">
@@ -126,12 +132,15 @@ templ RootTagSection(tag *NavTag, depth int) {
 templ RootOperationItem(op *NavOperation) {
 	<li>
 		<a href={ templ.SafeURL("operations/" + op.Slug + ".html") } class={ opItemClass(op.Deprecated) }>
-			<pb33f-http-method tiny method={ strings.ToLower(op.Method) }></pb33f-http-method>
-			<span class="op-path">{ op.Path }</span>
-			if op.Summary != "" {
-				<span class="op-summary">{ op.Summary }</span>
-			}
+			<pb33f-http-method small method={ strings.ToLower(op.Method) }></pb33f-http-method>
+			<pb33f-render-operation-path path={ op.Path }></pb33f-render-operation-path>
 		</a>
+         if op.OperationID != "" {
+                <span class="op-id">OPERATION ID: <span class="op-id-value">{ op.OperationID }</span></span>
+        }
+		if op.Summary != "" {
+            <span class="op-summary">{ op.Summary }</span>
+        }
 	</li>
 }
 

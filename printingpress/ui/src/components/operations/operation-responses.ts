@@ -108,10 +108,6 @@ export class PpOperationResponses extends LitElement {
         return items;
     }
 
-    private renderRefLink(ref: ComponentLinkData, withPopover = false) {
-        return renderComponentRefLink(ref, withPopover);
-    }
-
     private scrollToHeader(name: string) {
         const el = this.shadowRoot?.getElementById('header-' + name);
         if (!el) return;
@@ -290,7 +286,7 @@ export class PpOperationResponses extends LitElement {
                 ${isCommonError
                         ? html`
                             <div class="common-error-link">
-                                ${resp.ref ? this.renderRefLink(resp.ref, true) : nothing}
+                                ${resp.ref ? renderComponentRefLink(resp.ref, true) : nothing}
                                 ${!resp.ref && resp.content?.length ? this.renderMediaTypeHeader(resp.content[0]) : nothing}
                                 <a class="error-anchor" @click=${(e: Event) => {
                                     e.preventDefault();
@@ -298,7 +294,7 @@ export class PpOperationResponses extends LitElement {
                                 }}>\u2191 see common example</a>
                             </div>`
                         : resp.ref
-                                ? this.renderRefLink(resp.ref, true)
+                                ? renderComponentRefLink(resp.ref, true)
                                 : resp.content?.length
                                     ? html`<pp-media-type-selector content-json=${JSON.stringify(resp.content)}></pp-media-type-selector>`
                                     : nothing}
@@ -318,13 +314,13 @@ export class PpOperationResponses extends LitElement {
         if (mt.isArray && mt.itemsRef) {
             return html`
                 <span class="media-type-label">${mt.mediaType}</span>
-                <span class="array-type">Array&lt;${this.renderRefLink(mt.itemsRef)}&gt;</span>
+                <span class="array-type">Array&lt;${renderComponentRefLink(mt.itemsRef)}&gt;</span>
             `;
         }
         if (mt.schemaRef) {
             return html`
                 <span class="media-type-label">${mt.mediaType}</span>
-                ${this.renderRefLink(mt.schemaRef)}
+                ${renderComponentRefLink(mt.schemaRef)}
             `;
         }
         return nothing;
@@ -346,7 +342,7 @@ export class PpOperationResponses extends LitElement {
                         `)}
                     </div>
                     ${resp.ref
-                            ? this.renderRefLink(resp.ref, true)
+                            ? renderComponentRefLink(resp.ref, true)
                             : resp.content?.length
                                 ? html`<pp-media-type-selector content-json=${JSON.stringify(resp.content)}></pp-media-type-selector>`
                                 : nothing}

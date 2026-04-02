@@ -85,6 +85,51 @@ export default css`
         margin-bottom: 1rem;
     }
 
+    .property-grid {
+        border: 1px dashed var(--hrcolor);
+        margin-top: var(--global-padding-double);
+        margin-bottom: var(--global-padding-double);
+    }
+
+    .property-grid-entry {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 0 1rem;
+        padding: var(--global-padding);
+        border-top: 1px dotted var(--hrcolor);
+    }
+
+    .property-grid-entry:first-child {
+        border-top: none;
+    }
+
+    .property-grid-label {
+        font-family: var(--font-stack), monospace;
+        color: var(--font-color-sub2);
+        text-align: right;
+    }
+
+    .property-grid-value {
+        font-family: var(--font-stack-bold), monospace;
+        color: var(--font-color);
+    }
+
+    .property-grid-entry .enum-grid {
+        margin-top: 0;
+    }
+
+    .property-grid-value code {
+        color: var(--warn-400);
+    }
+
+    .enum-section-full {
+        display: flex;
+        align-items: baseline;
+        gap: 1rem;
+        padding: var(--global-padding);
+        border-top: 1px dotted var(--hrcolor);
+    }
+
     .example-object {
         margin-bottom: 1rem;
         padding: 0.5rem 0.75rem;

@@ -52,6 +52,18 @@ export default css`
         gap: 0.75rem;
     }
 
+    .component-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .drawer-component-title {
+        font-family: var(--font-stack-bold), monospace;
+        font-size: 1.4rem;
+        color: var(--font-color);
+    }
+
     .header-actions {
         display: flex;
         align-items: center;

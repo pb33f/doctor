@@ -141,7 +141,7 @@ export class PpRefList extends LitElement {
 
     private renderOperationItem(op: OperationRef) {
         return html`
-            <div style="display:flex;align-items:center;gap:var(--global-padding);padding:0.2rem 0">
+            <div style="display:flex;align-items:center;gap:var(--global-padding);padding:var(--global-padding-half) 0">
                 <pb33f-http-method method=${op.method} tiny></pb33f-http-method>
                 <a style="color:var(--font-color);text-decoration:none;font-family:var(--font-stack),monospace;--op-path-text-decoration:none"
                    @mouseenter=${(e: Event) => (e.target as HTMLElement).style.setProperty('--op-path-text-decoration', 'underline')}

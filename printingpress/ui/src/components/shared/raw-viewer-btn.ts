@@ -16,6 +16,7 @@ export class PpRawViewerBtn extends LitElement {
     @property() location = '';
     @property() method = '';
     @property() path = '';
+    @property({attribute: 'component-type'}) componentType = '';
     @property({type: Boolean}) showTextLabel = false;
 
     private showRaw() {
@@ -32,6 +33,7 @@ export class PpRawViewerBtn extends LitElement {
                 location: this.location || undefined,
                 method: this.method || undefined,
                 path: this.path || undefined,
+                componentType: this.componentType || undefined,
             },
         });
         this.dispatchEvent(event);

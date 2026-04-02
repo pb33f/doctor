@@ -63,11 +63,11 @@ export default css`
         padding: 0;
         overflow-x: visible;
         background: var(--background-color);
-        color: var(--font-color, #e8e9ed);
-        font-family: var(--font-stack, monospace);
-        font-size: 0.8rem;
+        color: var(--font-color);
+        font-family: var(--font-stack), monospace;
+        font-size: 0.9rem;
         line-height: 1.5;
-        width: max-content;
+        width: 100%;
         min-width: 100%;
         box-sizing: border-box;
     }
@@ -133,7 +133,8 @@ export default css`
 
     .line-content {
         padding: 0 1rem;
-        white-space: pre;
+        white-space: pre-wrap;
+        overflow-wrap: break-word;
         flex: 1;
     }
 
@@ -237,10 +238,10 @@ export default css`
 
     .location {
         padding: 0.5rem 1rem;
-        border-bottom: 1px solid var(--hrcolor, #3d3d3d);
-        color: var(--font-color-sub2, #555);
-        font-family: var(--font-stack, monospace);
-        font-size: 0.75rem;
+        border-bottom: 1px solid var(--hrcolor);
+        color: var(--font-color-sub2);
+        font-family: var(--font-stack), monospace;
+        font-size: 0.9rem;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;

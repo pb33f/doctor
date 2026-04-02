@@ -70,6 +70,7 @@ export default css`
         color: var(--font-color);
         text-decoration: none;
         border-left: 2px solid var(--background-color);
+        font-size: 0.9rem;
     }
 
     li a:hover {
