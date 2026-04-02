@@ -300,7 +300,7 @@ func (r *changeHTMLRenderer) renderEmphasis(
 			if entering {
 				w.WriteString(`<pb33f-http-method method="`)
 				w.WriteString(textContent)
-				w.WriteString(`" tiny></pb33f-http-method>`)
+				w.WriteString(`"></pb33f-http-method>`)
 			}
 			return ast.WalkSkipChildren, nil
 		}

@@ -22,6 +22,7 @@ type Operation struct {
 	Callbacks    *orderedmap.Map[string, *Callback]
 	Security     []*SecurityRequirement
 	Servers      []*Server
+	Tags         *Foundation
 	Foundation
 }
 
@@ -198,21 +199,27 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 
 	if len(operation.Tags) > 0 {
 
-		// iterate through requirements.
+		tagsNode := &Foundation{
+			Parent:      o,
+			NodeParent:  o,
+			PathSegment: "tags",
+			Index:       o.Index,
+			ValueNode:   ExtractValueNodeForLowModel(operation.GoLow().Tags),
+			KeyNode:     ExtractKeyNodeForLowModel(operation.GoLow().Tags),
+		}
+
+		tagsNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(tagsNode.PathSegment),
+			tagsNode.PathSegment, nil, o, true, len(operation.Tags), &negOne)
+
+		o.Tags = tagsNode
+
+		// build reference edges to document-level tags
 		for _, t := range operation.Tags {
-
-			// locate tag
 			if drCtx.V3Document != nil && drCtx.V3Document.Tags != nil {
-				tags := drCtx.V3Document.Tags
-				if tags != nil {
-
-					for x, to := range drCtx.V3Document.Tags {
-						if to.Name == t {
-							// build an edge!
-							o.BuildReferenceEdge(ctx, o.GenerateJSONPath(), fmt.Sprint(to.GoLow().RootNode.Line),
-								fmt.Sprintf("'#/tags[%d]'", x), "")
-
-						}
+				for x, to := range drCtx.V3Document.Tags {
+					if to.Name == t {
+						o.BuildReferenceEdge(ctx, o.GenerateJSONPath(), fmt.Sprint(to.GoLow().RootNode.Line),
+							fmt.Sprintf("'#/tags[%d]'", x), "")
 					}
 				}
 			}

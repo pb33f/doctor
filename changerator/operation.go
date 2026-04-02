@@ -11,12 +11,80 @@ import (
 
 func (t *Changerator) VisitOperation(ctx context.Context, obj *v3.Operation) {
 	if changes, ok := ctx.Value(v3.Context).(*model.OperationChanges); ok {
-		PushChanges(ctx, obj, &model.OperationChanges{})
-		nCtx := ctx
 
 		if changes == nil {
 			return
 		}
+
+		// Split tag-related PropertyChanges from other operation PropertyChanges.
+		// Tag changes are stored as generic PropertyChanges with Property == "tags".
+		var tagChanges []*model.Change
+		var nonTagChanges []*model.Change
+		if changes.PropertyChanges != nil {
+			for _, ch := range changes.GetPropertyChanges() {
+				if ch.Property == "tags" {
+					tagChanges = append(tagChanges, ch)
+				} else {
+					nonTagChanges = append(nonTagChanges, ch)
+				}
+			}
+		}
+
+		// Build a filtered OperationChanges with only non-tag PropertyChanges
+		// and push that to the operation node. This prevents tag additions/removals
+		// from appearing as operation-level changes.
+		filteredChanges := &model.OperationChanges{
+			PropertyChanges:            model.NewPropertyChanges(nonTagChanges),
+			ExternalDocChanges:         changes.ExternalDocChanges,
+			ParameterChanges:           changes.ParameterChanges,
+			ResponsesChanges:           changes.ResponsesChanges,
+			SecurityRequirementChanges: changes.SecurityRequirementChanges,
+			RequestBodyChanges:         changes.RequestBodyChanges,
+			ServerChanges:              changes.ServerChanges,
+			ExtensionChanges:           changes.ExtensionChanges,
+			CallbackChanges:            changes.CallbackChanges,
+		}
+		filteredCtx := context.WithValue(ctx, v3.Context, filteredChanges)
+		PushChanges(filteredCtx, obj, &model.OperationChanges{})
+
+		// Route tag changes to the Tags child node.
+		if len(tagChanges) > 0 {
+			// If the Tags child node doesn't exist (all tags removed on right side),
+			// create a synthetic one. Walk-time helpers are not available here.
+			if obj.Tags == nil {
+				tagsFoundation := &v3.Foundation{}
+				tagsFoundation.Parent = obj
+				tagsFoundation.NodeParent = obj
+				tagsFoundation.SetPathSegment("tags")
+
+				nodeId := obj.GetNode().Id + "-tags"
+				tagsNode := v3.NewSyntheticNode(nodeId, obj.GetNode().Id, "Tags", "tags")
+				tagsFoundation.SetNode(tagsNode)
+
+				obj.GetNode().Mutex.Lock()
+				obj.GetNode().Children = append(obj.GetNode().Children, tagsNode)
+				obj.GetNode().Mutex.Unlock()
+
+				obj.Tags = tagsFoundation
+			}
+
+			// Push tag changes to the Tags child node using an OperationChanges
+			// wrapper so it satisfies the Changed interface.
+			tagOpChanges := &model.OperationChanges{
+				PropertyChanges: model.NewPropertyChanges(tagChanges),
+			}
+			tagCtx := context.WithValue(ctx, v3.Context, tagOpChanges)
+			PushChangesWithOverride(tagCtx, obj.Tags, tagOpChanges,
+				"tags", obj.GenerateJSONPath()+".tags")
+
+			// Add height for the changes row — Foundation doesn't implement HasSize
+			// so handleChanges won't adjust it automatically.
+			if tagsNode := obj.Tags.GetNode(); tagsNode != nil {
+				tagsNode.Height += v3.HEIGHT
+			}
+		}
+
+		nCtx := ctx
 
 		if len(changes.ParameterChanges) > 0 {
 			if len(obj.Parameters) > 0 {
