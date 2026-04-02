@@ -18,6 +18,7 @@ export interface ShowExampleDetail {
   location?: string;
   method?: string;
   path?: string;
+  componentType?: string;
 }
 
 @customElement('pp-example-drawer')
@@ -34,6 +35,7 @@ export class PpExampleDrawer extends LitElement {
   @state() private location = '';
   @state() private method = '';
   @state() private path = '';
+  @state() private componentType = '';
   @query('sl-drawer') private drawer: any;
 
   connectedCallback() {
@@ -57,6 +59,7 @@ export class PpExampleDrawer extends LitElement {
     this.location = detail.location || '';
     this.method = detail.method || '';
     this.path = detail.path || '';
+    this.componentType = detail.componentType || '';
     if (detail.language) {
       this.format = detail.language;
     } else {
@@ -94,6 +97,14 @@ export class PpExampleDrawer extends LitElement {
         <div class="rich-header">
           <pb33f-http-method method=${this.method}></pb33f-http-method>
           <pb33f-render-operation-path path=${this.path} nowrap></pb33f-render-operation-path>
+        </div>
+      `;
+    }
+    if (this.componentType) {
+      return html`
+        <div class="component-header">
+          <pb33f-model-icon icon=${this.componentType} size="large"></pb33f-model-icon>
+          <span class="drawer-component-title">${this.title}</span>
         </div>
       `;
     }

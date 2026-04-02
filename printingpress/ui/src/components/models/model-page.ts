@@ -6,8 +6,9 @@ import modelPageCss from './model-page.css.js';
 import '../shared/inline-code.js';
 import '../shared/code-viewer.js';
 import '../shared/schema-properties.js';
+import '../shared/example-selector.js';
 
-import {renderConstraints} from '../../utils/render-helpers.js';
+import {collectConstraints} from '../../utils/schema.js';
 
 @customElement('pp-model-page')
 export class PpModelPage extends LitElement {
@@ -34,85 +35,80 @@ export class PpModelPage extends LitElement {
     }
   }
 
-  private renderExampleObjects(examples: Record<string, any>) {
-    const entries = Object.entries(examples);
-    if (!entries.length) return nothing;
-    return html`
-      <h3>Examples</h3>
-      ${entries.map(([name, ex]) => html`
-        <div class="example-object">
-          <div class="example-header">
-            <span class="prop-name">${name}</span>
-            ${ex.summary ? html`<span class="example-summary">${ex.summary}</span>` : nothing}
-          </div>
-          ${ex.description ? html`<div class="prop-desc">${ex.description}</div>` : nothing}
-          ${ex.value !== undefined
-            ? html`<pp-inline-code raw-json=${JSON.stringify(ex.value, null, 2)} title=${name} no-line-numbers></pp-inline-code>`
-            : nothing}
-          ${ex.externalValue ? html`<div class="example-external"><a href=${ex.externalValue}>${ex.externalValue}</a></div>` : nothing}
-        </div>
-      `)}
-    `;
+  private renderExamples(data: any, schema: any) {
+    if (data.examples) {
+      const examplesMap: Record<string, string> = {};
+      const descriptionsMap: Record<string, string> = {};
+      for (const [name, ex] of Object.entries(data.examples as Record<string, any>)) {
+        if (ex.value !== undefined) examplesMap[name] = JSON.stringify(ex.value, null, 2);
+        const desc = ex.description || ex.summary || '';
+        if (desc) descriptionsMap[name] = desc;
+      }
+      if (!Object.keys(examplesMap).length) return nothing;
+      const descAttr = Object.keys(descriptionsMap).length ? JSON.stringify(descriptionsMap) : '';
+      return html`<pp-example-selector mode="inline"
+        examples-json=${JSON.stringify(examplesMap)}
+        descriptions-json=${descAttr}></pp-example-selector>`;
+    }
+    const example = data.example ?? schema?.example;
+    if (example !== undefined) {
+      return html`<pp-example-selector mode="inline" mock-json=${JSON.stringify(example, null, 2)}></pp-example-selector>`;
+    }
+    return nothing;
   }
 
-  private renderComponentWithSchema(data: any, traitsHtml: unknown) {
-    const schema = data.schema || {};
-    const schemaJson = this.schemaRawJson || JSON.stringify(schema, null, 2);
-    const schemaYaml = this.schemaRawYaml;
+  private collectSchemaEntries(schema: any): Array<{label: string; value: unknown; isCode?: boolean}> {
+    const entries: Array<{label: string; value: unknown; isCode?: boolean}> = [];
+    if (schema.type) entries.push({label: 'type', value: schema.type + (schema.format ? ` (${schema.format})` : ''), isCode: true});
+    if (schema.default !== undefined) entries.push({label: 'default', value: JSON.stringify(schema.default), isCode: true});
+    for (const c of collectConstraints(schema)) entries.push(c);
+    if (schema.enum?.length) {
+      entries.push({label: 'enum', value: html`<div class="enum-grid">${schema.enum.map((v: any) => html`<span class="enum-value">${JSON.stringify(v)}</span>`)}</div>`});
+    }
+    return entries;
+  }
+
+  private renderPropertyGrid(entries: Array<{label: string; value: unknown; isCode?: boolean}>) {
+    if (!entries.length) return nothing;
     return html`
-      <div class="traits">
-        <h3>Traits</h3>
-        <div class="constraints">
-          ${traitsHtml}
-          ${schema.type ? html`
-            <span class="constraint-label">type</span>
-            <span class="constraint-value">${schema.type}${schema.format ? ` (${schema.format})` : ''}</span>
-          ` : nothing}
-        </div>
-        ${renderConstraints(schema, {includeExample: true})}
+      <div class="property-grid">
+        ${entries.map(e => html`
+          <div class="property-grid-entry">
+            <span class="property-grid-label">${e.label}</span>
+            <span class="property-grid-value">${e.isCode ? html`<code>${e.value}</code>` : e.value}</span>
+          </div>
+        `)}
       </div>
-      ${data.examples ? this.renderExampleObjects(data.examples) : nothing}
-      ${!data.examples && (data.example !== undefined || schema.example !== undefined)
-        ? html`<pp-inline-code raw-json=${JSON.stringify(data.example ?? schema.example, null, 2)} title="" no-line-numbers></pp-inline-code>`
-        : nothing}
-      ${Object.keys(schema).length
-        ? html`<pp-inline-code
-            raw-json=${schemaJson}
-            raw-yaml=${schemaYaml}
-            start-line=${this.schemaStartLine}
-            title="Schema"></pp-inline-code>`
-        : nothing}
     `;
   }
 
   private renderParameter(data: any) {
-    return this.renderComponentWithSchema(data, html`
-      <span class="constraint-label">name</span>
-      <span class="constraint-value">${data.name}</span>
-      <span class="constraint-label">in</span>
-      <span class="constraint-value">${data.in}</span>
-      ${data.required !== undefined ? html`
-        <span class="constraint-label">required</span>
-        <span class="constraint-value">${data.required}</span>
-      ` : nothing}
-      ${data.deprecated ? html`
-        <span class="constraint-label">deprecated</span>
-        <span class="constraint-value">true</span>
-      ` : nothing}
-    `);
+    const schema = data.schema || {};
+    const entries: Array<{label: string; value: unknown; isCode?: boolean}> = [
+      {label: 'name', value: data.name},
+      {label: 'in', value: data.in},
+    ];
+    if (data.required !== undefined) entries.push({label: 'required', value: String(data.required)});
+    if (data.deprecated) entries.push({label: 'deprecated', value: 'true'});
+    entries.push(...this.collectSchemaEntries(schema));
+
+    return html`
+      ${schema.type !== 'boolean' ? this.renderExamples(data, schema) : nothing}
+      ${this.renderPropertyGrid(entries)}
+    `;
   }
 
   private renderHeader(data: any) {
-    return this.renderComponentWithSchema(data, html`
-      ${data.required ? html`
-        <span class="constraint-label">required</span>
-        <span class="constraint-value">true</span>
-      ` : nothing}
-      ${data.deprecated ? html`
-        <span class="constraint-label">deprecated</span>
-        <span class="constraint-value">true</span>
-      ` : nothing}
-    `);
+    const schema = data.schema || {};
+    const entries: Array<{label: string; value: unknown; isCode?: boolean}> = [];
+    if (data.required) entries.push({label: 'required', value: 'true'});
+    if (data.deprecated) entries.push({label: 'deprecated', value: 'true'});
+    entries.push(...this.collectSchemaEntries(schema));
+
+    return html`
+      ${this.renderExamples(data, schema)}
+      ${this.renderPropertyGrid(entries)}
+    `;
   }
 
   private renderSchema(schema: any) {
@@ -121,20 +117,24 @@ export class PpModelPage extends LitElement {
       : this.mockJson || '';
     const isComplex = schema.properties || schema.allOf || schema.oneOf || schema.anyOf;
 
+    if (isComplex) {
+      return html`
+        ${exampleJson
+          ? html`<pp-example-selector mode="inline" mock-json=${exampleJson}></pp-example-selector>`
+          : nothing}
+        <h3>${schema.properties ? 'Properties' : (schema.allOf ? 'Composition' : 'Variants')}</h3>
+        <pp-schema-properties schema-json=${this.modelJson}></pp-schema-properties>
+      `;
+    }
+
+    // Scalar schema — use property grid like parameters/headers
+    const entries = this.collectSchemaEntries(schema);
+
     return html`
-      ${exampleJson
-        ? html`<pp-inline-code raw-json=${exampleJson} title="" no-line-numbers></pp-inline-code>`
+      ${schema.type !== 'boolean' && exampleJson
+        ? html`<pp-example-selector mode="inline" mock-json=${exampleJson}></pp-example-selector>`
         : nothing}
-      ${!isComplex && schema.type
-        ? html`<div><strong>Type:</strong> ${schema.type}${schema.format ? html` <span class="prop-format">(${schema.format})</span>` : nothing}</div>`
-        : nothing}
-      ${!isComplex ? renderConstraints(schema) : nothing}
-      ${isComplex
-        ? html`
-            <h3>${schema.properties ? 'Properties' : (schema.allOf ? 'Composition' : 'Variants')}</h3>
-            <pp-schema-properties schema-json=${this.modelJson}></pp-schema-properties>
-          `
-        : nothing}
+      ${this.renderPropertyGrid(entries)}
     `;
   }
 

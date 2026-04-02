@@ -206,6 +206,9 @@ func (pp *PrintingPress) extractOperationModelRefs(op *OperationPage, modelSlugL
 			addLink(mt.SchemaRef)
 			addLink(mt.ItemsRef)
 		}
+		for _, h := range resp.Headers {
+			addLink(h.Ref)
+		}
 	}
 
 	// Scan parameter schemas

@@ -41,6 +41,23 @@ export default [dropdownCss, css`
         letter-spacing: 0.05em;
     }
 
+    .inline-selector-row {
+        display: flex;
+        align-items: center;
+        gap: var(--global-padding-double);
+        margin-top: var(--global-padding-double);
+    }
+
+    .inline-example-desc {
+        color: var(--font-color-sub1);
+        font-family: var(--font-stack), monospace;
+        display: inline-block;
+        border-left: 2px solid var(--secondary-color);
+        padding-left: var(--global-padding-double);
+        height: calc(var(--global-padding) * 3);
+        padding-top: var(--global-padding);
+    }
+
     .code-container {
         position: relative;
     }
@@ -65,7 +82,11 @@ export default [dropdownCss, css`
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
-
+    
+    sl-dropdown {
+        margin-top: 0;
+    }
+    
     pp-code-viewer {
         margin-top: var(--global-padding);
     }

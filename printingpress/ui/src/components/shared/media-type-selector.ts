@@ -59,23 +59,19 @@ export class PpMediaTypeSelector extends LitElement {
         return {mock: mt.mockJson || '', language: 'json'};
     }
 
-    private renderRefLink(ref: ComponentLinkData) {
-        return renderComponentRefLink(ref);
-    }
-
     private renderSchemaHeader(mt: MediaTypeData) {
         if (mt.isArray && mt.itemsRef) {
             return html`
                 <div class="media-type-ref">
                     <span class="media-type-label">${mt.mediaType}</span>
-                    <span class="array-type">Array&lt;${this.renderRefLink(mt.itemsRef)}&gt;</span>
+                    <span class="array-type">Array&lt;${renderComponentRefLink(mt.itemsRef)}&gt;</span>
                 </div>`;
         }
         if (mt.schemaRef) {
             return html`
                 <div class="media-type-ref">
                     <span class="media-type-label">${mt.mediaType}</span>
-                    ${this.renderRefLink(mt.schemaRef)}
+                    ${renderComponentRefLink(mt.schemaRef)}
                 </div>`;
         }
         if (!mt.schemaJson) return nothing;
@@ -117,9 +113,9 @@ export class PpMediaTypeSelector extends LitElement {
 
     private renderRefInfo(mt: MediaTypeData) {
         if (mt.isArray && mt.itemsRef) {
-            return html`<span class="array-type">Array&lt;${this.renderRefLink(mt.itemsRef)}&gt;</span>`;
+            return html`<span class="array-type">Array&lt;${renderComponentRefLink(mt.itemsRef)}&gt;</span>`;
         }
-        if (mt.schemaRef) return this.renderRefLink(mt.schemaRef);
+        if (mt.schemaRef) return renderComponentRefLink(mt.schemaRef);
         return nothing;
     }
 

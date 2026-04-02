@@ -652,3 +652,91 @@ func TestCollectExtensions_NilMap(t *testing.T) {
 	result := collectExtensions(nil)
 	assert.Nil(t, result)
 }
+
+func TestModelExtensions(t *testing.T) {
+	spec := `openapi: "3.1.0"
+info:
+  title: ext-test
+  version: "1.0"
+paths:
+  /test:
+    get:
+      parameters:
+        - $ref: '#/components/parameters/WithExt'
+      responses:
+        '200':
+          description: ok
+components:
+  schemas:
+    WithScalarExt:
+      type: string
+      x-stability: stable
+      x-since-version: "1.0.0"
+    WithObjectExt:
+      type: object
+      x-metadata:
+        team: platform
+        priority: high
+    NoExt:
+      type: integer
+  parameters:
+    WithExt:
+      name: token
+      in: header
+      schema:
+        type: string
+      x-custom: param-ext-value
+`
+	site := pressFromSpec(t, spec)
+
+	findModel := func(typeSlug, name string) *ModelPage {
+		for _, m := range site.Models[typeSlug] {
+			if m.Name == name {
+				return m
+			}
+		}
+		return nil
+	}
+
+	t.Run("schema with scalar extensions", func(t *testing.T) {
+		m := findModel("schemas", "WithScalarExt")
+		require.NotNil(t, m)
+		require.Len(t, m.Extensions, 2)
+		assert.NotEmpty(t, m.ExtensionsJSON)
+
+		extMap := make(map[string]any)
+		for _, e := range m.Extensions {
+			extMap[e.Key] = e.Value
+		}
+		assert.Equal(t, "stable", extMap["stability"])
+		assert.Equal(t, "1.0.0", extMap["since-version"])
+	})
+
+	t.Run("schema with object-valued extension", func(t *testing.T) {
+		m := findModel("schemas", "WithObjectExt")
+		require.NotNil(t, m)
+		require.Len(t, m.Extensions, 1)
+		assert.Equal(t, "metadata", m.Extensions[0].Key)
+
+		obj, ok := m.Extensions[0].Value.(map[string]any)
+		require.True(t, ok, "object extension value should be a map")
+		assert.Equal(t, "platform", obj["team"])
+		assert.Equal(t, "high", obj["priority"])
+	})
+
+	t.Run("schema with no extensions", func(t *testing.T) {
+		m := findModel("schemas", "NoExt")
+		require.NotNil(t, m)
+		assert.Nil(t, m.Extensions)
+		assert.Empty(t, m.ExtensionsJSON)
+	})
+
+	t.Run("parameter with extensions via collectRenderable", func(t *testing.T) {
+		m := findModel("parameters", "WithExt")
+		require.NotNil(t, m)
+		require.Len(t, m.Extensions, 1)
+		assert.NotEmpty(t, m.ExtensionsJSON)
+		assert.Equal(t, "custom", m.Extensions[0].Key)
+		assert.Equal(t, "param-ext-value", m.Extensions[0].Value)
+	})
+}

@@ -24,14 +24,16 @@ export class PpExampleSelector extends LitElement {
   // Or individual attributes for inline use in Lit templates
   @property({attribute: 'mock-json'}) mockJson = '';
   @property({attribute: 'examples-json'}) examplesJson = '';
+  @property({attribute: 'descriptions-json'}) descriptionsJson = '';
   @property() mode: 'drawer' | 'inline' = 'drawer';
   @property({attribute: 'code-language'}) codeLanguage: 'json' | 'yaml' | 'xml' = 'json';
 
   @state() private entries: Array<{key: string; json: string}> = [];
+  @state() private descriptions: Record<string, string> = {};
   @state() private selectedIndex = 0;
 
   willUpdate(changed: Map<string, unknown>) {
-    if (changed.has('examplesData') || changed.has('mockJson') || changed.has('examplesJson')) {
+    if (changed.has('examplesData') || changed.has('mockJson') || changed.has('examplesJson') || changed.has('descriptionsJson')) {
       this.buildEntries();
     }
   }
@@ -69,6 +71,14 @@ export class PpExampleSelector extends LitElement {
 
     this.entries = entries;
     this.selectedIndex = 0;
+
+    if (this.descriptionsJson) {
+      try {
+        this.descriptions = JSON.parse(this.descriptionsJson);
+      } catch { this.descriptions = {}; }
+    } else {
+      this.descriptions = {};
+    }
   }
 
   private showExample(entry: {key: string; json: string}) {
@@ -152,16 +162,21 @@ export class PpExampleSelector extends LitElement {
       `;
     }
 
+    const desc = this.descriptions[current.key];
     return html`
+      <div class="inline-example-label">Example</div>
       ${this.renderCodeBlock(current.json)}
-      <sl-dropdown skidding="5" distance="5">
-        <sl-button slot="trigger" caret>${this.inlineLabel(current.key)}</sl-button>
-        <sl-menu @sl-select=${this.handleInlineSelect}>
-          ${this.entries.map((e, i) => html`
-            <sl-menu-item value="${i}">${this.inlineLabel(e.key)}</sl-menu-item>
-          `)}
-        </sl-menu>
-      </sl-dropdown>
+      <div class="inline-selector-row">
+        <sl-dropdown skidding="5" distance="5">
+          <sl-button slot="trigger" caret>${this.inlineLabel(current.key)}</sl-button>
+          <sl-menu @sl-select=${this.handleInlineSelect}>
+            ${this.entries.map((e, i) => html`
+              <sl-menu-item value="${i}">${this.inlineLabel(e.key)}</sl-menu-item>
+            `)}
+          </sl-menu>
+        </sl-dropdown>
+        ${desc ? html`<span class="inline-example-desc">${desc}</span>` : nothing}
+      </div>
     `;
   }
 

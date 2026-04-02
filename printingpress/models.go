@@ -274,6 +274,8 @@ type ModelPage struct {
 	Examples              map[string]string
 	ExamplesJSON          string // pre-serialized for Lit component
 	Origin                *bundler.ComponentOrigin
+	Extensions            []*ExtensionEntry
+	ExtensionsJSON        string `json:"-"`
 	CrossRefs             *ModelCrossRefs
 	CrossRefsJSON         string `json:"-"`
 }

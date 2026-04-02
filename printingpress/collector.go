@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"reflect"
 	"strings"
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
@@ -797,6 +798,13 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 
 		page.Origin = pp.resolveOrigin("schemas", name)
 
+		if sp.Schema != nil && sp.Schema.Value != nil && sp.Schema.Value.Extensions != nil {
+			page.Extensions = collectExtensions(sp.Schema.Value.Extensions)
+			if page.Extensions != nil {
+				page.ExtensionsJSON = MustJSON(page.Extensions)
+			}
+		}
+
 		pp.site.Models["schemas"] = append(pp.site.Models["schemas"], page)
 	}
 }
@@ -988,6 +996,24 @@ func collectRenderable[V interface{ GetValue() any }](
 
 		if page.SchemaRawYAML != "" && page.RawYAML != "" {
 			page.SchemaStartLine = computeSchemaStartLine(page.RawYAML, page.Origin)
+		}
+
+		// Collect extensions from the underlying value via reflection of the Extensions field
+		if v := val.GetValue(); v != nil {
+			rv := reflect.ValueOf(v)
+			if rv.Kind() == reflect.Ptr {
+				rv = rv.Elem()
+			}
+			if rv.Kind() == reflect.Struct {
+				if f := rv.FieldByName("Extensions"); f.IsValid() && (f.Kind() == reflect.Ptr || f.Kind() == reflect.Map || f.Kind() == reflect.Interface) && !f.IsNil() {
+					if ext, ok := f.Interface().(*orderedmap.Map[string, *yaml.Node]); ok {
+						page.Extensions = collectExtensions(ext)
+						if page.Extensions != nil {
+							page.ExtensionsJSON = MustJSON(page.Extensions)
+						}
+					}
+				}
+			}
 		}
 
 		pp.site.Models[typeSlug] = append(pp.site.Models[typeSlug], page)

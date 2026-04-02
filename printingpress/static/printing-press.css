@@ -76,6 +76,10 @@ code {
 
 
 /* Root / Hero */
+.pp-root {
+    padding-bottom: 50px;
+}
+
 .pp-hero {
     display: flex;
     align-items: baseline;
@@ -104,13 +108,6 @@ code {
     margin-bottom: 1.2rem;
 }
 
-.pp-servers ul {
-    list-style: none;
-}
-
-.pp-servers li {
-    margin-bottom: 0.3rem;
-}
 
 .pp-security {
     margin-bottom: var(--global-padding-double);
@@ -555,23 +552,22 @@ a.pp-ref-link:hover {
 }
 
 .pp-operations-overview h1 {
-    margin-bottom: 1rem;
+    margin-bottom: calc(var(--global-padding) * 4);
 }
 
 .pp-tag-group {
-    margin-bottom: 1.5rem;
-    padding-left: 0.5rem;
-    border-left: 1px dashed var(--secondary-color-dimmer);
+    margin-bottom: calc(var(--global-padding) * 3);
 }
 
 .pp-tag-group h3 {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--global-padding);
 }
 
 .pp-tag-group h4 {
-    margin-bottom: 0.4rem;
-    font-size: 0.95em;
-    color: var(--font-color-sub1);
+    font-size: 1.3rem;
+    margin-top: var(--global-padding-double);
+    margin-bottom: var(--global-padding);
+    border-left: var(--global-padding-double) solid transparent;
 }
 
 
@@ -584,6 +580,13 @@ a.pp-ref-link:hover {
 }
 
 
+ul.pp-operation-list > li:before {
+    margin-right: 0;
+    content: "";
+}
+
+
+
 
 .pp-operation-list {
     list-style: none;
@@ -591,21 +594,24 @@ a.pp-ref-link:hover {
     padding: 0;
 }
 
+.pp-operation-list pb33f-render-operation-path {
+    font-size: 1.2rem;
+    margin-left: var(--global-padding);
+}
+
 .pp-op-item {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0.5rem;
+    padding: var(--global-padding) var(--global-padding) var(--global-padding-half) var(--global-padding);
     color: var(--font-color);
     text-decoration: none;
-    border-left: 2px solid transparent;
+    border-left: var(--global-padding) solid transparent;
 }
 
-.pp-op-item:hover {
-    background: var(--primary-color-verylowalpha);
-    border-left: 2px solid var(--secondary-color);
-    text-decoration: none;
+.blue-chevron {
+    color: var(--primary-color);
 }
+
 
 .pp-op-item.deprecated {
     text-decoration: line-through;
@@ -617,9 +623,21 @@ a.pp-ref-link:hover {
     font-size: 0.9em;
 }
 
+.op-id {
+    padding-left: 115px;
+    display: block;
+    color: var(--font-color-sub2);
+}
+
+.op-id-value {
+    color: var(--secondary-color);
+    font-family: var(--font-stack-bold), monospace;
+}
+
 .op-summary {
-    font-size: 0.8em;
     color: var(--font-color-sub1);
+    display: inline-block;
+    padding-left: 115px;
 }
 
 /* Common response headers */
