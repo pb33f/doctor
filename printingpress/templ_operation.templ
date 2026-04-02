@@ -42,6 +42,7 @@ templ headerConstraints(h *HeaderInfo) {
 
 templ OperationPageTempl(page *OperationPage) {
 	<div class="pp-operation">
+		@Breadcrumb(operationBreadcrumb(page))
 		<pp-page-nav page-title={ page.OperationID } sections-json={ operationNavSections(page) }></pp-page-nav>
 	    <div class="title-section">
 

@@ -20,7 +20,7 @@ func TestMediaTypeExamplesProperty(t *testing.T) {
 
 	// For context, this appears after a YAML code block for an example value
 	markdown := `- Response ` + "`200`" + `:
-  - Content ` + "`application/json`" + `:
+  - Media Type ` + "`application/json`" + `:
     - Example ` + "`value`" + ` added:
 
       ` + "```yaml" + `

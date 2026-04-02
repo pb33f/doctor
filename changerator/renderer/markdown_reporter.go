@@ -846,7 +846,27 @@ func (r *MarkdownReporter) renderTagChanges(report *strings.Builder) {
 		}
 
 		for _, change := range tagChange.GetPropertyChanges() {
-			r.renderChange(report, change)
+			// Format with "Tag" prefix for icon injection.
+			// Document-level tag properties are tag names (e.g., "jazz") which
+			// the generic renderChange path can't identify as tags.
+			report.WriteString("- Tag `")
+			report.WriteString(change.Property)
+			report.WriteString("`")
+			switch change.ChangeType {
+			case model.PropertyAdded, model.ObjectAdded:
+				report.WriteString(" added")
+			case model.PropertyRemoved, model.ObjectRemoved:
+				report.WriteString(" removed")
+				if change.Breaking {
+					report.WriteString(" " + Breaking)
+				}
+			case model.Modified:
+				report.WriteString(" changed")
+				if change.Breaking {
+					report.WriteString(" " + Breaking)
+				}
+			}
+			report.WriteString("\n")
 		}
 
 		// Render tag extensions
@@ -1647,9 +1667,9 @@ func (r *MarkdownReporter) renderResponsesBreakdown(report *strings.Builder, res
 					if mtChange != nil && mtChange.TotalChanges() > 0 {
 						ref := mtChange.GetChangeReference()
 						if ref != "" {
-							report.WriteString(fmt.Sprintf("  - Content `%s`: See referenced component `%s`\n", ct, ref))
+							report.WriteString(fmt.Sprintf("  - Media Type `%s`: See referenced component `%s`\n", ct, ref))
 						} else {
-							report.WriteString(fmt.Sprintf("  - Content `%s`:\n", ct))
+							report.WriteString(fmt.Sprintf("  - Media Type `%s`:\n", ct))
 
 							// render example changes first to avoid list context breaking
 							// render example changes in response media types
@@ -1902,14 +1922,14 @@ func (r *MarkdownReporter) formatChangeDescription(change *model.Change) (string
 		switch change.ChangeType {
 		case model.PropertyAdded, model.ObjectAdded:
 			if change.New != "" {
-				return fmt.Sprintf("Added path *'%s'*", FormatValue(change.New)), false
+				return fmt.Sprintf("Path `%s` added", FormatValue(change.New)), false
 			}
-			return "Added path", false
+			return "Path added", false
 		case model.PropertyRemoved, model.ObjectRemoved:
 			if change.Original != "" {
-				return fmt.Sprintf("Removed path *'%s'*", FormatValue(change.Original)), false
+				return fmt.Sprintf("Path `%s` removed", FormatValue(change.Original)), false
 			}
-			return "Removed path", false
+			return "Path removed", false
 		}
 	}
 
@@ -1917,14 +1937,14 @@ func (r *MarkdownReporter) formatChangeDescription(change *model.Change) (string
 		switch change.ChangeType {
 		case model.PropertyAdded, model.ObjectAdded:
 			if change.New != "" {
-				return fmt.Sprintf("Added schema *'%s'*", FormatValue(change.New)), false
+				return fmt.Sprintf("Schema `%s` added", FormatValue(change.New)), false
 			}
-			return "Added schema", false
+			return "Schema added", false
 		case model.PropertyRemoved, model.ObjectRemoved:
 			if change.Original != "" {
-				return fmt.Sprintf("Removed schema *'%s'*", FormatValue(change.Original)), false
+				return fmt.Sprintf("Schema `%s` removed", FormatValue(change.Original)), false
 			}
-			return "Removed schema", false
+			return "Schema removed", false
 		}
 	}
 
@@ -2159,10 +2179,16 @@ func getPropertyTypePrefix(property string) string {
 		return "Callback"
 	case "requestBodies":
 		return "Request Bodies"
+	case "requestBody":
+		return "Request Body"
+	case "securitySchemes", "securityScheme":
+		return "Security Scheme"
 	case "deprecated":
 		return "Deprecated"
 	case "responses":
 		return "Responses"
+	case "get", "post", "put", "delete", "patch", "options", "head", "trace":
+		return "Operation"
 	default:
 		return ""
 	}
@@ -2198,7 +2224,7 @@ func FormatObjectType(objType string) string {
 	case "tag":
 		return "Tag"
 	case "security", "securityScheme":
-		return "Security"
+		return "Security Scheme"
 	case "server":
 		return "Server"
 	case "webhook":

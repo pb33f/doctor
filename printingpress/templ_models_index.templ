@@ -1,18 +1,24 @@
 package printingpress
 
-templ ModelsIndexTempl(models map[string][]*ModelPage) {
-	<div class="pp-models-index">
-		<h1>Models</h1>
-		for typeSlug, pages := range models {
-			if len(pages) > 0 && typeSlug != "path-items" {
+templ ModelsIndexTempl(groups []*NavModelGroup, breadcrumb []BreadcrumbItem) {
+	<div class="pp-root">
+		@Breadcrumb(breadcrumb)
+		<pp-icon-title icon="schemas" heading="Models"></pp-icon-title>
+		for _, group := range groups {
+			if len(group.Models) > 0 {
 				<div class="pp-model-category">
-					<h2>{ typeSlug }</h2>
+					<h2>
+						<a href={ templ.SafeURL("models/" + group.TypeSlug + "/index.html") } class="pp-category-link">
+							{ group.Name }
+						</a>
+					</h2>
 					<div class="pp-model-cards">
-						for _, page := range pages {
-							<a href={ templ.SafeURL("models/" + typeSlug + "/" + page.Slug + ".html") } class="pp-model-card">
-								<strong>{ page.Name }</strong>
-								if page.Description != "" {
-									<p>{ truncateDesc(page.Description, 120) }</p>
+						for _, model := range group.Models {
+							<a href={ templ.SafeURL("models/" + model.TypeSlug + "/" + model.Slug + ".html") } class="pp-model-card">
+								<pb33f-model-icon icon={ model.TypeSlug } size="small"></pb33f-model-icon>
+								<strong>{ model.Name }</strong>
+								if model.Description != "" {
+									<p>{ truncateDesc(model.Description, 120) }</p>
 								}
 							</a>
 						}
@@ -22,4 +28,3 @@ templ ModelsIndexTempl(models map[string][]*ModelPage) {
 		}
 	</div>
 }
-

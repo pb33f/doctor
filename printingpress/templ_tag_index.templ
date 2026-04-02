@@ -1,0 +1,23 @@
+package printingpress
+
+templ TagIndexTempl(tag *NavTag, breadcrumb []BreadcrumbItem) {
+	<div class="pp-root">
+		@Breadcrumb(breadcrumb)
+		<pp-icon-title icon="operation" heading={ tag.DisplayName() }></pp-icon-title>
+		if tag.DescHTML != "" {
+			<div class="pp-description">
+				@templ.Raw(tag.DescHTML)
+			</div>
+		}
+		if len(tag.Operations) > 0 {
+			<ul class="pp-operation-list">
+				for _, op := range tag.Operations {
+					@RootOperationItem(op)
+				}
+			</ul>
+		}
+		for _, child := range tag.Children {
+			@RootTagSection(child, 0)
+		}
+	</div>
+}

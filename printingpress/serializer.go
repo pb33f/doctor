@@ -8,10 +8,108 @@ import (
 	"bytes"
 	"encoding/json"
 	"strings"
+	"unicode"
 
 	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"go.yaml.in/yaml/v4"
 )
+
+// BreadcrumbItem represents a single breadcrumb navigation entry.
+type BreadcrumbItem struct {
+	Label string
+	Href  string
+}
+
+func modelBreadcrumb(page *ModelPage) []BreadcrumbItem {
+	return []BreadcrumbItem{
+		{Label: "HOME", Href: "index.html"},
+		{Label: "MODELS", Href: "models/index.html"},
+		{Label: strings.ToUpper(slugToTitle(page.TypeSlug)), Href: "models/" + page.TypeSlug + "/index.html"},
+	}
+}
+
+func operationBreadcrumb(page *OperationPage) []BreadcrumbItem {
+	items := []BreadcrumbItem{
+		{Label: "HOME", Href: "index.html"},
+		{Label: "OPERATIONS", Href: "index.html"},
+	}
+	for i, tag := range page.TagPath {
+		item := BreadcrumbItem{Label: tag}
+		if i < len(page.TagSlugs) {
+			item.Href = "tags/" + page.TagSlugs[i] + ".html"
+		}
+		items = append(items, item)
+	}
+	return items
+}
+
+func modelsIndexBreadcrumb() []BreadcrumbItem {
+	return []BreadcrumbItem{
+		{Label: "HOME", Href: "index.html"},
+		{Label: "MODELS"},
+	}
+}
+
+func modelTypeIndexBreadcrumb(typeName string) []BreadcrumbItem {
+	return []BreadcrumbItem{
+		{Label: "HOME", Href: "index.html"},
+		{Label: "MODELS", Href: "models/index.html"},
+		{Label: strings.ToUpper(typeName)},
+	}
+}
+
+// tagIndexBreadcrumb builds the breadcrumb for a tag index page using a
+// pre-computed parent map to avoid rebuilding it per tag (O(N) vs O(N²)).
+func tagIndexBreadcrumb(tag *NavTag, tagParentMap map[string]*NavTag) []BreadcrumbItem {
+	items := []BreadcrumbItem{
+		{Label: "HOME", Href: "index.html"},
+		{Label: "OPERATIONS", Href: "index.html"},
+	}
+	// walk ancestors to root
+	var path []*NavTag
+	for cur := tagParentMap[tag.Name]; cur != nil; cur = tagParentMap[cur.Name] {
+		path = append(path, cur)
+	}
+	// reverse to root-first
+	for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 {
+		path[i], path[j] = path[j], path[i]
+	}
+	for _, ancestor := range path {
+		items = append(items, BreadcrumbItem{Label: ancestor.DisplayName(), Href: "tags/" + ancestor.Slug + ".html"})
+	}
+	// current tag (no link — it's the current page)
+	items = append(items, BreadcrumbItem{Label: tag.DisplayName()})
+	return items
+}
+
+// buildTagParentMap walks the NavTag tree once and returns a map from tag name to parent NavTag.
+func buildTagParentMap(tags []*NavTag) map[string]*NavTag {
+	m := make(map[string]*NavTag)
+	var walk func([]*NavTag)
+	walk = func(tags []*NavTag) {
+		for _, t := range tags {
+			for _, child := range t.Children {
+				m[child.Name] = t
+			}
+			walk(t.Children)
+		}
+	}
+	walk(tags)
+	return m
+}
+
+// slugToTitle converts a hyphenated slug to title case: "request-bodies" → "Request Bodies".
+func slugToTitle(slug string) string {
+	words := strings.Split(slug, "-")
+	for i, w := range words {
+		if len(w) > 0 {
+			runes := []rune(w)
+			runes[0] = unicode.ToUpper(runes[0])
+			words[i] = string(runes)
+		}
+	}
+	return strings.Join(words, " ")
+}
 
 // DetectSpecFormat returns "json" or "yaml" based on the first non-whitespace byte.
 func DetectSpecFormat(data []byte) string {

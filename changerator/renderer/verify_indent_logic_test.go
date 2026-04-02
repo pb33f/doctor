@@ -58,7 +58,7 @@ func TestIndentLogicWithRealFormat(t *testing.T) {
 
 	// Now test that this markdown works correctly
 	// Simulate the full list context
-	fullMarkdown := "- Response `200`:\n  - Content `application/json`:\n    - Example `test`:\n      - " + result
+	fullMarkdown := "- Response `200`:\n  - Media Type `application/json`:\n    - Example `test`:\n      - " + result
 
 	t.Logf("\nFull markdown:\n%s", fullMarkdown)
 

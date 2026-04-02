@@ -75,6 +75,32 @@ code {
 }
 
 
+/* Breadcrumb */
+.pp-breadcrumb {
+    display: block;
+    padding: var(--global-padding) 0;
+    font-family: var(--font-stack), monospace;
+    font-size: var(--smaller-font);
+}
+
+.pp-breadcrumb sl-icon[slot="separator"] {
+    color: var(--primary-color);
+    font-size: 0.7rem;
+}
+
+.pp-breadcrumb sl-breadcrumb-item::part(label) {
+    font-family: var(--font-stack), monospace;
+    color: var(--font-color-sub1);
+}
+
+.pp-breadcrumb sl-breadcrumb-item::part(label):hover {
+    color: var(--primary-color);
+}
+
+.pp-breadcrumb sl-breadcrumb-item:last-of-type::part(label) {
+    color: var(--font-color);
+}
+
 /* Root / Hero */
 .pp-root {
     padding-bottom: 50px;
@@ -440,6 +466,10 @@ li {
 
 
 /* Models index */
+.pp-model-category {
+    margin-top: var(--global-padding-double);
+}
+
 .pp-model-cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -454,12 +484,13 @@ li {
     border-radius: 0;
     color: var(--font-color);
     transition: border-color 0.15s;
-    background: var(--card-background-color);
+
 }
 
 .pp-model-card:hover {
-    border-color: var(--secondary-color);
+    border: 1px solid var(--secondary-color);
     text-decoration: none;
+    background: var(--card-background-color);
 }
 
 .pp-model-card p {

@@ -38,7 +38,7 @@ func TestComprehensiveIndentationCheck(t *testing.T) {
 		{
 			name: "example_value_change",
 			markdown: `- Response ` + "`200`" + `:
-  - Content ` + "`application/json`" + `:
+  - Media Type ` + "`application/json`" + `:
     - Example ` + "`value`" + ` changed to:
 
       ` + "```yaml\n      data: test\n      ```",
@@ -48,7 +48,7 @@ func TestComprehensiveIndentationCheck(t *testing.T) {
 		{
 			name: "deep_nested_response_example",
 			markdown: `- Response ` + "`200`" + `:
-  - Content ` + "`application/json`" + `:
+  - Media Type ` + "`application/json`" + `:
     - Example ` + "`Card`" + `:
       - ` + "`value`" + ` changed to:
 

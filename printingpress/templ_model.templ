@@ -2,8 +2,22 @@ package printingpress
 
 import "fmt"
 
+templ Breadcrumb(items []BreadcrumbItem) {
+	<sl-breadcrumb class="pp-breadcrumb">
+		<sl-icon name="chevron-right" slot="separator"></sl-icon>
+		for _, item := range items {
+			if item.Href != "" {
+				<sl-breadcrumb-item href={ templ.SafeURL(item.Href) }>{ item.Label }</sl-breadcrumb-item>
+			} else {
+				<sl-breadcrumb-item>{ item.Label }</sl-breadcrumb-item>
+			}
+		}
+	</sl-breadcrumb>
+}
+
 templ ModelPageTempl(page *ModelPage) {
 	<div class="pp-model">
+		@Breadcrumb(modelBreadcrumb(page))
 		<div class="pp-model-header">
 			<pp-icon-title icon={ page.ComponentType } heading={ page.Name }></pp-icon-title>
 			if page.RawYAML != "" || page.SchemaJSON != "" {

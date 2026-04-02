@@ -18,7 +18,7 @@ func TestStationsExampleIssue(t *testing.T) {
 **Responses:**
 
 - Response ` + "`200`" + `:
-  - Content ` + "`application/json`" + `:
+  - Media Type ` + "`application/json`" + `:
     - Example ` + "`value`" + ` added:
 
       ` + "```yaml" + `

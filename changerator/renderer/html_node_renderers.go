@@ -61,29 +61,47 @@ func (r *changeHTMLRenderer) renderText(
 		if objectType, hasMatch := r.matchesObjectTypePattern(textContent); hasMatch {
 			// Look ahead to see if the next sibling is a code span
 			if nextSibling := node.NextSibling(); nextSibling != nil {
-				if _, ok := nextSibling.(*ast.CodeSpan); ok {
+				if codeSpan, ok := nextSibling.(*ast.CodeSpan); ok {
 					// Check if this is a top-level list item (not nested)
 					isTopLevel := r.isTopLevelListItem(node)
 
-					// Extract location prefix for compound parameter patterns (only for top-level)
-					if isTopLevel {
-						locationPrefix = r.extractLocationPrefix(textContent)
-					}
+					// For operations, render the HTTP method component instead of a gear icon
+					if objectType == "operation" {
+						var methodName string
+						for c := codeSpan.FirstChild(); c != nil; c = c.NextSibling() {
+							if text, ok := c.(*ast.Text); ok {
+								methodName = string(text.Segment.Value(source))
+								break
+							}
+						}
+						if methodName != "" {
+							w.WriteString(`<pb33f-http-method method="`)
+							w.WriteString(strings.ToUpper(methodName))
+							w.WriteString(`" tiny></pb33f-http-method> `)
+							r.skipNextCodeSpan = true
+							skipObjectTypeText = true
+						}
+					} else {
+						// Extract location prefix for compound parameter patterns (only for top-level)
+						if isTopLevel {
+							locationPrefix = r.extractLocationPrefix(textContent)
+						}
 
-					// Render location prefix if present
-					if locationPrefix != "" {
-						w.Write(util.EscapeHTML([]byte(locationPrefix)))
-						w.WriteByte(' ')
-					}
+						// Render location prefix if present
+						if locationPrefix != "" {
+							w.Write(util.EscapeHTML([]byte(locationPrefix)))
+							w.WriteByte(' ')
+						}
 
-					// Inject icon before the text
-					w.WriteString(`<pb33f-model-icon icon="`)
-					w.WriteString(objectType)
-					w.WriteString(`" size="tiny"></pb33f-model-icon> `)
+						// Inject icon before the text
+						w.WriteString(`<pb33f-model-icon icon="`)
+						w.WriteString(objectType)
+						w.WriteString(`" size="tiny"></pb33f-model-icon> `)
 
-					// If top-level, skip rendering the redundant object type text
-					if isTopLevel {
-						skipObjectTypeText = true
+						// If top-level, skip rendering the redundant object type text
+						if isTopLevel {
+							skipObjectTypeText = true
+						}
 					}
 				}
 			}
@@ -132,6 +150,13 @@ func (r *changeHTMLRenderer) renderCodeSpan(
 ) (ast.WalkStatus, error) {
 	if !entering {
 		return ast.WalkContinue, nil
+	}
+
+	// Skip this code span if the previous text node already rendered its content
+	// (e.g., as a pb33f-http-method component)
+	if r.skipNextCodeSpan {
+		r.skipNextCodeSpan = false
+		return ast.WalkSkipChildren, nil
 	}
 
 	var textContent string
@@ -897,9 +922,11 @@ func (r *changeHTMLRenderer) matchesObjectTypePattern(text string) (string, bool
 		{"Request Bodies", "requestBody"},
 		{"Response Body", "requestBody"},
 		{"Security Scheme:", "securityScheme"},
+		{"Security Scheme", "securityScheme"},
 		{"Media Type", "mediaType"},
 		{"External Doc", "externalDoc"},
 		{"Schema:", "schema"},
+		{"Schema", "schema"},
 		{"Query Parameter", "parameter"},   // compound patterns for parameter locations
 		{"Path Parameter", "parameter"},
 		{"Header Parameter", "parameter"},
