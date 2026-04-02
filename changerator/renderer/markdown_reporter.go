@@ -1052,25 +1052,37 @@ func (r *MarkdownReporter) renderOperationChanges(report *strings.Builder, metho
 	}
 
 	// Render direct operation property changes (summary, operationId, description, etc.)
-	// Separate parameter-related changes from other property changes
+	// Split into three buckets: parameter-related, tag-related, and other
 	var parameterChanges []*model.Change
+	var tagChanges []*model.Change
 	var otherChanges []*model.Change
 
 	for _, change := range opChanges.GetPropertyChanges() {
 		if change.Property == "parameters" || isParameterPropertyChange(change) {
 			parameterChanges = append(parameterChanges, change)
+		} else if change.Property == "tags" {
+			tagChanges = append(tagChanges, change)
 		} else {
 			otherChanges = append(otherChanges, change)
 		}
 	}
 
-	// Render non-parameter property changes first
+	// Render non-parameter, non-tag property changes first
 	if len(otherChanges) > 0 {
 		r.wrapExample(report, "operation-properties", 0, func() {
 			for _, change := range otherChanges {
 				r.renderChange(report, change)
 			}
 		})
+		report.WriteString("\n")
+	}
+
+	// Tags subsection
+	if len(tagChanges) > 0 {
+		report.WriteString("**Tags:**\n\n")
+		for _, change := range tagChanges {
+			r.renderChange(report, change)
+		}
 		report.WriteString("\n")
 	}
 

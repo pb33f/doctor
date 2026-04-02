@@ -4,7 +4,9 @@
 package v3
 
 import (
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -311,6 +313,26 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 	pm, err := json.Marshal(propMap)
 
 	return pm, err
+}
+
+// NewSyntheticNode creates a minimal Node for use outside the normal model walk.
+// It is sufficient for tree/explorer rendering and the report path, but does not
+// participate in ELK layout, edges, or object channel emission.
+func NewSyntheticNode(id, parentId, label, nodeType string) *Node {
+	return &Node{
+		Id:            id,
+		IdHash:        fmt.Sprintf("%x", sha256.Sum256([]byte(id))),
+		ParentId:      parentId,
+		Label:         label,
+		Type:          nodeType,
+		Width:         WIDTH,
+		Height:        HEIGHT,
+		IsArray:       true,
+		ArrayValues:   0,
+		ArrayIndex:    -1,
+		RenderChanges: true,
+		RenderProps:   true,
+	}
 }
 
 func GenerateNode(parentId string, instance any, drModel any, ctx *DrContext) *Node {
