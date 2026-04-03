@@ -11,17 +11,60 @@ import (
 	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/pb33f/libopenapi/what-changed"
+	wcModel "github.com/pb33f/libopenapi/what-changed/model"
 	"reflect"
 )
+
+type nodePropertyChanges struct {
+	changes []*wcModel.Change
+}
+
+func (n *nodePropertyChanges) GetAllChanges() []*wcModel.Change {
+	return n.changes
+}
+
+func (n *nodePropertyChanges) TotalChanges() int {
+	return len(n.changes)
+}
+
+func (n *nodePropertyChanges) TotalBreakingChanges() int {
+	return wcModel.CountBreakingChanges(n.changes)
+}
+
+func (n *nodePropertyChanges) GetPropertyChanges() []*wcModel.Change {
+	return n.changes
+}
+
+func (n *nodePropertyChanges) PropertiesOnly() {}
+
+func nodeScopedChanges(ch what_changed.Changed) what_changed.Changed {
+	if ch == nil {
+		return nil
+	}
+
+	switch typed := any(ch).(type) {
+	case *wcModel.SchemaChanges:
+		if typed == nil || typed.PropertyChanges == nil {
+			return &nodePropertyChanges{}
+		}
+		return &nodePropertyChanges{changes: typed.PropertyChanges.GetPropertyChanges()}
+	default:
+		ch.PropertiesOnly()
+		return ch
+	}
+}
 
 func handleChanges[N v3.Foundational](node *v3.Node, ch what_changed.Changed, mo N, nType, nPath string) *v3.NodeChange {
 	var q any
 	q = ch
 	var aux *v3.NodeChange
 	if q != nil && !reflect.ValueOf(q).IsNil() {
-		ch.PropertiesOnly()
+		nodeChanges := nodeScopedChanges(ch)
+		if nodeChanges == nil {
+			return nil
+		}
 		// flesh out the node path and type on the change.
-		for _, c := range ch.GetPropertyChanges() {
+		for _, c := range nodeChanges.GetPropertyChanges() {
 			if nType != "" {
 				c.Type = nType
 			} else {
@@ -42,23 +85,35 @@ func handleChanges[N v3.Foundational](node *v3.Node, ch what_changed.Changed, mo
 			Path:       mo.GenerateJSONPath(),
 			ArrayIndex: node.ArrayIndex,
 		}
-		aux.SetChanges(ch)
+		aux.SetChanges(nodeChanges)
 	}
 
 	if aux != nil {
 		// check if this node already has this change (seen when used as a reference)
 		addChange := true
 		for _, nch := range node.GetChanges() {
-			for _, chg := range nch.GetPropertyChanges() {
-				if chg.Path == aux.Path && chg.Type == aux.Type && chg.Property == chg.Property {
+			for _, existing := range nch.GetPropertyChanges() {
+				for _, candidate := range aux.GetPropertyChanges() {
+					if existing.Path == candidate.Path &&
+						existing.Type == candidate.Type &&
+						existing.Property == candidate.Property &&
+						existing.ChangeType == candidate.ChangeType {
 					// found a match, so we can skip this change
-					addChange = false
+						addChange = false
+						break
+					}
 				}
+				if !addChange {
+					break
+				}
+			}
+			if !addChange {
+				break
 			}
 		}
 
 		if addChange {
-			node.AppendChange(ch)
+			node.AppendChange(aux.Changes)
 			mo.AddChange(aux)
 		}
 	}

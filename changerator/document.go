@@ -99,66 +99,79 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 		}
 	}
 	if docChanges != nil && len(docChanges.TagChanges) > 0 {
-		nCtx := context.WithValue(ctx, v3.Context, docChanges.TagChanges)
+		tagsContainerNode := func() *v3.Node {
+			for _, tag := range doc.Tags {
+				if tag != nil && tag.GetNodeParent() != nil && tag.GetNodeParent().GetNode() != nil {
+					return tag.GetNodeParent().GetNode()
+				}
+			}
+			return nil
+		}
 		for _, tc := range docChanges.TagChanges {
 
 			// iterate through the tags and find the one that matches this tag
 			for _, ch := range tc.GetAllChanges() {
 				var tag *v3.Tag
 				switch ch.ChangeType {
-				case model.Modified:
-					modifiedObject := ch.NewObject
-					if modifiedObject != nil {
-						if hashable, ok := modifiedObject.(low.Hashable); ok {
-							hash := hashable.Hash()
-							for _, tag = range doc.Tags {
-								if tag.Value.GoLow().Hash() == hash {
-									nCtx = context.WithValue(ctx, v3.Context, tc)
-									tag.Travel(nCtx, t)
-								}
-							}
-						} else {
-							// iterate through all the tags, check if they have an extension of the same name
-							for _, tag = range doc.Tags {
-								if !tag.Value.Extensions.IsZero() {
-									tagExt := tag.Value.Extensions.GetOrZero(ch.Property)
-									if tagExt != nil {
-										if tagExt == modifiedObject {
-											nCtx = context.WithValue(ctx, v3.Context, tc)
-											tag.Travel(nCtx, t)
-										}
+				case model.ObjectAdded:
+					fallthrough
+				case model.ObjectRemoved:
+					tagsNode := tagsContainerNode()
+					if tagsNode == nil {
+						break
+					}
+					for _, cj := range tc.GetAllChanges() {
+						cj.Path = "$.tags"
+						cj.Type = "tags"
+					}
+					aux := &v3.NodeChange{
+						Id:         tagsNode.Id,
+						IdHash:     tagsNode.IdHash,
+						Type:       tagsNode.Type,
+						Label:      tagsNode.Label,
+						Path:       "$.tags",
+						ArrayIndex: tagsNode.ArrayIndex,
+					}
+					aux.SetChanges(tc)
+					tagsNode.Mutex.Lock()
+					tagsNode.Changes = append(tagsNode.Changes, aux)
+					tagsNode.Mutex.Unlock()
+					nChan := ctx.Value(NodeChannel)
+					if nChan != nil {
+						nChan.(chan *modelChange) <- &modelChange{
+							model: doc,
+							node:  tagsNode,
+						}
+					}
+					break
+					case model.Modified:
+						modifiedObject := ch.NewObject
+						if modifiedObject != nil {
+							if hashable, ok := modifiedObject.(low.Hashable); ok {
+								hash := hashable.Hash()
+								for _, tag = range doc.Tags {
+									if tag.Value.GoLow().Hash() == hash {
+										nCtx := context.WithValue(ctx, v3.Context, tc)
+										tag.Travel(nCtx, t)
 									}
 								}
+							} else {
+								// iterate through all the tags, check if they have an extension of the same name
+								for _, tag = range doc.Tags {
+								if !tag.Value.Extensions.IsZero() {
+										tagExt := tag.Value.Extensions.GetOrZero(ch.Property)
+										if tagExt != nil {
+											if tagExt == modifiedObject {
+												nCtx := context.WithValue(ctx, v3.Context, tc)
+												tag.Travel(nCtx, t)
+											}
+										}
+									}
 							}
 						}
 					}
 					break
 				default:
-
-					docModelNode := doc.Node
-					for _, cj := range tc.GetAllChanges() {
-						cj.Path = "$.tags"
-						cj.Type = "tag"
-					}
-					aux := &v3.NodeChange{
-						Id:         docModelNode.Id,
-						IdHash:     docModelNode.IdHash,
-						Type:       docModelNode.Type,
-						Label:      docModelNode.Label,
-						Path:       "$.tags",
-						ArrayIndex: -1,
-					}
-					aux.SetChanges(tc)
-					docModelNode.Mutex.Lock()
-					docModelNode.Changes = append(docModelNode.Changes, aux)
-					docModelNode.Mutex.Unlock()
-					nChan := ctx.Value(NodeChannel)
-					if nChan != nil {
-						nChan.(chan *modelChange) <- &modelChange{
-							model: doc,
-							node:  docModelNode,
-						}
-					}
 					break
 				}
 			}
