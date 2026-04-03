@@ -120,7 +120,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			ValueNode:   ExtractValueNodeForLowModel(doc.GoLow().Security),
 			KeyNode:     ExtractKeyNodeForLowModel(doc.GoLow().Security),
 		}
-		secNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(secNode.PathSegment),
+		secNode.BuildNodesAndEdgesWithArray(ctx, "Security Requirements",
 			secNode.PathSegment, nil, d, true, len(doc.Security), &negOne)
 
 		for i, security := range doc.Security {

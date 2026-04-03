@@ -163,6 +163,7 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 					t.mutex.Unlock()
 				}
 			}
+			doneChan <- struct{}{}
 		}()
 		nCtx := chCtx
 		for _, rn := range referenceNodeeChanges {
@@ -176,6 +177,7 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 			}
 		}
 		close(t.NodeChan)
+		<-doneChan
 	}
 
 	return docChanges
@@ -272,6 +274,15 @@ func (t *Changerator) Visit(ctx context.Context, object any) {
 	case *v3.OAuthFlows:
 		t.VisitOAuthFlows(ctx, obj)
 	case *v3.OAuthFlow:
+		// OAuthFlow has no graph node, so PushChanges can't set Change.Type.
+		// Set it explicitly on all property changes.
+		if ch, ok := ctx.Value(v3.Context).(*whatChangedModel.OAuthFlowChanges); ok && ch != nil {
+			for _, c := range ch.GetAllChanges() {
+				if c.Type == "" {
+					c.Type = "securityScheme"
+				}
+			}
+		}
 		PushChanges(ctx, obj, &whatChangedModel.OAuthFlowChanges{})
 	default:
 		if t.Config.Logger != nil {

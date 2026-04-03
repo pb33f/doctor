@@ -51,19 +51,20 @@ func (t *Changerator) VisitOperation(ctx context.Context, obj *v3.Operation) {
 		if len(tagChanges) > 0 {
 			// If the Tags child node doesn't exist (all tags removed on right side),
 			// create a synthetic one. Walk-time helpers are not available here.
-			if obj.Tags == nil {
+			if obj.Tags == nil && obj.GetNode() != nil {
 				tagsFoundation := &v3.Foundation{}
 				tagsFoundation.Parent = obj
 				tagsFoundation.NodeParent = obj
 				tagsFoundation.SetPathSegment("tags")
 
-				nodeId := obj.GetNode().Id + "-tags"
-				tagsNode := v3.NewSyntheticNode(nodeId, obj.GetNode().Id, "Tags", "tags")
+				opNode := obj.GetNode()
+				nodeId := opNode.Id + "-tags"
+				tagsNode := v3.NewSyntheticNode(nodeId, opNode.Id, "Tags", "tags")
 				tagsFoundation.SetNode(tagsNode)
 
-				obj.GetNode().Mutex.Lock()
-				obj.GetNode().Children = append(obj.GetNode().Children, tagsNode)
-				obj.GetNode().Mutex.Unlock()
+				opNode.Mutex.Lock()
+				opNode.Children = append(opNode.Children, tagsNode)
+				opNode.Mutex.Unlock()
 
 				obj.Tags = tagsFoundation
 			}
@@ -110,9 +111,23 @@ func (t *Changerator) VisitOperation(ctx context.Context, obj *v3.Operation) {
 			}
 		}
 
-		if obj.Security != nil && len(changes.SecurityRequirementChanges) > 0 {
-			nCtx = context.WithValue(ctx, v3.Context, changes.SecurityRequirementChanges)
-			PushChangesFromSlice(nCtx, obj, []*model.SecurityRequirementChanges{}, "", "")
+		if len(changes.SecurityRequirementChanges) > 0 {
+			if len(obj.Security) > 0 {
+				for i := range changes.SecurityRequirementChanges {
+					requirement := matchSecurityRequirementChange(obj.Security, changes.SecurityRequirementChanges[i])
+					if requirement == nil {
+						if i >= len(obj.Security) || obj.Security[i] == nil {
+							continue
+						}
+						requirement = obj.Security[i]
+					}
+					nCtx = context.WithValue(ctx, v3.Context, changes.SecurityRequirementChanges[i])
+					requirement.Travel(nCtx, t)
+				}
+			} else {
+				nCtx = context.WithValue(ctx, v3.Context, changes.SecurityRequirementChanges)
+				PushChangesFromSlice(nCtx, obj, []*model.SecurityRequirementChanges{}, "", "")
+			}
 		}
 
 		if changes.ExternalDocChanges != nil && obj.ExternalDocs != nil {

@@ -76,6 +76,7 @@ func (r *HTMLRenderer) RenderMarkdown(input *RenderInput) (string, error) {
 		input.RightDocContent,
 		input.Config,
 	)
+	reporter.deduplicatedChanges = input.DeduplicatedChanges
 
 	return reporter.Generate(), nil
 }

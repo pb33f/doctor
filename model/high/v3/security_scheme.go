@@ -25,6 +25,7 @@ func (s *SecurityScheme) Walk(ctx context.Context, securityScheme *v3.SecuritySc
 	if securityScheme.Flows != nil {
 		f := &OAuthFlows{}
 		f.Parent = s
+		f.NodeParent = s
 		f.SetPathSegment("flows")
 		drCtx.RunWalk(func() { f.Walk(ctx, securityScheme.Flows) })
 		s.Flows = f
