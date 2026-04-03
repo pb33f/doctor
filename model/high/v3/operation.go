@@ -165,6 +165,17 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 	}
 
 	if operation.Security != nil {
+		secNode := &Foundation{
+			Parent:      o,
+			NodeParent:  o,
+			PathSegment: "security",
+			Index:       o.Index,
+			ValueNode:   ExtractValueNodeForLowModel(operation.GoLow().Security),
+			KeyNode:     ExtractKeyNodeForLowModel(operation.GoLow().Security),
+		}
+		secNode.BuildNodesAndEdgesWithArray(ctx, "Security Requirements",
+			secNode.PathSegment, nil, o, true, len(operation.Security), &negOne)
+
 		o.Security = []*SecurityRequirement{}
 		for i, security := range operation.Security {
 			sec := security
@@ -189,9 +200,20 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 
 			s := &SecurityRequirement{}
 			s.Parent = o
+			s.NodeParent = secNode
+			s.SetPathSegment("security")
 			s.IsIndexed = true
 			s.Index = &i
-			s.NodeParent = o
+			s.Value = sec
+			s.ValueNode = operation.GoLow().Security.Value[i].ValueNode
+			s.KeyNode = security.GoLow().RootNode
+
+			label := ""
+			for k, _ := range sec.Requirements.FromOldest() {
+				label = k
+				break
+			}
+			s.BuildNodesAndEdgesWithArray(ctx, label, "security", sec, s, false, 0, &i)
 			drCtx.RunWalk(func() { s.Walk(ctx, sec) })
 			o.Security = append(o.Security, s)
 		}

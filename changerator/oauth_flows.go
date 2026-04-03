@@ -29,6 +29,10 @@ func (t *Changerator) VisitOAuthFlows(ctx context.Context, obj *v3.OAuthFlows) {
 			nCtx = context.WithValue(ctx, v3.Context, changes.ClientCredentialsChanges)
 			obj.ClientCredentials.Travel(nCtx, t)
 		}
+		if changes.DeviceChanges != nil && obj.Device != nil {
+			nCtx = context.WithValue(ctx, v3.Context, changes.DeviceChanges)
+			obj.Device.Travel(nCtx, t)
+		}
 		if changes.ExtensionChanges != nil {
 			HandleExtensions(ctx, obj, changes.ExtensionChanges)
 		}

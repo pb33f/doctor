@@ -165,8 +165,22 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 		}
 	}
 	if docChanges != nil && len(docChanges.SecurityRequirementChanges) > 0 {
-		nCtx := context.WithValue(ctx, v3.Context, docChanges.SecurityRequirementChanges)
-		PushChangesFromSlice(nCtx, doc, []*model.SecurityRequirementChanges{}, "", "")
+		if len(doc.Security) > 0 {
+			for i := range docChanges.SecurityRequirementChanges {
+				requirement := matchSecurityRequirementChange(doc.Security, docChanges.SecurityRequirementChanges[i])
+				if requirement == nil {
+					if i >= len(doc.Security) || doc.Security[i] == nil {
+						continue
+					}
+					requirement = doc.Security[i]
+				}
+				nCtx := context.WithValue(ctx, v3.Context, docChanges.SecurityRequirementChanges[i])
+				requirement.Travel(nCtx, t)
+			}
+		} else {
+			nCtx := context.WithValue(ctx, v3.Context, docChanges.SecurityRequirementChanges)
+			PushChangesFromSlice(nCtx, doc, []*model.SecurityRequirementChanges{}, "", "")
+		}
 	}
 	if docChanges != nil && docChanges.PathsChanges != nil {
 		nCtx := context.WithValue(ctx, v3.Context, docChanges.PathsChanges)

@@ -29,11 +29,12 @@ var indentCache = map[int]string{
 // MarkdownReporter generates markdown reports directly from DocumentChanges.
 // This approach avoids duplication by using the already-deduplicated what-changed model.
 type MarkdownReporter struct {
-	docChanges      *model.DocumentChanges
-	doctor          *drModel.DrDocument
-	rightDocContent []byte
-	sourceFormat    StructuredDataFormat // Format of the source document (YAML or JSON)
-	config          *RenderConfig
+	docChanges           *model.DocumentChanges
+	doctor               *drModel.DrDocument
+	rightDocContent      []byte
+	sourceFormat         StructuredDataFormat // Format of the source document (YAML or JSON)
+	config               *RenderConfig
+	deduplicatedChanges  []*model.Change
 }
 
 // TypeStatistic holds change counts for a type
@@ -232,6 +233,17 @@ func (r *MarkdownReporter) generateSummary(report *strings.Builder) {
 	totalChanges := r.docChanges.TotalChanges()
 	breakingChanges := r.docChanges.TotalBreakingChanges()
 
+	// Use deduplicated counts when available to match the Changed Items tab.
+	if r.deduplicatedChanges != nil {
+		totalChanges = len(r.deduplicatedChanges)
+		breakingChanges = 0
+		for _, ch := range r.deduplicatedChanges {
+			if ch.Breaking {
+				breakingChanges++
+			}
+		}
+	}
+
 	if totalChanges == 0 {
 		report.WriteString("No changes detected.\n\n")
 		return
@@ -357,10 +369,10 @@ func (r *MarkdownReporter) generateTypeStatistics(report *strings.Builder) {
 			}
 		}
 
-		// Security scheme changes
+		// Security scheme changes (use GetAllChanges to include OAuth flow and scope changes)
 		for _, ssc := range r.docChanges.ComponentsChanges.SecuritySchemeChanges {
 			if ssc != nil {
-				r.addTypeStats(typeStats, "securityScheme", ssc.GetPropertyChanges())
+				r.addTypeStats(typeStats, "securityScheme", ssc.GetAllChanges())
 			}
 		}
 	}
@@ -1869,12 +1881,11 @@ func (r *MarkdownReporter) renderComponentsChanges(report *strings.Builder) {
 				report.WriteString(fmt.Sprintf("#### Security Scheme: `%s`\n\n", name))
 			}
 
-			for _, change := range schemeChange.GetPropertyChanges() {
+			// Use GetAllChanges to get all nested changes including OAuth flow and scope changes
+			allSchemeChanges := schemeChange.GetAllChanges()
+			for _, change := range allSchemeChanges {
 				r.renderChange(report, change)
 			}
-
-			// Render security scheme extensions
-			r.renderNestedExtensions(report, schemeChange.ExtensionChanges, false)
 
 			report.WriteString("\n")
 		}

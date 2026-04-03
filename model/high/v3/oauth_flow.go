@@ -4,13 +4,38 @@
 package v3
 
 import (
+	"context"
+	"strings"
+
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
-	"golang.org/x/net/context"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type OAuthFlow struct {
 	Value *v3.OAuthFlow
 	Foundation
+}
+
+func (o *OAuthFlow) Walk(ctx context.Context, flow *v3.OAuthFlow) {
+	drCtx := GetDrContext(ctx)
+
+	o.Value = flow
+	o.BuildNodesAndEdges(ctx, humanizeOAuthFlowLabel(o.PathSegment), "oauthFlow", flow, o)
+	drCtx.ObjectChan <- o
+}
+
+func humanizeOAuthFlowLabel(pathSegment string) string {
+	switch pathSegment {
+	case "clientCredentials":
+		return "Client Credentials"
+	case "authorizationCode":
+		return "Authorization Code"
+	case "":
+		return "oAuth Flow"
+	default:
+		return strings.TrimSpace(cases.Title(language.English).String(pathSegment))
+	}
 }
 
 func (o *OAuthFlow) GetValue() any {

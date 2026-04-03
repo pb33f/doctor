@@ -10,12 +10,12 @@ info:
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
-  paths:
-    /test:
-      get:
-        responses:
-          "200":
-            content:
-              application/json:
-                schema:
-                  $ref: b.yaml#/components/schemas/SchemaB
+paths:
+  /test:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: b.yaml#/components/schemas/SchemaB

@@ -29,6 +29,11 @@ type RenderInput struct {
 	// RightDocContent is the raw bytes of the new/right document.
 	RightDocContent []byte
 
+	// DeduplicatedChanges is the pre-deduplicated change list.
+	// When set, the reporter uses its length for the total count instead of
+	// the raw recursive TotalChanges() which can double-count.
+	DeduplicatedChanges []*model.Change
+
 	// Config provides rendering customization options.
 	Config *RenderConfig
 }
