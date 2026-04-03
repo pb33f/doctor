@@ -105,15 +105,13 @@ export class PpClassDiagram extends LitElement {
                     z-index: 0;
                 }
                 .pp-expanded-diagram-dialog {
-                    --width: 80vw;
+                    --width: 90vw;
+                    --sl-overlay-background-color: rgba(0, 0, 0, 0.80);
                     z-index: 10000;
                 }
-                .pp-expanded-diagram-dialog::part(overlay) {
-                    background-color: var(--overlay-color);
-                }
                 .pp-expanded-diagram-dialog::part(panel) {
-                    height: 80vh;
-                    max-height: 80vh;
+                    height: 90vh;
+                    max-height: 90vh;
                     background: var(--background-color);
                     border: 1px solid var(--border-color-alpha);
                 }
