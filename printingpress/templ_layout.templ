@@ -22,6 +22,21 @@ templ Layout(pageTitle string, siteTitle string, baseURL string, navJSON string,
 	</html>
 }
 
+func MermaidDiagramScript(diagram string) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		safe := strings.ReplaceAll(diagram, "</", `<\/`)
+		_, err := io.WriteString(w, `<script type="text/plain" class="pp-mermaid-data">`+safe+`</script>`)
+		return err
+	})
+}
+
+func MermaidHighlightedScript(highlightedHTML string) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		_, err := io.WriteString(w, `<template class="pp-mermaid-highlighted">`+highlightedHTML+`</template>`)
+		return err
+	})
+}
+
 func SchemaRegistryScript(registryJSON string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 		safe := strings.ReplaceAll(registryJSON, "</", `<\/`)

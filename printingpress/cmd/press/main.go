@@ -25,10 +25,11 @@ func main() {
 	outputDir := flag.String("out", "/tmp/pp", "output directory")
 	title := flag.String("title", "", "override the API title")
 	serve := flag.Bool("serve", false, "serve the output directory on :9090")
+	noMermaid := flag.Bool("no-mermaid", false, "disable mermaid class diagrams on model pages")
 	flag.Parse()
 
 	if *specPath == "" {
-		fmt.Fprintln(os.Stderr, "usage: press -spec <path> [-base-path <dir>] [-out <dir>] [-title <title>] [-serve]")
+		fmt.Fprintln(os.Stderr, "usage: press -spec <path> [-base-path <dir>] [-out <dir>] [-title <title>] [-serve] [-no-mermaid]")
 		os.Exit(1)
 	}
 
@@ -103,6 +104,7 @@ func main() {
 		Logger:     logger,
 		SpecFormat: specFormat,
 		SpecRoot:   base,
+		NoMermaid:  *noMermaid,
 	})
 
 	site, err := pp.Press()

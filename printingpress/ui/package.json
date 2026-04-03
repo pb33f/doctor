@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && cp dist/printing-press.js ../static/printing-press.js",
+    "build:lite": "VITE_BUNDLE_LITE=1 vite build && cp dist/printing-press.js ../static/printing-press.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -14,6 +15,7 @@
     "@shoelace-style/shoelace": "^2.20.1",
     "@types/prismjs": "^1.26.6",
     "lit": "^3.2.0",
+    "mermaid": "^11.12.0",
     "prismjs": "^1.30.0"
   },
   "devDependencies": {

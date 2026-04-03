@@ -17,13 +17,34 @@ function copyCowboyCSS() {
   };
 }
 
+const isLite = !!process.env.VITE_BUNDLE_LITE;
+
+// In lite builds, stub out the class-diagram import (and its mermaid dependency)
+// to produce a smaller bundle without mermaid.js (~800KB savings).
+function stubMermaidInLite() {
+  if (!isLite) return null;
+  return {
+    name: 'stub-mermaid-lite',
+    resolveId(source: string) {
+      if (source.includes('class-diagram') || source.includes('mermaid-renderer')) {
+        return '\0stub-class-diagram';
+      }
+    },
+    load(id: string) {
+      if (id === '\0stub-class-diagram') {
+        return 'export {}';
+      }
+    },
+  };
+}
+
 export default defineConfig({
   resolve: {
     alias: {
       '@pb33f/cowboy-components': cowboyRoot + '/src',
     },
   },
-  plugins: [copyCowboyCSS()],
+  plugins: [copyCowboyCSS(), stubMermaidInLite()],
   build: {
     lib: {
       entry: 'src/index.ts',

@@ -7,3 +7,13 @@
  .pp-model-header pp-raw-viewer-btn {
      margin-left: auto;
  }
+
+/* Class diagram section */
+.pp-class-diagram-section {
+    margin: var(--global-padding-double) 0;
+}
+
+/* Graceful degradation: hide entire section if lite bundle used (component not defined) */
+.pp-class-diagram-section:has(pp-class-diagram:not(:defined)) {
+    display: none;
+}
