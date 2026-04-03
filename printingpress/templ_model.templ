@@ -81,6 +81,16 @@ templ ModelPageTempl(page *ModelPage) {
 				}>
 			</pp-model-page>
 		}
+		if page.MermaidDiagram != "" {
+			<div class="pp-class-diagram-section">
+				<pp-class-diagram name={ page.Name }>
+					@MermaidDiagramScript(page.MermaidDiagram)
+					if page.MermaidHighlightedHTML != "" {
+						@MermaidHighlightedScript(page.MermaidHighlightedHTML)
+					}
+				</pp-class-diagram>
+			</div>
+		}
 		if page.ExtensionsJSON != "" {
 			<sl-details class="pp-details">
 				<span slot="summary" class="pp-details-summary"><h3>Extensions</h3></span>

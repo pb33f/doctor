@@ -24,6 +24,7 @@ type PrintingPressConfig struct {
 	Logger     *slog.Logger
 	SpecFormat string // "yaml" or "json" — caller should set based on input format
 	SpecRoot   string // root directory of the spec; absolute paths are made relative to this
+	NoMermaid  bool   // skip mermaid class diagram generation on model pages
 }
 
 // PrintingPress generates static HTML documentation from a DrDocument.
@@ -51,16 +52,17 @@ func New(config *PrintingPressConfig) *PrintingPress {
 	mgYAML.SetPretty()
 	mgYAML.DisableRequiredCheck()
 
-	mgXML := renderer.NewMockGenerator(renderer.XML)
-	mgXML.SetPretty()
-	mgXML.DisableRequiredCheck()
+	// TODO: XML mock generator awaiting renderer.XML support in libopenapi
+	// mgXML := renderer.NewMockGenerator(renderer.XML)
+	// mgXML.SetPretty()
+	// mgXML.DisableRequiredCheck()
 
 	return &PrintingPress{
 		config:      config,
 		slugs:       NewSlugRegistry(),
 		mockGen:     mg,
 		mockGenYAML: mgYAML,
-		mockGenXML:  mgXML,
+		// mockGenXML:  mgXML, // TODO: awaiting renderer.XML
 		site: &Site{
 			Models: make(map[string][]*ModelPage),
 		},

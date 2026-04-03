@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/pb33f/doctor/diagramatron"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/bundler"
 	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
@@ -580,10 +581,8 @@ func (pp *PrintingPress) collectMediaType(mediaTypeName string, mt *v3.MediaType
 				if s, ok := decoded.(string); ok && strings.HasPrefix(strings.TrimSpace(s), "<") {
 					mti.Examples[pair.Key()] = s
 				} else {
-					xmlBytes := pp.mockGenXML.RenderXML(decoded, sch)
-					if xmlBytes != nil {
-						mti.Examples[pair.Key()] = string(xmlBytes)
-					}
+					// TODO: awaiting renderer.XML / RenderXML support in libopenapi
+					_ = decoded
 				}
 			default:
 				jsonStr, jsonErr := yamlToJSON(yamlBytes)
@@ -757,6 +756,10 @@ func (pp *PrintingPress) collectComponents(comp *v3.Components) {
 
 // collectSchemaComponents handles schemas specifically since Schema has MarshalJSON.
 func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string, *v3.SchemaProxy]) {
+	var mermaidCfg *diagramatron.MermaidConfig
+	if !pp.config.NoMermaid {
+		mermaidCfg = diagramatron.DefaultMermaidConfig()
+	}
 	for pair := schemas.First(); pair != nil; pair = pair.Next() {
 		name := pair.Key()
 		sp := pair.Value()
@@ -777,6 +780,13 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 				&page.RawYAML, &page.SchemaJSON, &page.SchemaHighlightedHTML)
 			if isComplexSchema(sp.Schema.Value) {
 				page.MockJSON = pp.generateMock(sp.Schema.Value)
+				if mermaidCfg != nil {
+					diagram := diagramatron.Mermaidify(context.Background(), sp, mermaidCfg)
+					if len(diagram.Relationships) > 0 {
+						page.MermaidDiagram = diagram.Render()
+						page.MermaidHighlightedHTML, _ = highlightCode(page.MermaidDiagram, "java")
+					}
+				}
 			}
 			// Collect inline example(s) from schema
 			if sp.Schema.Value.Example != nil || len(sp.Schema.Value.Examples) > 0 {

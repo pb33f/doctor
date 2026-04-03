@@ -291,6 +291,8 @@ type ModelPage struct {
 	ExtensionsJSON        string `json:"-"`
 	CrossRefs             *ModelCrossRefs
 	CrossRefsJSON         string `json:"-"`
+	MermaidDiagram        string `json:"-"` // mermaid class diagram DSL; empty if no relationships
+	MermaidHighlightedHTML string `json:"-"` // chroma-highlighted mermaid source HTML
 }
 
 // ModelCrossRefs holds cross-reference information for a model.
