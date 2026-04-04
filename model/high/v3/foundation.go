@@ -98,6 +98,27 @@ func (f *Foundation) AddChange(change *NodeChange) {
 	f.Changes = append(f.Changes, change)
 }
 
+func (f *Foundation) GetSize() (height, width int) {
+	width = WIDTH
+	height = HEIGHT
+
+	// check for property changes on the Foundation itself
+	for _, change := range f.Changes {
+		if len(change.GetPropertyChanges()) > 0 {
+			height += HEIGHT
+			return height, width
+		}
+	}
+
+	// the changerator may push changes directly to the Node (not the
+	// Foundation) for container nodes like document-level Tags
+	if f.Node != nil && len(f.Node.Changes) > 0 {
+		height += HEIGHT
+	}
+
+	return height, width
+}
+
 func (f *Foundation) GetKeyValue() string {
 	return f.Key
 }
