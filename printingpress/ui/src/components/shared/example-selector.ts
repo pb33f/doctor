@@ -27,6 +27,7 @@ export class PpExampleSelector extends LitElement {
   @property({attribute: 'descriptions-json'}) descriptionsJson = '';
   @property() mode: 'drawer' | 'inline' = 'drawer';
   @property({attribute: 'code-language'}) codeLanguage: 'json' | 'yaml' | 'xml' = 'json';
+  @property({type: Boolean, attribute: 'hide-label'}) hideLabel = false;
 
   @state() private entries: Array<{key: string; json: string}> = [];
   @state() private descriptions: Record<string, string> = {};
@@ -157,14 +158,14 @@ export class PpExampleSelector extends LitElement {
 
     if (this.entries.length === 1) {
       return html`
-        <div class="inline-example-label">${this.inlineLabel(current.key)}</div>
+        ${this.hideLabel ? nothing : html`<div class="inline-example-label">${this.inlineLabel(current.key)}</div>`}
         ${this.renderCodeBlock(current.json)}
       `;
     }
 
     const desc = this.descriptions[current.key];
     return html`
-      <div class="inline-example-label">Example</div>
+      ${this.hideLabel ? nothing : html`<div class="inline-example-label">Example</div>`}
       ${this.renderCodeBlock(current.json)}
       <div class="inline-selector-row">
         <sl-dropdown skidding="5" distance="5">

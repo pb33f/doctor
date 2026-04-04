@@ -26,10 +26,29 @@ export class PpSchemaProperties extends LitElement {
         if (changed.has('schemaJson') && this.schemaJson) {
             try {
                 this.schema = JSON.parse(this.schemaJson);
+                this.computeNameColumnWidth();
             } catch {
                 this.schema = null;
             }
         }
+    }
+
+    private computeNameColumnWidth() {
+        if (!this.schema) return;
+        let maxLen = 0;
+        const props = this.schema.properties;
+        const required = new Set<string>(this.schema.required ?? []);
+        let hasRequired = false;
+        if (props) {
+            for (const name of Object.keys(props)) {
+                if (name.length > maxLen) maxLen = name.length;
+                if (required.has(name)) hasRequired = true;
+            }
+        }
+        // ~8.5px per char in monospace + gap. Add 60px for REQ badge if any property is required.
+        const badgeWidth = hasRequired ? 70 : 0;
+        const width = Math.max(150, maxLen * 8.5 + badgeWidth + 16);
+        this.style.setProperty('--compact-name-width', `${Math.round(width)}px`);
     }
 
     private renderRefAnchor(ref: string, link: { name: string; href: string }) {

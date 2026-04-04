@@ -24,7 +24,8 @@ type PrintingPressConfig struct {
 	Logger     *slog.Logger
 	SpecFormat string // "yaml" or "json" — caller should set based on input format
 	SpecRoot   string // root directory of the spec; absolute paths are made relative to this
-	NoMermaid  bool   // skip mermaid class diagram generation on model pages
+	NoMermaid   bool    // skip mermaid class diagram generation on model pages
+	BuildErrors []error // errors from libopenapi model building (surfaced as warnings on index page)
 }
 
 // PrintingPress generates static HTML documentation from a DrDocument.
@@ -90,7 +91,13 @@ func (pp *PrintingPress) Press() (*Site, error) {
 		}
 	}
 
+	for _, err := range pp.config.BuildErrors {
+		pp.warn("model build issue", "", err)
+	}
 	pp.site.Warnings = pp.warnings
+	if pp.site.Root != nil {
+		pp.site.Root.Warnings = pp.warnings
+	}
 	pp.site.SpecFormat = pp.config.SpecFormat
 	if pp.site.SpecFormat == "" {
 		pp.site.SpecFormat = "yaml"

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/pb33f/doctor/diagramatron"
@@ -166,8 +167,9 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 		pp.visitPaths(ctx, doc.Paths)
 	}
 
-	// assign operations to tags and compute hierarchical tag paths for breadcrumbs
+	// assign operations to tags, auto-group untagged ops by path prefix, then compute breadcrumbs
 	pp.assignOperationsToTags()
+	pp.autoGroupUntaggedOperations()
 	pp.populateTagPaths()
 
 	// Collect webhooks
@@ -1509,4 +1511,191 @@ func ptrBool(b *bool) bool {
 		return false
 	}
 	return *b
+}
+
+// autoGroupUntaggedOperations creates synthetic NavTag entries from path prefixes
+// for operations that have no tags, giving them sidebar navigation.
+// Groups with 2+ distinct second-level segments get parent/child hierarchy.
+// If a path prefix matches an existing tag name, operations merge into that tag.
+func (pp *PrintingPress) autoGroupUntaggedOperations() {
+	untagged := pp.site.Root.UntaggedOperations
+	if len(untagged) == 0 {
+		return
+	}
+
+	// Build lookup of existing tags to merge into (avoids duplicate groups
+	// when a spec has some tagged + some untagged operations under the same prefix)
+	existingTags := make(map[string]*NavTag)
+	var walkExisting func([]*NavTag)
+	walkExisting = func(tags []*NavTag) {
+		for _, tag := range tags {
+			existingTags[tag.Name] = tag
+			walkExisting(tag.Children)
+		}
+	}
+	walkExisting(pp.site.NavTags)
+
+	// Phase 1: Bucket operations by L1 key, then by L2 key within each L1
+	type opBucket struct {
+		l2Ops map[string][]*NavOperation
+		order []string
+	}
+	l1Buckets := make(map[string]*opBucket)
+	var l1Order []string
+
+	for _, op := range untagged {
+		l1, l2 := extractPathGroups(op.Path)
+		bucket, exists := l1Buckets[l1]
+		if !exists {
+			bucket = &opBucket{l2Ops: make(map[string][]*NavOperation)}
+			l1Buckets[l1] = bucket
+			l1Order = append(l1Order, l1)
+		}
+		if _, l2Exists := bucket.l2Ops[l2]; !l2Exists {
+			bucket.order = append(bucket.order, l2)
+		}
+		bucket.l2Ops[l2] = append(bucket.l2Ops[l2], op)
+	}
+
+	sort.Strings(l1Order)
+
+	// Phase 2: Build NavTags — flat or hierarchical based on L2 diversity
+	type tagAssignment struct {
+		l1Key string
+		l2Key string
+	}
+	slugAssign := make(map[string]tagAssignment)
+
+	for _, l1Key := range l1Order {
+		bucket := l1Buckets[l1Key]
+
+		// If an existing tag matches this L1 key, merge operations into it
+		if existing, ok := existingTags[l1Key]; ok {
+			for _, l2Key := range bucket.order {
+				existing.Operations = append(existing.Operations, bucket.l2Ops[l2Key]...)
+			}
+			for _, l2Key := range bucket.order {
+				for _, op := range bucket.l2Ops[l2Key] {
+					slugAssign[op.Slug] = tagAssignment{l1Key, ""}
+				}
+			}
+			continue
+		}
+
+		// Count distinct non-empty L2 keys
+		distinctL2 := 0
+		for _, k := range bucket.order {
+			if k != "" {
+				distinctL2++
+			}
+		}
+
+		if distinctL2 >= 2 {
+			// Hierarchical: parent tag with child tags
+			parent := &NavTag{
+				Name:    l1Key,
+				Summary: pathGroupDisplayName(l1Key),
+				Slug:    pp.slugs.Register("tags", sanitizeSlug(l1Key)),
+			}
+
+			sortedL2 := make([]string, len(bucket.order))
+			copy(sortedL2, bucket.order)
+			sort.Strings(sortedL2)
+
+			for _, l2Key := range sortedL2 {
+				ops := bucket.l2Ops[l2Key]
+				childName := l1Key + "/" + l2Key
+				if l2Key == "" {
+					parent.Operations = append(parent.Operations, ops...)
+					for _, op := range ops {
+						slugAssign[op.Slug] = tagAssignment{l1Key, ""}
+					}
+					continue
+				}
+				child := &NavTag{
+					Name:       childName,
+					Summary:    pathGroupDisplayName(l2Key),
+					Slug:       pp.slugs.Register("tags", sanitizeSlug(childName)),
+					Operations: ops,
+				}
+				parent.Children = append(parent.Children, child)
+				for _, op := range ops {
+					slugAssign[op.Slug] = tagAssignment{l1Key, l2Key}
+				}
+			}
+
+			pp.site.NavTags = append(pp.site.NavTags, parent)
+			pp.site.Root.TagTree = append(pp.site.Root.TagTree, parent)
+		} else {
+			// Flat: single tag for all operations in this L1 group
+			var allOps []*NavOperation
+			for _, l2Key := range bucket.order {
+				allOps = append(allOps, bucket.l2Ops[l2Key]...)
+			}
+			nt := &NavTag{
+				Name:       l1Key,
+				Summary:    pathGroupDisplayName(l1Key),
+				Slug:       pp.slugs.Register("tags", sanitizeSlug(l1Key)),
+				Operations: allOps,
+			}
+			pp.site.NavTags = append(pp.site.NavTags, nt)
+			pp.site.Root.TagTree = append(pp.site.Root.TagTree, nt)
+			for _, op := range allOps {
+				slugAssign[op.Slug] = tagAssignment{l1Key, ""}
+			}
+		}
+	}
+
+	// Phase 3: Set synthetic tags on OperationPages so populateTagPaths() builds breadcrumbs
+	for _, op := range pp.site.Operations {
+		if len(op.Tags) == 0 {
+			if assign, ok := slugAssign[op.Slug]; ok {
+				if assign.l2Key != "" {
+					op.Tags = []string{assign.l1Key + "/" + assign.l2Key}
+				} else {
+					op.Tags = []string{assign.l1Key}
+				}
+			}
+		}
+	}
+
+	pp.site.Root.UntaggedOperations = nil
+}
+
+// extractPathGroups returns the first two meaningful path segments,
+// skipping version prefixes (v1, v2, ...) and path parameters ({id}).
+func extractPathGroups(path string) (string, string) {
+	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
+	var meaningful []string
+	for _, p := range parts {
+		if p == "" || strings.HasPrefix(p, "{") {
+			continue
+		}
+		if len(p) >= 2 && p[0] == 'v' && p[1] >= '0' && p[1] <= '9' {
+			continue
+		}
+		meaningful = append(meaningful, p)
+		if len(meaningful) == 2 {
+			break
+		}
+	}
+	switch len(meaningful) {
+	case 0:
+		return "other", ""
+	case 1:
+		return meaningful[0], ""
+	default:
+		return meaningful[0], meaningful[1]
+	}
+}
+
+// pathGroupDisplayName converts a path segment to a human-readable display name.
+func pathGroupDisplayName(segment string) string {
+	words := strings.Split(segment, "_")
+	for i, w := range words {
+		if len(w) > 0 {
+			words[i] = strings.ToUpper(w[:1]) + w[1:]
+		}
+	}
+	return strings.Join(words, " ")
 }

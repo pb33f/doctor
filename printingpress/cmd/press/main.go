@@ -51,6 +51,7 @@ func main() {
 
 	var drDoc *model.DrDocument
 	var origins bundler.ComponentOriginMap
+	var buildErrors []error
 
 	// Try bundling first (for multi-file specs)
 	config := &datamodel.DocumentConfiguration{
@@ -69,6 +70,7 @@ func main() {
 		v3Model, buildErr := doc.BuildV3Model()
 		if buildErr != nil {
 			logger.Warn("model build error", "error", buildErr)
+			buildErrors = append(buildErrors, buildErr)
 		}
 		if v3Model == nil {
 			logger.Error("failed to build v3 model")
@@ -85,6 +87,7 @@ func main() {
 		v3Model, buildErr := doc.BuildV3Model()
 		if buildErr != nil {
 			logger.Warn("model build error", "error", buildErr)
+			buildErrors = append(buildErrors, buildErr)
 		}
 		if v3Model == nil {
 			logger.Error("failed to build v3 model")
@@ -104,7 +107,8 @@ func main() {
 		Logger:     logger,
 		SpecFormat: specFormat,
 		SpecRoot:   base,
-		NoMermaid:  *noMermaid,
+		NoMermaid:   *noMermaid,
+		BuildErrors: buildErrors,
 	})
 
 	site, err := pp.Press()

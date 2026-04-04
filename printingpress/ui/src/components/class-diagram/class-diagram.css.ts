@@ -63,12 +63,21 @@ export default css`
     .diagram-split {
         border: 1px dashed var(--secondary-color);
         height: 600px;
-        --divider-width: 4px;
+        --divider-width: 2px;
         --divider-hit-area: 12px;
     }
+    .diagram-split::part(divider) {
+        background-color: var(--secondary-color);
+    }
     .diagram-split sl-icon[slot="divider"] {
-        color: var(--font-color-sub1);
-        font-size: 0.8rem;
+        position: absolute;
+        left: 2px;
+        border-radius: 0;
+        background: var(--secondary-color);
+        color: var(--background-color);
+        padding: 0;
+        width: 10px;
+        height: 40px;
     }
     .diagram-view {
         height: 100%;
@@ -82,6 +91,8 @@ export default css`
         flex-direction: column;
         height: 100%;
         border-left: 1px dashed var(--secondary-color);
+        min-width: 0;
+        overflow: hidden;
     }
     .code-header {
         font-family: var(--font-stack);
