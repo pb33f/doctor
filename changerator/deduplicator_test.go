@@ -392,6 +392,58 @@ func TestChangeDeduplicator_ComplexHierarchy(t *testing.T) {
 	assert.Len(t, pathsChanges, 0, "Less specific nodes should not have the change")
 }
 
+func TestDeduplicateAllNodes_ReconcileParentAfterChildReassignment(t *testing.T) {
+	// When DeduplicateAllNodes processes a parent first and a child second,
+	// a duplicate change initially kept at the parent should be reconciled
+	// (removed from parent) after the child claims ownership.
+
+	sharedChange := &model.Change{
+		Property:   "description",
+		ChangeType: model.Modified,
+		Original:   "old",
+		New:        "new",
+		Context: &model.ChangeContext{
+			NewLine:   intPtr(10),
+			NewColumn: intPtr(5),
+		},
+	}
+
+	child := &v3.Node{
+		Id:       "child",
+		ParentId: "parent",
+		Changes:  makeChanges([]*model.Change{sharedChange}),
+	}
+	parent := &v3.Node{
+		Id:       "parent",
+		Children: []*v3.Node{child},
+		Changes:  makeChanges([]*model.Change{sharedChange}),
+	}
+
+	cr := &Changerator{}
+	cr.DeduplicateAllNodes(parent)
+
+	// After reconciliation, parent should have no changes (reassigned to child).
+	assert.Empty(t, parent.Changes,
+		"parent.Changes should be empty after reconciliation — change belongs to deeper child")
+
+	// Child should still have the change.
+	assert.Len(t, child.Changes, 1, "child should retain the change")
+}
+
+func TestReconcileNodeChanges_NilNode(t *testing.T) {
+	dedup := NewChangeDeduplicator()
+	assert.NotPanics(t, func() {
+		dedup.ReconcileNodeChanges(nil)
+	})
+}
+
+func TestReconcileNodeChanges_EmptyChanges(t *testing.T) {
+	dedup := NewChangeDeduplicator()
+	node := &v3.Node{Id: "n"}
+	dedup.ReconcileNodeChanges(node)
+	assert.Nil(t, node.Changes)
+}
+
 func TestChangeDeduplicator_DifferentChangeTypes(t *testing.T) {
 	dedup := NewChangeDeduplicator()
 

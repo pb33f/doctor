@@ -30,7 +30,8 @@ import (
 type ChangeDeduplicator struct {
 	seen          map[string]*dedupedChange
 	changesByNode map[string][]*model.Change
-	hierarchyMap  map[string]string // child -> parent ID mapping
+	hierarchyMap  map[string]string          // child -> parent ID mapping
+	hashCache     map[*model.Change]string   // avoids recomputing SHA-256 during reconciliation
 }
 
 // dedupedChange tracks metadata about a deduplicated change
@@ -47,12 +48,25 @@ func NewChangeDeduplicator() *ChangeDeduplicator {
 		seen:          make(map[string]*dedupedChange),
 		changesByNode: make(map[string][]*model.Change),
 		hierarchyMap:  make(map[string]string),
+		hashCache:     make(map[*model.Change]string),
 	}
 }
 
 // GenerateChangeHash creates a unique hash for a change based on its semantic content.
 // This hash is used to identify duplicate changes across different nodes in the hierarchy.
+// Results are cached per *model.Change pointer to avoid redundant SHA-256 computation
+// during the reconciliation pass.
 func (d *ChangeDeduplicator) GenerateChangeHash(change *model.Change) string {
+	if cached, ok := d.hashCache[change]; ok {
+		return cached
+	}
+	hash := generateChangeHash(change)
+	d.hashCache[change] = hash
+	return hash
+}
+
+// generateChangeHash is the standalone hash computation, usable without a ChangeDeduplicator.
+func generateChangeHash(change *model.Change) string {
 	h := sha256.New()
 
 	h.Write([]byte(fmt.Sprintf("%s:%d:%s:%s",
@@ -182,40 +196,47 @@ func (d *ChangeDeduplicator) DeduplicateNodeChanges(node *v3.Node) {
 
 	d.RegisterNode(node.Id, node.ParentId)
 
-	uniqueHashes := make(map[string]bool)
-
 	for _, changeSet := range node.Changes {
 		for _, change := range changeSet.GetAllChanges() {
-			hash := d.GenerateChangeHash(change)
-			if d.ProcessChange(change, node.Id) {
-				uniqueHashes[hash] = true
-			}
+			d.ProcessChange(change, node.Id)
 		}
 	}
 
-	var cleanedChanges []whatChanged.Changed
+	node.Changes = d.filterOwnedChangeSets(node)
+}
+
+// ReconcileNodeChanges re-filters a node's Changes based on the deduplicator's
+// final ownership state. This is needed because DeduplicateNodeChanges processes
+// nodes top-down: when a parent is processed first, it keeps a change that may
+// later be reassigned to a deeper child. This second pass fixes the parent's
+// Changes to reflect the final ownership.
+func (d *ChangeDeduplicator) ReconcileNodeChanges(node *v3.Node) {
+	if node == nil || len(node.Changes) == 0 {
+		return
+	}
+	node.Changes = d.filterOwnedChangeSets(node)
+}
+
+// filterOwnedChangeSets returns only the ChangeSets from node.Changes that
+// contain at least one change owned by this node (i.e., this node is the
+// deepest node where the change appears).
+func (d *ChangeDeduplicator) filterOwnedChangeSets(node *v3.Node) []whatChanged.Changed {
+	var owned []whatChanged.Changed
 	for _, changeSet := range node.Changes {
-		hasUniqueChanges := false
 		for _, change := range changeSet.GetAllChanges() {
 			hash := d.GenerateChangeHash(change)
 			if dc, exists := d.seen[hash]; exists && dc.lowestNodeId == node.Id {
-				hasUniqueChanges = true
+				owned = append(owned, changeSet)
 				break
 			}
 		}
-
-		if hasUniqueChanges {
-			cleanedChanges = append(cleanedChanges, changeSet)
-		}
 	}
-
-	node.Changes = cleanedChanges
+	return owned
 }
 
 // GetChangeHash is a public convenience function to generate a hash for a change.
 func GetChangeHash(change *model.Change) string {
-	d := NewChangeDeduplicator()
-	return d.GenerateChangeHash(change)
+	return generateChangeHash(change)
 }
 
 // GetStatistics returns statistics about deduplicated changes.
@@ -242,6 +263,7 @@ func (d *ChangeDeduplicator) Reset() {
 	d.seen = make(map[string]*dedupedChange)
 	d.changesByNode = make(map[string][]*model.Change)
 	d.hierarchyMap = make(map[string]string)
+	d.hashCache = make(map[*model.Change]string)
 }
 
 // GetDuplicateCount returns the total number of duplicate changes that were filtered out.

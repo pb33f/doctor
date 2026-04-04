@@ -37,6 +37,25 @@ var (
 	}
 )
 
+// ChangeSummary holds aggregated change counts for a node's subtree.
+type ChangeSummary struct {
+	Additions     int `json:"additions"`
+	Modifications int `json:"modifications"`
+	Removals      int `json:"removals"`
+	Breaking      int `json:"breaking"`
+	Total         int `json:"total"`
+}
+
+// ChildChangeSummary represents one child row in change-view rendering.
+// Go field "ChildChangeSummaries" serializes as JSON "childChanges" via MarshalJSON.
+type ChildChangeSummary struct {
+	Label   string         `json:"label"`
+	Type    string         `json:"type"`
+	IdHash  string         `json:"idHash"`
+	NodeId  string         `json:"nodeId"`
+	Changes *ChangeSummary `json:"changes"`
+}
+
 type Node struct {
 	Value               *yaml.Node             `json:"-"`
 	Id                  string                 `json:"id"`
@@ -63,8 +82,10 @@ type Node struct {
 	DrInstance          any                    `json:"-"`
 	Changes             []what_changed.Changed `json:"-"`
 	RenderedChanges     []*model.Change        `json:"timeline,omitempty"`
-	CleanedChanged      []*model.Change        `json:"cleanedChanges,omitempty"`
-	RenderProps         bool                   `json:"-"`
+	CleanedChanged       []*model.Change        `json:"cleanedChanges,omitempty"`
+	SubtreeChanges       *ChangeSummary         `json:"-"`
+	ChildChangeSummaries []*ChildChangeSummary  `json:"-"`
+	RenderProps          bool                   `json:"-"`
 	RenderChanges       bool                   `json:"-"`
 	RenderProblems      bool                   `json:"-"`
 	RenderProblemsAsIds bool                   `json:"-"` // modified design to stop embedding violations in nodes, uses lookup now.
@@ -308,6 +329,13 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		if n.RenderedChanges != nil {
 			propMap["timeline"] = n.RenderedChanges
 		}
+	}
+
+	if n.SubtreeChanges != nil {
+		propMap["subtreeChanges"] = n.SubtreeChanges
+	}
+	if len(n.ChildChangeSummaries) > 0 {
+		propMap["childChanges"] = n.ChildChangeSummaries
 	}
 
 	pm, err := json.Marshal(propMap)

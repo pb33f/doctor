@@ -181,8 +181,23 @@ func (t *Changerator) DeduplicateAllNodes(root *v3.Node) {
 		t.Deduplicator = NewChangeDeduplicator()
 	}
 
-	// recursively deduplicate all nodes
+	// First pass: process all nodes top-down, building ownership map.
 	t.deduplicateNodeRecursive(root)
+
+	// Second pass: reconcile node.Changes with final ownership.
+	// Needed because the first pass processes parents before children,
+	// so a parent may keep a change that is later reassigned to a child.
+	t.reconcileNodeRecursive(root)
+}
+
+func (t *Changerator) reconcileNodeRecursive(node *v3.Node) {
+	if node == nil {
+		return
+	}
+	t.Deduplicator.ReconcileNodeChanges(node)
+	for _, child := range node.Children {
+		t.reconcileNodeRecursive(child)
+	}
 }
 
 // deduplicateNodeRecursive recursively deduplicates a node and its children
