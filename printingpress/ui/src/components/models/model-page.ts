@@ -64,10 +64,30 @@ export class PpModelPage extends LitElement {
     this._rafId = requestAnimationFrame(() => {
       this._sizePending = false;
       if (!this.splitPanel || !this.propsPane) return;
-      const propsHeight = this.propsPane.scrollHeight;
+
+      // Measure actual content height from children, NOT scrollHeight.
+      // sl-split-panel uses CSS Grid, so the propsPane (height:100%) gets
+      // stretched to match the tallest column (the example pane). Reading
+      // scrollHeight on the container returns that inflated grid height,
+      // not the real content height. Sum child offsetHeights + padding instead.
+      const children = Array.from(this.propsPane.children) as HTMLElement[];
+      const contentHeight = children.reduce((sum, c) => sum + c.offsetHeight, 0);
+      const style = getComputedStyle(this.propsPane);
+      const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      const propsHeight = contentHeight + padding;
+
       const vh = document.documentElement.clientHeight || 800;
-      const h = Math.max(300, Math.min(propsHeight, vh * 0.6));
-      this.splitPanel.style.height = `${h}px`;
+      const propCount = this.parsed?.properties ? Object.keys(this.parsed.properties).length : 0;
+      let h: number;
+      if (propCount >= 6) {
+        h = Math.max(300, Math.min(propsHeight, vh * 0.6));
+      } else {
+        h = Math.max(200, propsHeight);
+      }
+      // Account for split panel's own padding
+      const splitStyle = getComputedStyle(this.splitPanel);
+      const splitPadding = parseFloat(splitStyle.paddingTop) + parseFloat(splitStyle.paddingBottom);
+      this.splitPanel.style.height = `${h + splitPadding}px`;
     });
   }
 
@@ -195,7 +215,8 @@ export class PpModelPage extends LitElement {
         </div>
         <sl-icon slot="divider" name="grip-vertical"></sl-icon>
         <div slot="end" class="split-pane schema-example-pane">
-          <pp-example-selector mode="inline" mock-json=${this.exampleJson} hide-label></pp-example-selector>
+          <pp-example-selector mode="inline" mock-json=${this.exampleJson} hide-label show-expand
+            example-title="${this.name} Example"></pp-example-selector>
         </div>
       </sl-split-panel>
     `;

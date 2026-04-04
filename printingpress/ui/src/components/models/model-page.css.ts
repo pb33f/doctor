@@ -179,6 +179,13 @@ export default css`
         --divider-width: 2px;
         --divider-hit-area: 12px;
         margin-top: var(--global-padding-double);
+        overflow: hidden;
+        grid-template-rows: 1fr;
+        border-top: 1px solid var(--secondary-color-lowalpha);
+        border-bottom: 1px solid var(--secondary-color-lowalpha);
+        padding-top: var(--global-padding);
+        padding-bottom: var(--global-padding);
+        
     }
     .schema-split::part(divider) {
         background-color: var(--secondary-color);
@@ -233,4 +240,5 @@ export default css`
         --example-margin: 0;
         --code-viewer-margin-top: 0;
     }
+
 `
