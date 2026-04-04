@@ -385,7 +385,7 @@ sl-details.pp-details::part(content) {
 /* Model pages */
 .pp-model-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
 }
 
 .pp-component-type {

@@ -6,6 +6,8 @@
 
  .pp-model-header pp-raw-viewer-btn {
      margin-left: auto;
+     flex-shrink: 0;
+     margin-top: 0
  }
 
 /* Class diagram section */

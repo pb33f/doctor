@@ -3,8 +3,13 @@ import {css} from 'lit';
 export default css`
     :host {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: var(--global-padding);
+    }
+
+    pb33f-model-icon {
+        flex-shrink: 0;
+        margin-top: var(--global-padding);
     }
 
     h1, h2, h3, h4 {
@@ -12,6 +17,7 @@ export default css`
         padding: 0;
         font-family: var(--font-stack-bold), monospace;
         font-weight: normal;
-        color: var(--pp-icon-title-color, inherit);
+        overflow-wrap: anywhere;
+        min-width: 0;
     }
 `;

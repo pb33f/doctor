@@ -1,5 +1,5 @@
 import {LitElement, html, nothing} from 'lit';
-import {customElement, property, state} from 'lit/decorators.js';
+import {customElement, property, state, query} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
 import constraintsCss from '../../styles/constraints.css.js';
 import modelPageCss from './model-page.css.js';
@@ -24,6 +24,52 @@ export class PpModelPage extends LitElement {
   @property() location = '';
   @property({attribute: 'mock-json'}) mockJson = '';
   @state() private parsed: any = null;
+  @state() private wide = false;
+  @state() private exampleJson = '';
+  private resizeObserver: ResizeObserver | null = null;
+  private _sizePending = false;
+  private _rafId = 0;
+  @query('.schema-split') splitPanel!: HTMLElement;
+  @query('.schema-props-pane') propsPane!: HTMLElement;
+
+  connectedCallback() {
+    super.connectedCallback();
+    setTimeout(() => {
+      this.wide = this.offsetWidth >= 900;
+      this.resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          this.wide = entry.contentRect.width >= 900;
+        }
+      });
+      this.resizeObserver.observe(this);
+    }, 0);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    cancelAnimationFrame(this._rafId);
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
+  }
+
+  updated(changed: Map<string, unknown>) {
+    if (changed.has('wide') || changed.has('parsed') || changed.has('exampleJson')) {
+      this.sizeSplitPanel();
+    }
+  }
+
+  private sizeSplitPanel() {
+    if (!this.splitPanel || !this.propsPane || this._sizePending) return;
+    this._sizePending = true;
+    this._rafId = requestAnimationFrame(() => {
+      this._sizePending = false;
+      if (!this.splitPanel || !this.propsPane) return;
+      const propsHeight = this.propsPane.scrollHeight;
+      const vh = document.documentElement.clientHeight || 800;
+      const h = Math.max(300, Math.min(propsHeight, vh * 0.6));
+      this.splitPanel.style.height = `${h}px`;
+    });
+  }
 
   willUpdate(changed: Map<string, unknown>) {
     if (changed.has('modelJson') && this.modelJson) {
@@ -31,6 +77,14 @@ export class PpModelPage extends LitElement {
         this.parsed = JSON.parse(this.modelJson);
       } catch {
         this.parsed = null;
+      }
+    }
+    if (changed.has('parsed') || changed.has('mockJson')) {
+      const schema = this.parsed;
+      if (schema?.example !== undefined) {
+        this.exampleJson = JSON.stringify(schema.example, null, 2);
+      } else {
+        this.exampleJson = this.mockJson || '';
       }
     }
   }
@@ -112,29 +166,48 @@ export class PpModelPage extends LitElement {
   }
 
   private renderSchema(schema: any) {
-    const exampleJson = schema.example !== undefined
-      ? JSON.stringify(schema.example, null, 2)
-      : this.mockJson || '';
     const isComplex = schema.properties || schema.allOf || schema.oneOf || schema.anyOf;
 
-    if (isComplex) {
+    if (!isComplex) {
+      const entries = this.collectSchemaEntries(schema);
       return html`
-        ${exampleJson
-          ? html`<pp-example-selector mode="inline" mock-json=${exampleJson}></pp-example-selector>`
+        ${schema.type !== 'boolean' && this.exampleJson
+          ? html`<pp-example-selector mode="inline" mock-json=${this.exampleJson}></pp-example-selector>`
           : nothing}
-        <h3>${schema.properties ? 'Properties' : (schema.allOf ? 'Composition' : 'Variants')}</h3>
-        <pp-schema-properties schema-json=${this.modelJson}></pp-schema-properties>
+        ${this.renderPropertyGrid(entries)}
       `;
     }
 
-    // Scalar schema — use property grid like parameters/headers
-    const entries = this.collectSchemaEntries(schema);
+    const heading = schema.properties ? 'Properties' : (schema.allOf ? 'Composition' : 'Variants');
 
+    if (this.wide && this.exampleJson) {
+      return this.renderSchemaSplit(heading);
+    }
+    return this.renderSchemaStacked(heading);
+  }
+
+  private renderSchemaSplit(heading: string) {
     return html`
-      ${schema.type !== 'boolean' && exampleJson
-        ? html`<pp-example-selector mode="inline" mock-json=${exampleJson}></pp-example-selector>`
+      <sl-split-panel class="schema-split" position="60">
+        <div slot="start" class="split-pane schema-props-pane">
+          <h3>${heading}</h3>
+          <pp-schema-properties schema-json=${this.modelJson} compact></pp-schema-properties>
+        </div>
+        <sl-icon slot="divider" name="grip-vertical"></sl-icon>
+        <div slot="end" class="split-pane schema-example-pane">
+          <pp-example-selector mode="inline" mock-json=${this.exampleJson} hide-label></pp-example-selector>
+        </div>
+      </sl-split-panel>
+    `;
+  }
+
+  private renderSchemaStacked(heading: string) {
+    return html`
+      ${this.exampleJson
+        ? html`<pp-example-selector mode="inline" mock-json=${this.exampleJson}></pp-example-selector>`
         : nothing}
-      ${this.renderPropertyGrid(entries)}
+      <h3>${heading}</h3>
+      <pp-schema-properties schema-json=${this.modelJson}></pp-schema-properties>
     `;
   }
 

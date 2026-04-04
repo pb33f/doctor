@@ -4,7 +4,7 @@ import dropdownCss from '../../styles/dropdown.css.js';
 export default [dropdownCss, css`
     :host {
         display: inline-block;
-        margin: var(--global-padding) 0 var(--global-padding) 0;
+        margin: var(--example-margin, var(--global-padding) 0 var(--global-padding) 0);
         width: 100%;
     }
 
@@ -88,6 +88,6 @@ export default [dropdownCss, css`
     }
     
     pp-code-viewer {
-        margin-top: var(--global-padding);
+        margin-top: var(--code-viewer-margin-top, var(--global-padding));
     }
 `]

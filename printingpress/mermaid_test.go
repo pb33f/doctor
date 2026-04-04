@@ -228,7 +228,7 @@ components:
 	// Customer page should contain <pp-class-diagram>
 	customerHTML, err := os.ReadFile(filepath.Join(outDir, "models", "schemas", "customer.html"))
 	require.NoError(t, err)
-	assert.True(t, strings.Contains(string(customerHTML), "<pp-class-diagram>"),
+	assert.True(t, strings.Contains(string(customerHTML), "<pp-class-diagram"),
 		"customer page should contain <pp-class-diagram>")
 	assert.True(t, strings.Contains(string(customerHTML), "pp-mermaid-data"),
 		"customer page should contain mermaid data script")

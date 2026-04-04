@@ -132,7 +132,7 @@ export default css`
 
     .example-object {
         margin-bottom: 1rem;
-        padding: 0.5rem 0.75rem;
+        padding: var(--global-padding);
         border-bottom: 1px dotted var(--secondary-color-dimmer);
     }
 
@@ -143,19 +143,19 @@ export default css`
     .example-header {
         display: flex;
         align-items: baseline;
-        gap: 0.5rem;
+        gap: var(--global-padding);
     }
 
     .example-summary {
         color: var(--font-color-sub1);
-        font-family: var(--font-stack);
+        font-family: var(--font-stack), monospace;
         font-size: 0.9em;
     }
 
     .example-external a {
         color: var(--terminal-text);
         text-decoration: none;
-        font-family: var(--font-stack);
+        font-family: var(--font-stack), monospace;
     }
 
     .example-external a:hover {
@@ -167,10 +167,70 @@ export default css`
     a.ref-type-link:active {
         color: var(--terminal-text);
         text-decoration: none;
-        font-family: var(--font-stack);
+        font-family: var(--font-stack), monospace;
     }
 
     a.ref-type-link:hover {
         text-decoration: underline;
+    }
+
+    /* Split panel (wide layout) */
+    .schema-split {
+        --divider-width: 2px;
+        --divider-hit-area: 12px;
+        margin-top: var(--global-padding-double);
+    }
+    .schema-split::part(divider) {
+        background-color: var(--secondary-color);
+    }
+    .schema-split sl-icon[slot="divider"] {
+        position: absolute;
+        left: 2px;
+        border-radius: 0;
+        background: var(--secondary-color);
+        color: var(--background-color);
+        padding: 0;
+        width: var(--global-padding);
+        height: calc(var(--global-padding) * 4);
+    }
+
+    /* Shared pane styles */
+    .split-pane {
+        height: 100%;
+        overflow: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--secondary-color-dimmer) transparent;
+    }
+    .split-pane::-webkit-scrollbar {
+        width: 6px;
+    }
+    .split-pane::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .split-pane::-webkit-scrollbar-thumb {
+        background: var(--secondary-color-dimmer);
+        border-radius: 0;
+    }
+    .split-pane h3 {
+        position: sticky;
+        top: 0;
+        background: var(--background-color);
+        z-index: 1;
+        margin-top: 0;
+        padding: 0 0 var(--global-padding) 0;
+    }
+
+    /* Left pane */
+    .schema-props-pane {
+        padding: 0 var(--global-padding-double) var(--global-padding-double) 0;
+    }
+
+    /* Right pane: flush example, primary accent colors */
+    .schema-example-pane {
+        padding: 0 0 0 var(--global-padding-double);
+        --code-accent-color: var(--primary-color);
+        --code-border-color: var(--primary-color-lowalpha);
+        --example-margin: 0;
+        --code-viewer-margin-top: 0;
     }
 `

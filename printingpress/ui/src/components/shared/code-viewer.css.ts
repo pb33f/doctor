@@ -11,9 +11,9 @@ export default css`
         margin: 0;
         padding: var(--global-padding-double) var(--global-padding-double) var(--global-padding-double) 20px;
         overflow-x: auto;
-        border-left: 5px solid var(--secondary-color);
-        border-top: 1px dashed var(--secondary-color-dimmer);
-        border-bottom: 1px dashed var(--secondary-color-dimmer);
+        border-left: 5px solid var(--code-accent-color, var(--secondary-color));
+        border-top: 1px dashed var(--code-border-color, var(--secondary-color-dimmer));
+        border-bottom: 1px dashed var(--code-border-color, var(--secondary-color-dimmer));
         background-color: var(--background-color);
         background-image: linear-gradient(to right, var(--chroma-gradient-start), var(--background-color));
         color: var(--font-color);

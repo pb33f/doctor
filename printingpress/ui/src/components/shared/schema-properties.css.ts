@@ -73,12 +73,31 @@ export default [dropdownCss, css`
     }
 
     :host([compact]) .property {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: var(--compact-name-width, 200px) minmax(0, 1fr);
         padding: 8px 0.5rem;
     }
 
     :host([compact]) .prop-desc-col {
         display: none;
+    }
+
+    :host([compact]) .prop-type-col {
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    :host([compact]) .prop-type {
+        display: block;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    :host([compact]) a.ref-type-link {
+        overflow-wrap: anywhere;
+    }
+
+    :host([compact]) .composition-ref-entry {
+        grid-template-columns: auto minmax(0, 1fr);
     }
 
     .property.scalar {
@@ -216,8 +235,8 @@ export default [dropdownCss, css`
 
     .oneof-tabs::part(tabs) {
         flex: 1;
-        width: 200px;
-        min-width: 200px;
+        width: 250px;
+        min-width: 250px;
     }
 
     .oneof-tabs::part(body) {
