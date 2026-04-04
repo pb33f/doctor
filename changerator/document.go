@@ -134,6 +134,9 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 					}
 					aux.SetChanges(tc)
 					tagsNode.Mutex.Lock()
+					if len(tagsNode.Changes) == 0 {
+						tagsNode.Height += v3.HEIGHT
+					}
 					tagsNode.Changes = append(tagsNode.Changes, aux)
 					tagsNode.Mutex.Unlock()
 					nChan := ctx.Value(NodeChannel)

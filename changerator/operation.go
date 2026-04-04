@@ -78,11 +78,6 @@ func (t *Changerator) VisitOperation(ctx context.Context, obj *v3.Operation) {
 			PushChangesWithOverride(tagCtx, obj.Tags, tagOpChanges,
 				"tags", obj.GenerateJSONPath()+".tags")
 
-			// Add height for the changes row — Foundation doesn't implement HasSize
-			// so handleChanges won't adjust it automatically.
-			if tagsNode := obj.Tags.GetNode(); tagsNode != nil {
-				tagsNode.Height += v3.HEIGHT
-			}
 		}
 
 		nCtx := ctx

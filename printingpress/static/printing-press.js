@@ -6408,6 +6408,16 @@ var PrintingPress=(function(ye){"use strict";var qHe=Object.defineProperty;var X
         scrollbar-width: thin;
         scrollbar-color: var(--secondary-color-dimmer) transparent;
     }
+    .split-pane::-webkit-scrollbar {
+        width: 6px;
+    }
+    .split-pane::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .split-pane::-webkit-scrollbar-thumb {
+        background: var(--secondary-color-dimmer);
+        border-radius: 0;
+    }
     .split-pane h3 {
         position: sticky;
         top: 0;
