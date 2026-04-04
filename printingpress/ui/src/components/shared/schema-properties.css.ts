@@ -4,8 +4,8 @@ import dropdownCss from '../../styles/dropdown.css.js';
 export default [dropdownCss, css`
     :host {
         display: block;
-        border: 1px dotted var(--hrcolor);
         margin-top: var(--global-padding);
+        --compact-name-width: 200px;
     }
 
     .property {
@@ -37,6 +37,9 @@ export default [dropdownCss, css`
     .prop-name {
         font-family: var(--font-stack-bold), monospace;
         color: var(--font-color);
+    }
+    .prop-name.required {
+        color: var(--error-color);
     }
 
     .prop-type {
@@ -73,7 +76,7 @@ export default [dropdownCss, css`
     }
 
     :host([compact]) .property {
-        grid-template-columns: var(--compact-name-width, 200px) minmax(0, 1fr);
+        grid-template-columns: var(--compact-name-width) minmax(0, 1fr);
         padding: 8px 0.5rem;
     }
 
@@ -174,7 +177,7 @@ export default [dropdownCss, css`
     }
 
     :host([compact]) .composition-label {
-        display: none;
+        display: block;
     }
 
     .oneof-property {
@@ -185,8 +188,8 @@ export default [dropdownCss, css`
     }
 
     .oneof-property > .oneof-left {
-        width: 200px;
-        min-width: 200px;
+        width: var(--compact-name-width);
+        min-width: var(--compact-name-width);
         padding-right: 1rem;
     }
 
@@ -212,6 +215,10 @@ export default [dropdownCss, css`
         color: var(--font-color-sub1);
         font-size: 0.9em;
         border-bottom: 1px dotted var(--hrcolor);
+    }
+
+    .oneof-option-scalar {
+        padding: var(--global-padding);
     }
 
     .oneof-tabs {
@@ -267,7 +274,7 @@ export default [dropdownCss, css`
     }
 
     .oneof-tabs sl-tab-panel::part(base) {
-        padding: 0;
+        padding: 0 0 0 var(--global-padding);
     }
 
     .prop-type-col sl-dropdown {
@@ -278,11 +285,7 @@ export default [dropdownCss, css`
         grid-column: 1 / -1;
     }
 
-    :host([compact]) .property-oneof {
-        display: none;
-    }
-
     :host([compact]) .oneof-container {
-        display: none;
+        display: block;
     }
 `]

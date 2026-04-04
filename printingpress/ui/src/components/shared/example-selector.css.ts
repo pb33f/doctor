@@ -62,19 +62,47 @@ export default [dropdownCss, css`
         position: relative;
     }
 
-    .floating-copy {
+    .floating-actions {
         position: absolute;
         top: var(--global-padding);
         right: var(--global-padding);
         z-index: 1;
+        display: flex;
+        gap: 0.25rem;
+        align-items: center;
+    }
+
+    .floating-copy {
         --sl-color-primary-600: var(--primary-color);
         --sl-tooltip-background-color: var(--background-color);
         --sl-tooltip-color: var(--font-color);
         --sl-tooltip-border-radius: 0;
         --sl-tooltip-font-family: var(--font-stack), monospace;
-        --sl-tooltip-font-size: 0.9rem;
-        --sl-tooltip-padding: 0.25rem 0.75rem;
+        --sl-tooltip-font-size: inherit;
+        --sl-tooltip-padding: var(--global-padding);
         --sl-tooltip-arrow-size: 6px;
+    }
+
+    .floating-expand::part(base) {
+        color: var(--font-color-sub1);
+    }
+    .floating-expand::part(base):hover {
+        color: var(--primary-color);
+    }
+
+    .floating-actions sl-tooltip {
+        --sl-tooltip-background-color: var(--background-color);
+        --sl-tooltip-color: var(--font-color);
+        --sl-tooltip-border-radius: 0;
+        --sl-tooltip-font-family: var(--font-stack), monospace;
+        --sl-tooltip-font-size: inherit;
+        --sl-tooltip-padding: var(--global-padding);
+        --sl-tooltip-arrow-size: 6px;
+    }
+    .floating-actions sl-tooltip::part(body) {
+        border: 1px dashed var(--secondary-color);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
     .floating-copy::part(tooltip__body) {

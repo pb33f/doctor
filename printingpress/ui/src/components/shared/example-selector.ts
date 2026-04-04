@@ -28,6 +28,8 @@ export class PpExampleSelector extends LitElement {
   @property() mode: 'drawer' | 'inline' = 'drawer';
   @property({attribute: 'code-language'}) codeLanguage: 'json' | 'yaml' | 'xml' = 'json';
   @property({type: Boolean, attribute: 'hide-label'}) hideLabel = false;
+  @property({type: Boolean, attribute: 'show-expand'}) showExpand = false;
+  @property({attribute: 'example-title'}) exampleTitle = 'Example';
 
   @state() private entries: Array<{key: string; json: string}> = [];
   @state() private descriptions: Record<string, string> = {};
@@ -143,10 +145,31 @@ export class PpExampleSelector extends LitElement {
     return key.toLowerCase().includes('example') ? key : `${key} Example`;
   }
 
+  private expandToDrawer(code: string) {
+    this.dispatchEvent(new CustomEvent('pp-show-example', {
+      bubbles: true,
+      composed: true,
+      detail: {
+        title: this.exampleTitle,
+        json: code,
+        language: this.codeLanguage,
+      },
+    }));
+  }
+
   private renderCodeBlock(code: string) {
     return html`
       <div class="code-container">
-        <sl-copy-button .value=${code} class="floating-copy"></sl-copy-button>
+        <div class="floating-actions">
+          ${this.showExpand ? html`
+            <sl-tooltip content="view expanded example">
+              <sl-icon-button name="arrows-fullscreen" label="Expand"
+                class="floating-expand"
+                @click=${() => this.expandToDrawer(code)}></sl-icon-button>
+            </sl-tooltip>
+          ` : nothing}
+          <sl-copy-button .value=${code} class="floating-copy"></sl-copy-button>
+        </div>
         <pp-code-viewer .code=${code} .language=${this.codeLanguage}
             ?pretty=${this.codeLanguage === 'json'}></pp-code-viewer>
       </div>

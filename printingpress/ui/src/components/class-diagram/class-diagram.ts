@@ -13,6 +13,8 @@ export class PpClassDiagram extends LitElement {
     @property({attribute: false}) diagram = '';
     @property({attribute: false}) highlightedHTML = '';
     @state() wide = false;
+    @state() private sourceCollapsed = localStorage.getItem('pp-mermaid-source-collapsed') === 'true';
+    @state() private diagramHidden = localStorage.getItem('pp-diagram-hidden') === 'true';
 
     @query('pb33f-mermaid-renderer')
     renderer!: MermaidRenderer;
@@ -47,6 +49,7 @@ export class PpClassDiagram extends LitElement {
 
     disconnectedCallback() {
         super.disconnectedCallback();
+        clearInterval(this._zoomCheckInterval);
         this.resizeObserver?.disconnect();
         this.resizeObserver = null;
         this.expandedDialog?.remove();
@@ -59,8 +62,9 @@ export class PpClassDiagram extends LitElement {
         this.downloadFile(svg, 'image/svg+xml', 'class-diagram.svg');
     }
 
-    async exportPNG() {
-        const blob = await this.renderer?.exportPNG();
+    async exportPNG(renderer?: MermaidRenderer) {
+        const r = renderer || this.renderer;
+        const blob = await r?.exportPNG();
         if (!blob) return;
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -80,107 +84,97 @@ export class PpClassDiagram extends LitElement {
         URL.revokeObjectURL(url);
     }
 
+    private _initialZoomDone = false;
+    private _zoomCheckInterval = 0;
+
+    updated(changed: Map<string, unknown>) {
+        if ((changed.has('diagram') || changed.has('wide')) && !this._initialZoomDone && this.renderer && this.diagram) {
+            this._initialZoomDone = true;
+            this._zoomCheckInterval = this.pollRendererThenZoom(this.renderer, 2);
+        }
+    }
+
+    // polls until the renderer's viewBox stabilizes after async mermaid render,
+    // then zooms in the specified number of notches. returns the interval id.
+    private pollRendererThenZoom(renderer: MermaidRenderer, zoomCount: number): number {
+        let attempts = 0;
+        const id = window.setInterval(() => {
+            if (++attempts > 150) {
+                clearInterval(id);
+                return;
+            }
+            const r = renderer as any;
+            if (!r?._svgElement) return;
+            const svg = r._svgElement as SVGSVGElement;
+            const viewBox = svg.viewBox?.baseVal;
+            const zoomW = r.zoomW;
+            if (viewBox && zoomW && Math.abs(viewBox.width - zoomW) < 1) {
+                clearInterval(id);
+                for (let i = 0; i < zoomCount; i++) r.zoomIn();
+            }
+        }, 20);
+        return id;
+    }
+
+    private toggleSource() {
+        this.sourceCollapsed = !this.sourceCollapsed;
+        localStorage.setItem('pp-mermaid-source-collapsed', String(this.sourceCollapsed));
+    }
+
+    private toggleDiagram() {
+        this.diagramHidden = !this.diagramHidden;
+        localStorage.setItem('pp-diagram-hidden', String(this.diagramHidden));
+        if (!this.diagramHidden) {
+            this._initialZoomDone = false;
+        }
+    }
+
     zoomIn() { this.renderer?.zoomIn(); }
     zoomOut() { this.renderer?.zoomOut(); }
     resetZoom() { this.renderer?.resetZoom(); }
 
     openExpanded() {
-        // Create dialog in document.body to escape all stacking contexts
+        // create dialog in document.body to escape all stacking contexts
         if (this.expandedDialog) {
             this.expandedDialog.remove();
         }
 
         const dialog = document.createElement('sl-dialog');
-        dialog.label = this.name ? `${this.name} Class Diagram` : 'Class Diagram';
+        dialog.label = 'CLASS DIAGRAM';
+        if (this.name) {
+            // sl-dialog doesn't support rich title content, so we set it after render
+            dialog.addEventListener('sl-after-show', () => {
+                const titleEl = dialog.shadowRoot?.querySelector('[part="title"]');
+                if (titleEl) {
+                    titleEl.textContent = 'CLASS DIAGRAM: ';
+                    const span = document.createElement('span');
+                    span.style.color = 'var(--primary-color)';
+                    span.style.textTransform = 'none';
+                    span.textContent = this.name;
+                    titleEl.appendChild(span);
+                }
+            });
+        }
         dialog.classList.add('pp-expanded-diagram-dialog');
         this.expandedDialog = dialog;
 
-        // Inject styles into document head (once)
-        if (!document.getElementById('pp-expanded-dialog-styles')) {
-            const style = document.createElement('style');
-            style.id = 'pp-expanded-dialog-styles';
-            style.textContent = `
-                body.pp-dialog-open > pp-layout {
-                    position: relative;
-                    z-index: 0;
-                }
-                .pp-expanded-diagram-dialog {
-                    --width: 90vw;
-                    --sl-overlay-background-color: rgba(0, 0, 0, 0.80);
-                    z-index: 10000;
-                }
-                .pp-expanded-diagram-dialog::part(panel) {
-                    height: 90vh;
-                    max-height: 90vh;
-                    background: var(--background-color);
-                    border: 1px solid var(--border-color-alpha);
-                }
-                .pp-expanded-diagram-dialog::part(header) {
-                    background: var(--font-color);
-                    border-bottom: none;
-                    padding: 0.5rem 1rem;
-                }
-                .pp-expanded-diagram-dialog::part(title) {
-                    font-size: 0.9rem;
-                    color: var(--background-color);
-                }
-                .pp-expanded-diagram-dialog::part(close-button__base) {
-                    color: var(--background-color);
-                }
-                .pp-expanded-diagram-dialog::part(body) {
-                    padding: 0;
-                    overflow: hidden;
-                    display: flex;
-                    flex-direction: column;
-                }
-                .pp-expanded-diagram-dialog .expanded-toolbar {
-                    display: flex;
-                    gap: 15px;
-                    padding: 0.5rem 1rem;
-                    align-items: center;
-                    background: var(--background-color);
-                    border-bottom: 1px dashed var(--hrcolor);
-                }
-                .pp-expanded-diagram-dialog .expanded-toolbar sl-icon-button::part(base) {
-                    color: var(--font-color-sub1);
-                }
-                .pp-expanded-diagram-dialog .expanded-toolbar sl-icon-button::part(base):hover {
-                    color: var(--primary-color);
-                }
-                .pp-expanded-diagram-dialog .expanded-toolbar sl-button::part(base) {
-                    font-size: 0.8rem;
-                    color: var(--font-color-sub1);
-                    gap: 0.35rem;
-                }
-                .pp-expanded-diagram-dialog .expanded-toolbar sl-button::part(label) {
-                    padding: 0;
-                }
-                .pp-expanded-diagram-dialog .expanded-toolbar sl-button::part(base):hover {
-                    color: var(--primary-color);
-                }
-                .pp-expanded-diagram-dialog .expanded-diagram-area {
-                    flex: 1;
-                    overflow: hidden;
-                }
-                .pp-expanded-diagram-dialog .expanded-diagram-area pb33f-mermaid-renderer {
-                    height: 100%;
-                }
-            `;
-            document.head.appendChild(style);
-        }
-
-        // Build toolbar
         const toolbar = document.createElement('div');
         toolbar.className = 'expanded-toolbar';
 
-        const makeIconBtn = (name: string, label: string, handler: () => void) => {
+        const wrapTooltip = (el: HTMLElement, tip: string) => {
+            const tooltip = document.createElement('sl-tooltip');
+            tooltip.setAttribute('content', tip);
+            tooltip.appendChild(el);
+            return tooltip;
+        };
+        const makeIconBtn = (name: string, label: string, tip: string, handler: () => void) => {
             const btn = document.createElement('sl-icon-button');
             btn.setAttribute('name', name);
             btn.setAttribute('label', label);
             btn.addEventListener('click', handler);
-            return btn;
+            return wrapTooltip(btn, tip);
         };
-        const makeTextBtn = (text: string, iconName: string, handler: () => void) => {
+        const makeTextBtn = (text: string, iconName: string, tip: string, handler: () => void) => {
             const btn = document.createElement('sl-button');
             btn.setAttribute('size', 'small');
             btn.setAttribute('variant', 'text');
@@ -190,30 +184,20 @@ export class PpClassDiagram extends LitElement {
             icon.setAttribute('slot', 'suffix');
             btn.appendChild(icon);
             btn.addEventListener('click', handler);
-            return btn;
+            return wrapTooltip(btn, tip);
         };
 
         const mermaidRenderer = document.createElement('pb33f-mermaid-renderer') as MermaidRenderer;
         mermaidRenderer.diagram = this.diagram;
         mermaidRenderer.setAttribute('fit-width', '');
 
-        toolbar.appendChild(makeIconBtn('zoom-in', 'Zoom In', () => mermaidRenderer.zoomIn()));
-        toolbar.appendChild(makeIconBtn('zoom-out', 'Zoom Out', () => mermaidRenderer.zoomOut()));
-        toolbar.appendChild(makeTextBtn('SVG', 'image-alt', () => {
+        toolbar.appendChild(makeIconBtn('zoom-in', 'Zoom In', 'zoom in', () => mermaidRenderer.zoomIn()));
+        toolbar.appendChild(makeIconBtn('zoom-out', 'Zoom Out', 'zoom out', () => mermaidRenderer.zoomOut()));
+        toolbar.appendChild(makeTextBtn('SVG', 'image-alt', 'export as SVG', () => {
             const svg = mermaidRenderer.exportSVG();
             if (svg) this.downloadFile(svg, 'image/svg+xml', 'class-diagram.svg');
         }));
-        toolbar.appendChild(makeTextBtn('PNG', 'image', async () => {
-            const blob = await mermaidRenderer.exportPNG();
-            if (blob) {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'class-diagram.png';
-                a.click();
-                URL.revokeObjectURL(url);
-            }
-        }));
+        toolbar.appendChild(makeTextBtn('PNG', 'image', 'export as PNG', () => this.exportPNG(mermaidRenderer)));
 
         const diagramArea = document.createElement('div');
         diagramArea.className = 'expanded-diagram-area';
@@ -222,7 +206,11 @@ export class PpClassDiagram extends LitElement {
         dialog.appendChild(toolbar);
         dialog.appendChild(diagramArea);
 
-        dialog.addEventListener('sl-hide', () => {
+        const modalZoomInterval = this.pollRendererThenZoom(mermaidRenderer, 3);
+
+        dialog.addEventListener('sl-hide', (e: Event) => {
+            if (e.target !== dialog) return;
+            clearInterval(modalZoomInterval);
             document.body.classList.remove('pp-dialog-open');
             this.expandedDialog?.remove();
             this.expandedDialog = null;
@@ -236,20 +224,36 @@ export class PpClassDiagram extends LitElement {
     renderToolbar() {
         return html`
             <div class="toolbar">
-                <sl-icon-button name="zoom-in" label="Zoom In"
-                    @click=${this.zoomIn}></sl-icon-button>
-                <sl-icon-button name="zoom-out" label="Zoom Out"
-                    @click=${this.zoomOut}></sl-icon-button>
-                <sl-icon-button name="arrows-fullscreen" label="Expand"
-                    @click=${this.openExpanded}></sl-icon-button>
-                <sl-button size="small" variant="text" @click=${this.exportSVG}>
-                    <sl-icon name="image-alt" slot="suffix"></sl-icon>
-                    SVG
-                </sl-button>
-                <sl-button size="small" variant="text" @click=${this.exportPNG}>
-                    <sl-icon name="image" slot="suffix"></sl-icon>
-                    PNG
-                </sl-button>
+                <sl-tooltip content=${this.diagramHidden ? 'show diagram' : 'hide diagram'}>
+                    <sl-icon-button name=${this.diagramHidden ? 'eye-slash' : 'eye'}
+                        label=${this.diagramHidden ? 'Show Diagram' : 'Hide Diagram'}
+                        class=${this.diagramHidden ? 'hide-toggle hidden' : 'hide-toggle'}
+                        @click=${this.toggleDiagram}></sl-icon-button>
+                </sl-tooltip>
+                <sl-tooltip content="zoom in">
+                    <sl-icon-button name="zoom-in" label="Zoom In"
+                        @click=${this.zoomIn}></sl-icon-button>
+                </sl-tooltip>
+                <sl-tooltip content="zoom out">
+                    <sl-icon-button name="zoom-out" label="Zoom Out"
+                        @click=${this.zoomOut}></sl-icon-button>
+                </sl-tooltip>
+                <sl-tooltip content="expand fullscreen">
+                    <sl-icon-button name="arrows-fullscreen" label="Expand"
+                        @click=${this.openExpanded}></sl-icon-button>
+                </sl-tooltip>
+                <sl-tooltip content="export as SVG">
+                    <sl-button size="small" variant="text" @click=${this.exportSVG}>
+                        <sl-icon name="image-alt" slot="suffix"></sl-icon>
+                        SVG
+                    </sl-button>
+                </sl-tooltip>
+                <sl-tooltip content="export as PNG">
+                    <sl-button size="small" variant="text" @click=${this.exportPNG}>
+                        <sl-icon name="image" slot="suffix"></sl-icon>
+                        PNG
+                    </sl-button>
+                </sl-tooltip>
             </div>
         `;
     }
@@ -262,6 +266,25 @@ export class PpClassDiagram extends LitElement {
     }
 
     renderWide() {
+        if (this.sourceCollapsed) {
+            return html`
+                <div class="diagram-wrapper">
+                    <h2>CLASS DIAGRAM</h2>
+                    ${this.renderToolbar()}
+                    <div class="diagram-full">
+                        <pb33f-mermaid-renderer
+                            .diagram=${this.diagram}
+                            fit-width>
+                        </pb33f-mermaid-renderer>
+                        <div class="collapse-tab" @click=${this.toggleSource}
+                            role="button" tabindex="0"
+                            @keydown=${(e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') this.toggleSource(); }}>
+                            <sl-icon name="chevron-left"></sl-icon>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
         return html`
             <div class="diagram-wrapper">
                 <h2>CLASS DIAGRAM</h2>
@@ -275,7 +298,15 @@ export class PpClassDiagram extends LitElement {
                     </div>
                     <sl-icon slot="divider" name="grip-vertical"></sl-icon>
                     <div slot="end" class="code-view">
-                        <div class="code-header">Mermaid Source</div>
+                        <div class="code-header">
+                            MERMAID SOURCE
+                            <sl-tooltip content="copy mermaid source to clipboard">
+                                <sl-copy-button .value=${this.diagram} class="copy-source-btn"></sl-copy-button>
+                            </sl-tooltip>
+                            <sl-icon-button name="chevron-right" label="Collapse source"
+                                class="collapse-btn"
+                                @click=${this.toggleSource}></sl-icon-button>
+                        </div>
                         <div class="code-content">
                             ${this.renderCode()}
                         </div>
@@ -305,6 +336,14 @@ export class PpClassDiagram extends LitElement {
 
     render() {
         if (!this.diagram) return nothing;
+        if (this.diagramHidden) {
+            return html`
+                <div class="diagram-wrapper">
+                    <h2>CLASS DIAGRAM</h2>
+                    ${this.renderToolbar()}
+                </div>
+            `;
+        }
         return this.wide ? this.renderWide() : this.renderNarrow();
     }
 }

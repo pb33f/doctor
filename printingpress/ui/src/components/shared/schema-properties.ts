@@ -53,7 +53,6 @@ export class PpSchemaProperties extends LitElement {
 
     private renderRefAnchor(ref: string, link: { name: string; href: string }) {
         const anchor = html`<a class="ref-type-link" href="${link.href}">\u279c ${link.name}</a>`;
-        if (this.compact) return anchor;
         return html`
             <pp-ref-popover schema-ref="${ref}">${anchor}</pp-ref-popover>`;
     }
@@ -67,7 +66,7 @@ export class PpSchemaProperties extends LitElement {
             <div class="property">
                 <div class="prop-name-col">
                     ${required.has(name) ? html`<span class="required-badge">req</span>` : nothing}
-                    <span class="prop-name">${name}</span>
+                    <span class="prop-name ${required.has(name) ? 'required' : ''}">${name}</span>
                 </div>
                 <div class="prop-type-col">
                     ${this.renderType(prop)}
@@ -86,9 +85,6 @@ export class PpSchemaProperties extends LitElement {
         return propEntries.map(([name, prop]: [string, any]) => {
             const variants = prop.oneOf ?? prop.anyOf;
             if (variants && Array.isArray(variants)) {
-                if (this.compact) {
-                    return this.renderPropertyRow(name, prop, required);
-                }
                 const label = 'polymorphic';
                 return html`
                     <div class="property-oneof">
@@ -200,9 +196,14 @@ export class PpSchemaProperties extends LitElement {
         }
 
         const required = new Set<string>(entry.required || []);
+        const type = deriveSchemaType(entry);
         return html`
             ${entry.description ? html`<div class="oneof-option-desc">${entry.description}</div>` : nothing}
-            ${entry.properties ? this.renderPropertyTable(entry.properties, required) : nothing}
+            ${entry.properties
+                ? this.renderPropertyTable(entry.properties, required)
+                : type
+                    ? html`<div class="oneof-option-scalar"><span class="prop-type">${type}</span>${renderConstraints(entry, {labelSuffix: ':'})}</div>`
+                    : nothing}
         `;
     }
 

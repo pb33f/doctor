@@ -779,3 +779,104 @@ pb33f-http-method[mode="nav-naked"]:not(:defined) {
     color: var(--font-color-sub1);
 }
 
+/* ── Expanded class diagram dialog (light DOM, appended to body) ── */
+
+body.pp-dialog-open > pp-layout {
+    position: relative;
+    z-index: 0;
+}
+
+.pp-expanded-diagram-dialog {
+    --width: 90vw;
+    /* shoelace internal token — no theme variable exists for overlay */
+    --sl-overlay-background-color: rgba(0, 0, 0, 0.80);
+    z-index: 10000;
+}
+
+.pp-expanded-diagram-dialog::part(panel) {
+    height: 90vh;
+    max-height: 90vh;
+    background: var(--background-color);
+    border: 1px dashed var(--secondary-color);
+}
+
+.pp-expanded-diagram-dialog::part(header) {
+    background: var(--background-color);
+    border-bottom: 1px dashed var(--hrcolor);
+    padding: var(--global-padding);
+}
+
+.pp-expanded-diagram-dialog::part(title) {
+    font-family: var(--font-stack-bold), monospace;
+    color: var(--font-color);
+    padding: var(--global-padding);
+    letter-spacing: 0.05em;
+}
+
+.pp-expanded-diagram-dialog::part(close-button__base) {
+    color: var(--font-color-sub1);
+}
+
+.pp-expanded-diagram-dialog::part(body) {
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.pp-expanded-diagram-dialog .expanded-toolbar {
+    display: flex;
+    gap: var(--global-padding);
+    padding: var(--global-padding);
+    align-items: center;
+    background: var(--background-color);
+    border-bottom: 1px dashed var(--hrcolor);
+}
+
+.pp-expanded-diagram-dialog .expanded-toolbar sl-icon-button::part(base) {
+    color: var(--font-color-sub1);
+}
+
+.pp-expanded-diagram-dialog .expanded-toolbar sl-icon-button::part(base):hover {
+    color: var(--primary-color);
+}
+
+.pp-expanded-diagram-dialog .expanded-toolbar sl-button::part(base) {
+    font-family: var(--font-stack), monospace;
+    color: var(--font-color-sub1);
+    gap: 0.35rem;
+}
+
+.pp-expanded-diagram-dialog .expanded-toolbar sl-button::part(label) {
+    padding: 0;
+}
+
+.pp-expanded-diagram-dialog .expanded-toolbar sl-button::part(base):hover {
+    color: var(--primary-color);
+}
+
+.pp-expanded-diagram-dialog .expanded-toolbar sl-tooltip {
+    --sl-tooltip-background-color: var(--background-color);
+    --sl-tooltip-color: var(--font-color);
+    --sl-tooltip-border-radius: 0;
+    --sl-tooltip-font-family: var(--font-stack), monospace;
+    --sl-tooltip-font-size: inherit;
+    --sl-tooltip-padding: var(--global-padding);
+    --sl-tooltip-arrow-size: 6px;
+}
+
+.pp-expanded-diagram-dialog .expanded-toolbar sl-tooltip::part(body) {
+    border: 1px dashed var(--secondary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.pp-expanded-diagram-dialog .expanded-diagram-area {
+    flex: 1;
+    overflow: hidden;
+}
+
+.pp-expanded-diagram-dialog .expanded-diagram-area pb33f-mermaid-renderer {
+    height: 100%;
+}
+
