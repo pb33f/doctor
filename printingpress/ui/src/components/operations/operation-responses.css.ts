@@ -163,7 +163,10 @@ export default css`
     }
     
     .response-desc {
-        margin: var(--global-padding) 0;
+        margin: var(--global-padding-double) 0;
+        padding: var(--global-padding-double) 0;
+        border-bottom: 1px dashed var(--hrcolor);
+        border-top: 1px dashed var(--hrcolor);
     }
     
     .response-group-heading h4 {

@@ -38,6 +38,7 @@ export default css`
 
     .popover-header pp-icon-title {
         --pp-icon-title-color: var(--font-color);
+        --icon-title-icon-offset: 0.15em;
     }
 
 

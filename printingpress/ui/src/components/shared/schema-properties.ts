@@ -20,6 +20,7 @@ export class PpSchemaProperties extends LitElement {
 
     @property({attribute: 'schema-json'}) schemaJson = '';
     @property({type: Boolean, reflect: true}) compact = false;
+    @property({type: Boolean, reflect: true}) condensed = false;
     @state() private schema: any = null;
 
     willUpdate(changed: Map<string, unknown>) {
