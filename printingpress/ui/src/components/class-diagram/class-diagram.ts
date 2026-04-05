@@ -13,6 +13,8 @@ export class PpClassDiagram extends LitElement {
     @property({attribute: false}) diagram = '';
     @property({attribute: false}) highlightedHTML = '';
     @state() wide = false;
+
+    private diagramConfig = { class: { padding: 15 } };
     @state() private sourceCollapsed = localStorage.getItem('pp-mermaid-source-collapsed') === 'true';
     @state() private diagramHidden = localStorage.getItem('pp-diagram-hidden') === 'true';
 
@@ -189,6 +191,7 @@ export class PpClassDiagram extends LitElement {
 
         const mermaidRenderer = document.createElement('pb33f-mermaid-renderer') as MermaidRenderer;
         mermaidRenderer.diagram = this.diagram;
+        (mermaidRenderer as any).config = this.diagramConfig;
         mermaidRenderer.setAttribute('fit-width', '');
 
         toolbar.appendChild(makeIconBtn('zoom-in', 'Zoom In', 'zoom in', () => mermaidRenderer.zoomIn()));
@@ -274,6 +277,7 @@ export class PpClassDiagram extends LitElement {
                     <div class="diagram-full">
                         <pb33f-mermaid-renderer
                             .diagram=${this.diagram}
+                            .config=${this.diagramConfig}
                             fit-width>
                         </pb33f-mermaid-renderer>
                         <div class="collapse-tab" @click=${this.toggleSource}
@@ -293,6 +297,7 @@ export class PpClassDiagram extends LitElement {
                     <div slot="start" class="diagram-view">
                         <pb33f-mermaid-renderer
                             .diagram=${this.diagram}
+                            .config=${this.diagramConfig}
                             fit-width>
                         </pb33f-mermaid-renderer>
                     </div>
@@ -323,6 +328,7 @@ export class PpClassDiagram extends LitElement {
                 <div class="diagram-area">
                     <pb33f-mermaid-renderer
                         .diagram=${this.diagram}
+                        .config=${this.diagramConfig}
                         fit-width>
                     </pb33f-mermaid-renderer>
                 </div>

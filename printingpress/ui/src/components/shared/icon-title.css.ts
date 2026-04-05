@@ -3,12 +3,13 @@ import {css} from 'lit';
 export default css`
     :host {
         display: flex;
-        align-items: first baseline;
+        align-items: flex-start;
         gap: var(--global-padding);
     }
 
     pb33f-model-icon {
         flex-shrink: 0;
+        margin-top: var(--icon-title-icon-offset, 0.2em);
     }
 
     h1, h2, h3, h4 {

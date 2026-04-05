@@ -246,6 +246,11 @@ export default [dropdownCss, css`
         min-width: 250px;
     }
 
+    :host([condensed]) .oneof-tabs::part(tabs) {
+        width: 170px;
+        min-width: 170px;
+    }
+
     .oneof-tabs::part(body) {
         overflow: auto;
     }

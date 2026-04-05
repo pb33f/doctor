@@ -388,6 +388,10 @@ sl-details.pp-details::part(content) {
     align-items: flex-start;
 }
 
+.pp-model-header pp-icon-title {
+    --icon-title-icon-offset: 0.3em;
+}
+
 .pp-component-type {
     font-size: 0.7em;
     font-family: var(--font-stack-bold), monospace;

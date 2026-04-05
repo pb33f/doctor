@@ -100,7 +100,7 @@ export class PpRefPopover extends LitElement {
                             <pp-icon-title icon=${this.entry.componentType} heading=${this.entry.name} level=${3} size="medium"></pp-icon-title>
                         </div>
                         <div class="popover-body">
-                            <pp-schema-properties compact schema-json=${schemaJson}></pp-schema-properties>
+                            <pp-schema-properties compact condensed schema-json=${schemaJson}></pp-schema-properties>
                         </div>
                         ${example ? html`
                             <div class="popover-example">
