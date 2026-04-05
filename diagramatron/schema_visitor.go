@@ -65,8 +65,15 @@ func (mt *MermaidTardis) visitSchemaInternal(ctx context.Context, drSchema any, 
 		return
 	}
 
-	// check if this is a simple primitive that shouldn't become a class
+	// simple primitives get a minimal class with just the type annotation, no properties
 	if mt.isSimplePrimitive(schema) {
+		id := mt.getClassID(drSchema)
+		name := mt.extractSchemaName(drSchema, schema)
+		class := NewMermaidClass(id, name)
+		if len(schema.Type) > 0 {
+			class.Annotations = append(class.Annotations, schema.Type[0])
+		}
+		mt.diagram.AddClass(class)
 		return
 	}
 
@@ -227,10 +234,11 @@ func (mt *MermaidTardis) visitComponentSchemaByRef(ctx context.Context, refPath 
 	}
 
 	schemaName := ExtractSchemaNameFromReference(refPath)
+	sanitizedName := sanitizeID(schemaName)
 
-	// check if we've already created a class for this schema
-	if mt.diagram.HasClass(schemaName) {
-		return // already created, skip to avoid duplicates
+	// check if we've already created a class for this schema (raw or sanitized name)
+	if mt.diagram.HasClass(schemaName) || mt.diagram.HasClass(sanitizedName) {
+		return
 	}
 
 	// check if this reference is part of a circular reference chain (pre-computed by index)
@@ -241,11 +249,8 @@ func (mt *MermaidTardis) visitComponentSchemaByRef(ctx context.Context, refPath 
 		componentSchemaProxy := mt.document.Components.Schemas.GetOrZero(schemaName)
 		if componentSchemaProxy != nil && componentSchemaProxy.Schema != nil {
 			if isCircular {
-				// for circular refs, create a basic class but don't recurse into properties
-				// this ensures the schema is rendered without causing infinite loops
 				mt.createCircularRefClass(schemaName, componentSchemaProxy.Schema)
 			} else {
-				// visit the actual component schema normally
 				mt.visitSchema(ctx, componentSchemaProxy.Schema)
 			}
 		}
@@ -360,26 +365,13 @@ func (mt *MermaidTardis) isSimplePrimitive(schema *base.Schema) bool {
 		return false
 	}
 
-	// if it has enum values, it should be rendered (for enum visualization)
-	if schema.Enum != nil && len(schema.Enum) > 0 {
-		return false
-	}
-
-	// For safety, let's be very conservative and only filter if explicitly a simple primitive
-	// with no additional features whatsoever
+	// scalar types get a minimal class with just a type annotation (e.g. <<string>>),
+	// no properties or enum values rendered — keeps the diagram clean
 	if len(schema.Type) > 0 {
 		t := schema.Type[0]
 		switch t {
 		case "string", "number", "integer", "boolean", "null":
-			// only filter if it has absolutely no other features
-			hasNoFeatures := schema.Format == "" &&
-				schema.Pattern == "" &&
-				schema.MinLength == nil &&
-				schema.MaxLength == nil &&
-				schema.Minimum == nil &&
-				schema.Maximum == nil &&
-				schema.Description == ""
-			return hasNoFeatures
+			return true
 		}
 	}
 
