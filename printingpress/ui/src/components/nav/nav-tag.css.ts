@@ -89,11 +89,30 @@ export default css`
     .op-title {
         flex: 1;
         min-width: 0;
-        max-width: var(--nav-op-max-width);
         font-family: var(--font-stack), monospace;
         word-wrap: break-word;
         overflow-wrap: break-word;
         white-space: normal;
+    }
+
+    pb33f-http-method {
+        flex-shrink: 0;
+        margin-left: auto;
+    }
+
+    /* global html[theme] override in printing-press.css cannot reach into shadow DOM,
+       so replicate the monochrome override here via :host-context */
+    :host-context(html[theme="light"]) pb33f-http-method,
+    :host-context(html[theme="tektronix"]) pb33f-http-method {
+        --http-get-color: var(--font-color);
+        --http-post-color: var(--font-color);
+        --http-put-color: var(--font-color);
+        --http-delete-color: var(--font-color);
+        --http-patch-color: var(--font-color);
+        --http-options-color: var(--font-color);
+        --http-head-color: var(--font-color);
+        --http-trace-color: var(--font-color);
+        --http-query-color: var(--font-color);
     }
 
     li a.active .op-title {

@@ -3321,11 +3321,30 @@ var PrintingPress=(function(ye){"use strict";var qHe=Object.defineProperty;var X
     .op-title {
         flex: 1;
         min-width: 0;
-        max-width: var(--nav-op-max-width);
         font-family: var(--font-stack), monospace;
         word-wrap: break-word;
         overflow-wrap: break-word;
         white-space: normal;
+    }
+
+    pb33f-http-method {
+        flex-shrink: 0;
+        margin-left: auto;
+    }
+
+    /* global html[theme] override in printing-press.css cannot reach into shadow DOM,
+       so replicate the monochrome override here via :host-context */
+    :host-context(html[theme="light"]) pb33f-http-method,
+    :host-context(html[theme="tektronix"]) pb33f-http-method {
+        --http-get-color: var(--font-color);
+        --http-post-color: var(--font-color);
+        --http-put-color: var(--font-color);
+        --http-delete-color: var(--font-color);
+        --http-patch-color: var(--font-color);
+        --http-options-color: var(--font-color);
+        --http-head-color: var(--font-color);
+        --http-trace-color: var(--font-color);
+        --http-query-color: var(--font-color);
     }
 
     li a.active .op-title {
@@ -8338,7 +8357,9 @@ ${t.themeCSS}`),t.fontFamily!==void 0&&(r+=`
         padding: var(--global-padding) 0 var(--global-padding) 0;
         align-items: center;
     }
-    .toolbar sl-tooltip {
+    .toolbar sl-tooltip,
+    .copy-source-btn,
+    .code-header sl-tooltip {
         --sl-tooltip-background-color: var(--background-color);
         --sl-tooltip-color: var(--font-color);
         --sl-tooltip-border-radius: 0;
@@ -8347,7 +8368,13 @@ ${t.themeCSS}`),t.fontFamily!==void 0&&(r+=`
         --sl-tooltip-padding: var(--global-padding);
         --sl-tooltip-arrow-size: 6px;
     }
-    .toolbar sl-tooltip::part(body) {
+    .toolbar sl-tooltip::part(body),
+    .code-header sl-tooltip::part(body) {
+        border: 1px dashed var(--secondary-color);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .copy-source-btn::part(tooltip__body) {
         border: 1px dashed var(--secondary-color);
         text-transform: uppercase;
         letter-spacing: 0.05em;
@@ -8433,38 +8460,12 @@ ${t.themeCSS}`),t.fontFamily!==void 0&&(r+=`
     .copy-source-btn {
         margin-left: auto;
         --sl-color-primary-600: var(--primary-color);
-        --sl-tooltip-background-color: var(--background-color);
-        --sl-tooltip-color: var(--font-color);
-        --sl-tooltip-border-radius: 0;
-        --sl-tooltip-font-family: var(--font-stack), monospace;
-        --sl-tooltip-font-size: inherit;
-        --sl-tooltip-padding: var(--global-padding);
-        --sl-tooltip-arrow-size: 6px;
     }
     .copy-source-btn::part(button) {
         color: var(--font-color-sub1);
     }
     .copy-source-btn::part(button):hover {
         color: var(--primary-color);
-    }
-    .copy-source-btn::part(tooltip__body) {
-        border: 1px dashed var(--secondary-color);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    .code-header sl-tooltip {
-        --sl-tooltip-background-color: var(--background-color);
-        --sl-tooltip-color: var(--font-color);
-        --sl-tooltip-border-radius: 0;
-        --sl-tooltip-font-family: var(--font-stack), monospace;
-        --sl-tooltip-font-size: inherit;
-        --sl-tooltip-padding: var(--global-padding);
-        --sl-tooltip-arrow-size: 6px;
-    }
-    .code-header sl-tooltip::part(body) {
-        border: 1px dashed var(--secondary-color);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
     }
     .collapse-btn::part(base) {
         color: var(--font-color-sub1);
@@ -8576,7 +8577,7 @@ ${t.themeCSS}`),t.fontFamily!==void 0&&(r+=`
     .chroma .go { color: var(--chroma-comment) }
     .chroma .gu { font-family: var(--font-stack-bold) }
     .chroma .gl { text-decoration: underline }
-`;var Swe=Object.defineProperty,kwe=Object.getOwnPropertyDescriptor,gu=(t,e,r,n)=>{for(var i=n>1?void 0:n?kwe(e,r):e,a=t.length-1,s;a>=0;a--)(s=t[a])&&(i=(n?s(e,r,i):s(i))||i);return n&&i&&Swe(e,r,i),i};let ol=class extends Fr{constructor(){super(...arguments),this.name="",this.diagram="",this.highlightedHTML="",this.wide=!1,this.diagramConfig={class:{padding:15}},this.sourceCollapsed=localStorage.getItem("pp-mermaid-source-collapsed")==="true",this.diagramHidden=localStorage.getItem("pp-diagram-hidden")==="true",this.resizeObserver=null,this.expandedDialog=null,this._initialZoomDone=!1,this._zoomCheckInterval=0}connectedCallback(){super.connectedCallback(),setTimeout(()=>{const t=this.querySelector("script.pp-mermaid-data");t!=null&&t.textContent&&(this.diagram=t.textContent.trim());const e=this.querySelector("template.pp-mermaid-highlighted");if(e!=null&&e.content){const r=document.createElement("div");r.appendChild(e.content.cloneNode(!0)),this.highlightedHTML=r.innerHTML}this.wide=this.offsetWidth>=900,this.requestUpdate(),this.resizeObserver=new ResizeObserver(r=>{for(const n of r)this.wide=n.contentRect.width>=900}),this.resizeObserver.observe(this)},0)}disconnectedCallback(){var t,e;super.disconnectedCallback(),clearInterval(this._zoomCheckInterval),(t=this.resizeObserver)==null||t.disconnect(),this.resizeObserver=null,(e=this.expandedDialog)==null||e.remove(),this.expandedDialog=null}exportSVG(){var e;const t=(e=this.renderer)==null?void 0:e.exportSVG();t&&this.downloadFile(t,"image/svg+xml","class-diagram.svg")}async exportPNG(t){const e=t||this.renderer,r=await(e==null?void 0:e.exportPNG());if(!r)return;const n=URL.createObjectURL(r),i=document.createElement("a");i.href=n,i.download="class-diagram.png",i.click(),URL.revokeObjectURL(n)}downloadFile(t,e,r){const n=new Blob([t],{type:e}),i=URL.createObjectURL(n),a=document.createElement("a");a.href=i,a.download=r,a.click(),URL.revokeObjectURL(i)}updated(t){(t.has("diagram")||t.has("wide"))&&!this._initialZoomDone&&this.renderer&&this.diagram&&(this._initialZoomDone=!0,this._zoomCheckInterval=this.pollRendererThenZoom(this.renderer,2))}pollRendererThenZoom(t,e){let r=0;const n=window.setInterval(()=>{var l;if(++r>150){clearInterval(n);return}const i=t;if(!(i!=null&&i._svgElement))return;const s=(l=i._svgElement.viewBox)==null?void 0:l.baseVal,o=i.zoomW;if(s&&o&&Math.abs(s.width-o)<1){clearInterval(n);for(let u=0;u<e;u++)i.zoomIn()}},20);return n}toggleSource(){this.sourceCollapsed=!this.sourceCollapsed,localStorage.setItem("pp-mermaid-source-collapsed",String(this.sourceCollapsed))}toggleDiagram(){this.diagramHidden=!this.diagramHidden,localStorage.setItem("pp-diagram-hidden",String(this.diagramHidden)),this.diagramHidden||(this._initialZoomDone=!1)}zoomIn(){var t;(t=this.renderer)==null||t.zoomIn()}zoomOut(){var t;(t=this.renderer)==null||t.zoomOut()}resetZoom(){var t;(t=this.renderer)==null||t.resetZoom()}openExpanded(){this.expandedDialog&&this.expandedDialog.remove();const t=document.createElement("sl-dialog");t.label="CLASS DIAGRAM",this.name&&t.addEventListener("sl-after-show",()=>{var u;const l=(u=t.shadowRoot)==null?void 0:u.querySelector('[part="title"]');if(l){l.textContent="CLASS DIAGRAM: ";const h=document.createElement("span");h.style.color="var(--primary-color)",h.style.textTransform="none",h.textContent=this.name,l.appendChild(h)}}),t.classList.add("pp-expanded-diagram-dialog"),this.expandedDialog=t;const e=document.createElement("div");e.className="expanded-toolbar";const r=(l,u)=>{const h=document.createElement("sl-tooltip");return h.setAttribute("content",u),h.appendChild(l),h},n=(l,u,h,d)=>{const f=document.createElement("sl-icon-button");return f.setAttribute("name",l),f.setAttribute("label",u),f.addEventListener("click",d),r(f,h)},i=(l,u,h,d)=>{const f=document.createElement("sl-button");f.setAttribute("size","small"),f.setAttribute("variant","text"),f.textContent=l;const p=document.createElement("sl-icon");return p.setAttribute("name",u),p.setAttribute("slot","suffix"),f.appendChild(p),f.addEventListener("click",d),r(f,h)},a=document.createElement("pb33f-mermaid-renderer");a.diagram=this.diagram,a.config=this.diagramConfig,a.setAttribute("fit-width",""),e.appendChild(n("zoom-in","Zoom In","zoom in",()=>a.zoomIn())),e.appendChild(n("zoom-out","Zoom Out","zoom out",()=>a.zoomOut())),e.appendChild(i("SVG","image-alt","export as SVG",()=>{const l=a.exportSVG();l&&this.downloadFile(l,"image/svg+xml","class-diagram.svg")})),e.appendChild(i("PNG","image","export as PNG",()=>this.exportPNG(a)));const s=document.createElement("div");s.className="expanded-diagram-area",s.appendChild(a),t.appendChild(e),t.appendChild(s);const o=this.pollRendererThenZoom(a,3);t.addEventListener("sl-hide",l=>{var u;l.target===t&&(clearInterval(o),document.body.classList.remove("pp-dialog-open"),(u=this.expandedDialog)==null||u.remove(),this.expandedDialog=null)}),document.body.classList.add("pp-dialog-open"),document.body.appendChild(t),requestAnimationFrame(()=>t.show())}renderToolbar(){return xe`
+`;var Swe=Object.defineProperty,kwe=Object.getOwnPropertyDescriptor,gu=(t,e,r,n)=>{for(var i=n>1?void 0:n?kwe(e,r):e,a=t.length-1,s;a>=0;a--)(s=t[a])&&(i=(n?s(e,r,i):s(i))||i);return n&&i&&Swe(e,r,i),i};let ol=class extends Fr{constructor(){super(...arguments),this.name="",this.diagram="",this.highlightedHTML="",this.wide=!1,this.diagramConfig={class:{padding:15}},this.sourceCollapsed=localStorage.getItem("pp-mermaid-source-collapsed")==="true",this.diagramHidden=localStorage.getItem("pp-diagram-hidden")==="true",this.resizeObserver=null,this.expandedDialog=null,this._initialZoomDone=!1,this._zoomCheckInterval=0,this._modalZoomInterval=0}connectedCallback(){super.connectedCallback(),setTimeout(()=>{const t=this.querySelector("script.pp-mermaid-data");t!=null&&t.textContent&&(this.diagram=t.textContent.trim());const e=this.querySelector("template.pp-mermaid-highlighted");if(e!=null&&e.content){const r=document.createElement("div");r.appendChild(e.content.cloneNode(!0)),this.highlightedHTML=r.innerHTML}this.wide=this.offsetWidth>=900,this.requestUpdate(),this.resizeObserver=new ResizeObserver(r=>{for(const n of r)this.wide=n.contentRect.width>=900}),this.resizeObserver.observe(this)},0)}disconnectedCallback(){var t,e;super.disconnectedCallback(),clearInterval(this._zoomCheckInterval),clearInterval(this._modalZoomInterval),(t=this.resizeObserver)==null||t.disconnect(),this.resizeObserver=null,(e=this.expandedDialog)==null||e.remove(),this.expandedDialog=null}exportSVG(){var e;const t=(e=this.renderer)==null?void 0:e.exportSVG();t&&this.downloadFile(t,"image/svg+xml","class-diagram.svg")}async exportPNG(t){const e=t||this.renderer,r=await(e==null?void 0:e.exportPNG());if(!r)return;const n=URL.createObjectURL(r),i=document.createElement("a");i.href=n,i.download="class-diagram.png",i.click(),URL.revokeObjectURL(n)}downloadFile(t,e,r){const n=new Blob([t],{type:e}),i=URL.createObjectURL(n),a=document.createElement("a");a.href=i,a.download=r,a.click(),URL.revokeObjectURL(i)}updated(t){(t.has("diagram")||t.has("wide"))&&!this._initialZoomDone&&this.renderer&&this.diagram&&(this._initialZoomDone=!0,clearInterval(this._zoomCheckInterval),this._zoomCheckInterval=this.pollRendererThenZoom(this.renderer,2))}pollRendererThenZoom(t,e){let r=0;const n=window.setInterval(()=>{var l;if(++r>150){clearInterval(n);return}const i=t;if(!(i!=null&&i._svgElement))return;const a=i._svgElement,s=(l=a.viewBox)==null?void 0:l.baseVal,o=i.zoomW;if(s&&o&&Math.abs(s.width-o)<1){clearInterval(n),this.hideEmptyMemberGroups(a);for(let u=0;u<e;u++)i.zoomIn()}},20);return n}toggleSource(){this.sourceCollapsed=!this.sourceCollapsed,localStorage.setItem("pp-mermaid-source-collapsed",String(this.sourceCollapsed))}toggleDiagram(){this.diagramHidden=!this.diagramHidden,localStorage.setItem("pp-diagram-hidden",String(this.diagramHidden)),this.diagramHidden||(this._initialZoomDone=!1)}hideEmptyMemberGroups(t){t.querySelectorAll(".members-group").forEach(e=>{(!e.querySelector(".label")||e.children.length===0)&&(e.style.display="none")}),t.querySelectorAll("g.divider").forEach(e=>{const r=e.parentElement;if(!r)return;const n=r.querySelector(".members-group"),i=n&&n.querySelector(".label"),a=r.querySelector(".methods-group"),s=a&&a.querySelector(".label");if(!i&&!s)e.remove();else if(!i){const o=r.querySelectorAll(".divider");o.length>1&&o[0].remove()}})}zoomIn(){var t;(t=this.renderer)==null||t.zoomIn()}zoomOut(){var t;(t=this.renderer)==null||t.zoomOut()}resetZoom(){var t;(t=this.renderer)==null||t.resetZoom()}openExpanded(){this.expandedDialog&&this.expandedDialog.remove();const t=document.createElement("sl-dialog");t.label="CLASS DIAGRAM",this.name&&t.addEventListener("sl-after-show",()=>{var l;const o=(l=t.shadowRoot)==null?void 0:l.querySelector('[part="title"]');if(o){o.textContent="CLASS DIAGRAM: ";const u=document.createElement("span");u.style.color="var(--primary-color)",u.style.textTransform="none",u.textContent=this.name,o.appendChild(u)}}),t.classList.add("pp-expanded-diagram-dialog"),this.expandedDialog=t;const e=document.createElement("div");e.className="expanded-toolbar";const r=(o,l)=>{const u=document.createElement("sl-tooltip");return u.setAttribute("content",l),u.appendChild(o),u},n=(o,l,u,h)=>{const d=document.createElement("sl-icon-button");return d.setAttribute("name",o),d.setAttribute("label",l),d.addEventListener("click",h),r(d,u)},i=(o,l,u,h)=>{const d=document.createElement("sl-button");d.setAttribute("size","small"),d.setAttribute("variant","text"),d.textContent=o;const f=document.createElement("sl-icon");return f.setAttribute("name",l),f.setAttribute("slot","suffix"),d.appendChild(f),d.addEventListener("click",h),r(d,u)},a=document.createElement("pb33f-mermaid-renderer");a.diagram=this.diagram,a.config=this.diagramConfig,a.setAttribute("fit-width",""),e.appendChild(n("zoom-in","Zoom In","zoom in",()=>a.zoomIn())),e.appendChild(n("zoom-out","Zoom Out","zoom out",()=>a.zoomOut())),e.appendChild(i("SVG","image-alt","export as SVG",()=>{const o=a.exportSVG();o&&this.downloadFile(o,"image/svg+xml","class-diagram.svg")})),e.appendChild(i("PNG","image","export as PNG",()=>this.exportPNG(a)));const s=document.createElement("div");s.className="expanded-diagram-area",s.appendChild(a),t.appendChild(e),t.appendChild(s),this._modalZoomInterval=this.pollRendererThenZoom(a,3),t.addEventListener("sl-hide",o=>{var l;o.target===t&&(clearInterval(this._modalZoomInterval),document.body.classList.remove("pp-dialog-open"),(l=this.expandedDialog)==null||l.remove(),this.expandedDialog=null)}),document.body.classList.add("pp-dialog-open"),document.body.appendChild(t),requestAnimationFrame(()=>t.show())}renderToolbar(){return xe`
             <div class="toolbar">
                 <sl-tooltip content=${this.diagramHidden?"show diagram":"hide diagram"}>
                     <sl-icon-button name=${this.diagramHidden?"eye-slash":"eye"}

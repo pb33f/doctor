@@ -33,7 +33,9 @@ export default css`
         padding: var(--global-padding) 0 var(--global-padding) 0;
         align-items: center;
     }
-    .toolbar sl-tooltip {
+    .toolbar sl-tooltip,
+    .copy-source-btn,
+    .code-header sl-tooltip {
         --sl-tooltip-background-color: var(--background-color);
         --sl-tooltip-color: var(--font-color);
         --sl-tooltip-border-radius: 0;
@@ -42,7 +44,13 @@ export default css`
         --sl-tooltip-padding: var(--global-padding);
         --sl-tooltip-arrow-size: 6px;
     }
-    .toolbar sl-tooltip::part(body) {
+    .toolbar sl-tooltip::part(body),
+    .code-header sl-tooltip::part(body) {
+        border: 1px dashed var(--secondary-color);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .copy-source-btn::part(tooltip__body) {
         border: 1px dashed var(--secondary-color);
         text-transform: uppercase;
         letter-spacing: 0.05em;
@@ -128,38 +136,12 @@ export default css`
     .copy-source-btn {
         margin-left: auto;
         --sl-color-primary-600: var(--primary-color);
-        --sl-tooltip-background-color: var(--background-color);
-        --sl-tooltip-color: var(--font-color);
-        --sl-tooltip-border-radius: 0;
-        --sl-tooltip-font-family: var(--font-stack), monospace;
-        --sl-tooltip-font-size: inherit;
-        --sl-tooltip-padding: var(--global-padding);
-        --sl-tooltip-arrow-size: 6px;
     }
     .copy-source-btn::part(button) {
         color: var(--font-color-sub1);
     }
     .copy-source-btn::part(button):hover {
         color: var(--primary-color);
-    }
-    .copy-source-btn::part(tooltip__body) {
-        border: 1px dashed var(--secondary-color);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    .code-header sl-tooltip {
-        --sl-tooltip-background-color: var(--background-color);
-        --sl-tooltip-color: var(--font-color);
-        --sl-tooltip-border-radius: 0;
-        --sl-tooltip-font-family: var(--font-stack), monospace;
-        --sl-tooltip-font-size: inherit;
-        --sl-tooltip-padding: var(--global-padding);
-        --sl-tooltip-arrow-size: 6px;
-    }
-    .code-header sl-tooltip::part(body) {
-        border: 1px dashed var(--secondary-color);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
     }
     .collapse-btn::part(base) {
         color: var(--font-color-sub1);

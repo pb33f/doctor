@@ -52,6 +52,7 @@ export class PpClassDiagram extends LitElement {
     disconnectedCallback() {
         super.disconnectedCallback();
         clearInterval(this._zoomCheckInterval);
+        clearInterval(this._modalZoomInterval);
         this.resizeObserver?.disconnect();
         this.resizeObserver = null;
         this.expandedDialog?.remove();
@@ -88,10 +89,12 @@ export class PpClassDiagram extends LitElement {
 
     private _initialZoomDone = false;
     private _zoomCheckInterval = 0;
+    private _modalZoomInterval = 0;
 
     updated(changed: Map<string, unknown>) {
         if ((changed.has('diagram') || changed.has('wide')) && !this._initialZoomDone && this.renderer && this.diagram) {
             this._initialZoomDone = true;
+            clearInterval(this._zoomCheckInterval);
             this._zoomCheckInterval = this.pollRendererThenZoom(this.renderer, 2);
         }
     }
@@ -112,6 +115,7 @@ export class PpClassDiagram extends LitElement {
             const zoomW = r.zoomW;
             if (viewBox && zoomW && Math.abs(viewBox.width - zoomW) < 1) {
                 clearInterval(id);
+                this.hideEmptyMemberGroups(svg);
                 for (let i = 0; i < zoomCount; i++) r.zoomIn();
             }
         }, 20);
@@ -129,6 +133,32 @@ export class PpClassDiagram extends LitElement {
         if (!this.diagramHidden) {
             this._initialZoomDone = false;
         }
+    }
+
+    // hide empty members-group boxes and their dividers (same as methods-group handling)
+    private hideEmptyMemberGroups(svg: SVGSVGElement) {
+        svg.querySelectorAll('.members-group').forEach((group) => {
+            const hasContent = group.querySelector('.label');
+            if (!hasContent || group.children.length === 0) {
+                (group as SVGElement).style.display = 'none';
+            }
+        });
+        svg.querySelectorAll('g.divider').forEach((divider) => {
+            const parent = divider.parentElement;
+            if (!parent) return;
+            const membersGroup = parent.querySelector('.members-group');
+            const hasMembers = membersGroup && membersGroup.querySelector('.label');
+            const methodsGroup = parent.querySelector('.methods-group');
+            const hasMethods = methodsGroup && methodsGroup.querySelector('.label');
+            if (!hasMembers && !hasMethods) {
+                divider.remove();
+            } else if (!hasMembers) {
+                const dividers = parent.querySelectorAll('.divider');
+                if (dividers.length > 1) {
+                    dividers[0].remove();
+                }
+            }
+        });
     }
 
     zoomIn() { this.renderer?.zoomIn(); }
@@ -209,11 +239,11 @@ export class PpClassDiagram extends LitElement {
         dialog.appendChild(toolbar);
         dialog.appendChild(diagramArea);
 
-        const modalZoomInterval = this.pollRendererThenZoom(mermaidRenderer, 3);
+        this._modalZoomInterval = this.pollRendererThenZoom(mermaidRenderer, 3);
 
         dialog.addEventListener('sl-hide', (e: Event) => {
             if (e.target !== dialog) return;
-            clearInterval(modalZoomInterval);
+            clearInterval(this._modalZoomInterval);
             document.body.classList.remove('pp-dialog-open');
             this.expandedDialog?.remove();
             this.expandedDialog = null;
