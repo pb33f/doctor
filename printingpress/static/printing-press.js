@@ -6752,7 +6752,6 @@ var PrintingPress=(function(ye){"use strict";var qHe=Object.defineProperty;var X
         display: block;
         margin-top: var(--global-padding);
         padding-top: var(--global-padding);
-        padding-bottom: 50px;
         border-top: 1px dashed var(--secondary-color-dimmer);
     }
 `,rle=Vt`
@@ -8331,9 +8330,9 @@ ${t.themeCSS}`),t.fontFamily!==void 0&&(r+=`
     .diagram-wrapper {
         border-radius: 0;
         overflow: hidden;
-        margin-top: 100px;
         border-top: 1px dashed var(--hrcolor);
         padding-top: var(--global-padding);
+        padding-bottom: 50px;
     }
     
     h2 {

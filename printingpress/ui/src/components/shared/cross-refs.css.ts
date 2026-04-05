@@ -5,7 +5,6 @@ export default css`
         display: block;
         margin-top: var(--global-padding);
         padding-top: var(--global-padding);
-        padding-bottom: 50px;
         border-top: 1px dashed var(--secondary-color-dimmer);
     }
 `;
