@@ -382,6 +382,20 @@ sl-details.pp-details::part(content) {
     margin-right: var(--global-padding);
 }
 
+/* Force monochrome HTTP method badges in light/tektronix modes */
+html[theme="light"] pb33f-http-method,
+html[theme="tektronix"] pb33f-http-method {
+    --http-get-color: var(--font-color);
+    --http-post-color: var(--font-color);
+    --http-put-color: var(--font-color);
+    --http-delete-color: var(--font-color);
+    --http-patch-color: var(--font-color);
+    --http-options-color: var(--font-color);
+    --http-head-color: var(--font-color);
+    --http-trace-color: var(--font-color);
+    --http-query-color: var(--font-color);
+}
+
 /* Model pages */
 .pp-model-header {
     display: flex;
