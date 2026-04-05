@@ -898,3 +898,6 @@ body.pp-dialog-open > pp-layout {
     height: 100%;
 }
 
+.pp-model {
+    padding-bottom: 50px;
+}

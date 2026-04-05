@@ -7,9 +7,9 @@ export default css`
     .diagram-wrapper {
         border-radius: 0;
         overflow: hidden;
-        margin-top: 100px;
         border-top: 1px dashed var(--hrcolor);
         padding-top: var(--global-padding);
+        padding-bottom: 50px;
     }
     
     h2 {

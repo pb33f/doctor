@@ -81,6 +81,15 @@ templ ModelPageTempl(page *ModelPage) {
 				}>
 			</pp-model-page>
 		}
+		if page.ExtensionsJSON != "" {
+			<sl-details class="pp-details">
+				<span slot="summary" class="pp-details-summary"><h3>Extensions</h3></span>
+				<pp-extensions extensions-json={ page.ExtensionsJSON }></pp-extensions>
+			</sl-details>
+		}
+		if page.CrossRefsJSON != "" {
+			<pp-cross-refs refs-json={ page.CrossRefsJSON }></pp-cross-refs>
+		}
 		if page.MermaidDiagram != "" {
 			<div class="pp-class-diagram-section">
 				<pp-class-diagram name={ page.Name }>
@@ -90,15 +99,6 @@ templ ModelPageTempl(page *ModelPage) {
 					}
 				</pp-class-diagram>
 			</div>
-		}
-		if page.ExtensionsJSON != "" {
-			<sl-details class="pp-details">
-				<span slot="summary" class="pp-details-summary"><h3>Extensions</h3></span>
-				<pp-extensions extensions-json={ page.ExtensionsJSON }></pp-extensions>
-			</sl-details>
-		}
-		if page.CrossRefsJSON != "" {
-			<pp-cross-refs refs-json={ page.CrossRefsJSON }></pp-cross-refs>
 		}
 	</div>
 }
