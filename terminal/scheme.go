@@ -1,35 +1,28 @@
-// Copyright 2024 Princess Beef Heavy Industries, LLC / Dave Shanley
+// Copyright 2026 Princess Beef Heavy Industries, LLC / Dave Shanley
 // https://pb33f.io
 
 package terminal
 
+import (
+	"image/color"
+
+	lipgloss "charm.land/lipgloss/v2"
+	"github.com/charmbracelet/colorprofile"
+)
+
 // ColorScheme defines how to colorize different elements of tree output.
 // implementations can provide terminal colors, grayscale dimming, or no colors.
 type ColorScheme interface {
-	// Addition colorizes text representing added elements
 	Addition(text string) string
-
-	// Modification colorizes text representing modified elements
 	Modification(text string) string
-
-	// Removal colorizes text representing removed elements
 	Removal(text string) string
-
-	// Breaking colorizes text representing breaking changes
 	Breaking(text string) string
-
-	// TreeBranch colorizes tree structure characters (├──, └──, │, etc.)
 	TreeBranch(text string) string
-
-	// LocationInfo colorizes location information like (line:col)
 	LocationInfo(text string) string
-
-	// Statistics colorizes statistics text like (N changes, M breaking)
 	Statistics(text string) string
+	Detail(text string) string
 }
 
-// NoColorScheme returns text unchanged.
-// use this for piped output, non-TTY contexts, or when --no-style is specified.
 type NoColorScheme struct{}
 
 func (NoColorScheme) Addition(s string) string     { return s }
@@ -39,11 +32,54 @@ func (NoColorScheme) Breaking(s string) string     { return s }
 func (NoColorScheme) TreeBranch(s string) string   { return s }
 func (NoColorScheme) LocationInfo(s string) string { return s }
 func (NoColorScheme) Statistics(s string) string   { return s }
+func (NoColorScheme) Detail(s string) string       { return s }
 
-// GrayscaleColorScheme dims decorative elements only, without semantic colors.
-// this is the default scheme when colors are enabled.
-// use case: cleaner output that highlights content without color distraction.
-// tree branches, location info, and statistics are dimmed; change symbols remain unchanged.
+type ThemedColorScheme struct {
+	addition     lipgloss.Style
+	modification lipgloss.Style
+	removal      lipgloss.Style
+	breaking     lipgloss.Style
+	treeBranch   lipgloss.Style
+	locationInfo lipgloss.Style
+	statistics   lipgloss.Style
+	detail       lipgloss.Style
+}
+
+func styleWithForeground(c color.Color) lipgloss.Style {
+	if c == nil {
+		return lipgloss.NewStyle()
+	}
+	return lipgloss.NewStyle().Foreground(c)
+}
+
+func NewThemeColorScheme(theme ThemeName, profile colorprofile.Profile, darkBackground bool) ColorScheme {
+	palette := PaletteForProfile(theme, profile, darkBackground)
+	if !palette.SupportsColor {
+		return NoColorScheme{}
+	}
+
+	return ThemedColorScheme{
+		addition:     styleWithForeground(palette.Addition),
+		modification: styleWithForeground(palette.Modification),
+		removal:      styleWithForeground(palette.Removal),
+		breaking:     styleWithForeground(palette.Breaking).Bold(true),
+		treeBranch:   styleWithForeground(palette.Muted),
+		locationInfo: styleWithForeground(palette.Muted),
+		statistics:   styleWithForeground(palette.Muted),
+		detail:       styleWithForeground(palette.Detail),
+	}
+}
+
+func (t ThemedColorScheme) Addition(s string) string     { return t.addition.Render(s) }
+func (t ThemedColorScheme) Modification(s string) string { return t.modification.Render(s) }
+func (t ThemedColorScheme) Removal(s string) string      { return t.removal.Render(s) }
+func (t ThemedColorScheme) Breaking(s string) string     { return t.breaking.Render(s) }
+func (t ThemedColorScheme) TreeBranch(s string) string   { return t.treeBranch.Render(s) }
+func (t ThemedColorScheme) LocationInfo(s string) string { return t.locationInfo.Render(s) }
+func (t ThemedColorScheme) Statistics(s string) string   { return t.statistics.Render(s) }
+func (t ThemedColorScheme) Detail(s string) string       { return t.detail.Render(s) }
+
+// GrayscaleColorScheme retains backwards-compatible grayscale output.
 type GrayscaleColorScheme struct{}
 
 func (GrayscaleColorScheme) Addition(s string) string     { return s }
@@ -53,11 +89,9 @@ func (GrayscaleColorScheme) Breaking(s string) string     { return s }
 func (GrayscaleColorScheme) TreeBranch(s string) string   { return Grey + s + Reset }
 func (GrayscaleColorScheme) LocationInfo(s string) string { return Grey + s + Reset }
 func (GrayscaleColorScheme) Statistics(s string) string   { return Grey + s + Reset }
+func (GrayscaleColorScheme) Detail(s string) string       { return "\033[38;5;246m" + s + Reset }
 
-// TerminalColorScheme applies full semantic colors for terminal display.
-// this is an opt-in scheme for colorful output with semantic meaning.
-// additions are green, modifications are yellow, removals are red, breaking changes are bold red.
-// tree branches, location info, and statistics are dimmed grey.
+// TerminalColorScheme retains backwards-compatible full semantic ANSI output.
 type TerminalColorScheme struct{}
 
 func (TerminalColorScheme) Addition(s string) string     { return Green + s + Reset }
@@ -67,3 +101,4 @@ func (TerminalColorScheme) Breaking(s string) string     { return RedBold + s + 
 func (TerminalColorScheme) TreeBranch(s string) string   { return Grey + s + Reset }
 func (TerminalColorScheme) LocationInfo(s string) string { return Grey + s + Reset }
 func (TerminalColorScheme) Statistics(s string) string   { return Grey + s + Reset }
+func (TerminalColorScheme) Detail(s string) string       { return "\033[38;5;246m" + s + Reset }
