@@ -136,7 +136,7 @@ templ OperationPageTempl(page *OperationPage) {
 							}
 							<sl-icon name="hdd-network" class="pp-server-icon"></sl-icon>
 						</span>
-						<a class="pp-server-url" href={ templ.SafeURL(srv.URL) } target="_blank" rel="noopener">{ srv.URL }</a>
+						<a class="pp-server-url" href={ templ.SafeURL(resolveServerURL(srv)) } target="_blank" rel="noopener">{ srv.URL }</a>
 					</div>
 				}
 			</div>
@@ -156,6 +156,12 @@ templ OperationPageTempl(page *OperationPage) {
 			<sl-details class="pp-details" id="section-parameters" data-nav-label="Parameters">
 				<span slot="summary" class="pp-details-summary"><h3>Parameters</h3></span>
 				<pp-operation-parameters parameters-json={ page.ParametersJSON }></pp-operation-parameters>
+			</sl-details>
+		}
+		if page.CurlJSON != "" {
+			<sl-details class="pp-details" id="section-curl" data-nav-label="cURL">
+				<span slot="summary" class="pp-details-summary"><h3>cURL</h3></span>
+				<pp-curl-command curl-json={ page.CurlJSON }></pp-curl-command>
 			</sl-details>
 		}
 		if page.ExtensionsJSON != "" {

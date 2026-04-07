@@ -2,10 +2,12 @@ import {LitElement, html, nothing} from 'lit';
 import {unsafeHTML} from 'lit/directives/unsafe-html.js';
 import {customElement, property, state} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
+import markdownCss from '../../styles/markdown.css.js';
 import refLinkCss from '../../styles/ref-link.css.js';
 import statusColorsCss from '../../styles/status-colors.css.js';
 import operationCallbacksCss from './operation-callbacks.css.js';
 import {ComponentLinkData, MediaTypeData, ResponseData} from '../../utils/schema.js';
+import {renderMarkdown} from '../../utils/markdown.js';
 import {renderComponentRefLink} from '../../utils/render-helpers.js';
 import {HTTP_STATUS_TEXT, statusColorClass} from '../../utils/http.js';
 import '../shared/schema-properties.js';
@@ -38,7 +40,7 @@ interface CallbackData {
 
 @customElement('pp-operation-callbacks')
 export class PpOperationCallbacks extends LitElement {
-    static styles = [sharedCss, refLinkCss, statusColorsCss, operationCallbacksCss];
+    static styles = [sharedCss, markdownCss, refLinkCss, statusColorsCss, operationCallbacksCss];
 
     @property({attribute: 'callbacks-json'}) callbacksJson = '';
     @state() private callbacks: CallbackData[] = [];
@@ -60,7 +62,9 @@ export class PpOperationCallbacks extends LitElement {
         if (!rb.content?.length) return nothing;
         return html`
             <div class="callback-section-label">Request Body${rb.required ? ' (required)' : ''}</div>
-            ${rb.descHtml ? html`<div class="callback-desc">${unsafeHTML(rb.descHtml)}</div>` : nothing}
+            ${rb.descHtml
+                ? html`<div class="callback-desc">${unsafeHTML(rb.descHtml)}</div>`
+                : renderMarkdown(rb.description, {className: 'callback-desc pp-markdown'})}
             <pp-media-type-selector content-json=${JSON.stringify(rb.content)}></pp-media-type-selector>
         `;
     }
@@ -76,7 +80,7 @@ export class PpOperationCallbacks extends LitElement {
                     ${r.descHtml
                         ? html`<span class="callback-response-desc">${unsafeHTML(r.descHtml)}</span>`
                         : r.description
-                            ? html`<span class="callback-response-desc">${r.description}</span>`
+                            ? renderMarkdown(r.description, {className: 'callback-response-desc pp-markdown-inline', inline: true})
                             : nothing}
                 </div>
                 ${r.ref ? renderComponentRefLink(r.ref, true) : nothing}
@@ -94,7 +98,9 @@ export class PpOperationCallbacks extends LitElement {
                     <pb33f-http-method method=${op.method}></pb33f-http-method>
                     <span class="callback-expression">${op.expression}</span>
                 </div>
-                ${op.descHtml ? html`<div class="callback-desc">${unsafeHTML(op.descHtml)}</div>` : nothing}
+                ${op.descHtml
+                    ? html`<div class="callback-desc">${unsafeHTML(op.descHtml)}</div>`
+                    : renderMarkdown(op.description, {className: 'callback-desc pp-markdown'})}
                 ${op.requestBody ? this.renderRequestBody(op.requestBody) : nothing}
                 ${this.renderResponses(op.responses ?? [])}
             </div>

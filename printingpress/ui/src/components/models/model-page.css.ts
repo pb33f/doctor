@@ -77,8 +77,8 @@ export default css`
     }
 
     .enum-value {
-        color: var(--warn-400);
-        font-family: var(--font-stack);
+        color: var(--tertiary-color);
+        font-family: var(--font-stack), monospace;
     }
 
     .traits {

@@ -43,7 +43,7 @@ export default [dropdownCss, css`
 
     .inline-selector-row {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: var(--global-padding-double);
         margin-top: var(--global-padding-double);
     }
@@ -51,11 +51,12 @@ export default [dropdownCss, css`
     .inline-example-desc {
         color: var(--font-color-sub1);
         font-family: var(--font-stack), monospace;
-        display: inline-block;
+        display: block;
+        flex: 1;
+        min-width: 0;
         border-left: 2px solid var(--secondary-color);
         padding-left: var(--global-padding-double);
-        height: calc(var(--global-padding) * 3);
-        padding-top: var(--global-padding);
+        padding-top: 0;
     }
 
     .code-container {

@@ -3,6 +3,7 @@ import {unsafeHTML} from 'lit/directives/unsafe-html.js';
 import {customElement, property, state} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
 import constraintsCss from '../../styles/constraints.css.js';
+import markdownCss from '../../styles/markdown.css.js';
 import refLinkCss from '../../styles/ref-link.css.js';
 import statusColorsCss from '../../styles/status-colors.css.js';
 import operationResponsesCss from './operation-responses.css.js';
@@ -12,6 +13,7 @@ import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';
 import {ComponentLinkData, MediaTypeData, ResponseData} from '../../utils/schema.js';
 import {HTTP_STATUS_TEXT, statusColorClass} from '../../utils/http.js';
+import {renderMarkdown} from '../../utils/markdown.js';
 import {renderConstraints, renderComponentRefLink} from '../../utils/render-helpers.js';
 import '../shared/extensions.js';
 import '../shared/example-selector.js';
@@ -42,7 +44,7 @@ interface LinkData {
 
 @customElement('pp-operation-responses')
 export class PpOperationResponses extends LitElement {
-    static styles = [sharedCss, constraintsCss, refLinkCss, statusColorsCss, operationResponsesCss, detailsCss];
+    static styles = [sharedCss, constraintsCss, markdownCss, refLinkCss, statusColorsCss, operationResponsesCss, detailsCss];
 
     @property({attribute: 'responses-json'}) responsesJson = '';
     @property({attribute: 'common-headers-json'}) commonHeadersJson = '';
@@ -139,7 +141,7 @@ export class PpOperationResponses extends LitElement {
                     ${renderConstraints(h, {includeExample: true})}
                 </div>
                 <div class="header-desc-col">
-                    ${h.description || nothing}
+                    ${renderMarkdown(h.description)}
                 </div>
             </div>
             ${h.extensions?.length ? html`
@@ -204,7 +206,7 @@ export class PpOperationResponses extends LitElement {
                                 : l.operationId}</span>`
                             : nothing}
                         ${l.operationRef ? html`<span class="link-target">\u2192 ${l.operationRef}</span>` : nothing}
-                        ${l.description ? html`<span class="link-desc">${l.description}</span>` : nothing}
+                        ${l.description ? renderMarkdown(l.description, {className: 'link-desc pp-markdown'}) : nothing}
                     </div>
                 `)}
             </div>
@@ -281,7 +283,9 @@ export class PpOperationResponses extends LitElement {
                                 </pp-raw-viewer-btn>`
                                 : nothing}
                     </h3>
-                    ${resp.descHtml ? html`<div class="response-desc">${unsafeHTML(resp.descHtml)}</div>` : nothing}
+                    ${resp.descHtml
+                        ? html`<div class="response-desc">${unsafeHTML(resp.descHtml)}</div>`
+                        : renderMarkdown(resp.description, {className: 'response-desc pp-markdown'})}
               
                 ${isCommonError
                         ? html`
@@ -338,7 +342,7 @@ export class PpOperationResponses extends LitElement {
                     <div class="common-error-grid">
                         ${codeDescs.map(({code, description}) => html`
                             <div class="common-error-code"><span class="${statusColorClass(code)}">${code}</span> ${HTTP_STATUS_TEXT[code] || ''}</div>
-                            <div class="common-error-desc">${description}</div>
+                            ${renderMarkdown(description, {className: 'common-error-desc pp-markdown'})}
                         `)}
                     </div>
                     ${resp.ref

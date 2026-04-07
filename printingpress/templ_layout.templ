@@ -5,10 +5,10 @@ import "context"
 import "io"
 import "strings"
 
-templ Layout(pageTitle string, siteTitle string, baseURL string, navJSON string, modelsJSON string, webhooksJSON string, activeSlug string, specFormat string, registryJSON string, extraCSS []string, content templ.Component) {
+templ Layout(pageTitle string, siteTitle string, baseURL string, navJSON string, modelsJSON string, webhooksJSON string, activeSlug string, specFormat string, registryJSON string, extraCSS []string, lite bool, content templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en" class="sl-theme-dark">
-		@Head(pageTitle, baseURL, extraCSS)
+		@Head(pageTitle, baseURL, extraCSS, lite)
 		<body data-spec-format={ specFormat }>
 			@SchemaRegistryScript(registryJSON)
 			<pp-layout data-title={ siteTitle }>
@@ -41,6 +41,14 @@ func SchemaRegistryScript(registryJSON string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 		safe := strings.ReplaceAll(registryJSON, "</", `<\/`)
 		_, err := io.WriteString(w, `<script type="application/json" id="pp-schema-registry">`+safe+`</script>`)
+		return err
+	})
+}
+
+func GraphJSONScript(graphJSON string) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		safe := strings.ReplaceAll(graphJSON, "</", `<\/`)
+		_, err := io.WriteString(w, `<script type="application/json" class="pp-graph-data">`+safe+`</script>`)
 		return err
 	})
 }

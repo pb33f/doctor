@@ -6,6 +6,7 @@ package printingpress
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -17,18 +18,119 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type countingRenderable struct {
+	renderCount int
+	output      []byte
+	err         error
+}
+
+func (c *countingRenderable) Render() ([]byte, error) {
+	c.renderCount++
+	return c.output, c.err
+}
+
 // helper to build a Site from an inline OpenAPI spec string.
 func pressFromSpec(t *testing.T, spec string) *Site {
+	return pressSiteFromSpecWithConfig(t, spec, nil)
+}
+
+func pressSiteFromSpecWithConfig(t *testing.T, spec string, configure func(*PrintingPressConfig)) *Site {
 	t.Helper()
 	doc, err := libopenapi.NewDocument([]byte(spec))
 	require.NoError(t, err)
 	v3, buildErr := doc.BuildV3Model()
 	require.NoError(t, buildErr)
 	drDoc := model.NewDrDocument(v3)
-	pp := New(&PrintingPressConfig{DrDoc: drDoc})
+	cfg := &PrintingPressConfig{DrDoc: drDoc}
+	if configure != nil {
+		configure(cfg)
+	}
+	pp := New(cfg)
 	site, err := pp.Press()
 	require.NoError(t, err)
 	return site
+}
+
+func buildSyntheticFallbackSpec(operationCount int, usedTags []string, declaredTags []string) string {
+	methods := []string{"get", "post", "put", "patch", "delete"}
+	pathPrefixes := []string{"accounts", "institutions", "reports", "transactions", "users", "wallets"}
+	type operationSpec struct {
+		Method  string
+		ID      string
+		Summary string
+		Tag     string
+	}
+	pathOperations := make(map[string][]operationSpec)
+	pathOrder := make([]string, 0, len(pathPrefixes))
+
+	var builder strings.Builder
+	builder.WriteString("openapi: \"3.1.0\"\n")
+	builder.WriteString("info:\n")
+	builder.WriteString("  title: Synthetic Fallback Test\n")
+	builder.WriteString("  version: \"1.0\"\n")
+	if len(declaredTags) > 0 {
+		builder.WriteString("tags:\n")
+		for _, tag := range declaredTags {
+			builder.WriteString(fmt.Sprintf("  - name: %s\n", tag))
+		}
+	}
+	builder.WriteString("paths:\n")
+
+	for i := 0; i < operationCount; i++ {
+		pathPrefix := pathPrefixes[(i/len(methods))%len(pathPrefixes)]
+		method := methods[i%len(methods)]
+		path := "/" + pathPrefix
+		if _, exists := pathOperations[path]; !exists {
+			pathOrder = append(pathOrder, path)
+		}
+		op := operationSpec{
+			Method:  method,
+			ID:      fmt.Sprintf("op-%d", i),
+			Summary: fmt.Sprintf("Operation %d", i),
+		}
+		if len(usedTags) > 0 {
+			op.Tag = usedTags[i%len(usedTags)]
+		}
+		pathOperations[path] = append(pathOperations[path], op)
+	}
+
+	for _, path := range pathOrder {
+		builder.WriteString(fmt.Sprintf("  %s:\n", path))
+		for _, op := range pathOperations[path] {
+			builder.WriteString(fmt.Sprintf("    %s:\n", op.Method))
+			builder.WriteString(fmt.Sprintf("      operationId: %s\n", op.ID))
+			builder.WriteString(fmt.Sprintf("      summary: %s\n", op.Summary))
+			if op.Tag != "" {
+				builder.WriteString("      tags:\n")
+				builder.WriteString(fmt.Sprintf("        - %s\n", op.Tag))
+			}
+			builder.WriteString("      responses:\n")
+			builder.WriteString("        '200':\n")
+			builder.WriteString("          description: ok\n")
+		}
+	}
+
+	return builder.String()
+}
+
+func navTagNames(tags []*NavTag) []string {
+	names := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		names = append(names, tag.Name)
+	}
+	return names
+}
+
+func findNavTag(tags []*NavTag, name string) *NavTag {
+	for _, tag := range tags {
+		if tag.Name == name {
+			return tag
+		}
+		if child := findNavTag(tag.Children, name); child != nil {
+			return child
+		}
+	}
+	return nil
 }
 
 func TestSchemaRawData_Parameter_SimpleSchema(t *testing.T) {
@@ -102,6 +204,78 @@ components:
 	// Without origin, SchemaStartLine = 1 + schemaKeyLine (origin defaults to 1)
 	assert.Equal(t, schemaKeyLine+1, p.SchemaStartLine,
 		"SchemaStartLine should be schema: line + 1 (content starts after the key)")
+}
+
+func TestComputeNavModelGroupCardMinWidth(t *testing.T) {
+	t.Run("empty uses baseline", func(t *testing.T) {
+		assert.Equal(t, 250, computeNavModelGroupCardMinWidth(nil))
+	})
+
+	t.Run("short names stay near baseline", func(t *testing.T) {
+		pages := []*ModelPage{
+			{Name: "User"},
+			{Name: "Pet"},
+			{Name: "Order"},
+		}
+		assert.Equal(t, 250, computeNavModelGroupCardMinWidth(pages))
+	})
+
+	t.Run("long names increase card width", func(t *testing.T) {
+		pages := []*ModelPage{
+			{Name: "account_business_profile"},
+			{Name: "account_monthly_estimated_revenue"},
+			{Name: "account_capability_requirements"},
+		}
+		assert.Greater(t, computeNavModelGroupCardMinWidth(pages), 250)
+	})
+
+	t.Run("very long names clamp to max width", func(t *testing.T) {
+		pages := []*ModelPage{
+			{Name: strings.Repeat("promotion_code_currency_option", 3)},
+		}
+		assert.Equal(t, 420, computeNavModelGroupCardMinWidth(pages))
+	})
+}
+
+func TestBuildNavModelGroups_AssignsAdaptiveCardWidth(t *testing.T) {
+	pp := New(&PrintingPressConfig{})
+	pp.site.Models = map[string][]*ModelPage{
+		"schemas": {
+			{Name: "User", Slug: "user", TypeSlug: "schemas"},
+			{Name: "account_monthly_estimated_revenue", Slug: "account-monthly-estimated-revenue", TypeSlug: "schemas"},
+		},
+	}
+
+	pp.buildNavModelGroups()
+	require.Len(t, pp.site.NavModelGroups, 1)
+
+	group := pp.site.NavModelGroups[0]
+	assert.Equal(t, "Schemas", group.Name)
+	assert.GreaterOrEqual(t, group.CardMinWidth, 250)
+	assert.NotEmpty(t, group.CardGridStyle())
+	assert.Contains(t, group.CardGridStyle(), "--pp-model-card-min:")
+}
+
+func TestCaptureRawData_UsesIdentityCacheAndLazyHighlight(t *testing.T) {
+	pp := New(&PrintingPressConfig{})
+	renderable := &countingRenderable{
+		output: []byte("type: object\nproperties:\n  id:\n    type: string\n"),
+	}
+
+	var rawYAML string
+	var schemaJSON string
+	pp.captureRawData(renderable, "test", &rawYAML, &schemaJSON, nil)
+
+	require.Equal(t, 1, renderable.renderCount)
+	require.NotEmpty(t, rawYAML)
+	require.NotEmpty(t, schemaJSON)
+
+	var highlighted string
+	pp.captureRawData(renderable, "test", &rawYAML, &schemaJSON, &highlighted)
+
+	assert.Equal(t, 1, renderable.renderCount, "second capture should come from cache")
+	assert.NotEmpty(t, highlighted, "highlight should be computed lazily from cached JSON")
+	assert.Contains(t, highlighted, "<span")
 }
 
 func TestSchemaRawData_Parameter_ObjectSchema(t *testing.T) {
@@ -265,9 +439,227 @@ paths:
 	site := pressFromSpec(t, spec)
 
 	require.Len(t, site.Operations, 1)
-	require.Len(t, site.Root.UntaggedOperations, 1)
-	assert.Equal(t, site.Operations[0].Slug, site.Root.UntaggedOperations[0].Slug)
-	assert.Nil(t, site.NavTags)
+	assert.Empty(t, site.Root.UntaggedOperations)
+	require.Len(t, site.NavTags, 1)
+	require.Len(t, site.NavTags[0].Operations, 1)
+	assert.Equal(t, site.Operations[0].Slug, site.NavTags[0].Operations[0].Slug)
+}
+
+func TestPruneEmptyNavTags_RemovesEmptyLeavesAndParents(t *testing.T) {
+	tags := []*NavTag{
+		{
+			Name: "preview",
+			Children: []*NavTag{
+				{Name: "region"},
+			},
+		},
+		{
+			Name: "projects",
+			Children: []*NavTag{
+				{
+					Name: "branches",
+					Operations: []*NavOperation{
+						{Slug: "list-branches", Path: "/projects/{id}/branches", Method: "GET"},
+					},
+				},
+			},
+		},
+	}
+
+	pruned := pruneEmptyNavTags(tags)
+
+	require.Len(t, pruned, 1)
+	assert.Equal(t, "projects", pruned[0].Name)
+	require.Len(t, pruned[0].Children, 1)
+	assert.Equal(t, "branches", pruned[0].Children[0].Name)
+}
+
+func TestAssignOperationsToTags_PrunesUnusedDeclaredTags(t *testing.T) {
+	spec := `openapi: "3.1.0"
+info:
+  title: Neon-ish
+  version: "1.0"
+tags:
+  - name: Preview
+  - name: Region
+  - name: Projects
+paths:
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [Projects]
+      responses:
+        '200':
+          description: ok
+`
+
+	site := pressFromSpec(t, spec)
+
+	require.Len(t, site.NavTags, 1)
+	assert.Equal(t, []string{"Projects"}, navTagNames(site.NavTags))
+	assert.Nil(t, findNavTag(site.NavTags, "Preview"))
+	assert.Nil(t, findNavTag(site.NavTags, "Region"))
+}
+
+func TestAssignOperationsToTags_UsesSyntheticFallbackForLargeSingleTagSpecs(t *testing.T) {
+	spec := buildSyntheticFallbackSpec(25, []string{"plaid"}, []string{"plaid"})
+
+	site := pressFromSpec(t, spec)
+
+	require.Len(t, site.Operations, 25)
+	assert.Equal(t, []string{"accounts", "institutions", "reports", "transactions", "users"}, navTagNames(site.NavTags))
+	assert.Empty(t, site.Root.UntaggedOperations)
+	assert.Equal(t, []string{"accounts"}, site.Operations[0].Tags)
+	assert.Equal(t, []string{"Accounts"}, site.Operations[0].TagPath)
+}
+
+func TestAssignOperationsToTags_DoesNotUseSyntheticFallbackBelowThreshold(t *testing.T) {
+	spec := buildSyntheticFallbackSpec(24, []string{"plaid"}, []string{"plaid"})
+
+	site := pressFromSpec(t, spec)
+
+	require.Len(t, site.Operations, 24)
+	assert.Equal(t, []string{"plaid"}, navTagNames(site.NavTags))
+	require.Len(t, site.NavTags[0].Operations, 24)
+	assert.Equal(t, []string{"plaid"}, site.Operations[0].Tags)
+}
+
+func TestAssignOperationsToTags_DoesNotUseSyntheticFallbackWhenUsedTagsExceedThreshold(t *testing.T) {
+	spec := buildSyntheticFallbackSpec(25, []string{"plaid", "balances", "transfers"}, []string{"plaid", "balances", "transfers"})
+
+	site := pressFromSpec(t, spec)
+
+	require.Len(t, site.Operations, 25)
+	assert.Equal(t, []string{"plaid", "balances", "transfers"}, navTagNames(site.NavTags))
+	assert.Equal(t, "plaid", site.Operations[0].Tags[0])
+}
+
+func TestAssignOperationsToTags_SyntheticFallbackCountsOnlyUsedTags(t *testing.T) {
+	spec := buildSyntheticFallbackSpec(25, []string{"plaid"}, []string{"plaid", "unused-a", "unused-b"})
+
+	site := pressFromSpec(t, spec)
+
+	require.Len(t, site.Operations, 25)
+	assert.Equal(t, []string{"accounts", "institutions", "reports", "transactions", "users"}, navTagNames(site.NavTags))
+}
+
+func TestAssignOperationsToTags_SyntheticFallbackCanBeDisabled(t *testing.T) {
+	spec := buildSyntheticFallbackSpec(25, []string{"plaid"}, []string{"plaid"})
+
+	site := pressSiteFromSpecWithConfig(t, spec, func(cfg *PrintingPressConfig) {
+		cfg.SyntheticTagFallback = &SyntheticTagFallbackConfig{
+			Enabled: false,
+		}
+	})
+
+	require.Len(t, site.Operations, 25)
+	assert.Equal(t, []string{"plaid"}, navTagNames(site.NavTags))
+	require.Len(t, site.NavTags[0].Operations, 25)
+}
+
+func TestExtractPathGroups_SuppressesVerbOnlySecondSegment(t *testing.T) {
+	tests := []struct {
+		path     string
+		expected [2]string
+	}{
+		{path: "/cashflow_report/get", expected: [2]string{"cashflow_report", ""}},
+		{path: "/cashflow_report/update", expected: [2]string{"cashflow_report", ""}},
+		{path: "/cashflow_report/delete", expected: [2]string{"cashflow_report", ""}},
+		{path: "/cashflow_report/refresh", expected: [2]string{"cashflow_report", ""}},
+		{path: "/cashflow_report/register", expected: [2]string{"cashflow_report", ""}},
+		{path: "/cashflow_report/insights", expected: [2]string{"cashflow_report", "insights"}},
+		{path: "/v1/cashflow_report/{client_id}/get", expected: [2]string{"cashflow_report", ""}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			l1, l2 := extractPathGroups(tt.path)
+			assert.Equal(t, tt.expected[0], l1)
+			assert.Equal(t, tt.expected[1], l2)
+		})
+	}
+}
+
+func TestAssignOperationsToTags_SyntheticFallbackSuppressesVerbOnlyChildTags(t *testing.T) {
+	spec := `openapi: "3.1.0"
+info:
+  title: Plaid Style Test
+  version: "1.0"
+tags:
+  - name: plaid
+paths:
+  /cashflow_report/get:
+    post:
+      operationId: cashflowReportGet
+      tags: [plaid]
+      responses:
+        '200':
+          description: ok
+  /cashflow_report/refresh:
+    post:
+      operationId: cashflowReportRefresh
+      tags: [plaid]
+      responses:
+        '200':
+          description: ok
+  /cashflow_report/insights:
+    post:
+      operationId: cashflowReportInsights
+      tags: [plaid]
+      responses:
+        '200':
+          description: ok
+  /cashflow_report/transactions:
+    post:
+      operationId: cashflowReportTransactions
+      tags: [plaid]
+      responses:
+        '200':
+          description: ok
+  /accounts/get:
+    post:
+      operationId: accountsGet
+      tags: [plaid]
+      responses:
+        '200':
+          description: ok
+`
+
+	site := pressSiteFromSpecWithConfig(t, spec, func(cfg *PrintingPressConfig) {
+		cfg.SyntheticTagFallback = &SyntheticTagFallbackConfig{
+			Enabled:         true,
+			MaxDistinctTags: 2,
+			MinOperations:   1,
+		}
+	})
+
+	require.Len(t, site.NavTags, 2)
+	assert.Equal(t, []string{"accounts", "cashflow_report"}, navTagNames(site.NavTags))
+
+	var cashflowTag *NavTag
+	for _, tag := range site.NavTags {
+		if tag.Name == "cashflow_report" {
+			cashflowTag = tag
+			break
+		}
+	}
+	require.NotNil(t, cashflowTag)
+	require.Len(t, cashflowTag.Children, 2)
+	assert.Equal(t, []string{"cashflow_report/insights", "cashflow_report/transactions"}, navTagNames(cashflowTag.Children))
+	require.Len(t, cashflowTag.Operations, 2)
+
+	opByID := make(map[string]*OperationPage)
+	for _, op := range site.Operations {
+		opByID[op.OperationID] = op
+	}
+	assert.Equal(t, []string{"cashflow_report"}, opByID["cashflowReportGet"].Tags)
+	assert.Equal(t, []string{"Cashflow Report"}, opByID["cashflowReportGet"].TagPath)
+	assert.Equal(t, []string{"cashflow_report"}, opByID["cashflowReportRefresh"].Tags)
+	assert.Equal(t, []string{"cashflow_report/insights"}, opByID["cashflowReportInsights"].Tags)
+	assert.Equal(t, []string{"Cashflow Report", "Insights"}, opByID["cashflowReportInsights"].TagPath)
+	assert.Equal(t, []string{"cashflow_report/transactions"}, opByID["cashflowReportTransactions"].Tags)
+	assert.Equal(t, []string{"Cashflow Report", "Transactions"}, opByID["cashflowReportTransactions"].TagPath)
+	assert.Equal(t, []string{"accounts"}, opByID["accountsGet"].Tags)
 }
 
 func TestCollectOperation_OperationParametersOverridePathParameters(t *testing.T) {

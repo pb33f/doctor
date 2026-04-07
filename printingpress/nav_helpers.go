@@ -30,6 +30,9 @@ func operationNavSections(page *OperationPage) string {
 	if page.ParametersJSON != "" {
 		sections = append(sections, navSection{"Parameters", "section-parameters"})
 	}
+	if page.CurlJSON != "" {
+		sections = append(sections, navSection{"cURL", "section-curl"})
+	}
 	if page.ExtensionsJSON != "" {
 		sections = append(sections, navSection{"Extensions", "section-extensions"})
 	}

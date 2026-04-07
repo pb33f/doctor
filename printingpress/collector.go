@@ -8,15 +8,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/url"
 	"reflect"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/pb33f/doctor/diagramatron"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/bundler"
 	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
+	highv3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/pb33f/libopenapi/renderer"
 	"go.yaml.in/yaml/v4"
@@ -72,6 +75,79 @@ func decodeJSONPointerToken(token string) string {
 	return token
 }
 
+func collectLibopenapiServerVariables(
+	variables *orderedmap.Map[string, *highv3.ServerVariable],
+) []*ServerVariableInfo {
+	if variables == nil || variables.Len() == 0 {
+		return nil
+	}
+	result := make([]*ServerVariableInfo, 0, variables.Len())
+	for pair := variables.First(); pair != nil; pair = pair.Next() {
+		sv := pair.Value()
+		if sv == nil {
+			continue
+		}
+		info := &ServerVariableInfo{
+			Name:        pair.Key(),
+			Default:     sv.Default,
+			Description: sv.Description,
+		}
+		if len(sv.Enum) > 0 {
+			info.Enum = append(info.Enum, sv.Enum...)
+		}
+		result = append(result, info)
+	}
+	return result
+}
+
+func collectDoctorServerVariables(variables *orderedmap.Map[string, *v3.ServerVariable]) []*ServerVariableInfo {
+	if variables == nil || variables.Len() == 0 {
+		return nil
+	}
+	result := make([]*ServerVariableInfo, 0, variables.Len())
+	for pair := variables.First(); pair != nil; pair = pair.Next() {
+		sv := pair.Value()
+		if sv == nil || sv.Value == nil {
+			continue
+		}
+		info := &ServerVariableInfo{
+			Name:        pair.Key(),
+			Default:     sv.Value.Default,
+			Description: sv.Value.Description,
+		}
+		if len(sv.Value.Enum) > 0 {
+			info.Enum = append(info.Enum, sv.Value.Enum...)
+		}
+		result = append(result, info)
+	}
+	return result
+}
+
+func (pp *PrintingPress) collectSecurityGroups(
+	requirements []*highbase.SecurityRequirement,
+) ([]*SecurityRequirementGroup, []*SecurityRequirement) {
+	if requirements == nil {
+		return nil, nil
+	}
+
+	groups := make([]*SecurityRequirementGroup, 0, len(requirements))
+	var flat []*SecurityRequirement
+
+	for _, requirement := range requirements {
+		group := &SecurityRequirementGroup{}
+		if requirement != nil && requirement.Requirements != nil {
+			for pair := requirement.Requirements.First(); pair != nil; pair = pair.Next() {
+				req := pp.resolveSecurityRequirement(pair.Key(), pair.Value())
+				group.Requirements = append(group.Requirements, req)
+				flat = append(flat, req)
+			}
+		}
+		groups = append(groups, group)
+	}
+
+	return groups, flat
+}
+
 // buildModelIndex creates an O(1) lookup map from "typeSlug/name" to ModelPage.
 func (pp *PrintingPress) buildModelIndex() {
 	total := 0
@@ -121,6 +197,7 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 				root.Servers = append(root.Servers, &ServerInfo{
 					URL:         srv.URL,
 					Description: srv.Description,
+					Variables:   collectLibopenapiServerVariables(srv.Variables),
 				})
 			}
 		}
@@ -149,11 +226,7 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 
 	// Resolve global security AFTER model index is built (for O(1) lookup)
 	if doc.Document != nil && doc.Document.Security != nil {
-		for _, sec := range doc.Document.Security {
-			for pair := sec.Requirements.First(); pair != nil; pair = pair.Next() {
-				root.Security = append(root.Security, pp.resolveSecurityRequirement(pair.Key(), pair.Value()))
-			}
-		}
+		root.SecurityGroups, root.Security = pp.collectSecurityGroups(doc.Document.Security)
 	}
 
 	// Build nav model groups from collected components
@@ -167,9 +240,12 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 		pp.visitPaths(ctx, doc.Paths)
 	}
 
-	// assign operations to tags, auto-group untagged ops by path prefix, then compute breadcrumbs
-	pp.assignOperationsToTags()
-	pp.autoGroupUntaggedOperations()
+	// assign operations to tags, or treat low-tag/high-volume specs as effectively untagged,
+	// then auto-group untagged ops by path prefix and compute breadcrumbs.
+	useSyntheticFallback := pp.shouldUseSyntheticTagFallback()
+	pp.assignOperationsToTags(useSyntheticFallback)
+	pp.autoGroupUntaggedOperations(useSyntheticFallback)
+	pp.pruneEmptyTagGroups()
 	pp.populateTagPaths()
 
 	// Collect webhooks
@@ -329,6 +405,7 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 				page.Servers = append(page.Servers, &ServerInfo{
 					URL:         srv.Value.URL,
 					Description: srv.Value.Description,
+					Variables:   collectDoctorServerVariables(srv.Variables),
 				})
 			}
 		}
@@ -336,13 +413,8 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 
 	// Security
 	if op.Security != nil {
-		for _, sec := range op.Security {
-			if sec.Value != nil && sec.Value.Requirements != nil {
-				for p := sec.Value.Requirements.First(); p != nil; p = p.Next() {
-					page.Security = append(page.Security, pp.resolveSecurityRequirement(p.Key(), p.Value()))
-				}
-			}
-		}
+		page.HasSecurityOverride = true
+		page.SecurityGroups, page.Security = pp.collectSecurityGroups(val.Security)
 	}
 
 	// External docs
@@ -377,7 +449,7 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 
 	// Serialize full operation to YAML + JSON for cowboy-components and raw viewer
 	pp.captureRawData(val, fmt.Sprintf("%s %s", method, path),
-		&page.RawYAML, &page.SchemaJSON, &page.SchemaHighlightedHTML)
+		&page.RawYAML, &page.SchemaJSON, nil)
 
 	// Use ValueNode line only for single-file specs; for multi-file bundled specs
 	// the line refers to the bundled output, not the original source file.
@@ -544,19 +616,10 @@ func (pp *PrintingPress) collectMediaType(mediaTypeName string, mt *v3.MediaType
 				}
 				// Resolve items schema so the UI can render its properties
 				if itemsSch := sch.Items.A.Schema(); itemsSch != nil {
-					if itemsJSON, err := itemsSch.MarshalJSON(); err == nil {
-						mti.ItemsSchemaJSON = string(itemsJSON)
-					}
+					mti.ItemsSchemaJSON = pp.captureSchemaJSON(itemsSch)
 				}
 			}
-			jsonStr, err := sch.MarshalJSON()
-			if err == nil {
-				mti.SchemaJSON = string(jsonStr)
-				// Only generate highlighted HTML for inline schemas (not refs — they link out)
-				if mti.SchemaRef == nil && mti.ItemsRef == nil {
-					mti.SchemaHighlightedHTML, _ = highlightJSON(prettyJSON(string(jsonStr)))
-				}
-			}
+			mti.SchemaJSON = pp.captureSchemaJSON(sch)
 		}
 	}
 	lang := mockLanguageForMediaType(mediaTypeName)
@@ -605,6 +668,56 @@ func (pp *PrintingPress) collectMediaType(mediaTypeName string, mt *v3.MediaType
 	}
 	mti.Extensions = collectExtensions(mt.Value.Extensions)
 	return mti
+}
+
+func (pp *PrintingPress) captureSchemaJSON(schema *highbase.Schema) string {
+	if schema == nil {
+		return ""
+	}
+	if pp.schemaArtifacts != nil {
+		if artifact, ok := pp.schemaArtifacts.getByIdentity(schema); ok {
+			return pp.schemaArtifacts.snapshot(artifact).jsonStr
+		}
+	}
+	jsonBytes, err := schema.MarshalJSON()
+	if err != nil {
+		return ""
+	}
+	jsonStr := string(jsonBytes)
+	if pp.schemaArtifacts == nil {
+		return jsonStr
+	}
+	if artifact, ok := pp.schemaArtifacts.getByContent(jsonStr); ok {
+		artifact = pp.schemaArtifacts.store(schema, artifact)
+		return pp.schemaArtifacts.snapshot(artifact).jsonStr
+	}
+	artifact := pp.schemaArtifacts.store(schema, &schemaArtifact{jsonStr: jsonStr})
+	return pp.schemaArtifacts.snapshot(artifact).jsonStr
+}
+
+func (pp *PrintingPress) captureSchemaHighlight(schema *highbase.Schema) string {
+	if schema == nil {
+		return ""
+	}
+	jsonStr := pp.captureSchemaJSON(schema)
+	if jsonStr == "" {
+		return ""
+	}
+	if pp.schemaArtifacts == nil {
+		highlighted, _ := highlightJSON(prettyJSON(jsonStr))
+		return highlighted
+	}
+	artifact, ok := pp.schemaArtifacts.getByIdentity(schema)
+	if !ok {
+		artifact, ok = pp.schemaArtifacts.getByContent(jsonStr)
+		if !ok {
+			artifact = pp.schemaArtifacts.store(schema, &schemaArtifact{jsonStr: jsonStr})
+		} else {
+			artifact = pp.schemaArtifacts.store(schema, artifact)
+		}
+	}
+	pp.schemaArtifacts.ensureHighlight(artifact)
+	return pp.schemaArtifacts.snapshot(artifact).highlightHTML
 }
 
 func (pp *PrintingPress) collectResponses(responses *v3.Responses, piOrigin *bundler.ComponentOrigin, piBundledLine int) []*ResponseInfo {
@@ -779,7 +892,7 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 			page.Description = sp.Schema.Value.Description
 			page.DescHTML = renderMarkdown(sp.Schema.Value.Description)
 			pp.captureRawData(sp.Schema.Value, name,
-				&page.RawYAML, &page.SchemaJSON, &page.SchemaHighlightedHTML)
+				&page.RawYAML, &page.SchemaJSON, nil)
 			if isComplexSchema(sp.Schema.Value) {
 				page.MockJSON = pp.generateMock(sp.Schema.Value)
 				if mermaidCfg != nil {
@@ -909,20 +1022,65 @@ func examplesFromHeader(v *v3.Header) examplesMap {
 // highlightedHTML progressively. If Render() fails, nothing is set. If yamlToJSON()
 // fails, only rawYAML is set (the drawer supports YAML-only display).
 func (pp *PrintingPress) captureRawData(renderable interface{ Render() ([]byte, error) }, context string, rawYAML, schemaJSON, highlightedHTML *string) {
+	if pp.rawArtifacts != nil {
+		if artifact, ok := pp.rawArtifacts.getByIdentity(renderable); ok {
+			if highlightedHTML != nil {
+				pp.rawArtifacts.ensureHighlight(artifact)
+			}
+			snapshot := pp.rawArtifacts.snapshot(artifact)
+			*rawYAML = snapshot.rawYAML
+			*schemaJSON = snapshot.schemaJSON
+			if highlightedHTML != nil {
+				*highlightedHTML = snapshot.highlightHTML
+			}
+			return
+		}
+	}
+
 	yamlBytes, err := renderable.Render()
 	if err != nil {
 		pp.warn("failed to render to YAML", context, err)
 		return
 	}
-	*rawYAML = strings.TrimRight(string(yamlBytes), "\n")
+
+	normalizedYAML := normalizeArtifactYAML(yamlBytes)
+	if pp.rawArtifacts != nil {
+		if artifact, ok := pp.rawArtifacts.getByContent(normalizedYAML); ok {
+			artifact = pp.rawArtifacts.store(renderable, artifact)
+			if highlightedHTML != nil {
+				pp.rawArtifacts.ensureHighlight(artifact)
+			}
+			snapshot := pp.rawArtifacts.snapshot(artifact)
+			*rawYAML = snapshot.rawYAML
+			*schemaJSON = snapshot.schemaJSON
+			if highlightedHTML != nil {
+				*highlightedHTML = snapshot.highlightHTML
+			}
+			return
+		}
+	}
+
+	*rawYAML = normalizedYAML
 	jsonStr, jsonErr := yamlToJSON(yamlBytes)
 	if jsonErr != nil {
 		pp.warn("failed to convert YAML to JSON", context, jsonErr)
 		return
 	}
 	*schemaJSON = jsonStr
+	var artifact *rawArtifact
+	if pp.rawArtifacts != nil {
+		artifact = pp.rawArtifacts.store(renderable, &rawArtifact{
+			rawYAML:    normalizedYAML,
+			schemaJSON: jsonStr,
+		})
+	}
 	if highlightedHTML != nil {
-		*highlightedHTML, _ = highlightJSON(prettyJSON(jsonStr))
+		if artifact != nil {
+			pp.rawArtifacts.ensureHighlight(artifact)
+			*highlightedHTML = pp.rawArtifacts.snapshot(artifact).highlightHTML
+		} else {
+			*highlightedHTML, _ = highlightJSON(prettyJSON(jsonStr))
+		}
 	}
 }
 
@@ -975,7 +1133,7 @@ func collectRenderable[V interface{ GetValue() any }](
 
 		if r := getValueRenderer(val); r != nil {
 			pp.captureRawData(r, fmt.Sprintf("%s/%s", componentType, name),
-				&page.RawYAML, &page.SchemaJSON, &page.SchemaHighlightedHTML)
+				&page.RawYAML, &page.SchemaJSON, nil)
 		}
 
 		if getSchema != nil {
@@ -1157,8 +1315,78 @@ func (pp *PrintingPress) resolveOperationLinks() {
 	}
 }
 
+func (pp *PrintingPress) shouldUseSyntheticTagFallback() bool {
+	if !pp.syntheticTags.Enabled {
+		return false
+	}
+	if len(pp.site.Operations) < pp.syntheticTags.MinOperations {
+		return false
+	}
+
+	distinctTags := make(map[string]struct{})
+	for _, op := range pp.site.Operations {
+		for _, tagName := range op.Tags {
+			if tagName == "" {
+				continue
+			}
+			distinctTags[tagName] = struct{}{}
+			if len(distinctTags) > pp.syntheticTags.MaxDistinctTags {
+				return false
+			}
+		}
+	}
+	return len(distinctTags) > 0 && len(distinctTags) <= pp.syntheticTags.MaxDistinctTags
+}
+
+func (pp *PrintingPress) pruneEmptyTagGroups() {
+	pruned := pruneEmptyNavTags(pp.site.NavTags)
+	pp.site.NavTags = pruned
+	if pp.site.Root != nil {
+		pp.site.Root.TagTree = pruned
+	}
+}
+
+func pruneEmptyNavTags(tags []*NavTag) []*NavTag {
+	if len(tags) == 0 {
+		return nil
+	}
+
+	pruned := make([]*NavTag, 0, len(tags))
+	for _, tag := range tags {
+		if tag == nil {
+			continue
+		}
+		tag.Children = pruneEmptyNavTags(tag.Children)
+		if len(tag.Operations) == 0 && len(tag.Children) == 0 {
+			continue
+		}
+		pruned = append(pruned, tag)
+	}
+	if len(pruned) == 0 {
+		return nil
+	}
+	return pruned
+}
+
 // assignOperationsToTags distributes operations into the NavTag tree by matching tag names.
-func (pp *PrintingPress) assignOperationsToTags() {
+func (pp *PrintingPress) assignOperationsToTags(forceSynthetic bool) {
+	pp.site.Root.UntaggedOperations = nil
+	if forceSynthetic {
+		pp.site.NavTags = nil
+		pp.site.Root.TagTree = nil
+		for _, op := range pp.site.Operations {
+			pp.site.Root.UntaggedOperations = append(pp.site.Root.UntaggedOperations, &NavOperation{
+				Method:      op.Method,
+				Path:        op.Path,
+				OperationID: op.OperationID,
+				Summary:     op.Summary,
+				Slug:        op.Slug,
+				Deprecated:  op.Deprecated,
+			})
+		}
+		return
+	}
+
 	tagLookup := make(map[string]*NavTag)
 	var walk func([]*NavTag)
 	walk = func(tags []*NavTag) {
@@ -1265,8 +1493,9 @@ func (pp *PrintingPress) buildNavModelGroups() {
 			continue
 		}
 		group := &NavModelGroup{
-			Name:     def.name,
-			TypeSlug: def.typeSlug,
+			Name:         def.name,
+			TypeSlug:     def.typeSlug,
+			CardMinWidth: computeNavModelGroupCardMinWidth(pages),
 		}
 		for _, p := range pages {
 			group.Models = append(group.Models, &NavModel{
@@ -1278,6 +1507,53 @@ func (pp *PrintingPress) buildNavModelGroups() {
 		}
 		pp.site.NavModelGroups = append(pp.site.NavModelGroups, group)
 	}
+}
+
+func computeNavModelGroupCardMinWidth(pages []*ModelPage) int {
+	const (
+		baseWidthPx    = 250
+		maxWidthPx     = 420
+		basePaddingPx  = 120
+		perCharWidthPx = 8
+		avgBiasChars   = 6
+		maxBiasChars   = 16
+	)
+
+	if len(pages) == 0 {
+		return baseWidthPx
+	}
+
+	var totalLen int
+	var maxLen int
+	var counted int
+	for _, page := range pages {
+		if page == nil {
+			continue
+		}
+		nameLen := utf8.RuneCountInString(page.Name)
+		totalLen += nameLen
+		counted++
+		if nameLen > maxLen {
+			maxLen = nameLen
+		}
+	}
+	if counted == 0 || totalLen == 0 {
+		return baseWidthPx
+	}
+
+	avgLen := float64(totalLen) / float64(counted)
+	targetChars := math.Max(
+		avgLen+avgBiasChars,
+		math.Min(float64(maxLen), avgLen+maxBiasChars),
+	)
+	width := basePaddingPx + int(math.Ceil(targetChars))*perCharWidthPx
+	if width < baseWidthPx {
+		return baseWidthPx
+	}
+	if width > maxWidthPx {
+		return maxWidthPx
+	}
+	return width
 }
 
 // generateMock produces a pretty-printed JSON mock from any mockable object.
@@ -1299,6 +1575,9 @@ func (pp *PrintingPress) generateMockAs(mockable any, lang string) string {
 		gen = pp.mockGenXML
 	default:
 		gen = pp.mockGen
+	}
+	if gen == nil {
+		return ""
 	}
 	mock, err := gen.GenerateMock(mockable, "")
 	if err != nil || mock == nil {
@@ -1475,6 +1754,9 @@ func (pp *PrintingPress) resolveSecurityRequirement(name string, scopes []string
 			if in, ok := schema["in"].(string); ok {
 				req.In = in
 			}
+			if parameterName, ok := schema["name"].(string); ok {
+				req.ParameterName = parameterName
+			}
 			if s, ok := schema["scheme"].(string); ok {
 				req.Scheme = s
 			}
@@ -1517,7 +1799,7 @@ func ptrBool(b *bool) bool {
 // for operations that have no tags, giving them sidebar navigation.
 // Groups with 2+ distinct second-level segments get parent/child hierarchy.
 // If a path prefix matches an existing tag name, operations merge into that tag.
-func (pp *PrintingPress) autoGroupUntaggedOperations() {
+func (pp *PrintingPress) autoGroupUntaggedOperations(forceSynthetic bool) {
 	untagged := pp.site.Root.UntaggedOperations
 	if len(untagged) == 0 {
 		return
@@ -1648,13 +1930,14 @@ func (pp *PrintingPress) autoGroupUntaggedOperations() {
 
 	// Phase 3: Set synthetic tags on OperationPages so populateTagPaths() builds breadcrumbs
 	for _, op := range pp.site.Operations {
-		if len(op.Tags) == 0 {
-			if assign, ok := slugAssign[op.Slug]; ok {
-				if assign.l2Key != "" {
-					op.Tags = []string{assign.l1Key + "/" + assign.l2Key}
-				} else {
-					op.Tags = []string{assign.l1Key}
-				}
+		if !forceSynthetic && len(op.Tags) > 0 {
+			continue
+		}
+		if assign, ok := slugAssign[op.Slug]; ok {
+			if assign.l2Key != "" {
+				op.Tags = []string{assign.l1Key + "/" + assign.l2Key}
+			} else {
+				op.Tags = []string{assign.l1Key}
 			}
 		}
 	}
@@ -1685,8 +1968,41 @@ func extractPathGroups(path string) (string, string) {
 	case 1:
 		return meaningful[0], ""
 	default:
+		if isSyntheticActionSegment(meaningful[1]) {
+			return meaningful[0], ""
+		}
 		return meaningful[0], meaningful[1]
 	}
+}
+
+var syntheticActionSegments = map[string]struct{}{
+	"add":      {},
+	"cancel":   {},
+	"create":   {},
+	"delete":   {},
+	"edit":     {},
+	"get":      {},
+	"list":     {},
+	"patch":    {},
+	"post":     {},
+	"put":      {},
+	"refresh":  {},
+	"register": {},
+	"remove":   {},
+	"search":   {},
+	"set":      {},
+	"sync":     {},
+	"unset":    {},
+	"update":   {},
+	"verify":   {},
+}
+
+func isSyntheticActionSegment(segment string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(segment))
+	normalized = strings.ReplaceAll(normalized, "_", "")
+	normalized = strings.ReplaceAll(normalized, "-", "")
+	_, ok := syntheticActionSegments[normalized]
+	return ok
 }
 
 // pathGroupDisplayName converts a path segment to a human-readable display name.

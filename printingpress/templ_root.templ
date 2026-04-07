@@ -28,7 +28,7 @@ templ RootPageTempl(page *RootPage) {
 							}
 							<sl-icon name="hdd-network" class="pp-server-icon"></sl-icon>
 						</span>
-						<a class="pp-server-url" href={ templ.SafeURL(srv.URL) } target="_blank" rel="noopener">{ srv.URL }</a>
+						<a class="pp-server-url" href={ templ.SafeURL(resolveServerURL(srv)) } target="_blank" rel="noopener">{ srv.URL }</a>
 					</div>
 				}
 			</div>

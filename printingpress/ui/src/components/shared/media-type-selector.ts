@@ -26,21 +26,31 @@ export class PpMediaTypeSelector extends LitElement {
 
     @query('.schema-split') splitPanel!: HTMLElement;
     @query('.schema-props-pane') propsPane!: HTMLElement;
+    @query('.schema-example-pane') examplePane!: HTMLElement;
 
     private resizeObserver: ResizeObserver | null = null;
+    private paneResizeObserver: ResizeObserver | null = null;
     private _sizePending = false;
     private _rafId = 0;
+    private observedPropsPane: HTMLElement | null = null;
+    private observedExamplePane: HTMLElement | null = null;
+    private observedPropsContent: Element | null = null;
+    private observedExampleContent: Element | null = null;
 
     connectedCallback() {
         super.connectedCallback();
         setTimeout(() => {
             this.wide = this.offsetWidth >= 900;
+            if (typeof ResizeObserver === 'undefined') return;
             this.resizeObserver = new ResizeObserver((entries) => {
                 for (const entry of entries) {
                     this.wide = entry.contentRect.width >= 900;
                 }
             });
             this.resizeObserver.observe(this);
+            this.paneResizeObserver = new ResizeObserver(() => {
+                this.sizeSplitPanel();
+            });
         }, 0);
     }
 
@@ -49,38 +59,82 @@ export class PpMediaTypeSelector extends LitElement {
         cancelAnimationFrame(this._rafId);
         this.resizeObserver?.disconnect();
         this.resizeObserver = null;
+        this.paneResizeObserver?.disconnect();
+        this.paneResizeObserver = null;
+        this.observedPropsPane = null;
+        this.observedExamplePane = null;
+        this.observedPropsContent = null;
+        this.observedExampleContent = null;
     }
 
     updated(changed: Map<string, unknown>) {
         if (changed.has('wide') || changed.has('selectedIndex') || changed.has('mediaTypes')) {
             this.sizeSplitPanel();
         }
+        this.syncPaneObservers();
     }
 
     private sizeSplitPanel() {
-        if (!this.splitPanel || !this.propsPane || this._sizePending) return;
+        if (!this.splitPanel || !this.propsPane || !this.examplePane || this._sizePending) return;
         this._sizePending = true;
         this._rafId = requestAnimationFrame(() => {
             this._sizePending = false;
-            if (!this.splitPanel || !this.propsPane) return;
-            const children = Array.from(this.propsPane.children) as HTMLElement[];
-            const contentHeight = children.reduce((sum, c) => sum + c.offsetHeight, 0);
-            const style = getComputedStyle(this.propsPane);
-            const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
-            const propsHeight = contentHeight + padding;
+            if (!this.splitPanel || !this.propsPane || !this.examplePane) return;
+            const propsHeight = this.measurePaneContentHeight(this.propsPane);
+            const exampleHeight = this.measurePaneContentHeight(this.examplePane);
             const vh = document.documentElement.clientHeight || 800;
             const mt = this.mediaTypes[this.selectedIndex];
             const propCount = this.getPropCount(mt);
-            let h: number;
-            if (propCount >= 6) {
-                h = Math.max(300, Math.min(propsHeight, vh * 0.6));
-            } else {
-                h = Math.max(200, propsHeight);
-            }
+            const preferredHeight = Math.max(propsHeight, exampleHeight);
+            const minHeight = propCount >= 6 ? 300 : 220;
+            const maxHeight = vh * 0.75;
+            const h = Math.max(minHeight, Math.min(preferredHeight, maxHeight));
             const splitStyle = getComputedStyle(this.splitPanel);
             const splitPadding = parseFloat(splitStyle.paddingTop) + parseFloat(splitStyle.paddingBottom);
             this.splitPanel.style.height = `${h + splitPadding}px`;
         });
+    }
+
+    private measurePaneContentHeight(pane: HTMLElement): number {
+        const children = Array.from(pane.children) as HTMLElement[];
+        const contentHeight = children.reduce((sum, child) => {
+            return sum + Math.max(child.offsetHeight, child.scrollHeight);
+        }, 0);
+        const style = getComputedStyle(pane);
+        const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+        return contentHeight + padding;
+    }
+
+    private syncPaneObservers() {
+        if (!this.paneResizeObserver || typeof ResizeObserver === 'undefined') return;
+        const nextPropsPane = this.propsPane ?? null;
+        const nextExamplePane = this.examplePane ?? null;
+        const nextPropsContent = nextPropsPane?.firstElementChild ?? null;
+        const nextExampleContent = nextExamplePane?.firstElementChild ?? null;
+
+        if (this.observedPropsPane !== nextPropsPane) {
+            if (this.observedPropsPane) this.paneResizeObserver.unobserve(this.observedPropsPane);
+            if (nextPropsPane) this.paneResizeObserver.observe(nextPropsPane);
+            this.observedPropsPane = nextPropsPane;
+        }
+
+        if (this.observedExamplePane !== nextExamplePane) {
+            if (this.observedExamplePane) this.paneResizeObserver.unobserve(this.observedExamplePane);
+            if (nextExamplePane) this.paneResizeObserver.observe(nextExamplePane);
+            this.observedExamplePane = nextExamplePane;
+        }
+
+        if (this.observedPropsContent !== nextPropsContent) {
+            if (this.observedPropsContent) this.paneResizeObserver.unobserve(this.observedPropsContent);
+            if (nextPropsContent instanceof Element) this.paneResizeObserver.observe(nextPropsContent);
+            this.observedPropsContent = nextPropsContent;
+        }
+
+        if (this.observedExampleContent !== nextExampleContent) {
+            if (this.observedExampleContent) this.paneResizeObserver.unobserve(this.observedExampleContent);
+            if (nextExampleContent instanceof Element) this.paneResizeObserver.observe(nextExampleContent);
+            this.observedExampleContent = nextExampleContent;
+        }
     }
 
     private getPropCount(mt: MediaTypeData): number {

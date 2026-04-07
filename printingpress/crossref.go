@@ -217,6 +217,13 @@ func (pp *PrintingPress) extractOperationModelRefs(op *OperationPage, modelSlugL
 		addLink(p.Ref)
 	}
 
+	// Scan security requirements
+	for _, sec := range op.Security {
+		if sec.Ref != nil {
+			addLink(sec.Ref)
+		}
+	}
+
 	return refs
 }
 

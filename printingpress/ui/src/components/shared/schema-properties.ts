@@ -8,15 +8,17 @@ import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
 import '@shoelace-style/shoelace/dist/components/tab/tab.js';
 import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
 import constraintsCss from '../../styles/constraints.css.js';
+import markdownCss from '../../styles/markdown.css.js';
 import schemaPropertiesCss from './schema-properties.css.js';
 import {deriveSchemaType, resolveRefLink} from '../../utils/schema.js';
+import {renderMarkdown} from '../../utils/markdown.js';
 import {renderConstraints, renderSchemaType} from '../../utils/render-helpers.js';
 import {getSchemaEntryByRef} from '../../utils/schema-registry.js';
 import './ref-popover.js';
 
 @customElement('pp-schema-properties')
 export class PpSchemaProperties extends LitElement {
-    static styles = [constraintsCss, ...schemaPropertiesCss];
+    static styles = [constraintsCss, markdownCss, ...schemaPropertiesCss];
 
     @property({attribute: 'schema-json'}) schemaJson = '';
     @property({type: Boolean, reflect: true}) compact = false;
@@ -34,18 +36,79 @@ export class PpSchemaProperties extends LitElement {
         }
     }
 
-    private computeNameColumnWidth() {
-        if (!this.schema) return;
+    private parseRegistrySchema(ref: string, visited: Set<string>): any | null {
+        if (visited.has(ref)) return null;
+        const registryEntry = getSchemaEntryByRef(ref);
+        if (!registryEntry?.schemaJson) return null;
+        try {
+            visited.add(ref);
+            return JSON.parse(registryEntry.schemaJson);
+        } catch {
+            return null;
+        }
+    }
+
+    private collectRenderedNameMetrics(schema: any, visited = new Set<string>()): {maxLen: number; hasRequired: boolean} {
+        if (!schema || typeof schema !== 'object') {
+            return {maxLen: 0, hasRequired: false};
+        }
+
         let maxLen = 0;
-        const props = this.schema.properties;
-        const required = new Set<string>(this.schema.required ?? []);
         let hasRequired = false;
-        if (props) {
-            for (const name of Object.keys(props)) {
-                if (name.length > maxLen) maxLen = name.length;
+
+        const props = schema.properties;
+        const required = new Set<string>(schema.required ?? []);
+        if (props && typeof props === 'object') {
+            for (const [name, prop] of Object.entries(props as Record<string, any>)) {
+                maxLen = Math.max(maxLen, name.length);
                 if (required.has(name)) hasRequired = true;
+                const nested = this.collectRenderedNameMetrics(prop, visited);
+                maxLen = Math.max(maxLen, nested.maxLen);
+                hasRequired = hasRequired || nested.hasRequired;
             }
         }
+
+        const compositionKeys = ['allOf', 'oneOf', 'anyOf'] as const;
+        for (const key of compositionKeys) {
+            const entries = schema[key];
+            if (!Array.isArray(entries)) continue;
+            for (const entry of entries) {
+                if (entry?.$ref) {
+                    const referencedSchema = this.parseRegistrySchema(entry.$ref, visited);
+                    if (!referencedSchema) continue;
+                    const nested = this.collectRenderedNameMetrics(referencedSchema, visited);
+                    maxLen = Math.max(maxLen, nested.maxLen);
+                    hasRequired = hasRequired || nested.hasRequired;
+                    continue;
+                }
+                const nested = this.collectRenderedNameMetrics(entry, visited);
+                maxLen = Math.max(maxLen, nested.maxLen);
+                hasRequired = hasRequired || nested.hasRequired;
+            }
+        }
+
+        if (schema.items) {
+            const items = schema.items;
+            if (items.$ref) {
+                const referencedSchema = this.parseRegistrySchema(items.$ref, visited);
+                if (referencedSchema) {
+                    const nested = this.collectRenderedNameMetrics(referencedSchema, visited);
+                    maxLen = Math.max(maxLen, nested.maxLen);
+                    hasRequired = hasRequired || nested.hasRequired;
+                }
+            } else {
+                const nested = this.collectRenderedNameMetrics(items, visited);
+                maxLen = Math.max(maxLen, nested.maxLen);
+                hasRequired = hasRequired || nested.hasRequired;
+            }
+        }
+
+        return {maxLen, hasRequired};
+    }
+
+    private computeNameColumnWidth() {
+        if (!this.schema) return;
+        const {maxLen, hasRequired} = this.collectRenderedNameMetrics(this.schema);
         // ~8.5px per char in monospace + gap. Add 60px for REQ badge if any property is required.
         const badgeWidth = hasRequired ? 70 : 0;
         const width = Math.max(150, maxLen * 8.5 + badgeWidth + 16);
@@ -74,7 +137,7 @@ export class PpSchemaProperties extends LitElement {
                     ${renderConstraints(prop, {labelSuffix: ':'})}
                 </div>
                 <div class="prop-desc-col">
-                    ${prop.description ? prop.description : nothing}
+                    ${renderMarkdown(prop.description)}
                 </div>
             </div>
         `;
@@ -109,7 +172,7 @@ export class PpSchemaProperties extends LitElement {
                     return html`
                         <div class="composition-ref-entry">
                             <span class="composition-ref-link">${this.renderRefAnchor(entry.$ref, link)}</span>
-                            ${description ? html`<span class="composition-ref-desc">${description}</span>` : nothing}
+                            ${description ? renderMarkdown(description, {className: 'composition-ref-desc pp-markdown'}) : nothing}
                         </div>
                     `;
                 })}
@@ -117,33 +180,65 @@ export class PpSchemaProperties extends LitElement {
         `;
     }
 
-    private renderComposition(target: any) {
-        const allOf: any[] = target.allOf;
-        const refEntries: any[] = [];
+    private mergePropertyMaps(base: Record<string, any>, incoming: Record<string, any>) {
+        for (const [key, value] of Object.entries(incoming)) {
+            base[key] = value;
+        }
+    }
 
-        // Merge required from inline/constraint-only entries + top-level.
-        const mergedRequired = new Set<string>(target.required || []);
+    private collectCompositionData(target: any, visited = new Set<string>()) {
+        const refEntries: any[] = [];
+        const mergedRequired = new Set<string>(target?.required || []);
         const mergedProperties: Record<string, any> = {};
 
-        if (target.properties) {
-            Object.assign(mergedProperties, target.properties);
+        if (target?.properties) {
+            this.mergePropertyMaps(mergedProperties, target.properties);
         }
 
+        const allOf: any[] = Array.isArray(target?.allOf) ? target.allOf : [];
         for (const entry of allOf) {
-            if (entry.$ref) {
+            if (entry?.$ref) {
                 refEntries.push(entry);
-            } else {
-                if (entry.properties) {
-                    Object.assign(mergedProperties, entry.properties);
+                const referencedSchema = this.parseRegistrySchema(entry.$ref, visited);
+                if (!referencedSchema) continue;
+                const nested = this.collectCompositionData(referencedSchema, visited);
+                if (nested.refEntries.length) {
+                    refEntries.push(...nested.refEntries);
                 }
-                if (entry.required) {
-                    for (const r of entry.required) mergedRequired.add(r);
+                this.mergePropertyMaps(mergedProperties, nested.mergedProperties);
+                for (const req of nested.mergedRequired) mergedRequired.add(req);
+                continue;
+            }
+
+            if (entry?.allOf && Array.isArray(entry.allOf)) {
+                const nested = this.collectCompositionData(entry, visited);
+                if (nested.refEntries.length) {
+                    refEntries.push(...nested.refEntries);
                 }
+                this.mergePropertyMaps(mergedProperties, nested.mergedProperties);
+                for (const req of nested.mergedRequired) mergedRequired.add(req);
+                continue;
+            }
+
+            if (entry?.properties) {
+                this.mergePropertyMaps(mergedProperties, entry.properties);
+            }
+            if (entry?.required) {
+                for (const req of entry.required) mergedRequired.add(req);
             }
         }
 
+        return {refEntries, mergedRequired, mergedProperties};
+    }
+
+    private renderComposition(target: any) {
+        const {refEntries, mergedRequired, mergedProperties} = this.collectCompositionData(target);
+        const uniqueRefEntries = refEntries.filter((entry, index) => {
+            return entry?.$ref && refEntries.findIndex((candidate) => candidate?.$ref === entry.$ref) === index;
+        });
+
         return html`
-            ${refEntries.length ? this.renderCompositionRefs(refEntries) : nothing}
+            ${uniqueRefEntries.length ? this.renderCompositionRefs(uniqueRefEntries) : nothing}
             ${Object.keys(mergedProperties).length
                 ? this.renderPropertyTable(mergedProperties, mergedRequired)
                 : nothing}
@@ -163,7 +258,7 @@ export class PpSchemaProperties extends LitElement {
                             ${label ? html`<div class="composition-label polymorphic">(${label})</div>` : nothing}
                         </div>
                     ` : nothing}
-                    ${propDesc ? html`<div class="oneof-prop-desc">${propDesc}</div>` : nothing}
+                    ${propDesc ? renderMarkdown(propDesc, {className: 'oneof-prop-desc pp-markdown'}) : nothing}
                 </div>
                 <div class="oneof-desc-container">
                     <sl-tab-group class="oneof-tabs" placement="start">
@@ -191,7 +286,7 @@ export class PpSchemaProperties extends LitElement {
             return html`
                 <div class="oneof-option-header">
                     ${this.renderRefAnchor(entry.$ref, link)}
-                    ${registryEntry?.description ? html`<span class="oneof-option-desc">${registryEntry.description}</span>` : nothing}
+                    ${registryEntry?.description ? renderMarkdown(registryEntry.description, {className: 'oneof-option-desc pp-markdown'}) : nothing}
                 </div>
             `;
         }
@@ -199,7 +294,7 @@ export class PpSchemaProperties extends LitElement {
         const required = new Set<string>(entry.required || []);
         const type = deriveSchemaType(entry);
         return html`
-            ${entry.description ? html`<div class="oneof-option-desc">${entry.description}</div>` : nothing}
+            ${entry.description ? renderMarkdown(entry.description, {className: 'oneof-option-desc pp-markdown'}) : nothing}
             ${entry.properties
                 ? this.renderPropertyTable(entry.properties, required)
                 : type
@@ -240,7 +335,7 @@ export class PpSchemaProperties extends LitElement {
                         ${renderConstraints(target, {labelSuffix: ':'})}
                     </div>
                     <div class="prop-desc-col">
-                        ${target.description ? target.description : nothing}
+                        ${renderMarkdown(target.description)}
                     </div>
                 </div>
             `;

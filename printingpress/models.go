@@ -5,6 +5,7 @@
 package printingpress
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/pb33f/libopenapi/bundler"
@@ -20,8 +21,9 @@ type Site struct {
 	NavModelGroups []*NavModelGroup
 	NavWebhooks    []*NavOperation `json:"-"` // webhook nav entries
 	Warnings       []*BuildWarning
-	SpecFormat     string // "yaml" or "json" — the input spec format
+	SpecFormat     string                          // "yaml" or "json" — the input spec format
 	SchemaRegistry map[string]*SchemaRegistryEntry `json:"-"` // keyed by "componentType/name"
+	Lite           bool                            // when true, use lite JS bundle (no mermaid/explorer)
 }
 
 // SchemaRegistryEntry holds the data needed for hover popovers on $ref links.
@@ -43,6 +45,7 @@ type RootPage struct {
 	License            *LicenseInfo
 	Servers            []*ServerInfo
 	Security           []*SecurityRequirement
+	SecurityGroups     []*SecurityRequirementGroup `json:"securityGroups,omitempty"`
 	ExternalDoc        *ExternalDocInfo
 	TagTree            []*NavTag
 	UntaggedOperations []*NavOperation
@@ -67,6 +70,15 @@ type LicenseInfo struct {
 type ServerInfo struct {
 	URL         string
 	Description string
+	Variables   []*ServerVariableInfo `json:"variables,omitempty"`
+}
+
+// ServerVariableInfo holds a single server variable definition.
+type ServerVariableInfo struct {
+	Name        string   `json:"name"`
+	Default     string   `json:"default,omitempty"`
+	Enum        []string `json:"enum,omitempty"`
+	Description string   `json:"description,omitempty"`
 }
 
 // ExternalDocInfo holds external documentation reference.
@@ -107,9 +119,17 @@ type NavOperation struct {
 
 // NavModelGroup is a group of models of the same component type for navigation.
 type NavModelGroup struct {
-	Name     string      `json:"name"`
-	TypeSlug string      `json:"typeSlug"`
-	Models   []*NavModel `json:"models"`
+	Name         string      `json:"name"`
+	TypeSlug     string      `json:"typeSlug"`
+	Models       []*NavModel `json:"models"`
+	CardMinWidth int         `json:"cardMinWidth,omitempty"`
+}
+
+func (g *NavModelGroup) CardGridStyle() string {
+	if g == nil || g.CardMinWidth <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("--pp-model-card-min: %dpx;", g.CardMinWidth)
 }
 
 // NavModel is a lightweight reference to a model for navigation.
@@ -122,39 +142,42 @@ type NavModel struct {
 
 // OperationPage is the full data for rendering an operation detail page.
 type OperationPage struct {
-	Method       string
-	Path         string
-	OperationID  string
-	Summary      string
-	Description  string
-	DescHTML     string
-	Tags         []string
-	TagPath      []string // hierarchical tag path from root to leaf (summaries)
-	TagSlugs     []string // parallel to TagPath: slug for each tag's index page
-	Deprecated   bool
-	Slug         string
-	Parameters             []*ParameterInfo
-	ParametersJSON         string `json:"-"` // pre-serialized for Lit component; excluded from JSON writer
-	RequestBody            *RequestBodyInfo
-	Responses              []*ResponseInfo
-	ResponsesJSON          string `json:"-"` // pre-serialized for Lit component; excluded from JSON writer
-	CommonHeaders          []*HeaderInfo
-	CommonHeadersJSON      string `json:"-"` // pre-serialized for templ rendering
-	Security               []*SecurityRequirement
-	Servers                []*ServerInfo
-	ExternalDoc            *ExternalDocInfo
-	Extensions             []*ExtensionEntry `json:"extensions,omitempty"`
-	ExtensionsJSON         string            `json:"-"` // pre-serialized for Lit component
-	PathExtensions         []*ExtensionEntry `json:"pathExtensions,omitempty"`
-	PathExtensionsJSON     string            `json:"-"`
-	Callbacks              []*CallbackInfo `json:"callbacks,omitempty"`
-	CallbacksJSON          string          `json:"-"` // pre-serialized for Lit component
-	SchemaJSON             string            // full operation rendered as JSON for cowboy-components
-	SchemaHighlightedHTML  string            `json:"-"` // chroma output, templ only
-	RawYAML                string            `json:"-"` // re-rendered YAML from Render(), for raw viewer
-	SourceLine             int               `json:"-"` // 1-based YAML line number of the operation
-	Location               string            `json:"-"` // source file path for multi-file specs
-	CrossRefs              *OperationCrossRefs
+	Method                string
+	Path                  string
+	OperationID           string
+	Summary               string
+	Description           string
+	DescHTML              string
+	Tags                  []string
+	TagPath               []string // hierarchical tag path from root to leaf (summaries)
+	TagSlugs              []string // parallel to TagPath: slug for each tag's index page
+	Deprecated            bool
+	Slug                  string
+	Parameters            []*ParameterInfo
+	ParametersJSON        string `json:"-"` // pre-serialized for Lit component; excluded from JSON writer
+	RequestBody           *RequestBodyInfo
+	Responses             []*ResponseInfo
+	ResponsesJSON         string `json:"-"` // pre-serialized for Lit component; excluded from JSON writer
+	CommonHeaders         []*HeaderInfo
+	CommonHeadersJSON     string `json:"-"` // pre-serialized for templ rendering
+	Security              []*SecurityRequirement
+	SecurityGroups        []*SecurityRequirementGroup `json:"securityGroups,omitempty"`
+	HasSecurityOverride   bool                        `json:"-"`
+	Servers               []*ServerInfo
+	ExternalDoc           *ExternalDocInfo
+	CurlJSON              string            `json:"curlJson,omitempty"`
+	Extensions            []*ExtensionEntry `json:"extensions,omitempty"`
+	ExtensionsJSON        string            `json:"-"` // pre-serialized for Lit component
+	PathExtensions        []*ExtensionEntry `json:"pathExtensions,omitempty"`
+	PathExtensionsJSON    string            `json:"-"`
+	Callbacks             []*CallbackInfo   `json:"callbacks,omitempty"`
+	CallbacksJSON         string            `json:"-"` // pre-serialized for Lit component
+	SchemaJSON            string            // full operation rendered as JSON for cowboy-components
+	SchemaHighlightedHTML string            `json:"-"` // chroma output, templ only
+	RawYAML               string            `json:"-"` // re-rendered YAML from Render(), for raw viewer
+	SourceLine            int               `json:"-"` // 1-based YAML line number of the operation
+	Location              string            `json:"-"` // source file path for multi-file specs
+	CrossRefs             *OperationCrossRefs
 }
 
 // OperationCrossRefs holds cross-reference information for an operation.
@@ -213,17 +236,17 @@ type MediaTypeInfo struct {
 
 // ResponseInfo holds a single response entry.
 type ResponseInfo struct {
-	StatusCode  string           `json:"statusCode"`
-	Description string           `json:"description"`
-	DescHTML    string           `json:"descHtml,omitempty"`
-	Content     []*MediaTypeInfo `json:"content,omitempty"`
-	Headers     []*HeaderInfo    `json:"headers,omitempty"`
-	Links       []*LinkInfo      `json:"links,omitempty"`
-	Ref         *ComponentLink   `json:"ref,omitempty"`
-	RawJSON     string           `json:"rawJson,omitempty"`
-	RawYAML     string           `json:"rawYaml,omitempty"`
-	SourceLine  int              `json:"sourceLine,omitempty"`
-	Location    string           `json:"location,omitempty"`
+	StatusCode  string            `json:"statusCode"`
+	Description string            `json:"description"`
+	DescHTML    string            `json:"descHtml,omitempty"`
+	Content     []*MediaTypeInfo  `json:"content,omitempty"`
+	Headers     []*HeaderInfo     `json:"headers,omitempty"`
+	Links       []*LinkInfo       `json:"links,omitempty"`
+	Ref         *ComponentLink    `json:"ref,omitempty"`
+	RawJSON     string            `json:"rawJson,omitempty"`
+	RawYAML     string            `json:"rawYaml,omitempty"`
+	SourceLine  int               `json:"sourceLine,omitempty"`
+	Location    string            `json:"location,omitempty"`
 	Extensions  []*ExtensionEntry `json:"extensions,omitempty"`
 }
 
@@ -256,43 +279,45 @@ type CallbackOperationInfo struct {
 
 // HeaderInfo holds a single response header entry.
 type HeaderInfo struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description,omitempty"`
-	SchemaType  string         `json:"schemaType,omitempty"`
-	Ref         *ComponentLink `json:"ref,omitempty"`
-	Example     string         `json:"example,omitempty"`
-	Minimum     *float64       `json:"minimum,omitempty"`
-	Maximum     *float64       `json:"maximum,omitempty"`
-	Default     string         `json:"default,omitempty"`
-	Enum        []string       `json:"enum,omitempty"`
+	Name        string            `json:"name"`
+	Description string            `json:"description,omitempty"`
+	SchemaType  string            `json:"schemaType,omitempty"`
+	Ref         *ComponentLink    `json:"ref,omitempty"`
+	Example     string            `json:"example,omitempty"`
+	Minimum     *float64          `json:"minimum,omitempty"`
+	Maximum     *float64          `json:"maximum,omitempty"`
+	Default     string            `json:"default,omitempty"`
+	Enum        []string          `json:"enum,omitempty"`
 	Pattern     string            `json:"pattern,omitempty"`
 	Extensions  []*ExtensionEntry `json:"extensions,omitempty"`
 }
 
 // ModelPage is the full data for rendering a component detail page.
 type ModelPage struct {
-	Name                  string
-	ComponentType         string // "schemas", "responses", "parameters", etc.
-	TypeSlug              string // URL path segment for the component type
-	Slug                  string
-	Description           string
-	DescHTML              string
-	SchemaJSON            string // JSON representation for cowboy-components rendering
-	SchemaHighlightedHTML string `json:"-"` // chroma output, templ only
-	RawYAML               string `json:"-"` // re-rendered YAML from Render(), for raw viewer
-	SchemaRawYAML         string `json:"-"` // schema-only YAML for inline viewer (parameters, headers)
-	SchemaRawJSON         string `json:"-"` // schema-only JSON for inline viewer (parameters, headers)
-	SchemaStartLine       int    `json:"-"` // 1-based source line where schema content begins (parameters, headers)
-	MockJSON              string
-	Examples              map[string]string
-	ExamplesJSON          string // pre-serialized for Lit component
-	Origin                *bundler.ComponentOrigin
-	Extensions            []*ExtensionEntry
-	ExtensionsJSON        string `json:"-"`
-	CrossRefs             *ModelCrossRefs
-	CrossRefsJSON         string `json:"-"`
-	MermaidDiagram        string `json:"-"` // mermaid class diagram DSL; empty if no relationships
+	Name                   string
+	ComponentType          string // "schemas", "responses", "parameters", etc.
+	TypeSlug               string // URL path segment for the component type
+	Slug                   string
+	Description            string
+	DescHTML               string
+	SchemaJSON             string // JSON representation for cowboy-components rendering
+	SchemaHighlightedHTML  string `json:"-"` // chroma output, templ only
+	RawYAML                string `json:"-"` // re-rendered YAML from Render(), for raw viewer
+	SchemaRawYAML          string `json:"-"` // schema-only YAML for inline viewer (parameters, headers)
+	SchemaRawJSON          string `json:"-"` // schema-only JSON for inline viewer (parameters, headers)
+	SchemaStartLine        int    `json:"-"` // 1-based source line where schema content begins (parameters, headers)
+	MockJSON               string
+	Examples               map[string]string
+	ExamplesJSON           string // pre-serialized for Lit component
+	Origin                 *bundler.ComponentOrigin
+	Extensions             []*ExtensionEntry
+	ExtensionsJSON         string `json:"-"`
+	CrossRefs              *ModelCrossRefs
+	CrossRefsJSON          string `json:"-"`
+	MermaidDiagram         string `json:"-"` // mermaid class diagram DSL; empty if no relationships
 	MermaidHighlightedHTML string `json:"-"` // chroma-highlighted mermaid source HTML
+	GraphJSON              string `json:"-"` // pre-filtered dependency subgraph for explorer
+	GraphNodeID            string `json:"-"` // exact JSONPath node ID for POV focus
 }
 
 // ModelCrossRefs holds cross-reference information for a model.
@@ -325,14 +350,29 @@ type ComponentLink struct {
 	Slug          string `json:"slug"`          // URL-safe slug for the model page
 }
 
+// CurlVariant holds a single generated cURL command plus selection metadata.
+type CurlVariant struct {
+	Label             string `json:"label"`
+	ServerURL         string `json:"serverUrl"`
+	ServerDescription string `json:"serverDescription,omitempty"`
+	SecurityLabel     string `json:"securityLabel,omitempty"`
+	Command           string `json:"command"`
+}
+
 // SecurityRequirement holds a resolved security scheme with type info and model link.
 type SecurityRequirement struct {
-	Name       string         `json:"name"`
-	Scopes     []string       `json:"scopes,omitempty"`
-	SchemeType string         `json:"schemeType,omitempty"` // apiKey, http, oauth2, openIdConnect
-	In         string         `json:"in,omitempty"`         // query, header, cookie (for apiKey)
-	Scheme     string         `json:"scheme,omitempty"`     // bearer, basic (for http)
-	Ref        *ComponentLink `json:"ref,omitempty"`        // link to model page
+	Name          string         `json:"name"`
+	Scopes        []string       `json:"scopes,omitempty"`
+	SchemeType    string         `json:"schemeType,omitempty"`    // apiKey, http, oauth2, openIdConnect
+	In            string         `json:"in,omitempty"`            // query, header, cookie (for apiKey)
+	Scheme        string         `json:"scheme,omitempty"`        // bearer, basic (for http)
+	ParameterName string         `json:"parameterName,omitempty"` // actual apiKey parameter/header/cookie name
+	Ref           *ComponentLink `json:"ref,omitempty"`           // link to model page
+}
+
+// SecurityRequirementGroup preserves OpenAPI's grouped security requirement semantics.
+type SecurityRequirementGroup struct {
+	Requirements []*SecurityRequirement `json:"requirements,omitempty"`
 }
 
 // ExtensionEntry holds a single x-* extension key-value pair, preserving spec order.

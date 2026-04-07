@@ -13,12 +13,21 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
+	"golang.org/x/sync/errgroup"
 )
 
 //go:embed static/*
 //go:embed static/fonts/*
 //go:embed static/shoelace/assets/icons/*
 var staticFS embed.FS
+
+type htmlWriteJob struct {
+	path       string
+	pageTitle  string
+	activeSlug string
+	params     pageParams
+	content    templ.Component
+}
 
 // WriteHTMLSite writes the full static HTML site to disk.
 func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
@@ -50,7 +59,10 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 		WebhooksJSON: MustJSON(site.NavWebhooks),
 		RegistryJSON: MustJSON(site.SchemaRegistry),
 		SpecFormat:   site.SpecFormat,
+		Lite:         site.Lite,
 	}
+
+	var jobs []htmlWriteJob
 
 	// Write root page
 	if site.Root != nil {
@@ -58,9 +70,12 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 		p.BaseURL = baseURL
 		p.ExtraCSS = []string{"static/printing-press-index.css"}
 		rootContent := RootPageTempl(site.Root)
-		if err := writeTemplPage(filepath.Join(outputDir, "index.html"), title, "", &p, rootContent); err != nil {
-			return fmt.Errorf("writing index.html: %w", err)
-		}
+		jobs = append(jobs, htmlWriteJob{
+			path:      filepath.Join(outputDir, "index.html"),
+			pageTitle: title,
+			params:    p,
+			content:   rootContent,
+		})
 	}
 
 	// Write operation pages (1 level deep: operations/)
@@ -71,9 +86,13 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 		opContent := OperationPageTempl(op)
 		pageTitle := fmt.Sprintf("%s %s - %s", op.Method, op.Path, title)
 		path := filepath.Join(outputDir, "operations", op.Slug+".html")
-		if err := writeTemplPage(path, pageTitle, op.Slug, &p, opContent); err != nil {
-			return fmt.Errorf("writing operation %s: %w", op.Slug, err)
-		}
+		jobs = append(jobs, htmlWriteJob{
+			path:       path,
+			pageTitle:  pageTitle,
+			activeSlug: op.Slug,
+			params:     p,
+			content:    opContent,
+		})
 	}
 
 	// Write model pages (2 levels deep: models/{type}/)
@@ -91,9 +110,13 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 			pageTitle := fmt.Sprintf("%s - %s", page.Name, title)
 			path := filepath.Join(outputDir, "models", typeSlug, page.Slug+".html")
 			activeModelSlug := page.TypeSlug + "/" + page.Slug
-			if err := writeTemplPage(path, pageTitle, activeModelSlug, &p, modelContent); err != nil {
-				return fmt.Errorf("writing model %s/%s: %w", typeSlug, page.Slug, err)
-			}
+			jobs = append(jobs, htmlWriteJob{
+				path:       path,
+				pageTitle:  pageTitle,
+				activeSlug: activeModelSlug,
+				params:     p,
+				content:    modelContent,
+			})
 		}
 	}
 
@@ -103,9 +126,12 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 		p.BaseURL = resolveBase(baseURL, 1)
 		p.ExtraCSS = []string{"static/printing-press-index.css"}
 		indexContent := ModelsIndexTempl(site.NavModelGroups, modelsIndexBreadcrumb())
-		if err := writeTemplPage(filepath.Join(outputDir, "models", "index.html"), "Models - "+title, "", &p, indexContent); err != nil {
-			return fmt.Errorf("writing models index: %w", err)
-		}
+		jobs = append(jobs, htmlWriteJob{
+			path:      filepath.Join(outputDir, "models", "index.html"),
+			pageTitle: "Models - " + title,
+			params:    p,
+			content:   indexContent,
+		})
 	}
 
 	// Write model type index pages (2 levels deep: models/{typeSlug}/)
@@ -117,15 +143,18 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 		content := ModelTypeIndexTempl(group, bc)
 		pageTitle := fmt.Sprintf("%s - %s", group.Name, title)
 		path := filepath.Join(outputDir, "models", group.TypeSlug, "index.html")
-		if err := writeTemplPage(path, pageTitle, "", &p, content); err != nil {
-			return fmt.Errorf("writing model type index %s: %w", group.TypeSlug, err)
-		}
+		jobs = append(jobs, htmlWriteJob{
+			path:      path,
+			pageTitle: pageTitle,
+			params:    p,
+			content:   content,
+		})
 	}
 
 	// Write tag index pages (1 level deep: tags/)
 	tagParentMap := buildTagParentMap(site.NavTags)
-	var writeTagPages func([]*NavTag) error
-	writeTagPages = func(tags []*NavTag) error {
+	var collectTagJobs func([]*NavTag)
+	collectTagJobs = func(tags []*NavTag) {
 		for _, tag := range tags {
 			if tag.IsNavOnly && len(tag.Operations) == 0 && len(tag.Children) == 0 && tag.DescHTML == "" {
 				continue
@@ -137,18 +166,16 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 			content := TagIndexTempl(tag, bc)
 			pageTitle := fmt.Sprintf("%s - %s", tag.DisplayName(), title)
 			path := filepath.Join(outputDir, "tags", tag.Slug+".html")
-			if err := writeTemplPage(path, pageTitle, "", &p, content); err != nil {
-				return fmt.Errorf("writing tag index %s: %w", tag.Slug, err)
-			}
-			if err := writeTagPages(tag.Children); err != nil {
-				return err
-			}
+			jobs = append(jobs, htmlWriteJob{
+				path:      path,
+				pageTitle: pageTitle,
+				params:    p,
+				content:   content,
+			})
+			collectTagJobs(tag.Children)
 		}
-		return nil
 	}
-	if err := writeTagPages(site.NavTags); err != nil {
-		return err
-	}
+	collectTagJobs(site.NavTags)
 
 	// Write webhook pages (1 level deep: operations/)
 	for _, wh := range site.Webhooks {
@@ -158,12 +185,27 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 		whContent := OperationPageTempl(wh)
 		pageTitle := fmt.Sprintf("Webhook: %s %s - %s", wh.Method, wh.Path, title)
 		path := filepath.Join(outputDir, "operations", wh.Slug+".html")
-		if err := writeTemplPage(path, pageTitle, wh.Slug, &p, whContent); err != nil {
-			return fmt.Errorf("writing webhook %s: %w", wh.Slug, err)
-		}
+		jobs = append(jobs, htmlWriteJob{
+			path:       path,
+			pageTitle:  pageTitle,
+			activeSlug: wh.Slug,
+			params:     p,
+			content:    whContent,
+		})
 	}
 
-	return nil
+	var g errgroup.Group
+	g.SetLimit(printingPressParallelism())
+	for _, job := range jobs {
+		job := job
+		g.Go(func() error {
+			if err := writeTemplPage(job.path, job.pageTitle, job.activeSlug, &job.params, job.content); err != nil {
+				return fmt.Errorf("writing %s: %w", job.path, err)
+			}
+			return nil
+		})
+	}
+	return g.Wait()
 }
 
 // pageParams holds the shared parameters for writing a templ page.
@@ -176,6 +218,7 @@ type pageParams struct {
 	SpecFormat   string
 	RegistryJSON string
 	ExtraCSS     []string
+	Lite         bool
 }
 
 func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content templ.Component) error {
@@ -185,7 +228,7 @@ func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content t
 	}
 	defer f.Close()
 
-	layout := Layout(pageTitle, p.SiteTitle, p.BaseURL, p.NavJSON, p.ModelsJSON, p.WebhooksJSON, activeSlug, p.SpecFormat, p.RegistryJSON, p.ExtraCSS, content)
+	layout := Layout(pageTitle, p.SiteTitle, p.BaseURL, p.NavJSON, p.ModelsJSON, p.WebhooksJSON, activeSlug, p.SpecFormat, p.RegistryJSON, p.ExtraCSS, p.Lite, content)
 	return layout.Render(context.Background(), f)
 }
 

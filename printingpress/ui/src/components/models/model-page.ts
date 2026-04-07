@@ -27,21 +27,31 @@ export class PpModelPage extends LitElement {
   @state() private wide = false;
   @state() private exampleJson = '';
   private resizeObserver: ResizeObserver | null = null;
+  private paneResizeObserver: ResizeObserver | null = null;
   private _sizePending = false;
   private _rafId = 0;
   @query('.schema-split') splitPanel!: HTMLElement;
   @query('.schema-props-pane') propsPane!: HTMLElement;
+  @query('.schema-example-pane') examplePane!: HTMLElement;
+  private observedPropsPane: HTMLElement | null = null;
+  private observedExamplePane: HTMLElement | null = null;
+  private observedPropsContent: Element | null = null;
+  private observedExampleContent: Element | null = null;
 
   connectedCallback() {
     super.connectedCallback();
     setTimeout(() => {
       this.wide = this.offsetWidth >= 900;
+      if (typeof ResizeObserver === 'undefined') return;
       this.resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
           this.wide = entry.contentRect.width >= 900;
         }
       });
       this.resizeObserver.observe(this);
+      this.paneResizeObserver = new ResizeObserver(() => {
+        this.sizeSplitPanel();
+      });
     }, 0);
   }
 
@@ -50,45 +60,82 @@ export class PpModelPage extends LitElement {
     cancelAnimationFrame(this._rafId);
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
+    this.paneResizeObserver?.disconnect();
+    this.paneResizeObserver = null;
+    this.observedPropsPane = null;
+    this.observedExamplePane = null;
+    this.observedPropsContent = null;
+    this.observedExampleContent = null;
   }
 
   updated(changed: Map<string, unknown>) {
     if (changed.has('wide') || changed.has('parsed') || changed.has('exampleJson')) {
       this.sizeSplitPanel();
     }
+    this.syncPaneObservers();
   }
 
   private sizeSplitPanel() {
-    if (!this.splitPanel || !this.propsPane || this._sizePending) return;
+    if (!this.splitPanel || !this.propsPane || !this.examplePane || this._sizePending) return;
     this._sizePending = true;
     this._rafId = requestAnimationFrame(() => {
       this._sizePending = false;
-      if (!this.splitPanel || !this.propsPane) return;
+      if (!this.splitPanel || !this.propsPane || !this.examplePane) return;
 
-      // Measure actual content height from children, NOT scrollHeight.
-      // sl-split-panel uses CSS Grid, so the propsPane (height:100%) gets
-      // stretched to match the tallest column (the example pane). Reading
-      // scrollHeight on the container returns that inflated grid height,
-      // not the real content height. Sum child offsetHeights + padding instead.
-      const children = Array.from(this.propsPane.children) as HTMLElement[];
-      const contentHeight = children.reduce((sum, c) => sum + c.offsetHeight, 0);
-      const style = getComputedStyle(this.propsPane);
-      const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
-      const propsHeight = contentHeight + padding;
+      const propsHeight = this.measurePaneContentHeight(this.propsPane);
+      const exampleHeight = this.measurePaneContentHeight(this.examplePane);
 
       const vh = document.documentElement.clientHeight || 800;
       const propCount = this.parsed?.properties ? Object.keys(this.parsed.properties).length : 0;
-      let h: number;
-      if (propCount >= 6) {
-        h = Math.max(300, Math.min(propsHeight, vh * 0.6));
-      } else {
-        h = Math.max(200, propsHeight);
-      }
-      // Account for split panel's own padding
+      const preferredHeight = Math.max(propsHeight, exampleHeight);
+      const minHeight = propCount >= 6 ? 300 : 220;
+      const h = Math.max(minHeight, Math.min(preferredHeight, vh * 0.75));
       const splitStyle = getComputedStyle(this.splitPanel);
       const splitPadding = parseFloat(splitStyle.paddingTop) + parseFloat(splitStyle.paddingBottom);
       this.splitPanel.style.height = `${h + splitPadding}px`;
     });
+  }
+
+  private measurePaneContentHeight(pane: HTMLElement): number {
+    const children = Array.from(pane.children) as HTMLElement[];
+    const contentHeight = children.reduce((sum, child) => {
+      return sum + Math.max(child.offsetHeight, child.scrollHeight);
+    }, 0);
+    const style = getComputedStyle(pane);
+    const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    return contentHeight + padding;
+  }
+
+  private syncPaneObservers() {
+    if (!this.paneResizeObserver || typeof ResizeObserver === 'undefined') return;
+    const nextPropsPane = this.propsPane ?? null;
+    const nextExamplePane = this.examplePane ?? null;
+    const nextPropsContent = nextPropsPane?.firstElementChild ?? null;
+    const nextExampleContent = nextExamplePane?.firstElementChild ?? null;
+
+    if (this.observedPropsPane !== nextPropsPane) {
+      if (this.observedPropsPane) this.paneResizeObserver.unobserve(this.observedPropsPane);
+      if (nextPropsPane) this.paneResizeObserver.observe(nextPropsPane);
+      this.observedPropsPane = nextPropsPane;
+    }
+
+    if (this.observedExamplePane !== nextExamplePane) {
+      if (this.observedExamplePane) this.paneResizeObserver.unobserve(this.observedExamplePane);
+      if (nextExamplePane) this.paneResizeObserver.observe(nextExamplePane);
+      this.observedExamplePane = nextExamplePane;
+    }
+
+    if (this.observedPropsContent !== nextPropsContent) {
+      if (this.observedPropsContent) this.paneResizeObserver.unobserve(this.observedPropsContent);
+      if (nextPropsContent instanceof Element) this.paneResizeObserver.observe(nextPropsContent);
+      this.observedPropsContent = nextPropsContent;
+    }
+
+    if (this.observedExampleContent !== nextExampleContent) {
+      if (this.observedExampleContent) this.paneResizeObserver.unobserve(this.observedExampleContent);
+      if (nextExampleContent instanceof Element) this.paneResizeObserver.observe(nextExampleContent);
+      this.observedExampleContent = nextExampleContent;
+    }
   }
 
   willUpdate(changed: Map<string, unknown>) {
