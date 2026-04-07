@@ -2,9 +2,11 @@ import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
 import constraintsCss from '../../styles/constraints.css.js';
+import markdownCss from '../../styles/markdown.css.js';
 import refLinkCss from '../../styles/ref-link.css.js';
 import operationParametersCss from './operation-parameters.css.js';
 import {ComponentLinkData, deriveSchemaType} from '../../utils/schema.js';
+import {renderMarkdown} from '../../utils/markdown.js';
 import {renderConstraints} from '../../utils/render-helpers.js';
 import '../shared/ref-popover.js';
 import '../shared/extensions.js';
@@ -28,7 +30,7 @@ interface ParameterData {
 
 @customElement('pp-operation-parameters')
 export class PpOperationParameters extends LitElement {
-  static styles = [sharedCss, constraintsCss, refLinkCss, operationParametersCss];
+  static styles = [sharedCss, constraintsCss, markdownCss, refLinkCss, operationParametersCss];
 
   @property({attribute: 'parameters-json'}) parametersJson = '';
   @state() private params: ParameterData[] = [];
@@ -92,7 +94,7 @@ export class PpOperationParameters extends LitElement {
               <span class="param-in">${p.in}</span>
             </div>
             <div class="param-desc-col">
-              ${p.description || nothing}
+              ${renderMarkdown(p.description)}
               ${!p.ref && (p.rawJson || p.rawYaml)
                   ? html`
                     <pp-raw-viewer-btn

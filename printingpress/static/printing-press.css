@@ -114,11 +114,9 @@ code {
 }
 
 .pp-version {
-    font-size: 0.8em;
-    color: var(--terminal-text);
-    background: var(--terminal-background);
-    padding: 0.15em 0.6em;
-    border: 1px solid var(--secondary-color-dimmer);
+    background: var(--background-color);
+    padding: var(--global-padding-half);
+    border: 1px solid var(--hrcolor);
     border-radius: 0;
     font-family: var(--font-stack), monospace;
 }
@@ -461,7 +459,7 @@ table code, li code, p code  {
     background: var(--secondary-color-very-lowalpha);
     border: 1px solid var(--secondary-color-lowalpha);
     color: var(--secondary-color);
-    padding: 2px var(--global-padding) 2px var(--global-padding);
+    padding: 1px var(--global-padding) 1px var(--global-padding);
     margin: 0;
 }
 
@@ -490,13 +488,15 @@ li {
 
 .pp-model-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(var(--pp-model-card-min, 250px), 1fr));
     gap: 1rem;
     margin-bottom: 2rem;
 }
 
 .pp-model-card {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
     padding: 1rem;
     border: 1px dashed var(--hrcolor);
     border-radius: 0;
@@ -511,10 +511,27 @@ li {
     background: var(--card-background-color);
 }
 
+.pp-model-card-title {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.4rem;
+    align-items: start;
+}
+
+.pp-model-card strong {
+    display: block;
+    min-width: 0;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    hyphens: none;
+}
+
 .pp-model-card p {
     font-size: 0.85em;
     color: var(--font-color-sub1);
     margin-top: 0.3rem;
+    overflow-wrap: break-word;
 }
 
 /* Security section */
@@ -862,7 +879,7 @@ body.pp-dialog-open > pp-layout {
 .pp-expanded-diagram-dialog .expanded-toolbar sl-button::part(base) {
     font-family: var(--font-stack), monospace;
     color: var(--font-color-sub1);
-    gap: 0.35rem;
+    gap: var(--global-padding);
 }
 
 .pp-expanded-diagram-dialog .expanded-toolbar sl-button::part(label) {
@@ -900,4 +917,30 @@ body.pp-dialog-open > pp-layout {
 
 .pp-model {
     padding-bottom: 50px;
+}
+
+/* Visualization section tabs (class diagram + explorer) */
+.pp-visualization-section {
+    margin-top: 40px;
+    border-top: 1px dashed var(--hrcolor);
+    padding-top: var(--global-padding);
+}
+
+.pp-visualization-section sl-tab-group::part(tabs) {
+    border-bottom: 1px dashed var(--hrcolor);
+}
+
+.pp-visualization-section sl-tab::part(base) {
+    font-family: var(--font-stack), monospace;
+    text-transform: uppercase;
+    font-size: 1rem;
+    color: var(--font-color-sub1);
+}
+
+.pp-visualization-section sl-tab[active]::part(base) {
+    color: var(--primary-color);
+}
+
+.pp-visualization-section sl-tab-group::part(active-tab-indicator) {
+    --track-color: var(--primary-color);
 }

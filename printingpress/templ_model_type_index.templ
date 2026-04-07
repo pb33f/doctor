@@ -5,11 +5,13 @@ templ ModelTypeIndexTempl(group *NavModelGroup, breadcrumb []BreadcrumbItem) {
 		@Breadcrumb(breadcrumb)
 		<pp-icon-title icon={ group.TypeSlug } heading={ group.Name }></pp-icon-title>
 		<div class="pp-model-category">
-			<div class="pp-model-cards">
+			<div class="pp-model-cards" style={ group.CardGridStyle() }>
 				for _, model := range group.Models {
 					<a href={ templ.SafeURL("models/" + model.TypeSlug + "/" + model.Slug + ".html") } class="pp-model-card">
-						<pb33f-model-icon icon={ model.TypeSlug } size="small"></pb33f-model-icon>
-						<strong>{ model.Name }</strong>
+						<div class="pp-model-card-title">
+							<pb33f-model-icon icon={ model.TypeSlug } size="small"></pb33f-model-icon>
+							<strong>{ model.Name }</strong>
+						</div>
 						if model.Description != "" {
 							<p>{ truncateDesc(model.Description, 120) }</p>
 						}

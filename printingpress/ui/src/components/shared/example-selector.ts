@@ -7,7 +7,9 @@ import '@shoelace-style/shoelace/dist/components/button/button.js';
 import type {ShowExampleDetail} from './example-drawer.js';
 import '@shoelace-style/shoelace/dist/components/copy-button/copy-button.js';
 import exampleSelectorCss from './example-selector.css.js';
+import markdownCss from '../../styles/markdown.css.js';
 import tooltipCss from '../../styles/tooltip.css.js';
+import {renderMarkdown} from '../../utils/markdown.js';
 import '../shared/code-viewer.js';
 
 interface ExamplesData {
@@ -17,7 +19,7 @@ interface ExamplesData {
 
 @customElement('pp-example-selector')
 export class PpExampleSelector extends LitElement {
-  static styles = [...exampleSelectorCss, tooltipCss];
+  static styles = [...exampleSelectorCss, markdownCss, tooltipCss];
 
   // Accepts a JSON object with { mockJson, examples }
   @property({attribute: 'examples-data'}) examplesData = '';
@@ -199,7 +201,7 @@ export class PpExampleSelector extends LitElement {
             `)}
           </sl-menu>
         </sl-dropdown>
-        ${desc ? html`<span class="inline-example-desc">${desc}</span>` : nothing}
+        ${desc ? renderMarkdown(desc, {className: 'inline-example-desc pp-markdown'}) : nothing}
       </div>
     `;
   }

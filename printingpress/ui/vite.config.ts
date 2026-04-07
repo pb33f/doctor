@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, Plugin } from 'vite';
 import path from 'path';
 import { copyFileSync } from 'fs';
 
@@ -19,21 +19,56 @@ function copyCowboyCSS() {
 
 const isLite = !!process.env.VITE_BUNDLE_LITE;
 
-// In lite builds, stub out the class-diagram import (and its mermaid dependency)
-// to produce a smaller bundle without mermaid.js (~800KB savings).
-function stubMermaidInLite() {
+// In lite builds, stub out visualization components (class-diagram, mermaid,
+// explorer, ELK) to produce a smaller bundle.
+function stubVisualizationsInLite(): Plugin | null {
   if (!isLite) return null;
   return {
-    name: 'stub-mermaid-lite',
+    name: 'stub-visualizations-lite',
+    enforce: 'pre',
     resolveId(source: string) {
-      if (source.includes('class-diagram') || source.includes('mermaid-renderer')) {
-        return '\0stub-class-diagram';
+      if (source.includes('class-diagram') || source.includes('mermaid-renderer')
+          || source.includes('focused-explorer') || source.includes('elk-layout-worker')
+          || source.includes('graph-dependent-worker')
+          || (source.includes('visualizer/explorer') && !source.includes('?worker'))) {
+        return '\0stub-visualizations';
       }
     },
     load(id: string) {
-      if (id === '\0stub-class-diagram') {
+      if (id === '\0stub-visualizations') {
         return 'export {}';
       }
+    },
+  };
+}
+
+// Stub all ?worker&inline imports from cowboy-components.
+// The inline worker adapters (elk-layout-worker-inline.ts, graph-dependent-worker-inline.ts)
+// replace these at runtime via ExplorerComponent.elkWorkerFactory / graphDependentWorkerFactory.
+function stubWorkerInline(): Plugin {
+  return {
+    name: 'stub-worker-inline',
+    enforce: 'pre',
+    resolveId(source) {
+      if (source.includes('.worker') && source.includes('?worker')) {
+        // Return a clean virtual ID without the ?worker query so Vite's
+        // worker plugin doesn't try to process it as a real worker entry.
+        return { id: '\0stub-worker', external: false };
+      }
+      return null;
+    },
+    load(id) {
+      if (id === '\0stub-worker') {
+        return `export default class StubWorker {
+          postMessage() {}
+          addEventListener() {}
+          removeEventListener() {}
+          terminate() {}
+          set onmessage(_fn) {}
+          set onerror(_fn) {}
+        }`;
+      }
+      return null;
     },
   };
 }
@@ -42,15 +77,16 @@ export default defineConfig({
   resolve: {
     alias: {
       '@pb33f/cowboy-components': cowboyRoot + '/src',
+      '@report-elkjs': path.resolve(cowboyRoot, 'node_modules/elkjs/lib/elk.bundled.js'),
     },
   },
-  plugins: [copyCowboyCSS(), stubMermaidInLite()],
+  plugins: [copyCowboyCSS(), stubVisualizationsInLite(), stubWorkerInline()],
   build: {
     lib: {
       entry: 'src/index.ts',
       name: 'PrintingPress',
       formats: ['iife'],
-      fileName: () => 'printing-press.js',
+      fileName: () => isLite ? 'printing-press-lite.js' : 'printing-press.js',
     },
     // Do NOT externalize lit - static site must be fully self-contained
     cssCodeSplit: false,

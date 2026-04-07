@@ -71,23 +71,15 @@ export class PpNav extends LitElement {
 
   render() {
     return html`
-      <a class="nav-home" href="index.html">Overview</a>
+      <a class="nav-home ${!this.activeSlug ? 'active' : ''}" href="index.html">
+        <sl-icon name="chevron-right" class="nav-home-chevron"></sl-icon>
+        API OVERVIEW
+      </a>
       ${this.tags.length
         ? html`
-            <div class="nav-section">
+            <div class="nav-section nav-operations-section">
               <h4>Operations</h4>
               ${this.tags.map((tag) => html`<pp-nav-tag .tag=${tag} .activeSlug=${this.activeSlug}></pp-nav-tag>`)}
-            </div>
-          `
-        : nothing}
-      ${this.webhooks.length
-        ? html`
-            <div class="nav-section">
-              <h4>Webhooks</h4>
-              <pp-nav-tag
-                .tag=${{name: 'Webhooks', summary: 'Webhooks', children: null, operations: this.webhooks, isNavOnly: false} as NavTag}
-                .activeSlug=${this.activeSlug}
-              ></pp-nav-tag>
             </div>
           `
         : nothing}
@@ -99,6 +91,17 @@ export class PpNav extends LitElement {
             </div>
           `
         : nothing}
+      ${this.webhooks.length
+          ? html`
+            <div class="nav-section nav-webhooks-section">
+              <h4>Webhooks</h4>
+              <pp-nav-tag
+                .tag=${{name: 'Webhooks', summary: 'Webhooks', children: null, operations: this.webhooks, isNavOnly: false} as NavTag}
+                .activeSlug=${this.activeSlug}
+              ></pp-nav-tag>
+            </div>
+          `
+          : nothing}
     `;
   }
 }

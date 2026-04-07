@@ -17,6 +17,7 @@ import (
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/bundler"
 	"github.com/pb33f/libopenapi/datamodel"
+	v3high "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
 func main() {
@@ -26,10 +27,14 @@ func main() {
 	title := flag.String("title", "", "override the API title")
 	serve := flag.Bool("serve", false, "serve the output directory on :9090")
 	noMermaid := flag.Bool("no-mermaid", false, "disable mermaid class diagrams on model pages")
+	noExplorer := flag.Bool("no-explorer", false, "disable dependency explorer on model pages")
+	syntheticTagFallback := flag.Bool("synthetic-tag-fallback", true, "reuse synthetic path tags when operation tags are too coarse")
+	syntheticTagFallbackMaxTags := flag.Int("synthetic-tag-fallback-max-tags", 2, "maximum distinct operation tags before synthetic tag fallback is disabled")
+	syntheticTagFallbackMinOps := flag.Int("synthetic-tag-fallback-min-ops", 25, "minimum operation count before synthetic tag fallback is considered")
 	flag.Parse()
 
 	if *specPath == "" {
-		fmt.Fprintln(os.Stderr, "usage: press -spec <path> [-base-path <dir>] [-out <dir>] [-title <title>] [-serve] [-no-mermaid]")
+		fmt.Fprintln(os.Stderr, "usage: press -spec <path> [-base-path <dir>] [-out <dir>] [-title <title>] [-serve] [-no-mermaid] [-no-explorer]")
 		os.Exit(1)
 	}
 
@@ -52,6 +57,22 @@ func main() {
 	var drDoc *model.DrDocument
 	var origins bundler.ComponentOriginMap
 	var buildErrors []error
+
+	// When explorer is enabled, build graph data alongside the model
+	var drConfig *model.DrConfig
+	if !*noExplorer {
+		drConfig = &model.DrConfig{
+			BuildGraph:     true,
+			UseSchemaCache: true,
+		}
+	}
+
+	buildDrDoc := func(v3Model *libopenapi.DocumentModel[v3high.Document]) *model.DrDocument {
+		if drConfig != nil {
+			return model.NewDrDocumentWithConfig(v3Model, drConfig)
+		}
+		return model.NewDrDocument(v3Model)
+	}
 
 	// Try bundling first (for multi-file specs)
 	config := &datamodel.DocumentConfiguration{
@@ -76,7 +97,7 @@ func main() {
 			logger.Error("failed to build v3 model")
 			os.Exit(1)
 		}
-		drDoc = model.NewDrDocument(v3Model)
+		drDoc = buildDrDoc(v3Model)
 	} else {
 		origins = result.Origins
 		doc, err := libopenapi.NewDocument(result.Bytes)
@@ -93,22 +114,28 @@ func main() {
 			logger.Error("failed to build v3 model")
 			os.Exit(1)
 		}
-		drDoc = model.NewDrDocument(v3Model)
+		drDoc = buildDrDoc(v3Model)
 		logger.Info("bundled spec", "origins", len(origins))
 	}
 
 	specFormat := printingpress.DetectSpecFormat(specBytes)
 
 	pp := printingpress.New(&printingpress.PrintingPressConfig{
-		DrDoc:      drDoc,
-		Origins:    origins,
-		OutputDir:  *outputDir,
-		Title:      *title,
-		Logger:     logger,
-		SpecFormat: specFormat,
-		SpecRoot:   base,
+		DrDoc:       drDoc,
+		Origins:     origins,
+		OutputDir:   *outputDir,
+		Title:       *title,
+		Logger:      logger,
+		SpecFormat:  specFormat,
+		SpecRoot:    base,
 		NoMermaid:   *noMermaid,
+		NoExplorer:  *noExplorer,
 		BuildErrors: buildErrors,
+		SyntheticTagFallback: &printingpress.SyntheticTagFallbackConfig{
+			Enabled:         *syntheticTagFallback,
+			MaxDistinctTags: *syntheticTagFallbackMaxTags,
+			MinOperations:   *syntheticTagFallbackMinOps,
+		},
 	})
 
 	site, err := pp.Press()

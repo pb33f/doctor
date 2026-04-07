@@ -1,6 +1,6 @@
 package printingpress
 
-templ Head(title string, baseURL string, extraCSS []string) {
+templ Head(title string, baseURL string, extraCSS []string, lite bool) {
 	<head>
 		<meta charset="UTF-8"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -18,6 +18,10 @@ templ Head(title string, baseURL string, extraCSS []string) {
 		for _, css := range extraCSS {
 			<link rel="stylesheet" href={ css }/>
 		}
-		<script src="static/printing-press.js"></script>
+		if lite {
+			<script src="static/printing-press-lite.js"></script>
+		} else {
+			<script src="static/printing-press.js"></script>
+		}
 	</head>
 }

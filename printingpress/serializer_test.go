@@ -7,6 +7,8 @@ package printingpress
 import (
 	"testing"
 
+	"github.com/pb33f/doctor/model"
+	"github.com/pb33f/libopenapi"
 	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/stretchr/testify/assert"
@@ -91,3 +93,69 @@ func TestMockLanguageForMediaType(t *testing.T) {
 	}
 }
 
+func TestCaptureSchemaArtifacts_CachesJSONAndHighlight(t *testing.T) {
+	spec := `openapi: "3.1.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /users:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+`
+	doc, err := libopenapi.NewDocument([]byte(spec))
+	require.NoError(t, err)
+	v3Doc, buildErr := doc.BuildV3Model()
+	require.NoError(t, buildErr)
+	drDoc := model.NewDrDocument(v3Doc)
+	pp := New(&PrintingPressConfig{DrDoc: drDoc})
+
+	pathItem := drDoc.V3Document.Paths.PathItems.GetOrZero("/users")
+	require.NotNil(t, pathItem)
+	postOp := pathItem.Post
+	require.NotNil(t, postOp)
+	requestBody := postOp.RequestBody
+	require.NotNil(t, requestBody)
+	content := requestBody.Content.GetOrZero("application/json")
+	require.NotNil(t, content)
+	require.NotNil(t, content.SchemaProxy)
+	require.NotNil(t, content.SchemaProxy.Value)
+	schema := content.SchemaProxy.Value.Schema()
+	require.NotNil(t, schema)
+
+	jsonOne := pp.captureSchemaJSON(schema)
+	require.NotEmpty(t, jsonOne)
+	require.Len(t, pp.schemaArtifacts.byIdentity, 1)
+	require.Len(t, pp.schemaArtifacts.byContent, 1)
+
+	jsonTwo := pp.captureSchemaJSON(schema)
+	assert.Equal(t, jsonOne, jsonTwo)
+	require.Len(t, pp.schemaArtifacts.byIdentity, 1)
+	require.Len(t, pp.schemaArtifacts.byContent, 1)
+
+	highlight := pp.captureSchemaHighlight(schema)
+	assert.Contains(t, highlight, "<span")
+
+	artifact, ok := pp.schemaArtifacts.getByIdentity(schema)
+	require.True(t, ok)
+	assert.True(t, pp.schemaArtifacts.snapshot(artifact).highlighted)
+}

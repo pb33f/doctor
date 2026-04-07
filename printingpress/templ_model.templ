@@ -54,7 +54,9 @@ templ ModelPageTempl(page *ModelPage) {
 				@templ.Raw(page.DescHTML)
 			</div>
 		}
-		if page.SchemaJSON != "" {
+		if page.ComponentType == "securitySchemes" && page.SchemaJSON != "" {
+			<pp-security-scheme scheme-json={ page.SchemaJSON }></pp-security-scheme>
+		} else if page.SchemaJSON != "" {
 			<pp-model-page
 				model-json={ page.SchemaJSON }
 				name={ page.Name }
@@ -90,14 +92,38 @@ templ ModelPageTempl(page *ModelPage) {
 		if page.CrossRefsJSON != "" {
 			<pp-cross-refs refs-json={ page.CrossRefsJSON }></pp-cross-refs>
 		}
-		if page.MermaidDiagram != "" {
-			<div class="pp-class-diagram-section">
-				<pp-class-diagram name={ page.Name }>
-					@MermaidDiagramScript(page.MermaidDiagram)
-					if page.MermaidHighlightedHTML != "" {
-						@MermaidHighlightedScript(page.MermaidHighlightedHTML)
-					}
-				</pp-class-diagram>
+		if page.MermaidDiagram != "" || page.GraphJSON != "" {
+			<div class="pp-visualization-section">
+				if page.MermaidDiagram != "" && page.GraphJSON != "" {
+					<sl-tab-group>
+						<sl-tab slot="nav" panel="class-diagram">CLASS DIAGRAM</sl-tab>
+						<sl-tab slot="nav" panel="focused-view">DEPENDENCY EXPLORER</sl-tab>
+						<sl-tab-panel name="class-diagram">
+							<pp-class-diagram name={ page.Name }>
+								@MermaidDiagramScript(page.MermaidDiagram)
+								if page.MermaidHighlightedHTML != "" {
+									@MermaidHighlightedScript(page.MermaidHighlightedHTML)
+								}
+							</pp-class-diagram>
+						</sl-tab-panel>
+						<sl-tab-panel name="focused-view">
+							<pp-focused-explorer node-id={ page.GraphNodeID } name={ page.Name }>
+								@GraphJSONScript(page.GraphJSON)
+							</pp-focused-explorer>
+						</sl-tab-panel>
+					</sl-tab-group>
+				} else if page.MermaidDiagram != "" {
+					<pp-class-diagram name={ page.Name }>
+						@MermaidDiagramScript(page.MermaidDiagram)
+						if page.MermaidHighlightedHTML != "" {
+							@MermaidHighlightedScript(page.MermaidHighlightedHTML)
+						}
+					</pp-class-diagram>
+				} else if page.GraphJSON != "" {
+					<pp-focused-explorer node-id={ page.GraphNodeID }>
+						@GraphJSONScript(page.GraphJSON)
+					</pp-focused-explorer>
+				}
 			</div>
 		}
 	</div>

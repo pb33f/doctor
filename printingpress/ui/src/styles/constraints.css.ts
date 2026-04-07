@@ -7,7 +7,7 @@ export default css`
         gap: 0.1rem 0.75rem;
         margin-top: 0.3rem;
         font-size: 0.85em;
-        font-family: var(--font-stack);
+        font-family: var(--font-stack), monospace;
     }
 
     .constraint-label {
@@ -20,26 +20,25 @@ export default css`
     }
 
     .constraint-value code {
-        color: var(--warn-400);
+        color: var(--secondary-color);
     }
 
     .enum-section {
         grid-column: 1 / -1;
-        margin-top: 0.3rem;
+        margin-top: var(--global-padding);
     }
 
     .enum-grid {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.35rem;
-        margin-top: 0.25rem;
+        gap: var(--global-padding-half);
+        margin-top: var(--global-padding);
     }
 
     .enum-value {
-        color: var(--warn-400);
-        font-family: var(--font-stack);
-        padding: 0.1rem 0.4rem;
-        border: 1px solid var(--border-color-lowalpha);
+        color: var(--tertiary-color);
+        font-family: var(--font-stack), monospace;
+        padding: 0 var(--global-padding-half);
         white-space: nowrap;
     }
 `;
