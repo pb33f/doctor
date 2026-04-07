@@ -3,8 +3,7 @@
 
 package terminal
 
-// ansi 256-color escape codes for terminal output.
-// these codes match vacuum's existing color palette for consistency across pb33f tools.
+// ANSI escape codes retained for compatibility with existing terminal renderers.
 const (
 	// reset clears all formatting
 	Reset = "\033[0m"
@@ -22,21 +21,18 @@ const (
 	RedBold = "\033[1;38;5;196m"
 
 	// grey is used for tree structure and location info (ANSI 256-color code 240)
-	// this is a "sub 2" level grey (~60% opacity equivalent) for subtle dimming
 	Grey = "\033[38;5;240m"
 )
 
-// lipgloss-compatible color constants for use with lipgloss.Color().
-// these are the same ANSI 256 palette values as above, plus the pb33f brand colors.
-// use these across all pb33f tools for a consistent terminal color palette.
+// Legacy lipgloss-compatible color constants retained for compatibility.
 const (
-	LipglossGreen  = "46"
-	LipglossYellow = "220"
-	LipglossRed    = "196"
-	LipglossGrey   = "240"
+	LipglossGreen     = "46"
+	LipglossYellow    = "220"
+	LipglossRed       = "196"
+	LipglossGrey      = "240"
+	LipglossLightGrey = "246"
 
-	// pb33f brand colors (hex, for lipgloss true-color support)
+	// pb33f dark-theme brand colors from cowboy-components.
 	LipglossPrimaryBlue   = "#62c4ff"
 	LipglossSecondaryPink = "#f83aff"
-
 )
