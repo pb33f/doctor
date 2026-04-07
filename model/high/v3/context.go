@@ -175,15 +175,15 @@ func (d *DrContext) BuildRefEdgeByLine(ctx context.Context, source *Foundation, 
 	}
 	// Convert ref to JSONPath format for target node ID
 	// ref is like "#/components/headers/RateLimit" -> "$.components.headers['RateLimit']"
-	target := refToJSONPath(ref)
+	target := RefToJSONPath(ref)
 	source.BuildReferenceEdge(ctx, source.GetNode().Id, target, ref, "")
 	return true
 }
 
-// refToJSONPath converts a JSON Reference string to a JSONPath node ID.
+// RefToJSONPath converts a JSON Reference string to a JSONPath node ID.
 // e.g., "#/components/headers/RateLimit" -> "$.components.headers['RateLimit']"
 // Handles JSON Pointer escapes (~0 -> ~, ~1 -> /) and external refs (file.yaml#/...).
-func refToJSONPath(ref string) string {
+func RefToJSONPath(ref string) string {
 	// Handle external refs: extract only the fragment part after #
 	if idx := strings.Index(ref, "#"); idx >= 0 {
 		ref = ref[idx:]

@@ -8,7 +8,15 @@ import (
 	whatChangedModel "github.com/pb33f/libopenapi/what-changed/model"
 )
 
+type GraphMode string
+
+const (
+	GraphModeStandard GraphMode = "standard"
+	GraphModeChange   GraphMode = "change"
+)
+
 type GraphResponse struct {
+	Mode           GraphMode                   `json:"mode,omitempty"`
 	Nodes          []interface{}              `json:"nodes,omitempty"`
 	Edges          []interface{}              `json:"edges,omitempty"`
 	NodesRendered  []interface{}              `json:"nodesRendered,omitempty"`
