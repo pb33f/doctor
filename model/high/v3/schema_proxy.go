@@ -181,7 +181,7 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 					if sp.PolyType != "" && newSchema != nil && newSchema.GetNode() != nil {
 						sourceId = newSchema.GetNode().Id
 					}
-					target := refToJSONPath(schemaProxy.GetReference())
+					target := RefToJSONPath(schemaProxy.GetReference())
 					poly := ""
 					if sp.PathSegment == "allOf" || sp.PathSegment == "oneOf" || sp.PathSegment == "anyOf" {
 						poly = sp.PathSegment
