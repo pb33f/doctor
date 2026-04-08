@@ -180,6 +180,11 @@ func (t *Changerator) DeduplicateAllNodes(root *v3.Node) {
 	if t.Deduplicator == nil {
 		t.Deduplicator = NewChangeDeduplicator()
 	}
+	t.Deduplicator.Reset()
+
+	// Register the complete hierarchy first so ownership depth works even
+	// when structural containers have no direct changes of their own.
+	t.Deduplicator.RegisterTree(root)
 
 	// First pass: process all nodes top-down, building ownership map.
 	t.deduplicateNodeRecursive(root)

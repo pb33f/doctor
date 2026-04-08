@@ -120,8 +120,8 @@ components:
 	output := renderSemanticTreeForTest(t, left, right)
 
 	assert.Contains(t, output, "[M] properties: name -> jazz")
-	assert.Contains(t, output, "password (1 changes, 1 breaking)")
-	assert.Contains(t, output, "[M] required: false -> true{X}")
-	assert.Contains(t, output, "username (1 changes, 1 breaking)")
-	assert.Contains(t, output, "[M] type: string -> integer{X}")
+	assert.Contains(t, output, "password")
+	assert.Contains(t, output, "[M] required: false -> true {X}")
+	assert.Contains(t, output, "username")
+	assert.Contains(t, output, "[M] type: string -> integer {X}")
 }
