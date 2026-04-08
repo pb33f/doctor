@@ -9,13 +9,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	ppmodel "github.com/pb33f/doctor/printingpress/model"
 )
 
 // PrintJSONArtifacts writes the rendered site model to disk as JSON artifacts.
 //
+// The preferred public entrypoint is bundle.json, which contains the bundled
+// machine-readable site summary and references to the per-page detail files.
+//
 // When outputDir is empty, PrintJSONArtifacts uses site.OutputDir. A nil site
 // returns ErrNilSite.
-func PrintJSONArtifacts(site *Site, outputDir string) error {
+func PrintJSONArtifacts(site *ppmodel.Site, outputDir string) error {
 	if site == nil {
 		return ErrNilSite
 	}
@@ -36,6 +41,12 @@ func PrintJSONArtifacts(site *Site, outputDir string) error {
 		if err := os.MkdirAll(filepath.Join(resolvedOutputDir, dir), 0o755); err != nil {
 			return fmt.Errorf("creating directory %s: %w", dir, err)
 		}
+	}
+
+	// Write top-level bundle entrypoint
+	bundle := buildJSONBundle(site)
+	if err := writeJSONFile(filepath.Join(resolvedOutputDir, "bundle.json"), bundle); err != nil {
+		return fmt.Errorf("writing json bundle: %w", err)
 	}
 
 	// Write root page data
@@ -78,8 +89,8 @@ func PrintJSONArtifacts(site *Site, outputDir string) error {
 		}
 	}
 
-	// Write site manifest (listing all pages for link validation)
-	manifest := buildManifest(site)
+	// Write JSON artifact manifest
+	manifest := buildArtifactManifest(site)
 	if err := writeJSONFile(filepath.Join(resolvedOutputDir, "manifest.json"), manifest); err != nil {
 		return fmt.Errorf("writing manifest: %w", err)
 	}
@@ -87,7 +98,7 @@ func PrintJSONArtifacts(site *Site, outputDir string) error {
 	return nil
 }
 
-func resolveWriterOutputDir(site *Site, outputDir string) (string, error) {
+func resolveWriterOutputDir(site *ppmodel.Site, outputDir string) (string, error) {
 	if outputDir != "" {
 		return outputDir, nil
 	}
@@ -95,50 +106,6 @@ func resolveWriterOutputDir(site *Site, outputDir string) (string, error) {
 		return site.OutputDir, nil
 	}
 	return "", ErrNoOutputDir
-}
-
-// SiteManifest lists all generated pages for link validation.
-type SiteManifest struct {
-	Operations []ManifestEntry            `json:"operations"`
-	Models     map[string][]ManifestEntry `json:"models"`
-	Webhooks   []ManifestEntry            `json:"webhooks"`
-}
-
-// ManifestEntry is a single entry in the site manifest.
-type ManifestEntry struct {
-	Slug string `json:"slug"`
-	Name string `json:"name"`
-	Path string `json:"path"`
-}
-
-func buildManifest(site *Site) *SiteManifest {
-	m := &SiteManifest{
-		Models: make(map[string][]ManifestEntry),
-	}
-	for _, op := range site.Operations {
-		m.Operations = append(m.Operations, ManifestEntry{
-			Slug: op.Slug,
-			Name: fmt.Sprintf("%s %s", op.Method, op.Path),
-			Path: fmt.Sprintf("operations/%s.json", op.Slug),
-		})
-	}
-	for typeSlug, pages := range site.Models {
-		for _, page := range pages {
-			m.Models[typeSlug] = append(m.Models[typeSlug], ManifestEntry{
-				Slug: page.Slug,
-				Name: page.Name,
-				Path: fmt.Sprintf("models/%s/%s.json", typeSlug, page.Slug),
-			})
-		}
-	}
-	for _, wh := range site.Webhooks {
-		m.Webhooks = append(m.Webhooks, ManifestEntry{
-			Slug: wh.Slug,
-			Name: fmt.Sprintf("%s %s", wh.Method, wh.Path),
-			Path: fmt.Sprintf("operations/%s.json", wh.Slug),
-		})
-	}
-	return m
 }
 
 func writeJSONFile(path string, data any) error {

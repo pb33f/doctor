@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/pb33f/doctor/model"
+	. "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/bundler"
 	"github.com/stretchr/testify/assert"

@@ -1,8 +1,10 @@
-package printingpress
+package render
 
 import "fmt"
+import "github.com/pb33f/doctor/printingpress/curl"
+import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
-templ headerConstraints(h *HeaderInfo) {
+templ headerConstraints(h *ppmodel.HeaderInfo) {
 	if h.Example != "" || h.Default != "" || h.Minimum != nil || h.Maximum != nil || h.Pattern != "" || len(h.Enum) > 0 {
 		<div class="pp-header-constraints">
 			if h.Example != "" {
@@ -40,7 +42,7 @@ templ headerConstraints(h *HeaderInfo) {
 	}
 }
 
-templ OperationPageTempl(page *OperationPage) {
+templ OperationPageTempl(page *ppmodel.OperationPage) {
 	<div class="pp-operation">
 		@Breadcrumb(operationBreadcrumb(page))
 		<pp-page-nav page-title={ page.OperationID } sections-json={ operationNavSections(page) }></pp-page-nav>
@@ -136,7 +138,7 @@ templ OperationPageTempl(page *OperationPage) {
 							}
 							<sl-icon name="hdd-network" class="pp-server-icon"></sl-icon>
 						</span>
-						<a class="pp-server-url" href={ templ.SafeURL(resolveServerURL(srv)) } target="_blank" rel="noopener">{ srv.URL }</a>
+						<a class="pp-server-url" href={ templ.SafeURL(curl.ResolveServerURL(srv)) } target="_blank" rel="noopener">{ srv.URL }</a>
 					</div>
 				}
 			</div>
@@ -203,7 +205,7 @@ templ OperationPageTempl(page *OperationPage) {
 	</div>
 }
 
-templ RequestBodySection(rb *RequestBodyInfo) {
+templ RequestBodySection(rb *ppmodel.RequestBodyInfo) {
 	<div class="pp-request-body" id="section-request-body" data-nav-label="Request Body">
 		<h3>Request Body
 		if rb.RawYAML != "" || rb.RawJSON != "" {
@@ -241,7 +243,7 @@ templ RequestBodySection(rb *RequestBodyInfo) {
 	</div>
 }
 
-templ InlineExamples(mt *MediaTypeInfo) {
+templ InlineExamples(mt *ppmodel.MediaTypeInfo) {
 	if len(mt.Examples) > 0 || mt.MockJSON != "" {
 		<pp-example-selector mode="inline"
 			if len(mt.Examples) > 0 {
@@ -254,7 +256,7 @@ templ InlineExamples(mt *MediaTypeInfo) {
 	}
 }
 
-templ CommonHeadersSection(headers []*HeaderInfo, headersJSON string) {
+templ CommonHeadersSection(headers []*ppmodel.HeaderInfo, headersJSON string) {
 	<div class="pp-common-headers">
 		for _, h := range headers {
 			<div class="pp-common-header-entry" id={ "header-" + h.Name }>
@@ -277,7 +279,7 @@ templ CommonHeadersSection(headers []*HeaderInfo, headersJSON string) {
 	</div>
 }
 
-templ SecuritySchemeTypeBadge(sec *SecurityRequirement) {
+templ SecuritySchemeTypeBadge(sec *ppmodel.SecurityRequirement) {
 	<span class="pp-security-badge">
 		switch sec.SchemeType {
 			case "apiKey":

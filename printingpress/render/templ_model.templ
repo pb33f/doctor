@@ -1,6 +1,7 @@
-package printingpress
+package render
 
 import "fmt"
+import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
 templ Breadcrumb(items []BreadcrumbItem) {
 	<sl-breadcrumb class="pp-breadcrumb">
@@ -15,7 +16,7 @@ templ Breadcrumb(items []BreadcrumbItem) {
 	</sl-breadcrumb>
 }
 
-templ ModelPageTempl(page *ModelPage) {
+templ ModelPageTempl(page *ppmodel.ModelPage) {
 	<div class="pp-model">
 		@Breadcrumb(modelBreadcrumb(page))
 		<div class="pp-model-header">

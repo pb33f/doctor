@@ -2,7 +2,7 @@
 // https://pb33f.io
 // SPDX-License-Identifier: BUSL-1.1
 
-package printingpress
+package curl
 
 import (
 	"bytes"
@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	ppmodel "github.com/pb33f/doctor/printingpress/model"
 )
 
 var serverVariablePattern = regexp.MustCompile(`\{([^{}]+)\}`)
@@ -24,10 +26,10 @@ type queryPair struct {
 
 // BuildCurlCommands builds cURL command variants for an operation.
 func BuildCurlCommands(
-	op *OperationPage,
-	globalServers []*ServerInfo,
-	globalSecurityGroups []*SecurityRequirementGroup,
-) []*CurlVariant {
+	op *ppmodel.OperationPage,
+	globalServers []*ppmodel.ServerInfo,
+	globalSecurityGroups []*ppmodel.SecurityRequirementGroup,
+) []*ppmodel.CurlVariant {
 	if op == nil {
 		return nil
 	}
@@ -37,7 +39,7 @@ func BuildCurlCommands(
 		servers = globalServers
 	}
 	if len(servers) == 0 {
-		servers = []*ServerInfo{{URL: "https://api.example.com"}}
+		servers = []*ppmodel.ServerInfo{{URL: "https://api.example.com"}}
 	}
 
 	securityGroups := globalSecurityGroups
@@ -45,12 +47,12 @@ func BuildCurlCommands(
 		securityGroups = op.SecurityGroups
 	}
 	if len(securityGroups) == 0 {
-		securityGroups = []*SecurityRequirementGroup{{}}
+		securityGroups = []*ppmodel.SecurityRequirementGroup{{}}
 	}
 
-	var variants []*CurlVariant
+	var variants []*ppmodel.CurlVariant
 	for _, server := range servers {
-		resolvedServerURL := resolveServerURL(server)
+		resolvedServerURL := ResolveServerURL(server)
 		serverLabel := curlServerLabel(server, resolvedServerURL)
 
 		for _, group := range securityGroups {
@@ -68,7 +70,7 @@ func BuildCurlCommands(
 				label += securityLabel
 			}
 
-			variant := &CurlVariant{
+			variant := &ppmodel.CurlVariant{
 				Label:         label,
 				ServerURL:     resolvedServerURL,
 				SecurityLabel: securityLabel,
@@ -84,7 +86,7 @@ func BuildCurlCommands(
 	return variants
 }
 
-func resolveServerURL(server *ServerInfo) string {
+func ResolveServerURL(server *ppmodel.ServerInfo) string {
 	if server == nil || server.URL == "" {
 		return "https://api.example.com"
 	}
@@ -113,7 +115,7 @@ func resolveServerURL(server *ServerInfo) string {
 	})
 }
 
-func curlServerLabel(server *ServerInfo, resolvedURL string) string {
+func curlServerLabel(server *ppmodel.ServerInfo, resolvedURL string) string {
 	if server != nil && server.Description != "" {
 		return server.Description
 	}
@@ -123,7 +125,7 @@ func curlServerLabel(server *ServerInfo, resolvedURL string) string {
 	return resolvedURL
 }
 
-func curlSecurityLabel(group *SecurityRequirementGroup) string {
+func curlSecurityLabel(group *ppmodel.SecurityRequirementGroup) string {
 	if group == nil || len(group.Requirements) == 0 {
 		return "No Auth"
 	}
@@ -175,7 +177,7 @@ func curlSecurityLabel(group *SecurityRequirementGroup) string {
 	return strings.Join(labels, " + ")
 }
 
-func buildCurlCommand(op *OperationPage, serverURL string, group *SecurityRequirementGroup) string {
+func buildCurlCommand(op *ppmodel.OperationPage, serverURL string, group *ppmodel.SecurityRequirementGroup) string {
 	method := strings.ToUpper(strings.TrimSpace(op.Method))
 	if method == "" {
 		method = "GET"
@@ -280,7 +282,7 @@ func buildCurlCommand(op *OperationPage, serverURL string, group *SecurityRequir
 	return joinCurlLines(lines)
 }
 
-func curlParameterValue(parameter *ParameterInfo) string {
+func curlParameterValue(parameter *ppmodel.ParameterInfo) string {
 	if parameter == nil {
 		return "value"
 	}
@@ -459,7 +461,7 @@ func appendQueryPairs(rawURL string, pairs []queryPair) string {
 	return parsed.String()
 }
 
-func selectRequestMediaType(body *RequestBodyInfo) *MediaTypeInfo {
+func selectRequestMediaType(body *ppmodel.RequestBodyInfo) *ppmodel.MediaTypeInfo {
 	if body == nil || len(body.Content) == 0 {
 		return nil
 	}
@@ -487,7 +489,7 @@ func selectRequestMediaType(body *RequestBodyInfo) *MediaTypeInfo {
 	return nil
 }
 
-func buildRequestBodyFlags(mediaType *MediaTypeInfo) []string {
+func buildRequestBodyFlags(mediaType *ppmodel.MediaTypeInfo) []string {
 	if mediaType == nil {
 		return nil
 	}
@@ -587,7 +589,7 @@ func flattenObjectMock(raw string) map[string]string {
 	return result
 }
 
-func selectAcceptHeader(responses []*ResponseInfo) string {
+func selectAcceptHeader(responses []*ppmodel.ResponseInfo) string {
 	for _, response := range responses {
 		if response == nil || !strings.HasPrefix(response.StatusCode, "2") || len(response.Content) == 0 {
 			continue

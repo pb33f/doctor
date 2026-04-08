@@ -5,6 +5,7 @@
 package printingpress
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/pb33f/doctor/model"
+	. "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -149,6 +151,7 @@ func TestPrintingPress_PrintJSONArtifacts(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify file structure
+	assert.FileExists(t, outputDir+"/bundle.json")
 	assert.FileExists(t, outputDir+"/index.json")
 	assert.FileExists(t, outputDir+"/nav.json")
 	assert.FileExists(t, outputDir+"/manifest.json")
@@ -164,6 +167,78 @@ func TestPrintingPress_PrintJSONArtifacts(t *testing.T) {
 			assert.FileExists(t, outputDir+"/models/"+typeSlug+"/"+page.Slug+".json")
 		}
 	}
+}
+
+func TestPrintingPress_PrintJSONArtifacts_BundleAndManifest(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	doc, err := libopenapi.NewDocument(specBytes)
+	require.NoError(t, err)
+
+	v3Model, buildErr := doc.BuildV3Model()
+	require.NoError(t, buildErr)
+
+	drDoc := model.NewDrDocument(v3Model)
+
+	pp := newPressEngine(&pressEngineConfig{DrDoc: drDoc})
+	site, err := pp.pressSite()
+	require.NoError(t, err)
+
+	outputDir := t.TempDir()
+	err = PrintJSONArtifacts(site, outputDir)
+	require.NoError(t, err)
+
+	bundleBytes, err := os.ReadFile(filepath.Join(outputDir, "bundle.json"))
+	require.NoError(t, err)
+
+	var bundle JSONBundle
+	require.NoError(t, json.Unmarshal(bundleBytes, &bundle))
+
+	assert.Equal(t, jsonBundleFormat, bundle.Format)
+	require.NotNil(t, bundle.Root)
+	assert.Equal(t, site.Root.Title, bundle.Root.Title)
+	assert.Equal(t, site.SpecFormat, bundle.SpecFormat)
+	assert.Equal(t, site.Lite, bundle.Lite)
+	require.NotEmpty(t, bundle.Nav)
+	require.NotEmpty(t, bundle.ModelGroups)
+	require.NotEmpty(t, bundle.Operations)
+	require.NotEmpty(t, bundle.Models["schemas"])
+	assert.Equal(t, "operations/"+site.Operations[0].Slug+".json", bundle.Operations[0].Path)
+	assert.Equal(t, "model", bundle.Models["schemas"][0].Kind)
+
+	manifestBytes, err := os.ReadFile(filepath.Join(outputDir, "manifest.json"))
+	require.NoError(t, err)
+
+	var manifest ArtifactManifest
+	require.NoError(t, json.Unmarshal(manifestBytes, &manifest))
+
+	assert.Equal(t, jsonManifestFormat, manifest.Format)
+	modelCount := 0
+	for _, pages := range site.Models {
+		modelCount += len(pages)
+	}
+	expectedCount := 2 + len(site.Operations) + len(site.Webhooks) + modelCount
+	if site.Root != nil {
+		expectedCount++
+	}
+	if site.NavTags != nil {
+		expectedCount++
+	}
+	assert.Len(t, manifest.Artifacts, expectedCount)
+
+	artifactsByPath := make(map[string]JSONArtifactEntry, len(manifest.Artifacts))
+	for _, artifact := range manifest.Artifacts {
+		artifactsByPath[artifact.Path] = artifact
+		assert.FileExists(t, filepath.Join(outputDir, artifact.Path))
+	}
+
+	assert.Equal(t, "bundle", artifactsByPath["bundle.json"].Kind)
+	assert.Equal(t, "root", artifactsByPath["index.json"].Kind)
+	assert.Equal(t, "nav", artifactsByPath["nav.json"].Kind)
+	assert.Equal(t, "manifest", artifactsByPath["manifest.json"].Kind)
+	assert.Equal(t, "operation", artifactsByPath["operations/"+site.Operations[0].Slug+".json"].Kind)
+	assert.Equal(t, "model", artifactsByPath["models/schemas/"+site.Models["schemas"][0].Slug+".json"].Kind)
 }
 
 func TestPrintingPress_WriteHTMLSite(t *testing.T) {

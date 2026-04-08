@@ -1,6 +1,8 @@
-package printingpress
+package render
 
-templ NavTempl(tags []*NavTag, models map[string][]*ModelPage) {
+import ppmodel "github.com/pb33f/doctor/printingpress/model"
+
+templ NavTempl(tags []*ppmodel.NavTag, models map[string][]*ppmodel.ModelPage) {
 	<nav class="pp-nav">
 		<div class="pp-nav-section">
 			<a href="index.html" class="pp-nav-home">Overview</a>
@@ -37,7 +39,7 @@ templ NavTempl(tags []*NavTag, models map[string][]*ModelPage) {
 	</nav>
 }
 
-templ NavTagItem(tag *NavTag) {
+templ NavTagItem(tag *ppmodel.NavTag) {
 	<details class="pp-nav-tag" open>
 		<summary>{ tag.Name }</summary>
 		if len(tag.Operations) > 0 {

@@ -11,7 +11,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/pb33f/doctor/model"
+	doctormodel "github.com/pb33f/doctor/model"
+	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/bundler"
 	"github.com/pb33f/libopenapi/datamodel"
@@ -55,7 +56,7 @@ type PressStatistics struct {
 	FilesWritten       int
 	BytesWritten       int64
 	FileSizes          map[string]int64
-	Warnings           []*BuildWarning
+	Warnings           []*ppmodel.BuildWarning
 	ModelBuildDuration time.Duration
 	GenerationDuration time.Duration
 	TotalDuration      time.Duration
@@ -64,7 +65,7 @@ type PressStatistics struct {
 type pressSource struct {
 	specBytes []byte
 	v3Model   *libopenapi.DocumentModel[highv3.Document]
-	drModel   *model.DrDocument
+	drModel   *doctormodel.DrDocument
 }
 
 var bundleBytesWithOrigins = bundler.BundleBytesComposedWithOrigins
@@ -97,7 +98,7 @@ func CreatePrintingPressFromV3Model(v3Model *libopenapi.DocumentModel[highv3.Doc
 
 // CreatePrintingPressFromDrModel creates a printing press from an existing doctor model.
 // A nil config uses the default options.
-func CreatePrintingPressFromDrModel(drModel *model.DrDocument, config *PrintingPressConfig) (*PrintingPress, error) {
+func CreatePrintingPressFromDrModel(drModel *doctormodel.DrDocument, config *PrintingPressConfig) (*PrintingPress, error) {
 	return createPrintingPress(clonePrintingPressConfig(config), pressSource{drModel: drModel})
 }
 
@@ -124,10 +125,11 @@ func (pp *PrintingPress) ActivityStream() *ActivitySubscription {
 // PressModel builds the in-memory site graph, caches it for later print
 // operations, and returns it without writing any output files.
 //
-// The returned Site is the cached mutable instance owned by the PrintingPress.
+// The returned Site is a cached site instance owned by the PrintingPress.
 // Later calls to PressModel, PrintHTML, and PrintLLM reuse that same value.
-// Any caller mutations are reflected in subsequent print operations.
-func (pp *PrintingPress) PressModel() (*Site, error) {
+// Mutating the returned Site may leave derived fields out of sync and can
+// produce invalid or incomplete output, so it should be treated as read-only.
+func (pp *PrintingPress) PressModel() (*ppmodel.Site, error) {
 	pp.mu.Lock()
 	defer pp.mu.Unlock()
 
@@ -325,7 +327,7 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 			modelBytes = result.Bytes
 			job.snapshot("bundled source bytes", 1, 3, 0)
 		} else {
-			cfg.BuildWarnings = append(cfg.BuildWarnings, &BuildWarning{
+			cfg.BuildWarnings = append(cfg.BuildWarnings, &ppmodel.BuildWarning{
 				Message: "source bundling failed; falling back to single-file parse, multi-file output may be incomplete",
 				Context: basePath,
 				Err:     bundleErr,
@@ -357,8 +359,8 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 	return cfg, nil
 }
 
-func buildDrDocument(v3Model *libopenapi.DocumentModel[highv3.Document]) *model.DrDocument {
-	return model.NewDrDocumentWithConfig(v3Model, &model.DrConfig{
+func buildDrDocument(v3Model *libopenapi.DocumentModel[highv3.Document]) *doctormodel.DrDocument {
+	return doctormodel.NewDrDocumentWithConfig(v3Model, &doctormodel.DrConfig{
 		BuildGraph:     true,
 		UseSchemaCache: true,
 	})
@@ -585,7 +587,7 @@ func (pp *PrintingPress) buildStatistics(job *jobState, written []string, buildD
 	return stats, nil
 }
 
-func countSiteModels(site *Site) int {
+func countSiteModels(site *ppmodel.Site) int {
 	total := 0
 	for _, pages := range site.Models {
 		total += len(pages)
@@ -593,7 +595,7 @@ func countSiteModels(site *Site) int {
 	return total
 }
 
-func countClassDiagrams(site *Site) int {
+func countClassDiagrams(site *ppmodel.Site) int {
 	total := 0
 	for _, pages := range site.Models {
 		for _, page := range pages {
@@ -605,7 +607,7 @@ func countClassDiagrams(site *Site) int {
 	return total
 }
 
-func countDependencyGraphs(site *Site) int {
+func countDependencyGraphs(site *ppmodel.Site) int {
 	total := 0
 	for _, pages := range site.Models {
 		for _, page := range pages {

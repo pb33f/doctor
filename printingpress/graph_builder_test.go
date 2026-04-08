@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
+	. "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/stretchr/testify/assert"
