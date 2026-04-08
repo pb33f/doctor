@@ -7,8 +7,10 @@ import (
 	"testing"
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
+	what_changed "github.com/pb33f/libopenapi/what-changed"
 	"github.com/pb33f/libopenapi/what-changed/model"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewChangeDeduplicator(t *testing.T) {
@@ -428,6 +430,138 @@ func TestDeduplicateAllNodes_ReconcileParentAfterChildReassignment(t *testing.T)
 
 	// Child should still have the change.
 	assert.Len(t, child.Changes, 1, "child should retain the change")
+}
+
+func TestDeduplicateAllNodes_PreservesDeepOwnershipAcrossStructuralNodes(t *testing.T) {
+	sharedChange := &model.Change{
+		Property:   "example",
+		ChangeType: model.Modified,
+		Original:   "old",
+		New:        "new",
+	}
+
+	leaf := &v3.Node{
+		Id:       "$.components.schemas['User'].properties['email']",
+		ParentId: "$.components.schemas['User']",
+		Changes:  makeChanges([]*model.Change{sharedChange}),
+	}
+	schema := &v3.Node{
+		Id:       "$.components.schemas['User']",
+		ParentId: "$.components.schemas",
+		Children: []*v3.Node{leaf},
+	}
+	schemas := &v3.Node{
+		Id:       "$.components.schemas",
+		ParentId: "$.components",
+		Children: []*v3.Node{schema},
+	}
+	components := &v3.Node{
+		Id:       "$.components",
+		ParentId: "root",
+		Children: []*v3.Node{schemas},
+		Changes:  makeChanges([]*model.Change{sharedChange}),
+	}
+	root := &v3.Node{
+		Id:       "root",
+		Children: []*v3.Node{components},
+		Changes:  makeChanges([]*model.Change{sharedChange}),
+	}
+
+	cr := &Changerator{}
+	cr.DeduplicateAllNodes(root)
+
+	require.Len(t, leaf.Changes, 1)
+	assert.Len(t, leaf.Changes[0].GetPropertyChanges(), 1)
+	assert.Empty(t, components.Changes)
+	assert.Empty(t, root.Changes)
+}
+
+type mixedChanged struct {
+	allChanges      []*model.Change
+	propertyChanges []*model.Change
+}
+
+func (m *mixedChanged) GetAllChanges() []*model.Change {
+	return m.allChanges
+}
+
+func (m *mixedChanged) TotalChanges() int {
+	return len(m.allChanges)
+}
+
+func (m *mixedChanged) TotalBreakingChanges() int {
+	return model.CountBreakingChanges(m.allChanges)
+}
+
+func (m *mixedChanged) GetPropertyChanges() []*model.Change {
+	return m.propertyChanges
+}
+
+func (m *mixedChanged) PropertiesOnly() {}
+
+func TestDeduplicateAllNodes_RebuildsOwnedPropertyOnlyChanges(t *testing.T) {
+	summaryChange := &model.Change{
+		Path:       "$.paths['/user/login'].get",
+		Property:   "summary",
+		ChangeType: model.Modified,
+		Original:   "old summary",
+		New:        "new summary",
+	}
+	requiredChange := &model.Change{
+		Path:       "$.paths['/user/login'].get.parameters[1]",
+		Property:   "required",
+		ChangeType: model.Modified,
+		Original:   "false",
+		New:        "true",
+	}
+
+	operationSet := what_changed.Changed(&mixedChanged{
+		allChanges:      []*model.Change{summaryChange, requiredChange},
+		propertyChanges: []*model.Change{summaryChange},
+	})
+	paramSet := makeChanges([]*model.Change{requiredChange})[0]
+
+	param := &v3.Node{
+		Id:       "$.paths['/user/login'].get.parameters[1]",
+		ParentId: "$.paths['/user/login'].get.parameters",
+		Changes:  []what_changed.Changed{paramSet},
+	}
+	parameters := &v3.Node{
+		Id:       "$.paths['/user/login'].get.parameters",
+		ParentId: "$.paths['/user/login'].get",
+		Children: []*v3.Node{param},
+	}
+	operation := &v3.Node{
+		Id:       "$.paths['/user/login'].get",
+		ParentId: "$.paths['/user/login']",
+		Children: []*v3.Node{parameters},
+		Changes:  []what_changed.Changed{operationSet},
+	}
+	pathItem := &v3.Node{
+		Id:       "$.paths['/user/login']",
+		ParentId: "$.paths",
+		Children: []*v3.Node{operation},
+	}
+	paths := &v3.Node{
+		Id:       "$.paths",
+		ParentId: "root",
+		Children: []*v3.Node{pathItem},
+	}
+	root := &v3.Node{
+		Id:       "root",
+		Children: []*v3.Node{paths},
+	}
+
+	cr := &Changerator{}
+	cr.DeduplicateAllNodes(root)
+
+	require.Len(t, operation.Changes, 1)
+	assert.Equal(t, []*model.Change{summaryChange}, operation.Changes[0].GetAllChanges())
+	assert.Equal(t, []*model.Change{summaryChange}, operation.Changes[0].GetPropertyChanges())
+
+	require.Len(t, param.Changes, 1)
+	assert.Equal(t, []*model.Change{requiredChange}, param.Changes[0].GetAllChanges())
+	assert.Equal(t, []*model.Change{requiredChange}, param.Changes[0].GetPropertyChanges())
 }
 
 func TestReconcileNodeChanges_NilNode(t *testing.T) {

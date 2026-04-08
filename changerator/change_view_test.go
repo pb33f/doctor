@@ -4,9 +4,13 @@
 package changerator
 
 import (
+	"os"
+	"sync"
 	"testing"
 
+	drModel "github.com/pb33f/doctor/model"
 	v3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi"
 	what_changed "github.com/pb33f/libopenapi/what-changed"
 	"github.com/pb33f/libopenapi/what-changed/model"
 	"github.com/stretchr/testify/assert"
@@ -20,6 +24,44 @@ func makeChanges(changes []*model.Change) []what_changed.Changed {
 		PropertyChanges: model.NewPropertyChanges(changes),
 	}
 	return []what_changed.Changed{tc}
+}
+
+func cloneNodeTreeForTest(node *v3.Node) *v3.Node {
+	if node == nil {
+		return nil
+	}
+	clone := *node
+	clone.Mutex = sync.RWMutex{}
+	clone.SubtreeChanges = nil
+	clone.ChildChangeSummaries = nil
+	if node.Changes != nil {
+		clone.Changes = append([]what_changed.Changed(nil), node.Changes...)
+	}
+	if node.RenderedChanges != nil {
+		clone.RenderedChanges = append([]*model.Change(nil), node.RenderedChanges...)
+	}
+	if node.CleanedChanged != nil {
+		clone.CleanedChanged = append([]*model.Change(nil), node.CleanedChanged...)
+	}
+	if len(node.Children) > 0 {
+		clone.Children = make([]*v3.Node, len(node.Children))
+		for i, child := range node.Children {
+			clone.Children[i] = cloneNodeTreeForTest(child)
+		}
+	} else {
+		clone.Children = nil
+	}
+	return &clone
+}
+
+func collectNodeMap(node *v3.Node, out map[string]*v3.Node) {
+	if node == nil {
+		return
+	}
+	out[node.Id] = node
+	for _, child := range node.Children {
+		collectNodeMap(child, out)
+	}
 }
 
 func TestComputeSubtreeChanges_LeafNode(t *testing.T) {
@@ -353,6 +395,83 @@ func TestSubtreeTotals_MatchDeduplicatedHeadline(t *testing.T) {
 	// the deepest node (child). Parent subtree total should be 1, not 2.
 	assert.Equal(t, 1, parent.SubtreeChanges.Total,
 		"subtree total should match deduplicated count, not raw count")
+}
+
+func TestPrepareChangeViewGraph_PetstoreRegression_PreservesOwnedLeafNodes(t *testing.T) {
+	leftBytes, err := os.ReadFile("../test_specs/petstorev3-original.json")
+	require.NoError(t, err)
+	rightBytes, err := os.ReadFile("../test_specs/petstorev3-openapi-changes.json")
+	require.NoError(t, err)
+
+	leftDoc, err := libopenapi.NewDocument(leftBytes)
+	require.NoError(t, err)
+	leftModel, err := leftDoc.BuildV3Model()
+	require.NoError(t, err)
+	leftDrDoc := drModel.NewDrDocumentAndGraph(leftModel)
+	t.Cleanup(leftDrDoc.Release)
+
+	rightDoc, err := libopenapi.NewDocument(rightBytes)
+	require.NoError(t, err)
+	rightModel, err := rightDoc.BuildV3Model()
+	require.NoError(t, err)
+	rightDrDoc := drModel.NewDrDocumentAndGraph(rightModel)
+	t.Cleanup(rightDrDoc.Release)
+
+	cr := NewChangerator(&ChangeratorConfig{
+		LeftDrDoc:  leftDrDoc.V3Document,
+		RightDrDoc: rightDrDoc.V3Document,
+		Doctor:     rightDrDoc,
+	})
+	cr.Changerate()
+
+	root := rightDrDoc.V3Document.Node
+	cr.BuildNodeChangeTree(root)
+	require.NotNil(t, root)
+
+	standardNodes := make(map[string]*v3.Node)
+	collectNodeMap(root, standardNodes)
+
+	changeRoot := cloneNodeTreeForTest(root)
+	cr.PrepareChangeViewGraph(changeRoot)
+
+	changeNodes := make(map[string]*v3.Node)
+	collectNodeMap(changeRoot, changeNodes)
+
+	targets := []string{
+		"$.components.schemas['Pet']",
+		"$.components.schemas['Pet'].properties['status']",
+		"$.components.schemas['User'].properties['email']",
+		"$.paths['/user/login'].get.parameters[1]",
+		"$.paths['/user/login'].get.parameters[0].schema",
+	}
+
+	for _, target := range targets {
+		standardNode := standardNodes[target]
+		require.NotNil(t, standardNode, "standard changed tree should contain %s", target)
+		require.Greater(t, len(nodeOwnChanges(standardNode)), 0, "standard node should keep own changes for %s", target)
+
+		changeNode := changeNodes[target]
+		require.NotNil(t, changeNode, "change-view graph should contain %s", target)
+		require.Greater(t, len(nodeOwnChanges(changeNode)), 0, "change-view node should keep own changes for %s", target)
+	}
+
+	components := changeNodes["$.components"]
+	require.NotNil(t, components)
+	for _, change := range nodeOwnChanges(components) {
+		assert.NotEqual(t, "$.components.schemas['User'].properties['email']", change.Path)
+		assert.NotEqual(t, "$.components.schemas['Pet']", change.Path)
+		assert.NotEqual(t, "$.components.schemas['Pet'].properties['status']", change.Path)
+	}
+
+	operation := changeNodes["$.paths['/user/login'].get"]
+	require.NotNil(t, operation)
+	for _, change := range nodeOwnChanges(operation) {
+		assert.NotEqual(t, "$.paths['/user/login'].get.parameters[1]", change.Path)
+		assert.NotEqual(t, "$.paths['/user/login'].get.parameters[0].schema", change.Path)
+	}
+
+	require.NotNil(t, standardNodes["$.components.schemas['User'].properties['email']"])
+	require.Greater(t, len(nodeOwnChanges(standardNodes["$.components.schemas['User'].properties['email']"])), 0)
 }
 
 func intPtr(v int) *int {

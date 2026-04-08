@@ -94,6 +94,18 @@ func (d *ChangeDeduplicator) RegisterNode(nodeId, parentId string) {
 	}
 }
 
+// RegisterTree registers every node in the tree, including structural
+// containers that may not have direct changes of their own.
+func (d *ChangeDeduplicator) RegisterTree(node *v3.Node) {
+	if node == nil {
+		return
+	}
+	d.RegisterNode(node.Id, node.ParentId)
+	for _, child := range node.Children {
+		d.RegisterTree(child)
+	}
+}
+
 // CalculateDepth calculates the depth of a node in the hierarchy.
 // Deeper nodes are more specific and preferred for change attribution.
 func (d *ChangeDeduplicator) CalculateDepth(nodeId string) int {
@@ -194,15 +206,13 @@ func (d *ChangeDeduplicator) DeduplicateNodeChanges(node *v3.Node) {
 		return
 	}
 
-	d.RegisterNode(node.Id, node.ParentId)
-
 	for _, changeSet := range node.Changes {
 		for _, change := range changeSet.GetAllChanges() {
 			d.ProcessChange(change, node.Id)
 		}
 	}
 
-	node.Changes = d.filterOwnedChangeSets(node)
+	node.Changes = d.rebuildOwnedChangeSets(node)
 }
 
 // ReconcileNodeChanges re-filters a node's Changes based on the deduplicator's
@@ -214,24 +224,21 @@ func (d *ChangeDeduplicator) ReconcileNodeChanges(node *v3.Node) {
 	if node == nil || len(node.Changes) == 0 {
 		return
 	}
-	node.Changes = d.filterOwnedChangeSets(node)
+	node.Changes = d.rebuildOwnedChangeSets(node)
 }
 
-// filterOwnedChangeSets returns only the ChangeSets from node.Changes that
-// contain at least one change owned by this node (i.e., this node is the
-// deepest node where the change appears).
-func (d *ChangeDeduplicator) filterOwnedChangeSets(node *v3.Node) []whatChanged.Changed {
-	var owned []whatChanged.Changed
-	for _, changeSet := range node.Changes {
-		for _, change := range changeSet.GetAllChanges() {
-			hash := d.GenerateChangeHash(change)
-			if dc, exists := d.seen[hash]; exists && dc.lowestNodeId == node.Id {
-				owned = append(owned, changeSet)
-				break
-			}
-		}
+// rebuildOwnedChangeSets materializes only the property changes owned by this
+// node. It intentionally rebuilds property-only wrappers instead of retaining
+// the original mixed change sets, which can contain descendant changes that no
+// longer belong to the current node after deduplication.
+func (d *ChangeDeduplicator) rebuildOwnedChangeSets(node *v3.Node) []whatChanged.Changed {
+	ownedChanges := d.changesByNode[node.Id]
+	if len(ownedChanges) == 0 {
+		return nil
 	}
-	return owned
+	return []whatChanged.Changed{
+		&nodePropertyChanges{changes: ownedChanges},
+	}
 }
 
 // GetChangeHash is a public convenience function to generate a hash for a change.

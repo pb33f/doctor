@@ -197,3 +197,15 @@ func (p *Parameter) GetSize() (height, width int) {
 func (p *Parameter) Travel(ctx context.Context, tardis Tardis) {
 	tardis.Visit(ctx, p)
 }
+
+// ExtractParameterValues extracts the underlying libopenapi Parameter values
+// from a slice of doctor Parameter wrappers, preserving order and nil entries.
+func ExtractParameterValues(params []*Parameter) []*v3.Parameter {
+	result := make([]*v3.Parameter, len(params))
+	for i, p := range params {
+		if p != nil {
+			result[i] = p.Value
+		}
+	}
+	return result
+}
