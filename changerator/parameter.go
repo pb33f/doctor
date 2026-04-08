@@ -12,6 +12,22 @@ import (
 func (t *Changerator) VisitParameter(ctx context.Context, obj *v3.Parameter) {
 	if changes, ok := ctx.Value(v3.Context).(*model.ParameterChanges); ok {
 		PushChanges(ctx, obj, &model.ParameterChanges{})
+
+		// Store parameter name for path normalization by consumers.
+		name := changes.Name
+		if name == "" && obj.Value != nil {
+			name = obj.Value.Name
+		}
+		if name != "" {
+			paramPath := obj.GenerateJSONPath()
+			t.mutex.Lock()
+			if t.ParameterNames == nil {
+				t.ParameterNames = make(map[string]string)
+			}
+			t.ParameterNames[paramPath] = name
+			t.mutex.Unlock()
+		}
+
 		nCtx := ctx
 		if obj.Examples != nil && obj.Examples.Len() > 0 && len(changes.ExamplesChanges) > 0 {
 			ProcessMaps(ctx, changes.ExamplesChanges, obj.Examples, t)

@@ -21,11 +21,12 @@ func (r *MarkdownRenderer) RenderMarkdown(input *RenderInput) (string, error) {
 		return "# What Changed?\n\nNo changes detected between the API versions.\n\n", nil
 	}
 
-	reporter := NewMarkdownReporter(
+	reporter := MarkdownReport(
 		input.DocumentChanges,
 		input.Doctor,
 		input.RightDocContent,
 		input.Config,
+		input.DeduplicatedChanges,
 	)
 
 	return reporter.Generate(), nil

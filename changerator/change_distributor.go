@@ -27,6 +27,10 @@ type Changerator struct {
 	// Deduplicator handles change deduplication across the hierarchy
 	Deduplicator *ChangeDeduplicator
 
+	// ParameterNames maps a parameter's full JSONPath (e.g., "$.paths['/pets'].get.parameters[0]")
+	// to its semantic name (e.g., "petId"). Populated during VisitParameter.
+	ParameterNames map[string]string
+
 	// For context extraction
 	rightDocContent []byte   // Original right document content
 	rightDocLines   []string // Cached split lines for performance
@@ -214,6 +218,17 @@ func (t *Changerator) DeduplicateChanges() []*whatChangedModel.Change {
 	}
 
 	return deduplicated
+}
+
+// ResolveParameterName returns the semantic name for a parameter at the given
+// JSONPath (e.g., "$.paths['/pets'].get.parameters[0]"), or empty string if unknown.
+func (t *Changerator) ResolveParameterName(paramPath string) string {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	if t.ParameterNames == nil {
+		return ""
+	}
+	return t.ParameterNames[paramPath]
 }
 
 func (t *Changerator) Visit(ctx context.Context, object any) {

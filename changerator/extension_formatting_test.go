@@ -59,7 +59,7 @@ paths:
 	assert.Greater(t, docChanges.TotalChanges(), 0)
 
 	// Generate markdown report
-	reporter := renderer.NewMarkdownReporter(docChanges, rightDoc, []byte(updatedSpec), nil)
+	reporter := renderer.MarkdownReport(docChanges, rightDoc, []byte(updatedSpec), nil, nil)
 	markdown := reporter.Generate()
 
 	// Verify the markdown contains formatted code block
@@ -125,7 +125,7 @@ paths:
 	assert.Greater(t, docChanges.TotalChanges(), 0)
 
 	// Generate markdown report
-	reporter := renderer.NewMarkdownReporter(docChanges, rightDoc, []byte(updatedSpec), nil)
+	reporter := renderer.MarkdownReport(docChanges, rightDoc, []byte(updatedSpec), nil, nil)
 	markdown := reporter.Generate()
 
 	// Verify plain text extension is formatted inline (not as code block)
@@ -185,7 +185,7 @@ paths:
 	assert.Greater(t, docChanges.TotalChanges(), 0)
 
 	// Generate markdown report
-	reporter := renderer.NewMarkdownReporter(docChanges, rightDoc, []byte(updatedSpec), nil)
+	reporter := renderer.MarkdownReport(docChanges, rightDoc, []byte(updatedSpec), nil, nil)
 	markdown := reporter.Generate()
 
 	// Verify XML extension is formatted as code block
@@ -311,7 +311,7 @@ paths:
 		},
 	}
 
-	reporter := renderer.NewMarkdownReporter(docChanges, rightDoc, []byte(updatedSpec), htmlConfig)
+	reporter := renderer.MarkdownReport(docChanges, rightDoc, []byte(updatedSpec), htmlConfig, nil)
 	markdown := reporter.Generate()
 
 	// Verify markers are indented
