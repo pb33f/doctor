@@ -231,8 +231,13 @@ components:
 	require.NoError(t, err)
 	assert.True(t, strings.Contains(string(customerHTML), "<pp-class-diagram"),
 		"customer page should contain <pp-class-diagram>")
-	assert.True(t, strings.Contains(string(customerHTML), "pp-mermaid-data"),
-		"customer page should contain mermaid data script")
+	assert.True(t, strings.Contains(string(customerHTML), `data-pp-page="static/page-data/models/schemas/customer"`),
+		"customer page should reference model hydration data")
+
+	customerHydration, err := os.ReadFile(filepath.Join(outDir, "static", "page-data", "models", "schemas", "customer.json"))
+	require.NoError(t, err)
+	assert.True(t, strings.Contains(string(customerHydration), "pp-mermaid-data"),
+		"customer hydration payload should contain mermaid data")
 
 	// Simple page should NOT contain <pp-class-diagram>
 	simpleHTML, err := os.ReadFile(filepath.Join(outDir, "models", "schemas", "simple.html"))

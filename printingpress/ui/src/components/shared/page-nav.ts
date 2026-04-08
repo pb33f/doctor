@@ -27,17 +27,20 @@ export class PpPageNav extends LitElement {
     private scrollSpySuppressed = false;
     private suppressionTimerId = 0;
     private boundScrollHandler = () => this.onScroll();
+    private boundHydrationHandler = () => this.handleHydrationComplete();
 
     connectedCallback() {
         super.connectedCallback();
         this.collapsed = localStorage.getItem(COLLAPSED_KEY) === 'true';
         this.navHidden = localStorage.getItem(HIDDEN_KEY) === 'true';
+        document.addEventListener('pp:hydrated', this.boundHydrationHandler);
     }
 
     disconnectedCallback() {
         super.disconnectedCallback();
         this.scrollContainer?.removeEventListener('scroll', this.boundScrollHandler);
         this.clearSuppressionTimer();
+        document.removeEventListener('pp:hydrated', this.boundHydrationHandler);
     }
 
     private clearSuppressionTimer() {
@@ -88,10 +91,16 @@ export class PpPageNav extends LitElement {
     }
 
     private setupScrollSpy() {
+        this.scrollContainer?.removeEventListener('scroll', this.boundScrollHandler);
         const layout = document.querySelector('pp-layout');
         this.scrollContainer = layout?.shadowRoot?.querySelector('.content-panel') || null;
         if (!this.scrollContainer) return;
         this.scrollContainer.addEventListener('scroll', this.boundScrollHandler, {passive: true});
+    }
+
+    private handleHydrationComplete() {
+        this.loadResponseChildren();
+        requestAnimationFrame(() => this.setupScrollSpy());
     }
 
     private suppressScrollSpy() {

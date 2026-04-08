@@ -49,14 +49,13 @@ templ OperationPageTempl(page *ppmodel.OperationPage) {
 	    <div class="title-section">
 
             <div class="name-path-block">
-                if page.RawYAML != "" || page.SchemaJSON != "" {
+                 if page.RawYAML != "" || page.SchemaJSON != "" {
                       <pp-raw-viewer-btn
+                          id="pp-operation-raw"
                           class="raw-button"
                           title={ page.Method + " " + page.Path }
                           method={ page.Method }
                           path={ page.Path }
-                          raw-json={ page.SchemaJSON }
-                          raw-yaml={ page.RawYAML }
                           if page.SourceLine > 0 {
                               start-line={ fmt.Sprintf("%d", page.SourceLine) }
                           }
@@ -147,23 +146,19 @@ templ OperationPageTempl(page *ppmodel.OperationPage) {
 			@RequestBodySection(page.RequestBody)
 		}
 		if page.ResponsesJSON != "" {
-			<pp-operation-responses id="section-responses" data-nav-label="Responses"
-				responses-json={ page.ResponsesJSON }
-				if page.CommonHeadersJSON != "" {
-					common-headers-json={ page.CommonHeadersJSON }
-				}>
+			<pp-operation-responses id="section-responses" data-nav-label="Responses">
 			</pp-operation-responses>
 		}
 		if page.ParametersJSON != "" {
 			<sl-details class="pp-details" id="section-parameters" data-nav-label="Parameters">
 				<span slot="summary" class="pp-details-summary"><h3>Parameters</h3></span>
-				<pp-operation-parameters parameters-json={ page.ParametersJSON }></pp-operation-parameters>
+				<pp-operation-parameters id="pp-operation-parameters"></pp-operation-parameters>
 			</sl-details>
 		}
 		if page.CurlJSON != "" {
 			<sl-details class="pp-details" id="section-curl" data-nav-label="cURL">
 				<span slot="summary" class="pp-details-summary"><h3>cURL</h3></span>
-				<pp-curl-command curl-json={ page.CurlJSON }></pp-curl-command>
+				<pp-curl-command id="pp-operation-curl"></pp-curl-command>
 			</sl-details>
 		}
 		if page.ExtensionsJSON != "" {
@@ -181,7 +176,7 @@ templ OperationPageTempl(page *ppmodel.OperationPage) {
 		if page.CallbacksJSON != "" {
 			<sl-details class="pp-details" id="section-callbacks" data-nav-label="Callbacks">
 				<span slot="summary" class="pp-details-summary"><h3>Callbacks</h3></span>
-				<pp-operation-callbacks callbacks-json={ page.CallbacksJSON }></pp-operation-callbacks>
+				<pp-operation-callbacks id="pp-operation-callbacks"></pp-operation-callbacks>
 			</sl-details>
 		}
 		if page.ExternalDoc != nil {
@@ -210,10 +205,9 @@ templ RequestBodySection(rb *ppmodel.RequestBodyInfo) {
 		<h3>Request Body
 		if rb.RawYAML != "" || rb.RawJSON != "" {
 			<pp-raw-viewer-btn
+			    id="pp-request-body-raw"
 			    class="raw-button"
 				title="Request Body"
-				raw-json={ rb.RawJSON }
-				raw-yaml={ rb.RawYAML }
 				if rb.SourceLine > 0 {
 					start-line={ fmt.Sprintf("%d", rb.SourceLine) }
 				}
@@ -238,7 +232,7 @@ templ RequestBodySection(rb *ppmodel.RequestBodyInfo) {
 				</a>
 			</p>
 		} else if len(rb.Content) > 0 {
-			<pp-media-type-selector content-json={ MustJSON(rb.Content) }></pp-media-type-selector>
+			<pp-media-type-selector id="pp-request-body-content"></pp-media-type-selector>
 		}
 	</div>
 }
