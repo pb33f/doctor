@@ -30,7 +30,6 @@ type activityManager struct {
 	latest      ActivityUpdate
 	hasLast     bool
 	activeJobID string
-	dropped     int64
 }
 
 type activityJob struct {
@@ -53,43 +52,36 @@ type jobState struct {
 	UpdatedAt  time.Time
 }
 
-// ActivityUpdate reports a point-in-time snapshot of a printing press job.
+// ActivityUpdate reports the latest live snapshot of a printing press job.
 type ActivityUpdate struct {
-	JobID              string
-	JobType            string
-	Status             string
-	Title              string
-	OutputDir          string
-	SourceKind         string
-	CurrentTask        string
-	CompletedTasks     int64
-	TotalTasks         int64
-	PercentComplete    float64
-	Elapsed            time.Duration
-	TaskDuration       time.Duration
-	DroppedUpdateCount int64
-	Error              string
+	JobID           string
+	JobType         string
+	Status          string
+	Title           string
+	OutputDir       string
+	SourceKind      string
+	CurrentTask     string
+	CompletedTasks  int64
+	TotalTasks      int64
+	PercentComplete float64
+	Elapsed         time.Duration
+	TaskDuration    time.Duration
+	Error           string
 }
 
-// ActivitySubscription is a managed stream of activity updates.
+// ActivitySubscription is a best-effort live stream of activity updates.
 //
-// Updates are delivered in publish order. A subscription created while a job is
-// running immediately receives the latest snapshot for that job. A subscription
-// created after a job has finished stays idle until the next job starts.
-//
-// Unsubscribe, Drain, and Close all detach the subscription from future
-// publishes. The channel returned by Updates is closed only after any already
-// queued updates have been delivered.
+// It is intended for terminal progress display while a job is actively
+// running. Slow consumers may miss intermediate updates and only receive the
+// latest live state. The channel closes when the attached job completes or when
+// the subscription is closed.
 type ActivitySubscription struct {
 	manager *activityManager
 	id      uint64
 
 	mu            sync.Mutex
-	cond          *sync.Cond
 	updates       chan ActivityUpdate
-	queue         []ActivityUpdate
 	attachedJobID string
-	closing       bool
 	closed        bool
 }
 
@@ -113,19 +105,16 @@ func (am *activityManager) subscribe() *ActivitySubscription {
 	am.mu.Unlock()
 
 	if hasActiveSnapshot {
-		sub.attachAndEnqueue(activeJobID, latest)
+		sub.attachAndPublish(activeJobID, latest)
 	}
 	return sub
 }
 
 func newActivitySubscription(manager *activityManager) *ActivitySubscription {
-	sub := &ActivitySubscription{
+	return &ActivitySubscription{
 		manager: manager,
 		updates: make(chan ActivityUpdate, 1),
 	}
-	sub.cond = sync.NewCond(&sub.mu)
-	go sub.run()
-	return sub
 }
 
 func (am *activityManager) startJob(jobType, title, outputDir, sourceKind string) *activityJob {
@@ -158,19 +147,18 @@ func (aj *activityJob) snapshot(task string, completed, total int64, taskDuratio
 	defer aj.mu.Unlock()
 	aj.job.UpdatedAt = time.Now()
 	update := ActivityUpdate{
-		JobID:              aj.job.ID,
-		JobType:            aj.job.Type,
-		Status:             aj.job.Status,
-		Title:              aj.job.Title,
-		OutputDir:          aj.job.OutputDir,
-		SourceKind:         aj.job.SourceKind,
-		CurrentTask:        task,
-		CompletedTasks:     completed,
-		TotalTasks:         total,
-		Elapsed:            time.Since(aj.startedAt),
-		TaskDuration:       taskDuration,
-		PercentComplete:    calculatePercent(completed, total, aj.job.Status),
-		DroppedUpdateCount: aj.manager.currentDroppedCount(),
+		JobID:           aj.job.ID,
+		JobType:         aj.job.Type,
+		Status:          aj.job.Status,
+		Title:           aj.job.Title,
+		OutputDir:       aj.job.OutputDir,
+		SourceKind:      aj.job.SourceKind,
+		CurrentTask:     task,
+		CompletedTasks:  completed,
+		TotalTasks:      total,
+		Elapsed:         time.Since(aj.startedAt),
+		TaskDuration:    taskDuration,
+		PercentComplete: calculatePercent(completed, total, aj.job.Status),
 	}
 	aj.manager.publish(update)
 	aj.taskStart = time.Now()
@@ -194,19 +182,18 @@ func (aj *activityJob) fail(err error) {
 	defer aj.mu.Unlock()
 	aj.job.Status = "failed"
 	update := ActivityUpdate{
-		JobID:              aj.job.ID,
-		JobType:            aj.job.Type,
-		Status:             aj.job.Status,
-		Title:              aj.job.Title,
-		OutputDir:          aj.job.OutputDir,
-		SourceKind:         aj.job.SourceKind,
-		CurrentTask:        "failed",
-		CompletedTasks:     0,
-		TotalTasks:         1,
-		Elapsed:            time.Since(aj.startedAt),
-		TaskDuration:       time.Since(aj.taskStart),
-		PercentComplete:    0,
-		DroppedUpdateCount: aj.manager.currentDroppedCount(),
+		JobID:           aj.job.ID,
+		JobType:         aj.job.Type,
+		Status:          aj.job.Status,
+		Title:           aj.job.Title,
+		OutputDir:       aj.job.OutputDir,
+		SourceKind:      aj.job.SourceKind,
+		CurrentTask:     "failed",
+		CompletedTasks:  0,
+		TotalTasks:      1,
+		Elapsed:         time.Since(aj.startedAt),
+		TaskDuration:    time.Since(aj.taskStart),
+		PercentComplete: 0,
 	}
 	if err != nil {
 		update.Error = err.Error()
@@ -232,7 +219,6 @@ func (am *activityManager) publish(update ActivityUpdate) {
 	}
 
 	am.mu.Lock()
-	update.DroppedUpdateCount = am.dropped
 	am.latest = update
 	am.hasLast = true
 	if isTerminalStatus(update.Status) {
@@ -248,21 +234,16 @@ func (am *activityManager) publish(update ActivityUpdate) {
 	}
 	am.mu.Unlock()
 
-	var closing []*ActivitySubscription
 	for _, sub := range subscribers {
 		if isTerminalStatus(update.Status) {
 			if sub.belongsToJob(update.JobID) {
-				sub.enqueue(update)
-				closing = append(closing, sub)
+				sub.publish(update)
+				am.unsubscribe(sub)
+				sub.close()
 			}
 			continue
 		}
-		sub.attachAndEnqueue(update.JobID, update)
-	}
-
-	for _, sub := range closing {
-		am.unsubscribe(sub)
-		sub.closeAfterDrain()
+		sub.attachAndPublish(update.JobID, update)
 	}
 }
 
@@ -275,19 +256,7 @@ func (am *activityManager) unsubscribe(sub *ActivitySubscription) {
 	am.mu.Unlock()
 }
 
-func (am *activityManager) currentDroppedCount() int64 {
-	if am == nil {
-		return 0
-	}
-	am.mu.Lock()
-	defer am.mu.Unlock()
-	return am.dropped
-}
-
-// Updates returns the ordered stream of activity updates for this subscription.
-//
-// The channel closes automatically after the attached job reaches a terminal
-// state, or after Unsubscribe, Drain, or Close has flushed any queued updates.
+// Updates returns the live activity stream for this subscription.
 func (s *ActivitySubscription) Updates() <-chan ActivityUpdate {
 	if s == nil {
 		return nil
@@ -295,10 +264,7 @@ func (s *ActivitySubscription) Updates() <-chan ActivityUpdate {
 	return s.updates
 }
 
-// Unsubscribe detaches the subscription from future publishes.
-//
-// Any updates already queued for delivery are still sent before the Updates
-// channel is closed.
+// Unsubscribe detaches the subscription and closes the update channel.
 func (s *ActivitySubscription) Unsubscribe() {
 	if s == nil {
 		return
@@ -306,14 +272,12 @@ func (s *ActivitySubscription) Unsubscribe() {
 	if s.manager != nil {
 		s.manager.unsubscribe(s)
 	}
-	s.closeAfterDrain()
+	s.close()
 }
 
-// Drain detaches the subscription and returns the Updates channel.
+// Drain detaches the subscription and returns the update channel.
 //
-// Callers can continue receiving any updates that were already queued before the
-// subscription was detached. The returned channel closes after that queue is
-// exhausted.
+// Any already-buffered latest update remains readable before the channel closes.
 func (s *ActivitySubscription) Drain() <-chan ActivityUpdate {
 	if s == nil {
 		return nil
@@ -322,9 +286,7 @@ func (s *ActivitySubscription) Drain() <-chan ActivityUpdate {
 	return s.updates
 }
 
-// Close detaches the subscription and closes it after queued updates drain.
-//
-// Close is idempotent.
+// Close detaches the subscription and closes the update channel.
 func (s *ActivitySubscription) Close() {
 	if s == nil {
 		return
@@ -332,42 +294,11 @@ func (s *ActivitySubscription) Close() {
 	s.Unsubscribe()
 }
 
-func (s *ActivitySubscription) run() {
-	for {
-		update, ok := s.nextUpdate()
-		if !ok {
-			return
-		}
-		s.updates <- update
-	}
-}
-
-func (s *ActivitySubscription) nextUpdate() (ActivityUpdate, bool) {
+func (s *ActivitySubscription) attachAndPublish(jobID string, update ActivityUpdate) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for len(s.queue) == 0 && !s.closing {
-		s.cond.Wait()
-	}
-
-	if len(s.queue) == 0 && s.closing {
-		if !s.closed {
-			s.closed = true
-			close(s.updates)
-		}
-		return ActivityUpdate{}, false
-	}
-
-	update := s.queue[0]
-	s.queue = s.queue[1:]
-	return update, true
-}
-
-func (s *ActivitySubscription) attachAndEnqueue(jobID string, update ActivityUpdate) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.closing || s.closed {
+	if s.closed {
 		return false
 	}
 	if s.attachedJobID == "" {
@@ -376,20 +307,18 @@ func (s *ActivitySubscription) attachAndEnqueue(jobID string, update ActivityUpd
 	if s.attachedJobID != jobID {
 		return false
 	}
-	s.queue = append(s.queue, update)
-	s.cond.Signal()
+	publishLatestLocked(s.updates, update)
 	return true
 }
 
-func (s *ActivitySubscription) enqueue(update ActivityUpdate) bool {
+func (s *ActivitySubscription) publish(update ActivityUpdate) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.closing || s.closed {
+	if s.closed {
 		return false
 	}
-	s.queue = append(s.queue, update)
-	s.cond.Signal()
+	publishLatestLocked(s.updates, update)
 	return true
 }
 
@@ -399,14 +328,29 @@ func (s *ActivitySubscription) belongsToJob(jobID string) bool {
 	return !s.closed && s.attachedJobID == jobID
 }
 
-func (s *ActivitySubscription) closeAfterDrain() {
+func (s *ActivitySubscription) close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.closing || s.closed {
+	if s.closed {
 		return
 	}
-	s.closing = true
-	s.cond.Signal()
+	s.closed = true
+	close(s.updates)
+}
+
+func publishLatestLocked(updates chan ActivityUpdate, update ActivityUpdate) {
+	select {
+	case updates <- update:
+		return
+	default:
+	}
+
+	select {
+	case <-updates:
+	default:
+	}
+
+	updates <- update
 }
 
 func calculatePercent(completed, total int64, status string) float64 {

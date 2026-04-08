@@ -19,17 +19,18 @@ import (
 )
 
 type pressEngineConfig struct {
-	DrDoc       *model.DrDocument
-	Origins     bundler.ComponentOriginMap
-	OutputDir   string
-	BaseURL     string
-	Title       string
-	Logger      *slog.Logger
-	SpecFormat  string  // "yaml" or "json" — caller should set based on input format
-	SpecRoot    string  // root directory of the spec; absolute paths are made relative to this
-	NoMermaid   bool    // skip mermaid class diagram generation on model pages
-	NoExplorer  bool    // skip dependency explorer on model pages
-	BuildErrors []error // errors from libopenapi model building (surfaced as warnings on index page)
+	DrDoc         *model.DrDocument
+	Origins       bundler.ComponentOriginMap
+	OutputDir     string
+	BaseURL       string
+	Title         string
+	Logger        *slog.Logger
+	SpecFormat    string // "yaml" or "json" — caller should set based on input format
+	SpecRoot      string // root directory of the spec; absolute paths are made relative to this
+	NoMermaid     bool   // skip mermaid class diagram generation on model pages
+	NoExplorer    bool   // skip dependency explorer on model pages
+	BuildWarnings []*BuildWarning
+	BuildErrors   []error // errors from libopenapi model building (surfaced as warnings on index page)
 	// SyntheticTagFallback reuses untagged path grouping when operation tags are too coarse.
 	SyntheticTagFallback *SyntheticTagFallbackConfig
 }
@@ -268,6 +269,12 @@ func (pp *PrintingPress) pressSite() (*Site, error) {
 		}
 	}
 
+	for _, warning := range pp.engineConfig.BuildWarnings {
+		if warning == nil {
+			continue
+		}
+		pp.warn(warning.Message, warning.Context, warning.Err)
+	}
 	for _, err := range pp.engineConfig.BuildErrors {
 		pp.warn("model build issue", "", err)
 	}
