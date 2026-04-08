@@ -170,8 +170,8 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 		if doc.Document.Info != nil {
 			info := doc.Document.Info
 			root.Title = info.Title
-			if pp.config.Title != "" {
-				root.Title = pp.config.Title
+			if pp.engineConfig.Title != "" {
+				root.Title = pp.engineConfig.Title
 			}
 			root.Description = info.Description
 			root.DescHTML = renderMarkdown(info.Description)
@@ -323,9 +323,9 @@ func (pp *PrintingPress) visitPaths(ctx context.Context, paths *v3.Paths) {
 func (pp *PrintingPress) collectPathItemOperations(path string, pi *v3.PathItem) {
 	// Resolve path item origin for multi-file source tracking
 	var piOrigin *bundler.ComponentOrigin
-	if pp.config.Origins != nil && pi.Value != nil && pi.Value.GoLow() != nil && pi.Value.GoLow().IsReference() {
+	if pp.engineConfig.Origins != nil && pi.Value != nil && pi.Value.GoLow() != nil && pi.Value.GoLow().IsReference() {
 		ref := pi.Value.GoLow().GetReference()
-		if origin, ok := pp.config.Origins[ref]; ok {
+		if origin, ok := pp.engineConfig.Origins[ref]; ok {
 			piOrigin = origin
 		}
 	}
@@ -453,7 +453,7 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 
 	// Use ValueNode line only for single-file specs; for multi-file bundled specs
 	// the line refers to the bundled output, not the original source file.
-	if op.ValueNode != nil && (pp.config.Origins == nil || len(pp.config.Origins) == 0) {
+	if op.ValueNode != nil && (pp.engineConfig.Origins == nil || len(pp.engineConfig.Origins) == 0) {
 		page.SourceLine = op.ValueNode.Line
 	}
 
@@ -872,7 +872,7 @@ func (pp *PrintingPress) collectComponents(comp *v3.Components) {
 // collectSchemaComponents handles schemas specifically since Schema has MarshalJSON.
 func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string, *v3.SchemaProxy]) {
 	var mermaidCfg *diagramatron.MermaidConfig
-	if !pp.config.NoMermaid {
+	if !pp.engineConfig.NoMermaid {
 		mermaidCfg = diagramatron.DefaultMermaidConfig()
 	}
 	for pair := schemas.First(); pair != nil; pair = pair.Next() {
@@ -1644,8 +1644,8 @@ func (pp *PrintingPress) computeOriginalLine(bundledLine int, piOrigin *bundler.
 // paths are relative (e.g. "schemas/user.yaml" not "/home/user/project/api-spec/schemas/user.yaml").
 func (pp *PrintingPress) formatLocation(origin *bundler.ComponentOrigin) string {
 	loc := origin.OriginalFile
-	if pp.config.SpecRoot != "" && strings.HasPrefix(loc, pp.config.SpecRoot) {
-		loc = strings.TrimPrefix(loc, pp.config.SpecRoot)
+	if pp.engineConfig.SpecRoot != "" && strings.HasPrefix(loc, pp.engineConfig.SpecRoot) {
+		loc = strings.TrimPrefix(loc, pp.engineConfig.SpecRoot)
 		loc = strings.TrimPrefix(loc, "/")
 	}
 	return loc
@@ -1661,9 +1661,9 @@ func (pp *PrintingPress) resolveObjectOrigin(
 	},
 	piOrigin *bundler.ComponentOrigin,
 ) (location string, sourceLine int) {
-	if pp.config.Origins != nil && low != nil && low.IsReference() {
+	if pp.engineConfig.Origins != nil && low != nil && low.IsReference() {
 		ref := low.GetReference()
-		if origin, ok := pp.config.Origins[ref]; ok && origin != nil {
+		if origin, ok := pp.engineConfig.Origins[ref]; ok && origin != nil {
 			return pp.formatLocation(origin), origin.Line
 		}
 	}
@@ -1677,11 +1677,11 @@ func (pp *PrintingPress) resolveObjectOrigin(
 
 // resolveOrigin looks up a component origin and strips the SpecRoot prefix from OriginalFile.
 func (pp *PrintingPress) resolveOrigin(componentType, name string) *bundler.ComponentOrigin {
-	if pp.config.Origins == nil {
+	if pp.engineConfig.Origins == nil {
 		return nil
 	}
 	key := componentKey(componentType, name)
-	origin, ok := pp.config.Origins[key]
+	origin, ok := pp.engineConfig.Origins[key]
 	if !ok || origin == nil {
 		return nil
 	}

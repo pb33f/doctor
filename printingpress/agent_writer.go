@@ -14,40 +14,100 @@ import (
 	"strings"
 )
 
-// WriteLLMSite generates agent-optimized markdown documentation alongside the HTML site.
+// WriteLLMSite writes LLM-oriented markdown docs to disk.
+//
+// When outputDir is empty, WriteLLMSite uses site.OutputDir. A nil site returns
+// ErrNilSite.
 func WriteLLMSite(site *Site, outputDir string) error {
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		return fmt.Errorf("creating output directory: %w", err)
+	if site == nil {
+		return ErrNilSite
+	}
+	_, err := writeLLMSiteDetailed(site, outputDir, nil)
+	return err
+}
+
+func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFunc) ([]string, error) {
+	if site == nil {
+		return nil, ErrNilSite
+	}
+	resolvedOutputDir, err := resolveWriterOutputDir(site, outputDir)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := os.MkdirAll(resolvedOutputDir, 0o755); err != nil {
+		return nil, fmt.Errorf("creating output directory: %w", err)
 	}
 
 	// Create subdirectories for individual files
 	dirs := append([]string{"operations"}, modelDirs()...)
 	for _, dir := range dirs {
-		if err := os.MkdirAll(filepath.Join(outputDir, dir), 0o755); err != nil {
-			return fmt.Errorf("creating directory %s: %w", dir, err)
+		if err := os.MkdirAll(filepath.Join(resolvedOutputDir, dir), 0o755); err != nil {
+			return nil, fmt.Errorf("creating directory %s: %w", dir, err)
 		}
 	}
 
-	if err := writeLLMFull(site, outputDir); err != nil {
-		return fmt.Errorf("writing llms-full.txt: %w", err)
-	}
-	if err := writeLLMIndex(site, outputDir); err != nil {
-		return fmt.Errorf("writing llms.txt: %w", err)
-	}
-	if err := writeLLMOperationsSlice(site, outputDir); err != nil {
-		return fmt.Errorf("writing llms-operations.txt: %w", err)
-	}
-	if err := writeLLMModelsSlice(site, outputDir); err != nil {
-		return fmt.Errorf("writing llms-models.txt: %w", err)
-	}
-	if err := writeLLMOperationFiles(site, outputDir); err != nil {
-		return fmt.Errorf("writing operation .md files: %w", err)
-	}
-	if err := writeLLMModelFiles(site, outputDir); err != nil {
-		return fmt.Errorf("writing model .md files: %w", err)
+	written := make([]string, 0)
+	step := 0
+	total := 4 + len(site.Operations) + len(site.Webhooks)
+	for _, group := range site.NavModelGroups {
+		total += len(site.Models[group.TypeSlug])
 	}
 
-	return nil
+	if err := writeLLMFull(site, resolvedOutputDir); err != nil {
+		return nil, fmt.Errorf("writing llms-full.txt: %w", err)
+	}
+	written = append(written, filepath.Join(resolvedOutputDir, "llms-full.txt"))
+	step++
+	if progress != nil {
+		progress("writing llm files", step, total)
+	}
+	if err := writeLLMIndex(site, resolvedOutputDir); err != nil {
+		return nil, fmt.Errorf("writing llms.txt: %w", err)
+	}
+	written = append(written, filepath.Join(resolvedOutputDir, "llms.txt"))
+	step++
+	if progress != nil {
+		progress("writing llm files", step, total)
+	}
+	if err := writeLLMOperationsSlice(site, resolvedOutputDir); err != nil {
+		return nil, fmt.Errorf("writing llms-operations.txt: %w", err)
+	}
+	written = append(written, filepath.Join(resolvedOutputDir, "llms-operations.txt"))
+	step++
+	if progress != nil {
+		progress("writing llm files", step, total)
+	}
+	if err := writeLLMModelsSlice(site, resolvedOutputDir); err != nil {
+		return nil, fmt.Errorf("writing llms-models.txt: %w", err)
+	}
+	written = append(written, filepath.Join(resolvedOutputDir, "llms-models.txt"))
+	step++
+	if progress != nil {
+		progress("writing llm files", step, total)
+	}
+
+	operationFiles, err := writeLLMOperationFiles(site, resolvedOutputDir)
+	if err != nil {
+		return nil, fmt.Errorf("writing operation .md files: %w", err)
+	}
+	written = append(written, operationFiles...)
+	step += len(operationFiles)
+	if progress != nil {
+		progress("writing llm files", step, total)
+	}
+
+	modelFiles, err := writeLLMModelFiles(site, resolvedOutputDir)
+	if err != nil {
+		return nil, fmt.Errorf("writing model .md files: %w", err)
+	}
+	written = append(written, modelFiles...)
+	step += len(modelFiles)
+	if progress != nil {
+		progress("writing llm files", step, total)
+	}
+
+	return written, nil
 }
 
 // writeLLMFull generates the primary llms-full.txt with complete API documentation.
@@ -198,37 +258,42 @@ func writeLLMModelsSlice(site *Site, outputDir string) error {
 }
 
 // writeLLMOperationFiles writes individual .md files for each operation and webhook.
-func writeLLMOperationFiles(site *Site, outputDir string) error {
+func writeLLMOperationFiles(site *Site, outputDir string) ([]string, error) {
+	var written []string
 	for _, op := range site.Operations {
 		content := renderOperationMD(op)
 		path := filepath.Join(outputDir, "operations", op.Slug+".md")
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-			return fmt.Errorf("writing operation %s: %w", op.Slug, err)
+			return nil, fmt.Errorf("writing operation %s: %w", op.Slug, err)
 		}
+		written = append(written, path)
 	}
 	for _, wh := range site.Webhooks {
 		content := renderOperationMD(wh)
 		path := filepath.Join(outputDir, "operations", wh.Slug+".md")
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-			return fmt.Errorf("writing webhook %s: %w", wh.Slug, err)
+			return nil, fmt.Errorf("writing webhook %s: %w", wh.Slug, err)
 		}
+		written = append(written, path)
 	}
-	return nil
+	return written, nil
 }
 
 // writeLLMModelFiles writes individual .md files for each model.
-func writeLLMModelFiles(site *Site, outputDir string) error {
+func writeLLMModelFiles(site *Site, outputDir string) ([]string, error) {
+	var written []string
 	for _, group := range site.NavModelGroups {
 		pages := site.Models[group.TypeSlug]
 		for _, page := range pages {
 			content := renderModelMD(page)
 			path := filepath.Join(outputDir, "models", group.TypeSlug, page.Slug+".md")
 			if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-				return fmt.Errorf("writing model %s/%s: %w", group.TypeSlug, page.Slug, err)
+				return nil, fmt.Errorf("writing model %s/%s: %w", group.TypeSlug, page.Slug, err)
 			}
+			written = append(written, path)
 		}
 	}
-	return nil
+	return written, nil
 }
 
 // renderQuickStart builds a compact Quick Start section for the llms.txt index.

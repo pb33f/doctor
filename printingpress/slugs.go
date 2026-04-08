@@ -37,7 +37,7 @@ type SlugRegistry struct {
 	used map[string]map[string]int // category → slug → count of registrations
 }
 
-// NewSlugRegistry creates a new SlugRegistry.
+// NewSlugRegistry creates a slug registry with per-category collision tracking.
 func NewSlugRegistry() *SlugRegistry {
 	return &SlugRegistry{
 		used: make(map[string]map[string]int),

@@ -127,7 +127,7 @@ components:
 	v3Doc, buildErr := doc.BuildV3Model()
 	require.NoError(t, buildErr)
 	drDoc := model.NewDrDocument(v3Doc)
-	pp := New(&PrintingPressConfig{DrDoc: drDoc})
+	pp := newPressEngine(&pressEngineConfig{DrDoc: drDoc})
 
 	pathItem := drDoc.V3Document.Paths.PathItems.GetOrZero("/users")
 	require.NotNil(t, pathItem)

@@ -34,19 +34,19 @@ func pressFromSpec(t *testing.T, spec string) *Site {
 	return pressSiteFromSpecWithConfig(t, spec, nil)
 }
 
-func pressSiteFromSpecWithConfig(t *testing.T, spec string, configure func(*PrintingPressConfig)) *Site {
+func pressSiteFromSpecWithConfig(t *testing.T, spec string, configure func(*pressEngineConfig)) *Site {
 	t.Helper()
 	doc, err := libopenapi.NewDocument([]byte(spec))
 	require.NoError(t, err)
 	v3, buildErr := doc.BuildV3Model()
 	require.NoError(t, buildErr)
 	drDoc := model.NewDrDocument(v3)
-	cfg := &PrintingPressConfig{DrDoc: drDoc}
+	cfg := &pressEngineConfig{DrDoc: drDoc}
 	if configure != nil {
 		configure(cfg)
 	}
-	pp := New(cfg)
-	site, err := pp.Press()
+	pp := newPressEngine(cfg)
+	site, err := pp.pressSite()
 	require.NoError(t, err)
 	return site
 }
@@ -238,7 +238,7 @@ func TestComputeNavModelGroupCardMinWidth(t *testing.T) {
 }
 
 func TestBuildNavModelGroups_AssignsAdaptiveCardWidth(t *testing.T) {
-	pp := New(&PrintingPressConfig{})
+	pp := newPressEngine(&pressEngineConfig{})
 	pp.site.Models = map[string][]*ModelPage{
 		"schemas": {
 			{Name: "User", Slug: "user", TypeSlug: "schemas"},
@@ -257,7 +257,7 @@ func TestBuildNavModelGroups_AssignsAdaptiveCardWidth(t *testing.T) {
 }
 
 func TestCaptureRawData_UsesIdentityCacheAndLazyHighlight(t *testing.T) {
-	pp := New(&PrintingPressConfig{})
+	pp := newPressEngine(&pressEngineConfig{})
 	renderable := &countingRenderable{
 		output: []byte("type: object\nproperties:\n  id:\n    type: string\n"),
 	}
@@ -546,7 +546,7 @@ func TestAssignOperationsToTags_SyntheticFallbackCountsOnlyUsedTags(t *testing.T
 func TestAssignOperationsToTags_SyntheticFallbackCanBeDisabled(t *testing.T) {
 	spec := buildSyntheticFallbackSpec(25, []string{"plaid"}, []string{"plaid"})
 
-	site := pressSiteFromSpecWithConfig(t, spec, func(cfg *PrintingPressConfig) {
+	site := pressSiteFromSpecWithConfig(t, spec, func(cfg *pressEngineConfig) {
 		cfg.SyntheticTagFallback = &SyntheticTagFallbackConfig{
 			Enabled: false,
 		}
@@ -625,7 +625,7 @@ paths:
           description: ok
 `
 
-	site := pressSiteFromSpecWithConfig(t, spec, func(cfg *PrintingPressConfig) {
+	site := pressSiteFromSpecWithConfig(t, spec, func(cfg *pressEngineConfig) {
 		cfg.SyntheticTagFallback = &SyntheticTagFallbackConfig{
 			Enabled:         true,
 			MaxDistinctTags: 2,

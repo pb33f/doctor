@@ -31,12 +31,12 @@ func TestPrintingPress_BurgerShop(t *testing.T) {
 	drDoc := model.NewDrDocument(v3Model)
 	require.NotNil(t, drDoc)
 
-	pp := New(&PrintingPressConfig{
+	pp := newPressEngine(&pressEngineConfig{
 		DrDoc: drDoc,
 		Title: "Burger Shop API",
 	})
 
-	site, err := pp.Press()
+	site, err := pp.pressSite()
 	require.NoError(t, err)
 	require.NotNil(t, site)
 
@@ -87,11 +87,11 @@ func TestPrintingPress_PetStoreV3(t *testing.T) {
 	drDoc := model.NewDrDocument(v3Model)
 	require.NotNil(t, drDoc)
 
-	pp := New(&PrintingPressConfig{
+	pp := newPressEngine(&pressEngineConfig{
 		DrDoc: drDoc,
 	})
 
-	site, err := pp.Press()
+	site, err := pp.pressSite()
 	require.NoError(t, err)
 	require.NotNil(t, site)
 
@@ -140,8 +140,8 @@ func TestPrintingPress_WriteSite(t *testing.T) {
 
 	drDoc := model.NewDrDocument(v3Model)
 
-	pp := New(&PrintingPressConfig{DrDoc: drDoc})
-	site, err := pp.Press()
+	pp := newPressEngine(&pressEngineConfig{DrDoc: drDoc})
+	site, err := pp.pressSite()
 	require.NoError(t, err)
 
 	outputDir := t.TempDir()
@@ -178,8 +178,8 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 
 	drDoc := model.NewDrDocument(v3Model)
 
-	pp := New(&PrintingPressConfig{DrDoc: drDoc, Title: "Burger Shop"})
-	site, err := pp.Press()
+	pp := newPressEngine(&pressEngineConfig{DrDoc: drDoc, Title: "Burger Shop"})
+	site, err := pp.pressSite()
 	require.NoError(t, err)
 
 	outputDir := t.TempDir()
@@ -209,6 +209,64 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	}
 }
 
+func TestPrintingPress_WriteHTMLSite_UsesConfigOutputDirAndBaseURL(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	doc, err := libopenapi.NewDocument(specBytes)
+	require.NoError(t, err)
+
+	v3Model, buildErr := doc.BuildV3Model()
+	require.NoError(t, buildErr)
+
+	drDoc := model.NewDrDocument(v3Model)
+
+	outputDir := t.TempDir()
+	pp := newPressEngine(&pressEngineConfig{
+		DrDoc:     drDoc,
+		Title:     "Burger Shop",
+		OutputDir: outputDir,
+		BaseURL:   "/docs/",
+	})
+	site, err := pp.pressSite()
+	require.NoError(t, err)
+
+	err = WriteHTMLSite(site, "", "")
+	require.NoError(t, err)
+
+	assert.FileExists(t, outputDir+"/index.html")
+	indexHTML, err := os.ReadFile(outputDir + "/index.html")
+	require.NoError(t, err)
+	assert.Contains(t, string(indexHTML), `<base href="/docs/">`)
+}
+
+func TestPrintingPress_WriteSite_UsesConfigOutputDir(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	doc, err := libopenapi.NewDocument(specBytes)
+	require.NoError(t, err)
+
+	v3Model, buildErr := doc.BuildV3Model()
+	require.NoError(t, buildErr)
+
+	drDoc := model.NewDrDocument(v3Model)
+
+	outputDir := t.TempDir()
+	pp := newPressEngine(&pressEngineConfig{
+		DrDoc:     drDoc,
+		OutputDir: outputDir,
+	})
+	site, err := pp.pressSite()
+	require.NoError(t, err)
+
+	err = WriteSite(site, "")
+	require.NoError(t, err)
+
+	assert.FileExists(t, outputDir+"/index.json")
+	assert.FileExists(t, outputDir+"/manifest.json")
+}
+
 func TestHTMLLinkReachability(t *testing.T) {
 	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
 	require.NoError(t, err)
@@ -221,8 +279,8 @@ func TestHTMLLinkReachability(t *testing.T) {
 
 	drDoc := model.NewDrDocument(v3Model)
 
-	pp := New(&PrintingPressConfig{DrDoc: drDoc, Title: "Burger Shop"})
-	site, err := pp.Press()
+	pp := newPressEngine(&pressEngineConfig{DrDoc: drDoc, Title: "Burger Shop"})
+	site, err := pp.pressSite()
 	require.NoError(t, err)
 
 	outputDir := t.TempDir()
@@ -323,8 +381,8 @@ func TestPrintingPress_ResponseLinks(t *testing.T) {
 
 	drDoc := model.NewDrDocument(v3Model)
 
-	pp := New(&PrintingPressConfig{DrDoc: drDoc})
-	site, err := pp.Press()
+	pp := newPressEngine(&pressEngineConfig{DrDoc: drDoc})
+	site, err := pp.pressSite()
 	require.NoError(t, err)
 
 	// Find the createBurger operation (POST /burgers) — its 200 response has links
@@ -426,8 +484,8 @@ func TestPrintingPress_WebhookNav(t *testing.T) {
 
 	drDoc := model.NewDrDocument(v3Model)
 
-	pp := New(&PrintingPressConfig{DrDoc: drDoc})
-	site, err := pp.Press()
+	pp := newPressEngine(&pressEngineConfig{DrDoc: drDoc})
+	site, err := pp.pressSite()
 	require.NoError(t, err)
 
 	// Webhooks should be collected
@@ -473,8 +531,8 @@ func TestPrintingPress_OperationCallbacks(t *testing.T) {
 
 	drDoc := model.NewDrDocument(v3Model)
 
-	pp := New(&PrintingPressConfig{DrDoc: drDoc})
-	site, err := pp.Press()
+	pp := newPressEngine(&pressEngineConfig{DrDoc: drDoc})
+	site, err := pp.pressSite()
 	require.NoError(t, err)
 
 	// Find locateBurger operation — has burgerCallback with $ref
@@ -532,7 +590,7 @@ func TestPrintingPress_OperationCallbacks(t *testing.T) {
 
 func TestPrintingPress_NoV3Document(t *testing.T) {
 	drDoc := &model.DrDocument{}
-	pp := New(&PrintingPressConfig{DrDoc: drDoc})
-	_, err := pp.Press()
+	pp := newPressEngine(&pressEngineConfig{DrDoc: drDoc})
+	_, err := pp.pressSite()
 	assert.ErrorIs(t, err, ErrNoV3Document)
 }

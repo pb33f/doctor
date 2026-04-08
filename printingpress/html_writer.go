@@ -29,22 +29,47 @@ type htmlWriteJob struct {
 	content    templ.Component
 }
 
+type writeProgressFunc func(task string, completed, total int)
+
 // WriteHTMLSite writes the full static HTML site to disk.
+//
+// The site output directory and base URL are taken from the arguments when set,
+// and otherwise fall back to values already stored on the Site.
+//
+// A nil site returns ErrNilSite.
 func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		return fmt.Errorf("creating output directory: %w", err)
+	if site == nil {
+		return ErrNilSite
+	}
+	_, err := writeHTMLSiteDetailed(site, outputDir, baseURL, nil)
+	return err
+}
+
+func writeHTMLSiteDetailed(site *Site, outputDir, baseURL string, progress writeProgressFunc) ([]string, error) {
+	if site == nil {
+		return nil, ErrNilSite
+	}
+	resolvedOutputDir, err := resolveWriterOutputDir(site, outputDir)
+	if err != nil {
+		return nil, err
+	}
+	resolvedBaseURL := resolveWriterBaseURL(site, baseURL)
+
+	if err := os.MkdirAll(resolvedOutputDir, 0o755); err != nil {
+		return nil, fmt.Errorf("creating output directory: %w", err)
 	}
 
 	dirs := append([]string{"operations", "tags"}, modelDirs()...)
 	dirs = append(dirs, "static", "static/fonts", "static/shoelace/assets/icons")
 	for _, dir := range dirs {
-		if err := os.MkdirAll(filepath.Join(outputDir, dir), 0o755); err != nil {
-			return fmt.Errorf("creating directory %s: %w", dir, err)
+		if err := os.MkdirAll(filepath.Join(resolvedOutputDir, dir), 0o755); err != nil {
+			return nil, fmt.Errorf("creating directory %s: %w", dir, err)
 		}
 	}
 
-	if err := copyEmbeddedStatic(outputDir); err != nil {
-		return fmt.Errorf("copying static assets: %w", err)
+	staticPaths, err := copyEmbeddedStatic(resolvedOutputDir)
+	if err != nil {
+		return nil, fmt.Errorf("copying static assets: %w", err)
 	}
 
 	title := ""
@@ -67,11 +92,11 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 	// Write root page
 	if site.Root != nil {
 		p := *params
-		p.BaseURL = baseURL
+		p.BaseURL = resolvedBaseURL
 		p.ExtraCSS = []string{"static/printing-press-index.css"}
 		rootContent := RootPageTempl(site.Root)
 		jobs = append(jobs, htmlWriteJob{
-			path:      filepath.Join(outputDir, "index.html"),
+			path:      filepath.Join(resolvedOutputDir, "index.html"),
 			pageTitle: title,
 			params:    p,
 			content:   rootContent,
@@ -81,11 +106,11 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 	// Write operation pages (1 level deep: operations/)
 	for _, op := range site.Operations {
 		p := *params
-		p.BaseURL = resolveBase(baseURL, 1)
+		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{"static/printing-press-operation.css"}
 		opContent := OperationPageTempl(op)
 		pageTitle := fmt.Sprintf("%s %s - %s", op.Method, op.Path, title)
-		path := filepath.Join(outputDir, "operations", op.Slug+".html")
+		path := filepath.Join(resolvedOutputDir, "operations", op.Slug+".html")
 		jobs = append(jobs, htmlWriteJob{
 			path:       path,
 			pageTitle:  pageTitle,
@@ -104,11 +129,11 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 		}
 		for _, page := range pages {
 			p := *params
-			p.BaseURL = resolveBase(baseURL, 2)
+			p.BaseURL = resolveBase(resolvedBaseURL, 2)
 			p.ExtraCSS = []string{"static/printing-press-model.css"}
 			modelContent := ModelPageTempl(page)
 			pageTitle := fmt.Sprintf("%s - %s", page.Name, title)
-			path := filepath.Join(outputDir, "models", typeSlug, page.Slug+".html")
+			path := filepath.Join(resolvedOutputDir, "models", typeSlug, page.Slug+".html")
 			activeModelSlug := page.TypeSlug + "/" + page.Slug
 			jobs = append(jobs, htmlWriteJob{
 				path:       path,
@@ -123,11 +148,11 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 	// Write models index page (1 level deep: models/)
 	{
 		p := *params
-		p.BaseURL = resolveBase(baseURL, 1)
+		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{"static/printing-press-index.css"}
 		indexContent := ModelsIndexTempl(site.NavModelGroups, modelsIndexBreadcrumb())
 		jobs = append(jobs, htmlWriteJob{
-			path:      filepath.Join(outputDir, "models", "index.html"),
+			path:      filepath.Join(resolvedOutputDir, "models", "index.html"),
 			pageTitle: "Models - " + title,
 			params:    p,
 			content:   indexContent,
@@ -137,12 +162,12 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 	// Write model type index pages (2 levels deep: models/{typeSlug}/)
 	for _, group := range site.NavModelGroups {
 		p := *params
-		p.BaseURL = resolveBase(baseURL, 2)
+		p.BaseURL = resolveBase(resolvedBaseURL, 2)
 		p.ExtraCSS = []string{"static/printing-press-index.css"}
 		bc := modelTypeIndexBreadcrumb(group.Name)
 		content := ModelTypeIndexTempl(group, bc)
 		pageTitle := fmt.Sprintf("%s - %s", group.Name, title)
-		path := filepath.Join(outputDir, "models", group.TypeSlug, "index.html")
+		path := filepath.Join(resolvedOutputDir, "models", group.TypeSlug, "index.html")
 		jobs = append(jobs, htmlWriteJob{
 			path:      path,
 			pageTitle: pageTitle,
@@ -160,12 +185,12 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 				continue
 			}
 			p := *params
-			p.BaseURL = resolveBase(baseURL, 1)
+			p.BaseURL = resolveBase(resolvedBaseURL, 1)
 			p.ExtraCSS = []string{"static/printing-press-index.css"}
 			bc := tagIndexBreadcrumb(tag, tagParentMap)
 			content := TagIndexTempl(tag, bc)
 			pageTitle := fmt.Sprintf("%s - %s", tag.DisplayName(), title)
-			path := filepath.Join(outputDir, "tags", tag.Slug+".html")
+			path := filepath.Join(resolvedOutputDir, "tags", tag.Slug+".html")
 			jobs = append(jobs, htmlWriteJob{
 				path:      path,
 				pageTitle: pageTitle,
@@ -180,11 +205,11 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 	// Write webhook pages (1 level deep: operations/)
 	for _, wh := range site.Webhooks {
 		p := *params
-		p.BaseURL = resolveBase(baseURL, 1)
+		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{"static/printing-press-operation.css"}
 		whContent := OperationPageTempl(wh)
 		pageTitle := fmt.Sprintf("Webhook: %s %s - %s", wh.Method, wh.Path, title)
-		path := filepath.Join(outputDir, "operations", wh.Slug+".html")
+		path := filepath.Join(resolvedOutputDir, "operations", wh.Slug+".html")
 		jobs = append(jobs, htmlWriteJob{
 			path:       path,
 			pageTitle:  pageTitle,
@@ -196,16 +221,41 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 
 	var g errgroup.Group
 	g.SetLimit(printingPressParallelism())
+	totalJobs := len(jobs)
+	var completed int64
 	for _, job := range jobs {
 		job := job
 		g.Go(func() error {
 			if err := writeTemplPage(job.path, job.pageTitle, job.activeSlug, &job.params, job.content); err != nil {
 				return fmt.Errorf("writing %s: %w", job.path, err)
 			}
+			if progress != nil {
+				done := int(atomicAddInt64(&completed, 1))
+				progress("writing html pages", done, totalJobs)
+			}
 			return nil
 		})
 	}
-	return g.Wait()
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	written := make([]string, 0, len(staticPaths)+len(jobs))
+	written = append(written, staticPaths...)
+	for _, job := range jobs {
+		written = append(written, job.path)
+	}
+	return written, nil
+}
+
+func resolveWriterBaseURL(site *Site, baseURL string) string {
+	if baseURL != "" {
+		return baseURL
+	}
+	if site != nil {
+		return site.BaseURL
+	}
+	return ""
 }
 
 // pageParams holds the shared parameters for writing a templ page.
@@ -245,34 +295,38 @@ func resolveBase(baseURL string, depth int) string {
 	return strings.Repeat("../", depth)
 }
 
-func copyEmbeddedStatic(outputDir string) error {
+func copyEmbeddedStatic(outputDir string) ([]string, error) {
 	return copyEmbeddedDir("static", filepath.Join(outputDir, "static"))
 }
 
-func copyEmbeddedDir(embedPath, destDir string) error {
+func copyEmbeddedDir(embedPath, destDir string) ([]string, error) {
 	entries, err := staticFS.ReadDir(embedPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	var written []string
 	for _, entry := range entries {
 		srcPath := embedPath + "/" + entry.Name()
 		dstPath := filepath.Join(destDir, entry.Name())
 		if entry.IsDir() {
 			if err := os.MkdirAll(dstPath, 0o755); err != nil {
-				return err
+				return nil, err
 			}
-			if err := copyEmbeddedDir(srcPath, dstPath); err != nil {
-				return err
+			childWritten, err := copyEmbeddedDir(srcPath, dstPath)
+			if err != nil {
+				return nil, err
 			}
+			written = append(written, childWritten...)
 			continue
 		}
 		data, err := staticFS.ReadFile(srcPath)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if err := os.WriteFile(dstPath, data, 0o644); err != nil {
-			return err
+			return nil, err
 		}
+		written = append(written, dstPath)
 	}
-	return nil
+	return written, nil
 }

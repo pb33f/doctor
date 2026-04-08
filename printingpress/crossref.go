@@ -11,9 +11,9 @@ import (
 
 // CrossRefIndex maps components to the operations and components that reference them.
 type CrossRefIndex struct {
-	ComponentToOps       map[string][]*OperationRef  // component key → operations using it
-	ComponentToComponent map[string][]*ComponentRef  // component key → components using it
-	ComponentUsesModels  map[string][]*ComponentRef  // component key → components it references
+	ComponentToOps       map[string][]*OperationRef // component key → operations using it
+	ComponentToComponent map[string][]*ComponentRef // component key → components using it
+	ComponentUsesModels  map[string][]*ComponentRef // component key → components it references
 }
 
 // buildCrossRefs populates cross-reference information on each ModelPage and OperationPage.
@@ -59,7 +59,7 @@ func (pp *PrintingPress) buildCrossRefs() {
 
 // getCrossRefIndex builds the cross-reference index by scanning SchemaJSON content.
 func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPage, map[string][]*ComponentRef) {
-	if pp.config.DrDoc == nil {
+	if pp.engineConfig == nil || pp.engineConfig.DrDoc == nil {
 		return nil, nil, nil
 	}
 

@@ -22,7 +22,7 @@ type queryPair struct {
 	value string
 }
 
-// BuildCurlCommands generates one or more cURL command variants for an operation.
+// BuildCurlCommands builds cURL command variants for an operation.
 func BuildCurlCommands(
 	op *OperationPage,
 	globalServers []*ServerInfo,

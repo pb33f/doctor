@@ -11,9 +11,21 @@ import (
 	"path/filepath"
 )
 
-// WriteSite writes the rendered Site to disk as static HTML files.
+// WriteSite writes the rendered site model to disk as JSON artifacts.
+//
+// When outputDir is empty, WriteSite uses site.OutputDir. A nil site returns
+// ErrNilSite.
 func WriteSite(site *Site, outputDir string) error {
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+	if site == nil {
+		return ErrNilSite
+	}
+
+	resolvedOutputDir, err := resolveWriterOutputDir(site, outputDir)
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(resolvedOutputDir, 0o755); err != nil {
 		return fmt.Errorf("creating output directory: %w", err)
 	}
 
@@ -21,21 +33,21 @@ func WriteSite(site *Site, outputDir string) error {
 	dirs := append([]string{"operations"}, modelDirs()...)
 	dirs = append(dirs, "static")
 	for _, dir := range dirs {
-		if err := os.MkdirAll(filepath.Join(outputDir, dir), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Join(resolvedOutputDir, dir), 0o755); err != nil {
 			return fmt.Errorf("creating directory %s: %w", dir, err)
 		}
 	}
 
 	// Write root page data
 	if site.Root != nil {
-		if err := writeJSONFile(filepath.Join(outputDir, "index.json"), site.Root); err != nil {
+		if err := writeJSONFile(filepath.Join(resolvedOutputDir, "index.json"), site.Root); err != nil {
 			return fmt.Errorf("writing root page: %w", err)
 		}
 	}
 
 	// Write operation pages
 	for _, op := range site.Operations {
-		path := filepath.Join(outputDir, "operations", op.Slug+".json")
+		path := filepath.Join(resolvedOutputDir, "operations", op.Slug+".json")
 		if err := writeJSONFile(path, op); err != nil {
 			return fmt.Errorf("writing operation %s: %w", op.Slug, err)
 		}
@@ -44,7 +56,7 @@ func WriteSite(site *Site, outputDir string) error {
 	// Write model pages
 	for typeSlug, pages := range site.Models {
 		for _, page := range pages {
-			path := filepath.Join(outputDir, "models", typeSlug, page.Slug+".json")
+			path := filepath.Join(resolvedOutputDir, "models", typeSlug, page.Slug+".json")
 			if err := writeJSONFile(path, page); err != nil {
 				return fmt.Errorf("writing model %s/%s: %w", typeSlug, page.Slug, err)
 			}
@@ -53,7 +65,7 @@ func WriteSite(site *Site, outputDir string) error {
 
 	// Write webhook pages
 	for _, wh := range site.Webhooks {
-		path := filepath.Join(outputDir, "operations", wh.Slug+".json")
+		path := filepath.Join(resolvedOutputDir, "operations", wh.Slug+".json")
 		if err := writeJSONFile(path, wh); err != nil {
 			return fmt.Errorf("writing webhook %s: %w", wh.Slug, err)
 		}
@@ -61,18 +73,28 @@ func WriteSite(site *Site, outputDir string) error {
 
 	// Write nav data for the frontend
 	if site.NavTags != nil {
-		if err := writeJSONFile(filepath.Join(outputDir, "nav.json"), site.NavTags); err != nil {
+		if err := writeJSONFile(filepath.Join(resolvedOutputDir, "nav.json"), site.NavTags); err != nil {
 			return fmt.Errorf("writing nav data: %w", err)
 		}
 	}
 
 	// Write site manifest (listing all pages for link validation)
 	manifest := buildManifest(site)
-	if err := writeJSONFile(filepath.Join(outputDir, "manifest.json"), manifest); err != nil {
+	if err := writeJSONFile(filepath.Join(resolvedOutputDir, "manifest.json"), manifest); err != nil {
 		return fmt.Errorf("writing manifest: %w", err)
 	}
 
 	return nil
+}
+
+func resolveWriterOutputDir(site *Site, outputDir string) (string, error) {
+	if outputDir != "" {
+		return outputDir, nil
+	}
+	if site != nil && site.OutputDir != "" {
+		return site.OutputDir, nil
+	}
+	return "", ErrNoOutputDir
 }
 
 // SiteManifest lists all generated pages for link validation.

@@ -24,6 +24,8 @@ type Site struct {
 	SpecFormat     string                          // "yaml" or "json" — the input spec format
 	SchemaRegistry map[string]*SchemaRegistryEntry `json:"-"` // keyed by "componentType/name"
 	Lite           bool                            // when true, use lite JS bundle (no mermaid/explorer)
+	OutputDir      string                          `json:"-"` // default writer output directory from config
+	BaseURL        string                          `json:"-"` // default HTML base URL from config
 }
 
 // SchemaRegistryEntry holds the data needed for hover popovers on $ref links.
