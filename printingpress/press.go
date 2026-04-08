@@ -8,16 +8,17 @@ import (
 	"context"
 	"log/slog"
 	"runtime"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/pb33f/doctor/model"
-	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/bundler"
 	"github.com/pb33f/libopenapi/renderer"
 	"golang.org/x/sync/errgroup"
 )
 
-// PrintingPressConfig configures the PrintingPress documentation generator.
-type PrintingPressConfig struct {
+type pressEngineConfig struct {
 	DrDoc       *model.DrDocument
 	Origins     bundler.ComponentOriginMap
 	OutputDir   string
@@ -46,23 +47,39 @@ type resolvedSyntheticTagFallbackConfig struct {
 	MinOperations   int
 }
 
-// PrintingPress generates static HTML documentation from a DrDocument.
+// PrintingPress generates documentation from an OpenAPI source.
 type PrintingPress struct {
-	config          *PrintingPressConfig
-	slugs           *SlugRegistry
-	site            *Site
-	mockGen         *renderer.MockGenerator
-	mockGenYAML     *renderer.MockGenerator
-	mockGenXML      *renderer.MockGenerator
-	rawArtifacts    *rawArtifactCache
-	schemaArtifacts *schemaArtifactCache
-	warnings        []*BuildWarning
-	modelIndex      map[string]*ModelPage // keyed by "typeSlug/name" for O(1) ref resolution
-	syntheticTags   resolvedSyntheticTagFallbackConfig
+	mu                 sync.Mutex
+	config             *PrintingPressConfig
+	source             pressSource
+	engineConfig       *pressEngineConfig
+	slugs              *SlugRegistry
+	site               *Site
+	mockGen            *renderer.MockGenerator
+	mockGenYAML        *renderer.MockGenerator
+	mockGenXML         *renderer.MockGenerator
+	rawArtifacts       *rawArtifactCache
+	schemaArtifacts    *schemaArtifactCache
+	warnings           []*BuildWarning
+	modelIndex         map[string]*ModelPage // keyed by "typeSlug/name" for O(1) ref resolution
+	syntheticTags      resolvedSyntheticTagFallbackConfig
+	modelBuilt         bool
+	modelBuildDuration time.Duration
+	resolvedOutputDir  string
+	activity           *activityManager
+	currentJob         *activityJob
 }
 
-// New creates a new PrintingPress with the given configuration.
-func New(config *PrintingPressConfig) *PrintingPress {
+func newPressEngine(config *pressEngineConfig) *PrintingPress {
+	pp := &PrintingPress{}
+	pp.initEngine(config)
+	return pp
+}
+
+func (pp *PrintingPress) initEngine(config *pressEngineConfig) {
+	if config == nil {
+		config = &pressEngineConfig{}
+	}
 	if config.Logger == nil {
 		config.Logger = slog.Default()
 	}
@@ -79,22 +96,23 @@ func New(config *PrintingPressConfig) *PrintingPress {
 	// mgXML.SetPretty()
 	// mgXML.DisableRequiredCheck()
 
-	return &PrintingPress{
-		config:      config,
-		slugs:       NewSlugRegistry(),
-		mockGen:     mg,
-		mockGenYAML: mgYAML,
-		// mockGenXML:  mgXML, // TODO: awaiting renderer.XML
-		rawArtifacts:    newRawArtifactCache(),
-		schemaArtifacts: newSchemaArtifactCache(),
-		site: &Site{
-			Models: make(map[string][]*ModelPage),
-		},
-		syntheticTags: resolveSyntheticTagFallbackConfig(config),
+	pp.engineConfig = config
+	pp.slugs = NewSlugRegistry()
+	pp.mockGen = mg
+	pp.mockGenYAML = mgYAML
+	pp.mockGenXML = nil
+	pp.rawArtifacts = newRawArtifactCache()
+	pp.schemaArtifacts = newSchemaArtifactCache()
+	pp.site = &Site{
+		Models: make(map[string][]*ModelPage),
 	}
+	pp.warnings = nil
+	pp.modelIndex = nil
+	pp.syntheticTags = resolveSyntheticTagFallbackConfig(config)
+	pp.modelBuilt = false
 }
 
-func resolveSyntheticTagFallbackConfig(config *PrintingPressConfig) resolvedSyntheticTagFallbackConfig {
+func resolveSyntheticTagFallbackConfig(config *pressEngineConfig) resolvedSyntheticTagFallbackConfig {
 	const (
 		defaultMaxDistinctTags = 2
 		defaultMinOperations   = 25
@@ -120,16 +138,24 @@ func resolveSyntheticTagFallbackConfig(config *PrintingPressConfig) resolvedSynt
 	return resolved
 }
 
-// Press runs the full documentation generation pipeline and returns the Site.
-func (pp *PrintingPress) Press() (*Site, error) {
+func (pp *PrintingPress) pressSite() (*Site, error) {
 	ctx := context.Background()
 
-	doc := pp.config.DrDoc.V3Document
+	if pp.engineConfig == nil || pp.engineConfig.DrDoc == nil {
+		return nil, ErrNoDrDocument
+	}
+	doc := pp.engineConfig.DrDoc.V3Document
 	if doc == nil {
 		return nil, ErrNoV3Document
 	}
 
-	pp.Visit(ctx, doc)
+	if pp.currentJob != nil {
+		pp.currentJob.snapshot("collecting document model", 0, 1, 0)
+	}
+	pp.visitDocument(ctx, doc)
+	if pp.currentJob != nil {
+		pp.currentJob.snapshot("document model collected", 1, 1, 0)
+	}
 
 	pp.buildCrossRefs()
 	parallelLimit := printingPressParallelism()
@@ -143,12 +169,18 @@ func (pp *PrintingPress) Press() (*Site, error) {
 	if len(allOps) > 0 {
 		var g errgroup.Group
 		g.SetLimit(parallelLimit)
+		totalOps := len(allOps)
+		var completedOps int64
 		for _, op := range allOps {
 			op := op
 			g.Go(func() error {
 				variants := BuildCurlCommands(op, globalServers, globalSecurityGroups)
 				if len(variants) > 0 {
 					op.CurlJSON = MustJSON(variants)
+				}
+				if pp.currentJob != nil {
+					done := atomicAddInt64(&completedOps, 1)
+					pp.currentJob.snapshot("building curl commands", done, int64(totalOps), 0)
 				}
 				return nil
 			})
@@ -164,12 +196,18 @@ func (pp *PrintingPress) Press() (*Site, error) {
 	if len(allModelPages) > 0 {
 		var g errgroup.Group
 		g.SetLimit(parallelLimit)
+		totalPages := len(allModelPages)
+		var completedPages int64
 		for _, page := range allModelPages {
 			page := page
 			g.Go(func() error {
 				if page.CrossRefs != nil && (len(page.CrossRefs.UsedByOperations) > 0 ||
 					len(page.CrossRefs.UsedByModels) > 0 || len(page.CrossRefs.UsesModels) > 0) {
 					page.CrossRefsJSON = MustJSON(page.CrossRefs)
+				}
+				if pp.currentJob != nil {
+					done := atomicAddInt64(&completedPages, 1)
+					pp.currentJob.snapshot("encoding cross references", done, int64(totalPages), 0)
 				}
 				return nil
 			})
@@ -180,7 +218,7 @@ func (pp *PrintingPress) Press() (*Site, error) {
 	}
 
 	// Build focused dependency subgraphs for schema model pages
-	if !pp.config.NoExplorer && pp.config.DrDoc.Nodes != nil {
+	if !pp.engineConfig.NoExplorer && pp.engineConfig.DrDoc.Nodes != nil {
 		schemaPages := pp.site.Models["schemas"]
 		schemaNodeHrefs := make(map[string]string, len(schemaPages))
 		for _, page := range schemaPages {
@@ -189,10 +227,12 @@ func (pp *PrintingPress) Press() (*Site, error) {
 			}
 			schemaNodeHrefs[SchemaNodeID("schemas", page.Name)] = "models/" + page.TypeSlug + "/" + page.Slug + ".html"
 		}
-		graphIndex := newFocusedGraphIndex(pp.config.DrDoc.Nodes, pp.config.DrDoc.Edges, schemaNodeHrefs)
+		graphIndex := newFocusedGraphIndex(pp.engineConfig.DrDoc.Nodes, pp.engineConfig.DrDoc.Edges, schemaNodeHrefs)
 		if len(schemaPages) > 0 {
 			var g errgroup.Group
 			g.SetLimit(parallelLimit)
+			totalSchemas := len(schemaPages)
+			var completedSchemas int64
 			for _, page := range schemaPages {
 				page := page
 				g.Go(func() error {
@@ -215,6 +255,10 @@ func (pp *PrintingPress) Press() (*Site, error) {
 						page.GraphJSON = graphJSON
 						page.GraphNodeID = nodeID
 					}
+					if pp.currentJob != nil {
+						done := atomicAddInt64(&completedSchemas, 1)
+						pp.currentJob.snapshot("building dependency graphs", done, int64(totalSchemas), 0)
+					}
 					return nil
 				})
 			}
@@ -224,32 +268,22 @@ func (pp *PrintingPress) Press() (*Site, error) {
 		}
 	}
 
-	for _, err := range pp.config.BuildErrors {
+	for _, err := range pp.engineConfig.BuildErrors {
 		pp.warn("model build issue", "", err)
 	}
 	pp.site.Warnings = pp.warnings
 	if pp.site.Root != nil {
 		pp.site.Root.Warnings = pp.warnings
 	}
-	pp.site.SpecFormat = pp.config.SpecFormat
+	pp.site.OutputDir = pp.engineConfig.OutputDir
+	pp.site.BaseURL = pp.engineConfig.BaseURL
+	pp.site.SpecFormat = pp.engineConfig.SpecFormat
 	if pp.site.SpecFormat == "" {
 		pp.site.SpecFormat = "yaml"
 	}
-	pp.site.Lite = pp.config.NoMermaid && pp.config.NoExplorer
+	pp.site.Lite = pp.engineConfig.NoMermaid && pp.engineConfig.NoExplorer
 
 	return pp.site, nil
-}
-
-// Visit implements the Tardis visitor interface.
-func (pp *PrintingPress) Visit(ctx context.Context, object any) {
-	if doc, ok := object.(*v3.Document); ok {
-		pp.visitDocument(ctx, doc)
-	}
-}
-
-// GetDoctor satisfies the Tardis interface (unused in PrintingPress).
-func (pp *PrintingPress) GetDoctor() v3.Doctor {
-	return nil
 }
 
 // allOperations returns a combined slice of all operations and webhooks.
@@ -263,8 +297,8 @@ func (pp *PrintingPress) allOperations() []*OperationPage {
 func (pp *PrintingPress) warn(message, context string, err error) {
 	w := &BuildWarning{Message: message, Context: context, Err: err}
 	pp.warnings = append(pp.warnings, w)
-	if pp.config.Logger != nil {
-		pp.config.Logger.Warn(message, "context", context, "error", err)
+	if pp.engineConfig != nil && pp.engineConfig.Logger != nil {
+		pp.engineConfig.Logger.Warn(message, "context", context, "error", err)
 	}
 }
 
@@ -274,4 +308,8 @@ func printingPressParallelism() int {
 		return 2
 	}
 	return limit
+}
+
+func atomicAddInt64(target *int64, delta int64) int64 {
+	return atomic.AddInt64(target, delta)
 }

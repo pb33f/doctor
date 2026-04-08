@@ -16,9 +16,7 @@ import (
 
 const defaultMaxDepth = 5
 
-// SchemaNodeID builds the canonical JSONPath node ID for a component schema
-// by constructing a JSON Reference and converting it through the same path
-// the model walker uses. Single source of truth for node ID encoding.
+// SchemaNodeID returns the canonical node ID for a component schema.
 func SchemaNodeID(componentType, name string) string {
 	ref := fmt.Sprintf("#/components/%s/%s", componentType, name)
 	return v3.RefToJSONPath(ref)
@@ -478,8 +476,9 @@ func (idx *focusedGraphIndex) collectFocusedEdges(
 	return edges
 }
 
-// BuildFocusedModelGraph builds the schema-focused dependency graph and augments it
-// with incoming operation consumers taken from existing model cross-references.
+// BuildFocusedModelGraph builds a focused schema graph for a model page.
+//
+// It includes nearby schema dependencies and any operations that use the model.
 func BuildFocusedModelGraph(
 	allNodes []*v3.Node, allEdges []*v3.Edge, targetNodeID string, maxDepth int, usedByOperations []*OperationRef,
 ) (string, error) {
@@ -487,16 +486,9 @@ func BuildFocusedModelGraph(
 	return idx.buildFocusedModelGraph(targetNodeID, maxDepth, usedByOperations)
 }
 
-// BuildFocusedGraph extracts a dependency subgraph centered on targetNodeID.
-// It uses two-phase direction-locked BFS on reference edges:
-//   - Phase 1 (outgoing): schemas the target $refs — rendered normally
-//   - Phase 2 (incoming): schemas that $ref the target — dimmed (dependency: true)
+// BuildFocusedGraph builds a focused dependency graph around targetNodeID.
 //
-// Each phase only follows edges in its own direction, preventing unrelated schemas
-// from leaking in through direction crossing.
-//
-// Returns JSON matching the explorer's GraphResponse format, or empty string if
-// the target node is not found or has no connections.
+// It returns explorer JSON, or an empty string when the target has no graph.
 func BuildFocusedGraph(allNodes []*v3.Node, allEdges []*v3.Edge, targetNodeID string, maxDepth int) (string, error) {
 	idx := newFocusedGraphIndex(allNodes, allEdges, nil)
 	return idx.buildFocusedGraph(targetNodeID, maxDepth)

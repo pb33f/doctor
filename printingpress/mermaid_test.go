@@ -17,19 +17,19 @@ import (
 )
 
 // pressFromSpecWithConfig builds a Site from an inline spec with custom config options.
-func pressFromSpecWithConfig(t *testing.T, spec string, opts func(*PrintingPressConfig)) *Site {
+func pressFromSpecWithConfig(t *testing.T, spec string, opts func(*pressEngineConfig)) *Site {
 	t.Helper()
 	doc, err := libopenapi.NewDocument([]byte(spec))
 	require.NoError(t, err)
 	v3, buildErr := doc.BuildV3Model()
 	require.NoError(t, buildErr)
 	drDoc := model.NewDrDocument(v3)
-	cfg := &PrintingPressConfig{DrDoc: drDoc}
+	cfg := &pressEngineConfig{DrDoc: drDoc}
 	if opts != nil {
 		opts(cfg)
 	}
-	pp := New(cfg)
-	site, err := pp.Press()
+	pp := newPressEngine(cfg)
+	site, err := pp.pressSite()
 	require.NoError(t, err)
 	return site
 }
@@ -188,7 +188,7 @@ components:
         address:
           $ref: '#/components/schemas/Address'
 `
-	site := pressFromSpecWithConfig(t, spec, func(cfg *PrintingPressConfig) {
+	site := pressFromSpecWithConfig(t, spec, func(cfg *pressEngineConfig) {
 		cfg.NoMermaid = true
 	})
 	customer := findSchema(site, "Customer")

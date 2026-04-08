@@ -31,8 +31,8 @@ func buildTestSite(t *testing.T, specPath string) *Site {
 	drDoc := model.NewDrDocument(v3Model)
 	require.NotNil(t, drDoc)
 
-	pp := New(&PrintingPressConfig{DrDoc: drDoc, Title: "Test API"})
-	site, err := pp.Press()
+	pp := newPressEngine(&pressEngineConfig{DrDoc: drDoc, Title: "Test API"})
+	site, err := pp.pressSite()
 	require.NoError(t, err)
 	return site
 }
@@ -116,6 +116,36 @@ func TestWriteLLMSite_PetStore(t *testing.T) {
 	for _, s := range schemas {
 		assert.FileExists(t, filepath.Join(outputDir, "models", "schemas", s.Slug+".md"))
 	}
+}
+
+func TestWriteLLMSite_UsesConfigOutputDir(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	doc, err := libopenapi.NewDocument(specBytes)
+	require.NoError(t, err)
+
+	v3Model, buildErr := doc.BuildV3Model()
+	require.NoError(t, buildErr)
+	require.NotNil(t, v3Model)
+
+	drDoc := model.NewDrDocument(v3Model)
+	require.NotNil(t, drDoc)
+
+	outputDir := t.TempDir()
+	pp := newPressEngine(&pressEngineConfig{
+		DrDoc:     drDoc,
+		Title:     "Test API",
+		OutputDir: outputDir,
+	})
+	site, err := pp.pressSite()
+	require.NoError(t, err)
+
+	err = WriteLLMSite(site, "")
+	require.NoError(t, err)
+
+	assert.FileExists(t, filepath.Join(outputDir, "llms.txt"))
+	assert.FileExists(t, filepath.Join(outputDir, "llms-full.txt"))
 }
 
 func TestRenderOperationMD(t *testing.T) {

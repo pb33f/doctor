@@ -111,7 +111,7 @@ func slugToTitle(slug string) string {
 	return strings.Join(words, " ")
 }
 
-// DetectSpecFormat returns "json" or "yaml" based on the first non-whitespace byte.
+// DetectSpecFormat returns "json" or "yaml" from the first non-whitespace byte.
 func DetectSpecFormat(data []byte) string {
 	trimmed := bytes.TrimLeft(data, " \t\r\n")
 	if len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[') {
