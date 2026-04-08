@@ -11,15 +11,19 @@ let initialized = false;
 
 function init() {
     if (initialized) return;
-    initialized = true;
     const el = document.getElementById('pp-schema-registry');
     if (!el?.textContent) return;
     try {
-        const data = JSON.parse(el.textContent);
-        for (const [key, entry] of Object.entries(data)) {
-            registry.set(key, entry as RegistryEntry);
-        }
+        setSchemaRegistryEntries(JSON.parse(el.textContent) as Record<string, RegistryEntry>);
     } catch { /* empty registry is fine */ }
+}
+
+export function setSchemaRegistryEntries(data: Record<string, RegistryEntry>) {
+    registry.clear();
+    for (const [key, entry] of Object.entries(data)) {
+        registry.set(key, entry);
+    }
+    initialized = true;
 }
 
 export function getSchemaEntry(key: string): RegistryEntry | undefined {

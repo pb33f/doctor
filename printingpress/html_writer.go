@@ -73,6 +73,11 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	if err != nil {
 		return nil, fmt.Errorf("copying static assets: %w", err)
 	}
+	sharedAssetPaths, err := writeHydrationAsset(resolvedOutputDir, htmlSharedDataAssetBase, sharedHydrationGlobal, buildSharedHydrationPayload(site))
+	if err != nil {
+		return nil, fmt.Errorf("writing shared hydration assets: %w", err)
+	}
+	staticPaths = append(staticPaths, sharedAssetPaths...)
 
 	title := ""
 	if site.Root != nil {
@@ -80,13 +85,10 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	}
 
 	params := &pageParams{
-		SiteTitle:    title,
-		NavJSON:      render.MustJSON(site.NavTags),
-		ModelsJSON:   render.MustJSON(site.NavModelGroups),
-		WebhooksJSON: render.MustJSON(site.NavWebhooks),
-		RegistryJSON: render.MustJSON(site.SchemaRegistry),
-		SpecFormat:   site.SpecFormat,
-		Lite:         site.Lite,
+		SiteTitle:      title,
+		SpecFormat:     site.SpecFormat,
+		SharedDataBase: htmlSharedDataAssetBase,
+		Lite:           site.Lite,
 	}
 
 	var jobs []htmlWriteJob
@@ -110,6 +112,12 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{"static/printing-press-operation.css"}
+		p.PageDataBase = filepath.ToSlash(filepath.Join(htmlPageDataAssetDir, "operations", op.Slug))
+		opAssetPaths, err := writeHydrationAsset(resolvedOutputDir, p.PageDataBase, pageHydrationGlobal, buildOperationHydrationPayload(op))
+		if err != nil {
+			return nil, fmt.Errorf("writing operation hydration assets for %s: %w", op.Slug, err)
+		}
+		staticPaths = append(staticPaths, opAssetPaths...)
 		opContent := render.OperationPageTempl(op)
 		pageTitle := fmt.Sprintf("%s %s - %s", op.Method, op.Path, title)
 		path := filepath.Join(resolvedOutputDir, "operations", op.Slug+".html")
@@ -133,6 +141,12 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			p := *params
 			p.BaseURL = resolveBase(resolvedBaseURL, 2)
 			p.ExtraCSS = []string{"static/printing-press-model.css"}
+			p.PageDataBase = filepath.ToSlash(filepath.Join(htmlPageDataAssetDir, "models", typeSlug, page.Slug))
+			modelAssetPaths, err := writeHydrationAsset(resolvedOutputDir, p.PageDataBase, pageHydrationGlobal, buildModelHydrationPayload(page))
+			if err != nil {
+				return nil, fmt.Errorf("writing model hydration assets for %s/%s: %w", typeSlug, page.Slug, err)
+			}
+			staticPaths = append(staticPaths, modelAssetPaths...)
 			modelContent := render.ModelPageTempl(page)
 			pageTitle := fmt.Sprintf("%s - %s", page.Name, title)
 			path := filepath.Join(resolvedOutputDir, "models", typeSlug, page.Slug+".html")
@@ -209,6 +223,12 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{"static/printing-press-operation.css"}
+		p.PageDataBase = filepath.ToSlash(filepath.Join(htmlPageDataAssetDir, "operations", wh.Slug))
+		whAssetPaths, err := writeHydrationAsset(resolvedOutputDir, p.PageDataBase, pageHydrationGlobal, buildOperationHydrationPayload(wh))
+		if err != nil {
+			return nil, fmt.Errorf("writing webhook hydration assets for %s: %w", wh.Slug, err)
+		}
+		staticPaths = append(staticPaths, whAssetPaths...)
 		whContent := render.OperationPageTempl(wh)
 		pageTitle := fmt.Sprintf("Webhook: %s %s - %s", wh.Method, wh.Path, title)
 		path := filepath.Join(resolvedOutputDir, "operations", wh.Slug+".html")
@@ -262,15 +282,13 @@ func resolveWriterBaseURL(site *ppmodel.Site, baseURL string) string {
 
 // pageParams holds the shared parameters for writing a templ page.
 type pageParams struct {
-	SiteTitle    string
-	BaseURL      string
-	NavJSON      string
-	ModelsJSON   string
-	WebhooksJSON string
-	SpecFormat   string
-	RegistryJSON string
-	ExtraCSS     []string
-	Lite         bool
+	SiteTitle      string
+	BaseURL        string
+	SpecFormat     string
+	SharedDataBase string
+	PageDataBase   string
+	ExtraCSS       []string
+	Lite           bool
 }
 
 func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content templ.Component) error {
@@ -280,7 +298,7 @@ func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content t
 	}
 	defer f.Close()
 
-	layout := render.Layout(pageTitle, p.SiteTitle, p.BaseURL, p.NavJSON, p.ModelsJSON, p.WebhooksJSON, activeSlug, p.SpecFormat, p.RegistryJSON, p.ExtraCSS, p.Lite, content)
+	layout := render.Layout(pageTitle, p.SiteTitle, p.BaseURL, activeSlug, p.SpecFormat, p.SharedDataBase, p.PageDataBase, p.ExtraCSS, p.Lite, content)
 	return layout.Render(context.Background(), f)
 }
 

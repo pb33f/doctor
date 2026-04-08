@@ -29,6 +29,7 @@ export class PpFocusedExplorer extends LitElement {
     private _fitRaf = 0;
     private _visibilityResizeObserver: ResizeObserver | null = null;
     private _tabShowHandler: ((event: Event) => void) | null = null;
+    private embeddedDataObserver: MutationObserver | null = null;
     private readonly _handleExplorerNodeClick = (event: Event) => {
         const detail = (event as CustomEvent<{nodeId?: string}>).detail;
         const nodeId = detail?.nodeId;
@@ -38,13 +39,27 @@ export class PpFocusedExplorer extends LitElement {
         window.location.href = new URL(href, document.baseURI).toString();
     };
 
+    private hydrateEmbeddedData() {
+        const scriptEl = this.querySelector('script.pp-graph-data');
+        if (!scriptEl?.textContent) {
+            this.graphData = null;
+            return;
+        }
+        try {
+            this.graphData = JSON.parse(scriptEl.textContent.trim());
+        } catch {
+            this.graphData = null;
+        }
+    }
+
     connectedCallback() {
         super.connectedCallback();
         setTimeout(() => {
-            const scriptEl = this.querySelector('script.pp-graph-data');
-            if (scriptEl?.textContent) {
-                this.graphData = JSON.parse(scriptEl.textContent.trim());
-            }
+            this.hydrateEmbeddedData();
+            this.embeddedDataObserver = new MutationObserver(() => {
+                this.hydrateEmbeddedData();
+            });
+            this.embeddedDataObserver.observe(this, {childList: true});
         }, 0);
         this._setupVisibilityHooks();
     }
@@ -54,6 +69,8 @@ export class PpFocusedExplorer extends LitElement {
         clearInterval(this._readyPoll);
         clearTimeout(this._readyTimeout);
         cancelAnimationFrame(this._fitRaf);
+        this.embeddedDataObserver?.disconnect();
+        this.embeddedDataObserver = null;
         this._visibilityResizeObserver?.disconnect();
         this._visibilityResizeObserver = null;
         if (this._tabShowHandler) {

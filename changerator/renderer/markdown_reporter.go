@@ -2295,6 +2295,8 @@ func FormatObjectType(objType string) string {
 		return "Tag"
 	case "security", "securityScheme":
 		return "Security Scheme"
+	case "oauthFlow", "oauthFlows":
+		return "OAuthFlow"
 	case "server":
 		return "Server"
 	case "webhook":

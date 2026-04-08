@@ -23,10 +23,9 @@ templ ModelPageTempl(page *ppmodel.ModelPage) {
 			<pp-icon-title icon={ page.ComponentType } heading={ page.Name }></pp-icon-title>
 			if page.RawYAML != "" || page.SchemaJSON != "" {
 				<pp-raw-viewer-btn
+					id="pp-model-raw"
 					title={ page.Name }
 					component-type={ page.ComponentType }
-					raw-json={ page.SchemaJSON }
-					raw-yaml={ page.RawYAML }
 					if page.Origin != nil && page.Origin.Line > 0 {
 						start-line={ fmt.Sprintf("%d", page.Origin.Line) }
 					}
@@ -56,25 +55,13 @@ templ ModelPageTempl(page *ppmodel.ModelPage) {
 			</div>
 		}
 		if page.ComponentType == "securitySchemes" && page.SchemaJSON != "" {
-			<pp-security-scheme scheme-json={ page.SchemaJSON }></pp-security-scheme>
+			<pp-security-scheme id="pp-model-security-scheme"></pp-security-scheme>
 		} else if page.SchemaJSON != "" {
 			<pp-model-page
-				model-json={ page.SchemaJSON }
+				id="pp-model-page"
 				name={ page.Name }
-				if page.MockJSON != "" {
-					mock-json={ page.MockJSON }
-				}
-				if page.SchemaRawYAML != "" {
-					schema-raw-yaml={ page.SchemaRawYAML }
-				}
-				if page.SchemaRawJSON != "" {
-					schema-raw-json={ page.SchemaRawJSON }
-				}
 				if page.SchemaStartLine > 0 {
 					schema-start-line={ fmt.Sprintf("%d", page.SchemaStartLine) }
-				}
-				if page.RawYAML != "" {
-					raw-yaml={ page.RawYAML }
 				}
 				if page.Origin != nil && page.Origin.Line > 0 {
 					start-line={ fmt.Sprintf("%d", page.Origin.Line) }
@@ -100,30 +87,16 @@ templ ModelPageTempl(page *ppmodel.ModelPage) {
 						<sl-tab slot="nav" panel="class-diagram">CLASS DIAGRAM</sl-tab>
 						<sl-tab slot="nav" panel="focused-view">DEPENDENCY EXPLORER</sl-tab>
 						<sl-tab-panel name="class-diagram">
-							<pp-class-diagram name={ page.Name }>
-								@MermaidDiagramScript(page.MermaidDiagram)
-								if page.MermaidHighlightedHTML != "" {
-									@MermaidHighlightedScript(page.MermaidHighlightedHTML)
-								}
-							</pp-class-diagram>
+							<pp-class-diagram id="pp-model-diagram" name={ page.Name }></pp-class-diagram>
 						</sl-tab-panel>
 						<sl-tab-panel name="focused-view">
-							<pp-focused-explorer node-id={ page.GraphNodeID } name={ page.Name }>
-								@GraphJSONScript(page.GraphJSON)
-							</pp-focused-explorer>
+							<pp-focused-explorer id="pp-model-explorer" node-id={ page.GraphNodeID } name={ page.Name }></pp-focused-explorer>
 						</sl-tab-panel>
 					</sl-tab-group>
 				} else if page.MermaidDiagram != "" {
-					<pp-class-diagram name={ page.Name }>
-						@MermaidDiagramScript(page.MermaidDiagram)
-						if page.MermaidHighlightedHTML != "" {
-							@MermaidHighlightedScript(page.MermaidHighlightedHTML)
-						}
-					</pp-class-diagram>
+					<pp-class-diagram id="pp-model-diagram" name={ page.Name }></pp-class-diagram>
 				} else if page.GraphJSON != "" {
-					<pp-focused-explorer node-id={ page.GraphNodeID }>
-						@GraphJSONScript(page.GraphJSON)
-					</pp-focused-explorer>
+					<pp-focused-explorer id="pp-model-explorer" node-id={ page.GraphNodeID }></pp-focused-explorer>
 				}
 			</div>
 		}

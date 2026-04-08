@@ -35,38 +35,36 @@ interface NavModel {
 export class PpNav extends LitElement {
   static styles = navCss;
 
+  @property({attribute: 'data-nav'}) navJson = '';
+  @property({attribute: 'data-models'}) modelsJson = '';
+  @property({attribute: 'data-webhooks'}) webhooksJson = '';
+  @property({attribute: 'data-active'}) activeSlug = '';
   @state() private tags: NavTag[] = [];
   @state() private modelGroups: NavModelGroup[] = [];
   @state() private webhooks: NavOperation[] = [];
-  @state() private activeSlug = '';
 
-  connectedCallback() {
-    super.connectedCallback();
-    const raw = this.getAttribute('data-nav');
-    if (raw) {
+  willUpdate(changed: Map<string, unknown>) {
+    if (changed.has('navJson')) {
       try {
-        this.tags = JSON.parse(raw) || [];
+        this.tags = this.navJson ? JSON.parse(this.navJson) || [] : [];
       } catch {
-        // ignore parse errors
+        this.tags = [];
       }
     }
-    const modelsRaw = this.getAttribute('data-models');
-    if (modelsRaw) {
+    if (changed.has('modelsJson')) {
       try {
-        this.modelGroups = JSON.parse(modelsRaw) || [];
+        this.modelGroups = this.modelsJson ? JSON.parse(this.modelsJson) || [] : [];
       } catch {
-        // ignore parse errors
+        this.modelGroups = [];
       }
     }
-    const whRaw = this.getAttribute('data-webhooks');
-    if (whRaw) {
+    if (changed.has('webhooksJson')) {
       try {
-        this.webhooks = JSON.parse(whRaw) || [];
+        this.webhooks = this.webhooksJson ? JSON.parse(this.webhooksJson) || [] : [];
       } catch {
-        // ignore parse errors
+        this.webhooks = [];
       }
     }
-    this.activeSlug = this.getAttribute('data-active') || '';
   }
 
   render() {

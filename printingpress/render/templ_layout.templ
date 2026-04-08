@@ -5,14 +5,20 @@ import "context"
 import "io"
 import "strings"
 
-templ Layout(pageTitle string, siteTitle string, baseURL string, navJSON string, modelsJSON string, webhooksJSON string, activeSlug string, specFormat string, registryJSON string, extraCSS []string, lite bool, content templ.Component) {
+templ Layout(pageTitle string, siteTitle string, baseURL string, activeSlug string, specFormat string, sharedDataBase string, pageDataBase string, extraCSS []string, lite bool, content templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en" class="sl-theme-dark">
 		@Head(pageTitle, baseURL, extraCSS, lite)
-		<body data-spec-format={ specFormat }>
-			@SchemaRegistryScript(registryJSON)
+		<body
+			data-spec-format={ specFormat }
+			if sharedDataBase != "" {
+				data-pp-shared={ sharedDataBase }
+			}
+			if pageDataBase != "" {
+				data-pp-page={ pageDataBase }
+			}>
 			<pp-layout data-title={ siteTitle }>
-				<pp-nav slot="nav" data-nav={ navJSON } data-models={ modelsJSON } data-webhooks={ webhooksJSON } data-active={ activeSlug }></pp-nav>
+				<pp-nav id="pp-nav" slot="nav" data-active={ activeSlug }></pp-nav>
 				<main slot="content">
 					@content
 				</main>
@@ -33,14 +39,6 @@ func MermaidDiagramScript(diagram string) templ.Component {
 func MermaidHighlightedScript(highlightedHTML string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 		_, err := io.WriteString(w, `<template class="pp-mermaid-highlighted">`+highlightedHTML+`</template>`)
-		return err
-	})
-}
-
-func SchemaRegistryScript(registryJSON string) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		safe := strings.ReplaceAll(registryJSON, "</", `<\/`)
-		_, err := io.WriteString(w, `<script type="application/json" id="pp-schema-registry">`+safe+`</script>`)
 		return err
 	})
 }

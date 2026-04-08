@@ -23,22 +23,33 @@ export class PpClassDiagram extends LitElement {
 
     private resizeObserver: ResizeObserver | null = null;
     private expandedDialog: HTMLElement | null = null;
+    private embeddedDataObserver: MutationObserver | null = null;
+
+    private hydrateEmbeddedData() {
+        const scriptEl = this.querySelector('script.pp-mermaid-data');
+        this.diagram = scriptEl?.textContent?.trim() || '';
+
+        const highlightEl = this.querySelector('template.pp-mermaid-highlighted') as HTMLTemplateElement | null;
+        if (highlightEl?.content) {
+            const div = document.createElement('div');
+            div.appendChild(highlightEl.content.cloneNode(true));
+            this.highlightedHTML = div.innerHTML;
+            return;
+        }
+        this.highlightedHTML = '';
+    }
 
     connectedCallback() {
         super.connectedCallback();
         setTimeout(() => {
-            const scriptEl = this.querySelector('script.pp-mermaid-data');
-            if (scriptEl?.textContent) {
-                this.diagram = scriptEl.textContent.trim();
-            }
-            const highlightEl = this.querySelector('template.pp-mermaid-highlighted') as HTMLTemplateElement;
-            if (highlightEl?.content) {
-                const div = document.createElement('div');
-                div.appendChild(highlightEl.content.cloneNode(true));
-                this.highlightedHTML = div.innerHTML;
-            }
+            this.hydrateEmbeddedData();
             this.wide = this.offsetWidth >= 900;
             this.requestUpdate();
+
+            this.embeddedDataObserver = new MutationObserver(() => {
+                this.hydrateEmbeddedData();
+            });
+            this.embeddedDataObserver.observe(this, {childList: true});
 
             this.resizeObserver = new ResizeObserver((entries) => {
                 for (const entry of entries) {
@@ -53,6 +64,8 @@ export class PpClassDiagram extends LitElement {
         super.disconnectedCallback();
         clearInterval(this._zoomCheckInterval);
         clearInterval(this._modalZoomInterval);
+        this.embeddedDataObserver?.disconnect();
+        this.embeddedDataObserver = null;
         this.resizeObserver?.disconnect();
         this.resizeObserver = null;
         this.expandedDialog?.remove();

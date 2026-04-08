@@ -1,5 +1,6 @@
 // PrintingPress UI Components
 // Copyright 2024-2026 Princess Beef Heavy Industries, LLC
+import {hydratePrintingPressPage} from './utils/hydration.js';
 
 // Import Shoelace components used by cowboy-components
 import '@shoelace-style/shoelace/dist/components/tag/tag.js';
@@ -119,3 +120,11 @@ import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
 // Visualization components (excluded in lite builds via VITE_BUNDLE_LITE=1)
 import './components/class-diagram/class-diagram.js';
 import './components/explorer/focused-explorer.js';
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    void hydratePrintingPressPage();
+  }, {once: true});
+} else {
+  void hydratePrintingPressPage();
+}

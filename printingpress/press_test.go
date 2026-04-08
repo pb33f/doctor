@@ -266,6 +266,8 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	assert.FileExists(t, outputDir+"/models/index.html")
 	assert.FileExists(t, outputDir+"/static/printing-press.css")
 	assert.FileExists(t, outputDir+"/static/printing-press.js")
+	assert.FileExists(t, outputDir+"/static/printing-press-shared.json")
+	assert.FileExists(t, outputDir+"/static/printing-press-shared.js")
 
 	// Verify HTML content
 	indexHTML, err := os.ReadFile(outputDir + "/index.html")
@@ -273,6 +275,11 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	assert.Contains(t, string(indexHTML), "<!doctype html>")
 	assert.Contains(t, string(indexHTML), "Burger Shop")
 	assert.Contains(t, string(indexHTML), "pp-layout")
+	assert.Contains(t, string(indexHTML), `data-pp-shared="static/printing-press-shared"`)
+	assert.NotContains(t, string(indexHTML), "pp-schema-registry")
+	assert.NotContains(t, string(indexHTML), "data-nav=")
+	assert.NotContains(t, string(indexHTML), "data-models=")
+	assert.NotContains(t, string(indexHTML), "data-webhooks=")
 
 	for _, op := range site.Operations {
 		assert.FileExists(t, outputDir+"/operations/"+op.Slug+".html")
@@ -282,6 +289,40 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 			assert.FileExists(t, outputDir+"/models/"+typeSlug+"/"+page.Slug+".html")
 		}
 	}
+
+	require.NotEmpty(t, site.Operations)
+	op := site.Operations[0]
+	assert.FileExists(t, filepath.Join(outputDir, "static", "page-data", "operations", op.Slug+".json"))
+	assert.FileExists(t, filepath.Join(outputDir, "static", "page-data", "operations", op.Slug+".js"))
+	opHTML, err := os.ReadFile(filepath.Join(outputDir, "operations", op.Slug+".html"))
+	require.NoError(t, err)
+	assert.Contains(t, string(opHTML), `data-pp-page="static/page-data/operations/`+op.Slug+`"`)
+	assert.NotContains(t, string(opHTML), "responses-json=")
+	assert.NotContains(t, string(opHTML), "parameters-json=")
+	assert.NotContains(t, string(opHTML), "curl-json=")
+	assert.NotContains(t, string(opHTML), "content-json=")
+
+	var firstModel *ModelPage
+	for typeSlug, pages := range site.Models {
+		if typeSlug == "path-items" {
+			continue
+		}
+		if len(pages) > 0 {
+			firstModel = pages[0]
+			break
+		}
+	}
+	require.NotNil(t, firstModel)
+	assert.FileExists(t, filepath.Join(outputDir, "static", "page-data", "models", firstModel.TypeSlug, firstModel.Slug+".json"))
+	assert.FileExists(t, filepath.Join(outputDir, "static", "page-data", "models", firstModel.TypeSlug, firstModel.Slug+".js"))
+	modelHTML, err := os.ReadFile(filepath.Join(outputDir, "models", firstModel.TypeSlug, firstModel.Slug+".html"))
+	require.NoError(t, err)
+	assert.Contains(t, string(modelHTML), `data-pp-page="static/page-data/models/`+firstModel.TypeSlug+`/`+firstModel.Slug+`"`)
+	assert.NotContains(t, string(modelHTML), "model-json=")
+	assert.NotContains(t, string(modelHTML), "mock-json=")
+	assert.NotContains(t, string(modelHTML), "schema-raw-json=")
+	assert.NotContains(t, string(modelHTML), "schema-raw-yaml=")
+	assert.NotContains(t, string(modelHTML), "scheme-json=")
 }
 
 func TestPrintingPress_WriteHTMLSite_UsesConfigOutputDirAndBaseURL(t *testing.T) {
