@@ -20,6 +20,6 @@ func (t *Changerator) GenerateMarkdownReport() string {
 		return "# What Changed?\n\nNo changes detected between the API versions.\n\n"
 	}
 
-	reporter := renderer.NewMarkdownReporter(t.Config.DocumentChanges, t.Config.Doctor, t.rightDocContent, nil)
+	reporter := renderer.MarkdownReport(t.Config.DocumentChanges, t.Config.Doctor, t.rightDocContent, nil, nil)
 	return reporter.Generate()
 }

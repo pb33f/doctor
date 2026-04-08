@@ -195,17 +195,19 @@ func (r *MarkdownReporter) writeBreakingMarker(report *strings.Builder, hasCodeB
 	report.WriteString(Breaking)
 }
 
-// NewMarkdownReporter creates a new markdown reporter from DocumentChanges
-func NewMarkdownReporter(docChanges *model.DocumentChanges, doctor *drModel.DrDocument, rightDocContent []byte, config *RenderConfig) *MarkdownReporter {
+// MarkdownReport creates a new markdown reporter from DocumentChanges.
+// When deduplicatedChanges is non-nil, summary statistics use deduplicated counts.
+func MarkdownReport(docChanges *model.DocumentChanges, doctor *drModel.DrDocument, rightDocContent []byte, config *RenderConfig, deduplicatedChanges []*model.Change) *MarkdownReporter {
 	// Detect source document format
 	sourceFormat := DetectDocumentFormat(rightDocContent)
 
 	return &MarkdownReporter{
-		docChanges:      docChanges,
-		doctor:          doctor,
-		rightDocContent: rightDocContent,
-		sourceFormat:    sourceFormat,
-		config:          config,
+		docChanges:          docChanges,
+		doctor:              doctor,
+		rightDocContent:     rightDocContent,
+		sourceFormat:        sourceFormat,
+		config:              config,
+		deduplicatedChanges: deduplicatedChanges,
 	}
 }
 
@@ -230,18 +232,17 @@ func (r *MarkdownReporter) generateSummary(report *strings.Builder) {
 		return
 	}
 
-	totalChanges := r.docChanges.TotalChanges()
-	breakingChanges := r.docChanges.TotalBreakingChanges()
-
-	// Use deduplicated counts when available to match the Changed Items tab.
+	var totalChanges, breakingChanges int
 	if r.deduplicatedChanges != nil {
 		totalChanges = len(r.deduplicatedChanges)
-		breakingChanges = 0
 		for _, ch := range r.deduplicatedChanges {
 			if ch.Breaking {
 				breakingChanges++
 			}
 		}
+	} else {
+		totalChanges = r.docChanges.TotalChanges()
+		breakingChanges = r.docChanges.TotalBreakingChanges()
 	}
 
 	if totalChanges == 0 {
@@ -266,8 +267,11 @@ func (r *MarkdownReporter) generateSummary(report *strings.Builder) {
 		report.WriteString(", with **no** breaking changes.\n\n")
 	}
 
-	// Calculate statistics by iterating all changes
+	// Use deduplicated changes when available for accurate statistics.
 	allChanges := r.docChanges.GetAllChanges()
+	if r.deduplicatedChanges != nil {
+		allChanges = r.deduplicatedChanges
+	}
 	additions := 0
 	modifications := 0
 	deletions := 0
@@ -302,6 +306,10 @@ func (r *MarkdownReporter) generateSummary(report *strings.Builder) {
 // walks the DocumentChanges hierarchy to count changes at each specific level,
 // avoiding double-counting nested changes
 func (r *MarkdownReporter) generateTypeStatistics(report *strings.Builder) {
+	if r.deduplicatedChanges != nil {
+		r.generateTypeStatisticsFromDeduplicated(report)
+		return
+	}
 	typeStats := make(map[string]*TypeStatistic)
 
 	// count changes by walking the hierarchy, using GetPropertyChanges() at each level
@@ -416,6 +424,57 @@ func (r *MarkdownReporter) addTypeStats(typeStats map[string]*TypeStatistic, typ
 		if change.Breaking {
 			typeStats[typeName].Breaking++
 		}
+	}
+}
+
+// generateTypeStatisticsFromDeduplicated groups deduplicated changes by change.Type
+// and renders the same statistics table as generateTypeStatistics, but from the flat
+// deduplicated change list rather than walking the DocumentChanges hierarchy.
+func (r *MarkdownReporter) generateTypeStatisticsFromDeduplicated(report *strings.Builder) {
+	typeStats := make(map[string]*TypeStatistic)
+	for _, change := range r.deduplicatedChanges {
+		if change == nil {
+			continue
+		}
+		typeName := normalizeChangeType(change.Type)
+		if typeName == "" {
+			continue
+		}
+		if _, exists := typeStats[typeName]; !exists {
+			typeStats[typeName] = &TypeStatistic{}
+		}
+		typeStats[typeName].Total++
+		if change.Breaking {
+			typeStats[typeName].Breaking++
+		}
+	}
+	if len(typeStats) == 0 {
+		return
+	}
+	report.WriteString("| Object               | Total Changes | Breaking Changes |\n")
+	report.WriteString("|----------------------|---------------|------------------|\n")
+	for _, typ := range sortedMapKeys(typeStats) {
+		stat := typeStats[typ]
+		breakingStr := "-"
+		if stat.Breaking > 0 {
+			breakingStr = fmt.Sprintf("%d", stat.Breaking)
+		}
+		report.WriteString(fmt.Sprintf("| %s | %d | %s |\n",
+			FormatObjectType(typ), stat.Total, breakingStr))
+	}
+	report.WriteString("\n")
+}
+
+// normalizeChangeType maps change.Type values (set by doctor's changerator) to
+// the canonical type names used by FormatObjectType and the statistics table.
+func normalizeChangeType(changeType string) string {
+	switch changeType {
+	case "tags":
+		return "tag"
+	case "":
+		return ""
+	default:
+		return changeType
 	}
 }
 

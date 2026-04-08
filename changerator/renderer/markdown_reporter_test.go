@@ -4,8 +4,10 @@
 package renderer
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/pb33f/libopenapi/what-changed/model"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -51,4 +53,52 @@ func TestGetIndent(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenerateSummary_UsesDeduplicatedCounts(t *testing.T) {
+	// Create a reporter with empty docChanges but with deduplicated changes.
+	// The summary should reflect deduplicated counts, not docChanges counts.
+	docChanges := &model.DocumentChanges{
+		PropertyChanges: &model.PropertyChanges{},
+	}
+	deduped := []*model.Change{
+		{ChangeType: model.Modified, Property: "name", Breaking: false, Type: "info"},
+		{ChangeType: model.PropertyRemoved, Property: "email", Breaking: true, Type: "contact"},
+	}
+
+	reporter := MarkdownReport(docChanges, nil, nil, nil, deduped)
+	output := reporter.Generate()
+
+	// The summary should reflect deduplicated counts (2 total, 1 breaking)
+	assert.Contains(t, output, "**2**")
+	assert.Contains(t, output, "**1**")
+	assert.Contains(t, output, "Modifications: **1**")
+	assert.Contains(t, output, "Removals: **1**")
+}
+
+func TestGenerateTypeStatisticsFromDeduplicated_GroupsByType(t *testing.T) {
+	deduped := []*model.Change{
+		{ChangeType: model.Modified, Type: "info"},
+		{ChangeType: model.Modified, Type: "info"},
+		{ChangeType: model.PropertyRemoved, Type: "schema", Breaking: true},
+		{ChangeType: model.PropertyAdded, Type: "tags"},
+	}
+
+	reporter := MarkdownReport(&model.DocumentChanges{
+		PropertyChanges: &model.PropertyChanges{},
+	}, nil, nil, nil, deduped)
+	var sb strings.Builder
+	reporter.generateTypeStatisticsFromDeduplicated(&sb)
+	table := sb.String()
+
+	assert.Contains(t, table, "| Info | 2 | - |")
+	assert.Contains(t, table, "| Schema | 1 | 1 |")
+	assert.Contains(t, table, "| Tag | 1 | - |") // "tags" normalized to "tag"
+}
+
+func TestNormalizeChangeType(t *testing.T) {
+	assert.Equal(t, "tag", normalizeChangeType("tags"))
+	assert.Equal(t, "info", normalizeChangeType("info"))
+	assert.Equal(t, "schema", normalizeChangeType("schema"))
+	assert.Equal(t, "", normalizeChangeType(""))
 }
