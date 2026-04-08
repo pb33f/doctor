@@ -128,7 +128,7 @@ func TestPrintingPress_PetStoreV3(t *testing.T) {
 	}
 }
 
-func TestPrintingPress_WriteSite(t *testing.T) {
+func TestPrintingPress_PrintJSONArtifacts(t *testing.T) {
 	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
 	require.NoError(t, err)
 
@@ -145,7 +145,7 @@ func TestPrintingPress_WriteSite(t *testing.T) {
 	require.NoError(t, err)
 
 	outputDir := t.TempDir()
-	err = WriteSite(site, outputDir)
+	err = PrintJSONArtifacts(site, outputDir)
 	require.NoError(t, err)
 
 	// Verify file structure
@@ -240,7 +240,7 @@ func TestPrintingPress_WriteHTMLSite_UsesConfigOutputDirAndBaseURL(t *testing.T)
 	assert.Contains(t, string(indexHTML), `<base href="/docs/">`)
 }
 
-func TestPrintingPress_WriteSite_UsesConfigOutputDir(t *testing.T) {
+func TestPrintingPress_PrintJSONArtifacts_UsesConfigOutputDir(t *testing.T) {
 	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
 	require.NoError(t, err)
 
@@ -260,7 +260,7 @@ func TestPrintingPress_WriteSite_UsesConfigOutputDir(t *testing.T) {
 	site, err := pp.pressSite()
 	require.NoError(t, err)
 
-	err = WriteSite(site, "")
+	err = PrintJSONArtifacts(site, "")
 	require.NoError(t, err)
 
 	assert.FileExists(t, outputDir+"/index.json")

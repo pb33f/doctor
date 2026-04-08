@@ -152,7 +152,7 @@ func TestActivityStream_SlowConsumerStillReceivesTerminalUpdate(t *testing.T) {
 }
 
 func TestWriters_ReturnErrNilSite(t *testing.T) {
-	err := WriteSite(nil, t.TempDir())
+	err := PrintJSONArtifacts(nil, t.TempDir())
 	require.ErrorIs(t, err, ErrNilSite)
 
 	err = WriteHTMLSite(nil, t.TempDir(), "")
