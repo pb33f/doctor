@@ -121,8 +121,8 @@ func (pp *PrintingPress) ActivityStream() *ActivitySubscription {
 	return pp.activity.subscribe()
 }
 
-// PressModel builds and returns the in-memory documentation model without
-// writing any output files.
+// PressModel builds the in-memory site graph, caches it for later print
+// operations, and returns it without writing any output files.
 //
 // The returned Site is the cached mutable instance owned by the PrintingPress.
 // Later calls to PressModel, PrintHTML, and PrintLLM reuse that same value.

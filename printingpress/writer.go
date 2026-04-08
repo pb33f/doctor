@@ -11,11 +11,11 @@ import (
 	"path/filepath"
 )
 
-// WriteSite writes the rendered site model to disk as JSON artifacts.
+// PrintJSONArtifacts writes the rendered site model to disk as JSON artifacts.
 //
-// When outputDir is empty, WriteSite uses site.OutputDir. A nil site returns
-// ErrNilSite.
-func WriteSite(site *Site, outputDir string) error {
+// When outputDir is empty, PrintJSONArtifacts uses site.OutputDir. A nil site
+// returns ErrNilSite.
+func PrintJSONArtifacts(site *Site, outputDir string) error {
 	if site == nil {
 		return ErrNilSite
 	}
