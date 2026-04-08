@@ -11,7 +11,10 @@ import (
 	"github.com/pb33f/libopenapi/bundler"
 )
 
-// Site is the fully rendered output from the PrintingPress.
+// Site is the fully rendered mutable output from the PrintingPress.
+//
+// A Site returned by PressModel is the cached instance later reused by
+// PrintHTML and PrintLLM, so caller mutations affect subsequent print output.
 type Site struct {
 	Root           *RootPage
 	Operations     []*OperationPage

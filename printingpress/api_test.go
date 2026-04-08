@@ -5,13 +5,17 @@
 package printingpress
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/bundler"
+	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -96,7 +100,11 @@ func TestCreatePrintingPress_ActivityStreamLatestSnapshot(t *testing.T) {
 	var update ActivityUpdate
 	require.Eventually(t, func() bool {
 		select {
-		case update = <-stream.Updates():
+		case next, ok := <-stream.Updates():
+			if !ok {
+				return false
+			}
+			update = next
 			return true
 		default:
 			return false
@@ -152,6 +160,60 @@ func TestCreatePrintingPress_SpecBytesUseConfiguredBasePath(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, stats)
 	assert.FileExists(t, filepath.Join(outputDir, "index.html"))
+}
+
+func TestCreatePrintingPress_BundlingFallbackWarningExposed(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	originalBundle := bundleBytesWithOrigins
+	bundleBytesWithOrigins = func(specBytes []byte, configuration *datamodel.DocumentConfiguration, compositionConfig *bundler.BundleCompositionConfig) (*bundler.BundleResult, error) {
+		return nil, errors.New("forced bundle failure")
+	}
+	defer func() {
+		bundleBytesWithOrigins = originalBundle
+	}()
+
+	pp, err := CreatePrintingPressFromBytes(specBytes, &PrintingPressConfig{
+		OutputDir: t.TempDir(),
+	})
+	require.NoError(t, err)
+
+	site, err := pp.PressModel()
+	require.NoError(t, err)
+	require.NotEmpty(t, site.Warnings)
+	assert.Contains(t, site.Warnings[0].Message, "source bundling failed")
+	require.Error(t, site.Warnings[0].Err)
+
+	stats, err := pp.PrintHTML()
+	require.NoError(t, err)
+	require.NotEmpty(t, stats.Warnings)
+	assert.Contains(t, stats.Warnings[0].Message, "source bundling failed")
+	require.Error(t, stats.Warnings[0].Err)
+}
+
+func TestCreatePrintingPress_PressModelMutationsAffectLaterPrints(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	outputDir := t.TempDir()
+	pp, err := CreatePrintingPressFromBytes(specBytes, &PrintingPressConfig{
+		OutputDir: outputDir,
+	})
+	require.NoError(t, err)
+
+	site, err := pp.PressModel()
+	require.NoError(t, err)
+	require.NotNil(t, site.Root)
+
+	site.Root.Title = "Mutated Burger Shop"
+
+	_, err = pp.PrintHTML()
+	require.NoError(t, err)
+
+	indexHTML, err := os.ReadFile(filepath.Join(outputDir, "index.html"))
+	require.NoError(t, err)
+	assert.True(t, strings.Contains(string(indexHTML), "Mutated Burger Shop"))
 }
 
 func TestCreatePrintingPressFromV3Model(t *testing.T) {

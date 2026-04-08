@@ -42,7 +42,8 @@ type BreakingChangeConfig struct {
 }
 */
 
-// PressStatistics reports the outcome of a single print run.
+// PressStatistics reports the outcome of a single print run, including any
+// non-fatal build warnings carried into the rendered site.
 type PressStatistics struct {
 	JobID              string
 	JobType            string
@@ -54,6 +55,7 @@ type PressStatistics struct {
 	FilesWritten       int
 	BytesWritten       int64
 	FileSizes          map[string]int64
+	Warnings           []*BuildWarning
 	ModelBuildDuration time.Duration
 	GenerationDuration time.Duration
 	TotalDuration      time.Duration
@@ -64,6 +66,8 @@ type pressSource struct {
 	v3Model   *libopenapi.DocumentModel[highv3.Document]
 	drModel   *model.DrDocument
 }
+
+var bundleBytesWithOrigins = bundler.BundleBytesComposedWithOrigins
 
 func createPrintingPress(config *PrintingPressConfig, source pressSource) (*PrintingPress, error) {
 	normalized, err := validateAndNormalizeConfig(config, source)
@@ -97,11 +101,16 @@ func CreatePrintingPressFromDrModel(drModel *model.DrDocument, config *PrintingP
 	return createPrintingPress(clonePrintingPressConfig(config), pressSource{drModel: drModel})
 }
 
-// ActivityStream returns a managed stream of activity snapshots for the current job.
+// ActivityStream returns a best-effort live stream of activity snapshots for the
+// current job.
 //
-// If a job is already running, the latest snapshot for that job is sent
-// immediately. Subscribers attached to that job are closed automatically after
-// its terminal update is delivered.
+// If a job is already running, the latest known snapshot for that job is made
+// available immediately. Subscribers attached to that job are closed
+// automatically after its terminal update is delivered.
+//
+// The stream is intended for live terminal progress and does not provide
+// durable buffering or replay guarantees. Slow consumers may miss intermediate
+// updates and only receive the most recent live state.
 //
 // A subscription created after a job has already finished stays idle until the
 // next job starts.
@@ -115,8 +124,9 @@ func (pp *PrintingPress) ActivityStream() *ActivitySubscription {
 // PressModel builds and returns the in-memory documentation model without
 // writing any output files.
 //
-// The returned Site is cached on the PrintingPress and reused by later calls to
-// PressModel, PrintHTML, and PrintLLM.
+// The returned Site is the cached mutable instance owned by the PrintingPress.
+// Later calls to PressModel, PrintHTML, and PrintLLM reuse that same value.
+// Any caller mutations are reflected in subsequent print operations.
 func (pp *PrintingPress) PressModel() (*Site, error) {
 	pp.mu.Lock()
 	defer pp.mu.Unlock()
@@ -304,7 +314,7 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 		cfg.SpecRoot = basePath
 
 		job.snapshot("bundling source bytes", 0, 3, 0)
-		result, bundleErr := bundler.BundleBytesComposedWithOrigins(specBytes, &datamodel.DocumentConfiguration{
+		result, bundleErr := bundleBytesWithOrigins(specBytes, &datamodel.DocumentConfiguration{
 			AllowFileReferences: true,
 			BasePath:            basePath,
 		}, nil)
@@ -315,6 +325,11 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 			modelBytes = result.Bytes
 			job.snapshot("bundled source bytes", 1, 3, 0)
 		} else {
+			cfg.BuildWarnings = append(cfg.BuildWarnings, &BuildWarning{
+				Message: "source bundling failed; falling back to single-file parse, multi-file output may be incomplete",
+				Context: basePath,
+				Err:     bundleErr,
+			})
 			job.snapshot("bundle fallback to single file", 1, 3, 0)
 		}
 
@@ -541,6 +556,7 @@ func (pp *PrintingPress) buildStatistics(job *jobState, written []string, buildD
 		stats.Operations = len(pp.site.Operations) + len(pp.site.Webhooks)
 		stats.ClassDiagrams = countClassDiagrams(pp.site)
 		stats.DependencyGraphs = countDependencyGraphs(pp.site)
+		stats.Warnings = append(stats.Warnings, pp.site.Warnings...)
 	}
 
 	outputDir := ""

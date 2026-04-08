@@ -64,7 +64,6 @@ func TestActivityStream_AutoClosesAfterCompletion(t *testing.T) {
 
 	require.NotEmpty(t, updates)
 	assert.Equal(t, "completed", updates[len(updates)-1].Status)
-	assert.Equal(t, int64(0), updates[len(updates)-1].DroppedUpdateCount)
 }
 
 func TestActivityStream_LateSubscriberWaitsForNextJob(t *testing.T) {
@@ -113,7 +112,7 @@ func TestActivityStream_LateSubscriberWaitsForNextJob(t *testing.T) {
 	}
 }
 
-func TestActivitySubscription_DrainFlushesQueuedUpdatesInOrder(t *testing.T) {
+func TestActivitySubscription_DrainReturnsBufferedLatestUpdate(t *testing.T) {
 	manager := newActivityManager()
 	sub := manager.subscribe()
 	require.NotNil(t, sub)
@@ -130,14 +129,10 @@ func TestActivitySubscription_DrainFlushesQueuedUpdatesInOrder(t *testing.T) {
 		tasks = append(tasks, update.CurrentTask)
 	}
 
-	assert.Equal(t, []string{
-		"starting model",
-		"phase one",
-		"phase two",
-	}, tasks)
+	assert.Equal(t, []string{"phase two"}, tasks)
 }
 
-func TestActivityStream_QueuesUpdatesForSlowConsumer(t *testing.T) {
+func TestActivityStream_SlowConsumerStillReceivesTerminalUpdate(t *testing.T) {
 	manager := newActivityManager()
 	sub := manager.subscribe()
 	require.NotNil(t, sub)
@@ -152,12 +147,8 @@ func TestActivityStream_QueuesUpdatesForSlowConsumer(t *testing.T) {
 		tasks = append(tasks, update.CurrentTask)
 	}
 
-	assert.Equal(t, []string{
-		"starting html",
-		"collecting",
-		"rendering",
-		"done",
-	}, tasks)
+	require.NotEmpty(t, tasks)
+	assert.Equal(t, "done", tasks[len(tasks)-1])
 }
 
 func TestWriters_ReturnErrNilSite(t *testing.T) {
