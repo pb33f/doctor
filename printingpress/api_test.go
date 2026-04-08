@@ -5,6 +5,7 @@
 package printingpress
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -190,6 +191,40 @@ func TestCreatePrintingPress_BundlingFallbackWarningExposed(t *testing.T) {
 	require.NotEmpty(t, stats.Warnings)
 	assert.Contains(t, stats.Warnings[0].Message, "source bundling failed")
 	require.Error(t, stats.Warnings[0].Err)
+}
+
+func TestCreatePrintingPress_JSONBundleIncludesBundlingFallbackWarning(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	originalBundle := bundleBytesWithOrigins
+	bundleBytesWithOrigins = func(specBytes []byte, configuration *datamodel.DocumentConfiguration, compositionConfig *bundler.BundleCompositionConfig) (*bundler.BundleResult, error) {
+		return nil, errors.New("forced bundle failure")
+	}
+	defer func() {
+		bundleBytesWithOrigins = originalBundle
+	}()
+
+	outputDir := t.TempDir()
+	pp, err := CreatePrintingPressFromBytes(specBytes, &PrintingPressConfig{
+		OutputDir: outputDir,
+	})
+	require.NoError(t, err)
+
+	site, err := pp.PressModel()
+	require.NoError(t, err)
+
+	err = PrintJSONArtifacts(site, "")
+	require.NoError(t, err)
+
+	bundleJSON, err := os.ReadFile(filepath.Join(outputDir, "bundle.json"))
+	require.NoError(t, err)
+
+	var bundle JSONBundle
+	require.NoError(t, json.Unmarshal(bundleJSON, &bundle))
+	require.NotEmpty(t, bundle.Warnings)
+	assert.Contains(t, bundle.Warnings[0].Message, "source bundling failed")
+	assert.Contains(t, bundle.Warnings[0].Error, "forced bundle failure")
 }
 
 func TestCreatePrintingPress_PressModelMutationsAffectLaterPrints(t *testing.T) {

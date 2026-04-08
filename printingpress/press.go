@@ -12,14 +12,18 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pb33f/doctor/model"
+	doctormodel "github.com/pb33f/doctor/model"
+	curlpkg "github.com/pb33f/doctor/printingpress/curl"
+	. "github.com/pb33f/doctor/printingpress/model"
+	"github.com/pb33f/doctor/printingpress/render"
+	slugpkg "github.com/pb33f/doctor/printingpress/slug"
 	"github.com/pb33f/libopenapi/bundler"
 	"github.com/pb33f/libopenapi/renderer"
 	"golang.org/x/sync/errgroup"
 )
 
 type pressEngineConfig struct {
-	DrDoc         *model.DrDocument
+	DrDoc         *doctormodel.DrDocument
 	Origins       bundler.ComponentOriginMap
 	OutputDir     string
 	BaseURL       string
@@ -54,7 +58,7 @@ type PrintingPress struct {
 	config             *PrintingPressConfig
 	source             pressSource
 	engineConfig       *pressEngineConfig
-	slugs              *SlugRegistry
+	slugs              *slugpkg.SlugRegistry
 	site               *Site
 	mockGen            *renderer.MockGenerator
 	mockGenYAML        *renderer.MockGenerator
@@ -98,7 +102,7 @@ func (pp *PrintingPress) initEngine(config *pressEngineConfig) {
 	// mgXML.DisableRequiredCheck()
 
 	pp.engineConfig = config
-	pp.slugs = NewSlugRegistry()
+	pp.slugs = slugpkg.NewSlugRegistry()
 	pp.mockGen = mg
 	pp.mockGenYAML = mgYAML
 	pp.mockGenXML = nil
@@ -175,9 +179,9 @@ func (pp *PrintingPress) pressSite() (*Site, error) {
 		for _, op := range allOps {
 			op := op
 			g.Go(func() error {
-				variants := BuildCurlCommands(op, globalServers, globalSecurityGroups)
+				variants := curlpkg.BuildCurlCommands(op, globalServers, globalSecurityGroups)
 				if len(variants) > 0 {
-					op.CurlJSON = MustJSON(variants)
+					op.CurlJSON = render.MustJSON(variants)
 				}
 				if pp.currentJob != nil {
 					done := atomicAddInt64(&completedOps, 1)
@@ -204,7 +208,7 @@ func (pp *PrintingPress) pressSite() (*Site, error) {
 			g.Go(func() error {
 				if page.CrossRefs != nil && (len(page.CrossRefs.UsedByOperations) > 0 ||
 					len(page.CrossRefs.UsedByModels) > 0 || len(page.CrossRefs.UsesModels) > 0) {
-					page.CrossRefsJSON = MustJSON(page.CrossRefs)
+					page.CrossRefsJSON = render.MustJSON(page.CrossRefs)
 				}
 				if pp.currentJob != nil {
 					done := atomicAddInt64(&completedPages, 1)

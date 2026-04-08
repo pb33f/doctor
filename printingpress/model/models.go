@@ -2,11 +2,10 @@
 // https://pb33f.io
 // SPDX-License-Identifier: BUSL-1.1
 
-package printingpress
+package model
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/pb33f/libopenapi/bundler"
 )
@@ -391,14 +390,4 @@ type BuildWarning struct {
 	Message string
 	Context string // e.g. path, component name
 	Err     error
-}
-
-// modelDirs returns the list of model subdirectory paths derived from refSegmentToTypeSlug.
-func modelDirs() []string {
-	dirs := make([]string, 0, len(refSegmentToTypeSlug))
-	for _, slug := range refSegmentToTypeSlug {
-		dirs = append(dirs, "models/"+slug)
-	}
-	sort.Strings(dirs)
-	return dirs
 }

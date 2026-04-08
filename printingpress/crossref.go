@@ -7,6 +7,9 @@ package printingpress
 import (
 	"regexp"
 	"sort"
+
+	. "github.com/pb33f/doctor/printingpress/model"
+	slugpkg "github.com/pb33f/doctor/printingpress/slug"
 )
 
 // CrossRefIndex maps components to the operations and components that reference them.
@@ -26,7 +29,7 @@ func (pp *PrintingPress) buildCrossRefs() {
 	// Apply cross-refs to each model page
 	for _, pages := range pp.site.Models {
 		for _, page := range pages {
-			key := componentKey(page.ComponentType, page.Name)
+			key := slugpkg.ComponentKey(page.ComponentType, page.Name)
 			refs := &ModelCrossRefs{}
 			if ops, ok := idx.ComponentToOps[key]; ok {
 				refs.UsedByOperations = ops
@@ -76,7 +79,7 @@ func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPa
 			continue
 		}
 		for _, page := range pages {
-			key := componentKey(page.ComponentType, page.Name)
+			key := slugpkg.ComponentKey(page.ComponentType, page.Name)
 			modelSlugLookup[key] = page
 		}
 	}
@@ -91,10 +94,10 @@ func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPa
 			if srcPage.SchemaJSON == "" {
 				continue
 			}
-			srcKey := componentKey(srcPage.ComponentType, srcPage.Name)
+			srcKey := slugpkg.ComponentKey(srcPage.ComponentType, srcPage.Name)
 			refs := extractRefsFromJSON(srcPage.SchemaJSON, modelSlugLookup)
 			for _, compRef := range refs {
-				targetKey := componentKey(compRef.ComponentType, compRef.Name)
+				targetKey := slugpkg.ComponentKey(compRef.ComponentType, compRef.Name)
 				if targetKey == srcKey {
 					continue // skip self-references
 				}
@@ -126,7 +129,7 @@ func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPa
 		referencedModels := pp.extractOperationModelRefs(op, modelSlugLookup)
 		opRefsCache[key] = referencedModels
 		for _, compRef := range referencedModels {
-			targetKey := componentKey(compRef.ComponentType, compRef.Name)
+			targetKey := slugpkg.ComponentKey(compRef.ComponentType, compRef.Name)
 			addOperationRefUnique(&idx.ComponentToOps, targetKey, opRef)
 		}
 	}
@@ -161,7 +164,7 @@ func (pp *PrintingPress) extractOperationModelRefs(op *OperationPage, modelSlugL
 
 	addRef := func(schemaJSON string) {
 		for _, compRef := range extractRefsFromJSON(schemaJSON, modelSlugLookup) {
-			key := componentKey(compRef.ComponentType, compRef.Name)
+			key := slugpkg.ComponentKey(compRef.ComponentType, compRef.Name)
 			if !seen[key] {
 				seen[key] = true
 				refs = append(refs, compRef)
@@ -173,7 +176,7 @@ func (pp *PrintingPress) extractOperationModelRefs(op *OperationPage, modelSlugL
 		if link == nil {
 			return
 		}
-		key := componentKey(link.ComponentType, link.Name)
+		key := slugpkg.ComponentKey(link.ComponentType, link.Name)
 		if seen[key] {
 			return
 		}
@@ -243,7 +246,7 @@ func extractRefsFromJSON(jsonStr string, lookup map[string]*ModelPage) []*Compon
 	seen := make(map[string]bool)
 	for _, m := range matches {
 		compType, compName := m[1], m[2]
-		key := componentKey(compType, compName)
+		key := slugpkg.ComponentKey(compType, compName)
 		if seen[key] {
 			continue
 		}

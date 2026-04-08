@@ -2,7 +2,7 @@
 // https://pb33f.io
 // SPDX-License-Identifier: BUSL-1.1
 
-package printingpress
+package slug
 
 import (
 	"fmt"
@@ -16,9 +16,9 @@ var (
 	slugMultiDash  = regexp.MustCompile(`-{2,}`)
 )
 
-// sanitizeSlug converts an arbitrary string into a URL-safe kebab-case slug.
+// Sanitize converts an arbitrary string into a URL-safe kebab-case slug.
 // Handles camelCase (e.g. "listFunctionDocumentation" → "list-function-documentation").
-func sanitizeSlug(input string) string {
+func Sanitize(input string) string {
 	// Insert hyphens at camelCase boundaries before lowercasing.
 	s := slugCamelBound.ReplaceAllString(input, "${1}-${2}")
 	s = strings.ToLower(s)
@@ -67,15 +67,15 @@ func (r *SlugRegistry) Register(category, preferred string) string {
 	}
 }
 
-// operationSlug generates a slug for an operation, preferring operationId.
-func operationSlug(method, path, operationID string) string {
+// OperationSlug generates a slug for an operation, preferring operationId.
+func OperationSlug(method, path, operationID string) string {
 	if operationID != "" {
-		return sanitizeSlug(operationID)
+		return Sanitize(operationID)
 	}
-	return sanitizeSlug(method + "-" + path)
+	return Sanitize(method + "-" + path)
 }
 
-// componentKey returns the canonical cross-reference key for a component.
-func componentKey(componentType, name string) string {
+// ComponentKey returns the canonical cross-reference key for a component.
+func ComponentKey(componentType, name string) string {
 	return fmt.Sprintf("#/components/%s/%s", componentType, name)
 }

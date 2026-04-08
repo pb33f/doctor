@@ -1,6 +1,8 @@
-package printingpress
+package render
 
-templ TagIndexTempl(tag *NavTag, breadcrumb []BreadcrumbItem) {
+import ppmodel "github.com/pb33f/doctor/printingpress/model"
+
+templ TagIndexTempl(tag *ppmodel.NavTag, breadcrumb []BreadcrumbItem) {
 	<div class="pp-root">
 		@Breadcrumb(breadcrumb)
 		<pp-icon-title icon="operation" heading={ tag.DisplayName() }></pp-icon-title>

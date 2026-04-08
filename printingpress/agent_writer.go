@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	. "github.com/pb33f/doctor/printingpress/model"
 )
 
 // WriteLLMSite writes LLM-oriented markdown docs to disk.

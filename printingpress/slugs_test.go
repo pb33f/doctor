@@ -7,6 +7,7 @@ package printingpress
 import (
 	"testing"
 
+	slugpkg "github.com/pb33f/doctor/printingpress/slug"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,13 +30,13 @@ func TestSanitizeSlug(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			assert.Equal(t, tt.expected, sanitizeSlug(tt.input))
+			assert.Equal(t, tt.expected, slugpkg.Sanitize(tt.input))
 		})
 	}
 }
 
 func TestSlugRegistry_Register(t *testing.T) {
-	r := NewSlugRegistry()
+	r := slugpkg.NewSlugRegistry()
 
 	// First registration succeeds with preferred slug
 	assert.Equal(t, "user", r.Register("schemas", "user"))
@@ -51,12 +52,12 @@ func TestSlugRegistry_Register(t *testing.T) {
 }
 
 func TestOperationSlug(t *testing.T) {
-	assert.Equal(t, "get-users", operationSlug("get", "/users", "getUsers"))
-	assert.Equal(t, "get-users", operationSlug("get", "/users", ""))
-	assert.Equal(t, "post-api-v1-pets-pet-id", operationSlug("post", "/api/v1/pets/{petId}", ""))
+	assert.Equal(t, "get-users", slugpkg.OperationSlug("get", "/users", "getUsers"))
+	assert.Equal(t, "get-users", slugpkg.OperationSlug("get", "/users", ""))
+	assert.Equal(t, "post-api-v1-pets-pet-id", slugpkg.OperationSlug("post", "/api/v1/pets/{petId}", ""))
 }
 
 func TestComponentKey(t *testing.T) {
-	assert.Equal(t, "#/components/schemas/User", componentKey("schemas", "User"))
-	assert.Equal(t, "#/components/responses/NotFound", componentKey("responses", "NotFound"))
+	assert.Equal(t, "#/components/schemas/User", slugpkg.ComponentKey("schemas", "User"))
+	assert.Equal(t, "#/components/responses/NotFound", slugpkg.ComponentKey("responses", "NotFound"))
 }

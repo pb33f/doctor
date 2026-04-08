@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
+	ppmodel "github.com/pb33f/doctor/printingpress/model"
+	"github.com/pb33f/doctor/printingpress/render"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -37,7 +39,7 @@ type writeProgressFunc func(task string, completed, total int)
 // and otherwise fall back to values already stored on the Site.
 //
 // A nil site returns ErrNilSite.
-func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
+func WriteHTMLSite(site *ppmodel.Site, outputDir, baseURL string) error {
 	if site == nil {
 		return ErrNilSite
 	}
@@ -45,7 +47,7 @@ func WriteHTMLSite(site *Site, outputDir, baseURL string) error {
 	return err
 }
 
-func writeHTMLSiteDetailed(site *Site, outputDir, baseURL string, progress writeProgressFunc) ([]string, error) {
+func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progress writeProgressFunc) ([]string, error) {
 	if site == nil {
 		return nil, ErrNilSite
 	}
@@ -79,10 +81,10 @@ func writeHTMLSiteDetailed(site *Site, outputDir, baseURL string, progress write
 
 	params := &pageParams{
 		SiteTitle:    title,
-		NavJSON:      MustJSON(site.NavTags),
-		ModelsJSON:   MustJSON(site.NavModelGroups),
-		WebhooksJSON: MustJSON(site.NavWebhooks),
-		RegistryJSON: MustJSON(site.SchemaRegistry),
+		NavJSON:      render.MustJSON(site.NavTags),
+		ModelsJSON:   render.MustJSON(site.NavModelGroups),
+		WebhooksJSON: render.MustJSON(site.NavWebhooks),
+		RegistryJSON: render.MustJSON(site.SchemaRegistry),
 		SpecFormat:   site.SpecFormat,
 		Lite:         site.Lite,
 	}
@@ -94,7 +96,7 @@ func writeHTMLSiteDetailed(site *Site, outputDir, baseURL string, progress write
 		p := *params
 		p.BaseURL = resolvedBaseURL
 		p.ExtraCSS = []string{"static/printing-press-index.css"}
-		rootContent := RootPageTempl(site.Root)
+		rootContent := render.RootPageTempl(site.Root)
 		jobs = append(jobs, htmlWriteJob{
 			path:      filepath.Join(resolvedOutputDir, "index.html"),
 			pageTitle: title,
@@ -108,7 +110,7 @@ func writeHTMLSiteDetailed(site *Site, outputDir, baseURL string, progress write
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{"static/printing-press-operation.css"}
-		opContent := OperationPageTempl(op)
+		opContent := render.OperationPageTempl(op)
 		pageTitle := fmt.Sprintf("%s %s - %s", op.Method, op.Path, title)
 		path := filepath.Join(resolvedOutputDir, "operations", op.Slug+".html")
 		jobs = append(jobs, htmlWriteJob{
@@ -131,7 +133,7 @@ func writeHTMLSiteDetailed(site *Site, outputDir, baseURL string, progress write
 			p := *params
 			p.BaseURL = resolveBase(resolvedBaseURL, 2)
 			p.ExtraCSS = []string{"static/printing-press-model.css"}
-			modelContent := ModelPageTempl(page)
+			modelContent := render.ModelPageTempl(page)
 			pageTitle := fmt.Sprintf("%s - %s", page.Name, title)
 			path := filepath.Join(resolvedOutputDir, "models", typeSlug, page.Slug+".html")
 			activeModelSlug := page.TypeSlug + "/" + page.Slug
@@ -150,7 +152,7 @@ func writeHTMLSiteDetailed(site *Site, outputDir, baseURL string, progress write
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{"static/printing-press-index.css"}
-		indexContent := ModelsIndexTempl(site.NavModelGroups, modelsIndexBreadcrumb())
+		indexContent := render.ModelsIndexTempl(site.NavModelGroups, render.ModelsIndexBreadcrumb())
 		jobs = append(jobs, htmlWriteJob{
 			path:      filepath.Join(resolvedOutputDir, "models", "index.html"),
 			pageTitle: "Models - " + title,
@@ -164,8 +166,8 @@ func writeHTMLSiteDetailed(site *Site, outputDir, baseURL string, progress write
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 2)
 		p.ExtraCSS = []string{"static/printing-press-index.css"}
-		bc := modelTypeIndexBreadcrumb(group.Name)
-		content := ModelTypeIndexTempl(group, bc)
+		bc := render.ModelTypeIndexBreadcrumb(group.Name)
+		content := render.ModelTypeIndexTempl(group, bc)
 		pageTitle := fmt.Sprintf("%s - %s", group.Name, title)
 		path := filepath.Join(resolvedOutputDir, "models", group.TypeSlug, "index.html")
 		jobs = append(jobs, htmlWriteJob{
@@ -177,9 +179,9 @@ func writeHTMLSiteDetailed(site *Site, outputDir, baseURL string, progress write
 	}
 
 	// Write tag index pages (1 level deep: tags/)
-	tagParentMap := buildTagParentMap(site.NavTags)
-	var collectTagJobs func([]*NavTag)
-	collectTagJobs = func(tags []*NavTag) {
+	tagParentMap := render.BuildTagParentMap(site.NavTags)
+	var collectTagJobs func([]*ppmodel.NavTag)
+	collectTagJobs = func(tags []*ppmodel.NavTag) {
 		for _, tag := range tags {
 			if tag.IsNavOnly && len(tag.Operations) == 0 && len(tag.Children) == 0 && tag.DescHTML == "" {
 				continue
@@ -187,8 +189,8 @@ func writeHTMLSiteDetailed(site *Site, outputDir, baseURL string, progress write
 			p := *params
 			p.BaseURL = resolveBase(resolvedBaseURL, 1)
 			p.ExtraCSS = []string{"static/printing-press-index.css"}
-			bc := tagIndexBreadcrumb(tag, tagParentMap)
-			content := TagIndexTempl(tag, bc)
+			bc := render.TagIndexBreadcrumb(tag, tagParentMap)
+			content := render.TagIndexTempl(tag, bc)
 			pageTitle := fmt.Sprintf("%s - %s", tag.DisplayName(), title)
 			path := filepath.Join(resolvedOutputDir, "tags", tag.Slug+".html")
 			jobs = append(jobs, htmlWriteJob{
@@ -207,7 +209,7 @@ func writeHTMLSiteDetailed(site *Site, outputDir, baseURL string, progress write
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{"static/printing-press-operation.css"}
-		whContent := OperationPageTempl(wh)
+		whContent := render.OperationPageTempl(wh)
 		pageTitle := fmt.Sprintf("Webhook: %s %s - %s", wh.Method, wh.Path, title)
 		path := filepath.Join(resolvedOutputDir, "operations", wh.Slug+".html")
 		jobs = append(jobs, htmlWriteJob{
@@ -248,7 +250,7 @@ func writeHTMLSiteDetailed(site *Site, outputDir, baseURL string, progress write
 	return written, nil
 }
 
-func resolveWriterBaseURL(site *Site, baseURL string) string {
+func resolveWriterBaseURL(site *ppmodel.Site, baseURL string) string {
 	if baseURL != "" {
 		return baseURL
 	}
@@ -278,7 +280,7 @@ func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content t
 	}
 	defer f.Close()
 
-	layout := Layout(pageTitle, p.SiteTitle, p.BaseURL, p.NavJSON, p.ModelsJSON, p.WebhooksJSON, activeSlug, p.SpecFormat, p.RegistryJSON, p.ExtraCSS, p.Lite, content)
+	layout := render.Layout(pageTitle, p.SiteTitle, p.BaseURL, p.NavJSON, p.ModelsJSON, p.WebhooksJSON, activeSlug, p.SpecFormat, p.RegistryJSON, p.ExtraCSS, p.Lite, content)
 	return layout.Render(context.Background(), f)
 }
 

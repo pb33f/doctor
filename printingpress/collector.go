@@ -17,6 +17,9 @@ import (
 
 	"github.com/pb33f/doctor/diagramatron"
 	v3 "github.com/pb33f/doctor/model/high/v3"
+	. "github.com/pb33f/doctor/printingpress/model"
+	"github.com/pb33f/doctor/printingpress/render"
+	slugpkg "github.com/pb33f/doctor/printingpress/slug"
 	"github.com/pb33f/libopenapi/bundler"
 	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
 	highv3 "github.com/pb33f/libopenapi/datamodel/high/v3"
@@ -274,7 +277,7 @@ func (pp *PrintingPress) buildTagTree(tags []*v3.Tag) []*NavTag {
 		nt := &NavTag{
 			Name:        tag.Value.Name,
 			Summary:     tag.Value.Summary,
-			Slug:        pp.slugs.Register("tags", sanitizeSlug(tag.Value.Name)),
+			Slug:        pp.slugs.Register("tags", slugpkg.Sanitize(tag.Value.Name)),
 			Description: tag.Value.Description,
 			DescHTML:    renderMarkdown(tag.Value.Description),
 			IsNavOnly:   strings.EqualFold(tag.Value.Kind, "nav"),
@@ -346,7 +349,7 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 	val := op.Value
 
 	operationID := val.OperationId
-	preferred := operationSlug(method, path, operationID)
+	preferred := slugpkg.OperationSlug(method, path, operationID)
 	slug := pp.slugs.Register("operations", preferred)
 
 	page := &OperationPage{
@@ -377,7 +380,7 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 	)
 
 	if len(page.Parameters) > 0 {
-		page.ParametersJSON = MustJSON(page.Parameters)
+		page.ParametersJSON = render.MustJSON(page.Parameters)
 	}
 
 	// Request body
@@ -393,9 +396,9 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 	if len(page.Responses) > 0 {
 		page.CommonHeaders = computeCommonHeaders(page.Responses)
 		if len(page.CommonHeaders) > 0 {
-			page.CommonHeadersJSON = MustJSON(page.CommonHeaders)
+			page.CommonHeadersJSON = render.MustJSON(page.CommonHeaders)
 		}
-		page.ResponsesJSON = MustJSON(page.Responses)
+		page.ResponsesJSON = render.MustJSON(page.Responses)
 	}
 
 	// Servers
@@ -428,14 +431,14 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 	// Extensions
 	page.Extensions = collectExtensions(val.Extensions)
 	if page.Extensions != nil {
-		page.ExtensionsJSON = MustJSON(page.Extensions)
+		page.ExtensionsJSON = render.MustJSON(page.Extensions)
 	}
 
 	// Path item extensions
 	if pi != nil && pi.Value != nil {
 		page.PathExtensions = collectExtensions(pi.Value.Extensions)
 		if page.PathExtensions != nil {
-			page.PathExtensionsJSON = MustJSON(page.PathExtensions)
+			page.PathExtensionsJSON = render.MustJSON(page.PathExtensions)
 		}
 	}
 
@@ -443,7 +446,7 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 	if op.Callbacks != nil {
 		page.Callbacks = pp.collectCallbacks(op.Callbacks)
 		if len(page.Callbacks) > 0 {
-			page.CallbacksJSON = MustJSON(page.Callbacks)
+			page.CallbacksJSON = render.MustJSON(page.Callbacks)
 		}
 	}
 
@@ -573,7 +576,7 @@ func (pp *PrintingPress) collectRequestBody(rb *v3.RequestBody, piOrigin *bundle
 	}
 	rbi.Extensions = collectExtensions(val.Extensions)
 	if rbi.Extensions != nil {
-		rbi.ExtensionsJSON = MustJSON(rbi.Extensions)
+		rbi.ExtensionsJSON = render.MustJSON(rbi.Extensions)
 	}
 	if val.IsReference() {
 		if link := pp.resolveComponentLink(val.GetReference()); link != nil {
@@ -878,7 +881,7 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 	for pair := schemas.First(); pair != nil; pair = pair.Next() {
 		name := pair.Key()
 		sp := pair.Value()
-		preferred := sanitizeSlug(name)
+		preferred := slugpkg.Sanitize(name)
 		slug := pp.slugs.Register("schemas", preferred)
 
 		page := &ModelPage{
@@ -919,7 +922,7 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 			}
 		}
 		if page.MockJSON != "" || len(page.Examples) > 0 {
-			page.ExamplesJSON = MustJSON(struct {
+			page.ExamplesJSON = render.MustJSON(struct {
 				MockJSON string            `json:"mockJson,omitempty"`
 				Examples map[string]string `json:"examples,omitempty"`
 			}{page.MockJSON, page.Examples})
@@ -930,7 +933,7 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 		if sp.Schema != nil && sp.Schema.Value != nil && sp.Schema.Value.Extensions != nil {
 			page.Extensions = collectExtensions(sp.Schema.Value.Extensions)
 			if page.Extensions != nil {
-				page.ExtensionsJSON = MustJSON(page.Extensions)
+				page.ExtensionsJSON = render.MustJSON(page.Extensions)
 			}
 		}
 
@@ -1117,7 +1120,7 @@ func collectRenderable[V interface{ GetValue() any }](
 	for pair := m.First(); pair != nil; pair = pair.Next() {
 		name := pair.Key()
 		val := pair.Value()
-		preferred := sanitizeSlug(name)
+		preferred := slugpkg.Sanitize(name)
 		slug := pp.slugs.Register(typeSlug, preferred)
 
 		page := &ModelPage{
@@ -1159,7 +1162,7 @@ func collectRenderable[V interface{ GetValue() any }](
 					}
 				}
 				if len(page.Examples) > 0 {
-					page.ExamplesJSON = MustJSON(struct {
+					page.ExamplesJSON = render.MustJSON(struct {
 						Examples map[string]string `json:"examples,omitempty"`
 					}{page.Examples})
 				}
@@ -1183,7 +1186,7 @@ func collectRenderable[V interface{ GetValue() any }](
 					if ext, ok := f.Interface().(*orderedmap.Map[string, *yaml.Node]); ok {
 						page.Extensions = collectExtensions(ext)
 						if page.Extensions != nil {
-							page.ExtensionsJSON = MustJSON(page.Extensions)
+							page.ExtensionsJSON = render.MustJSON(page.Extensions)
 						}
 					}
 				}
@@ -1310,7 +1313,7 @@ func (pp *PrintingPress) resolveOperationLinks() {
 		}
 		// Re-serialize ResponsesJSON since it was frozen before slug resolution
 		if resolved && len(op.Responses) > 0 {
-			op.ResponsesJSON = MustJSON(op.Responses)
+			op.ResponsesJSON = render.MustJSON(op.Responses)
 		}
 	}
 }
@@ -1680,7 +1683,7 @@ func (pp *PrintingPress) resolveOrigin(componentType, name string) *bundler.Comp
 	if pp.engineConfig.Origins == nil {
 		return nil
 	}
-	key := componentKey(componentType, name)
+	key := slugpkg.ComponentKey(componentType, name)
 	origin, ok := pp.engineConfig.Origins[key]
 	if !ok || origin == nil {
 		return nil
@@ -1877,7 +1880,7 @@ func (pp *PrintingPress) autoGroupUntaggedOperations(forceSynthetic bool) {
 			parent := &NavTag{
 				Name:    l1Key,
 				Summary: pathGroupDisplayName(l1Key),
-				Slug:    pp.slugs.Register("tags", sanitizeSlug(l1Key)),
+				Slug:    pp.slugs.Register("tags", slugpkg.Sanitize(l1Key)),
 			}
 
 			sortedL2 := make([]string, len(bucket.order))
@@ -1897,7 +1900,7 @@ func (pp *PrintingPress) autoGroupUntaggedOperations(forceSynthetic bool) {
 				child := &NavTag{
 					Name:       childName,
 					Summary:    pathGroupDisplayName(l2Key),
-					Slug:       pp.slugs.Register("tags", sanitizeSlug(childName)),
+					Slug:       pp.slugs.Register("tags", slugpkg.Sanitize(childName)),
 					Operations: ops,
 				}
 				parent.Children = append(parent.Children, child)
@@ -1917,7 +1920,7 @@ func (pp *PrintingPress) autoGroupUntaggedOperations(forceSynthetic bool) {
 			nt := &NavTag{
 				Name:       l1Key,
 				Summary:    pathGroupDisplayName(l1Key),
-				Slug:       pp.slugs.Register("tags", sanitizeSlug(l1Key)),
+				Slug:       pp.slugs.Register("tags", slugpkg.Sanitize(l1Key)),
 				Operations: allOps,
 			}
 			pp.site.NavTags = append(pp.site.NavTags, nt)

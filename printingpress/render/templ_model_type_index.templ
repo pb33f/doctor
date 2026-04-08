@@ -1,6 +1,8 @@
-package printingpress
+package render
 
-templ ModelTypeIndexTempl(group *NavModelGroup, breadcrumb []BreadcrumbItem) {
+import ppmodel "github.com/pb33f/doctor/printingpress/model"
+
+templ ModelTypeIndexTempl(group *ppmodel.NavModelGroup, breadcrumb []BreadcrumbItem) {
 	<div class="pp-root">
 		@Breadcrumb(breadcrumb)
 		<pp-icon-title icon={ group.TypeSlug } heading={ group.Name }></pp-icon-title>

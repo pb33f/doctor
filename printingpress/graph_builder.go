@@ -11,6 +11,7 @@ import (
 
 	drModel "github.com/pb33f/doctor/model"
 	v3 "github.com/pb33f/doctor/model/high/v3"
+	. "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 )
 
