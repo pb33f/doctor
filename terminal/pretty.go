@@ -4,6 +4,7 @@
 package terminal
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -112,6 +113,9 @@ type PrettyHandlerOptions struct {
 
 	// Palette provides colors for styling. Defaults to PaletteForTheme(ThemeDark).
 	Palette *Palette
+
+	// Buffer defers writes until Flush is called.
+	Buffer bool
 }
 
 // PrettyHandler is a slog.Handler that outputs logs in a tree format
@@ -120,6 +124,7 @@ type PrettyHandler struct {
 	opts   PrettyHandlerOptions
 	styles prettyStyles
 	mu     *sync.Mutex
+	buffer *bytes.Buffer
 	groups []string
 	attrs  []slog.Attr
 }
@@ -150,6 +155,7 @@ func NewPrettyHandler(opts *PrettyHandlerOptions) *PrettyHandler {
 		opts:   *opts,
 		styles: buildStyles(p),
 		mu:     &sync.Mutex{},
+		buffer: newPrettyBuffer(opts.Buffer),
 	}
 }
 
@@ -196,6 +202,11 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 	// blank line between log entries for readability
 	buf = append(buf, '\n')
 
+	if h.buffer != nil {
+		_, err := h.buffer.Write(buf)
+		return err
+	}
+
 	_, err := h.opts.Writer.Write(buf)
 	return err
 }
@@ -212,6 +223,7 @@ func (h *PrettyHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 		opts:   h.opts,
 		styles: h.styles,
 		mu:     h.mu,
+		buffer: h.buffer,
 		groups: h.groups,
 		attrs:  newAttrs,
 	}
@@ -231,9 +243,47 @@ func (h *PrettyHandler) WithGroup(name string) slog.Handler {
 		opts:   h.opts,
 		styles: h.styles,
 		mu:     h.mu,
+		buffer: h.buffer,
 		groups: newGroups,
 		attrs:  h.attrs,
 	}
+}
+
+// Buffered returns the currently buffered pretty log output.
+func (h *PrettyHandler) Buffered() string {
+	if h == nil || h.buffer == nil {
+		return ""
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.buffer.String()
+}
+
+// Reset clears any buffered pretty log output.
+func (h *PrettyHandler) Reset() {
+	if h == nil || h.buffer == nil {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.buffer.Reset()
+}
+
+// Flush writes any buffered pretty log output to the configured writer.
+func (h *PrettyHandler) Flush() error {
+	if h == nil || h.buffer == nil {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.buffer.Len() == 0 {
+		return nil
+	}
+	if _, err := h.opts.Writer.Write(h.buffer.Bytes()); err != nil {
+		return err
+	}
+	h.buffer.Reset()
+	return nil
 }
 
 // formatLevel returns the styled level string.
@@ -432,4 +482,11 @@ func (h *PrettyHandler) formatValue(v slog.Value) string {
 // NewPrettyLogger creates a new slog.Logger with a PrettyHandler.
 func NewPrettyLogger(opts *PrettyHandlerOptions) *slog.Logger {
 	return slog.New(NewPrettyHandler(opts))
+}
+
+func newPrettyBuffer(enabled bool) *bytes.Buffer {
+	if !enabled {
+		return nil
+	}
+	return &bytes.Buffer{}
 }

@@ -219,3 +219,36 @@ func TestPrettyHandler_TreeStructure(t *testing.T) {
 	assert.Equal(t, 1, cornerCount, "expected 1 corner connector")
 	assert.GreaterOrEqual(t, len(lines), 4, "expected at least 4 lines")
 }
+
+func TestPrettyHandler_BufferModeDefersWrites(t *testing.T) {
+	var buf bytes.Buffer
+	handler := NewPrettyHandler(&PrettyHandlerOptions{
+		Writer:     &buf,
+		TimeFormat: TimeFormatTimeOnly,
+		Buffer:     true,
+	})
+	logger := slog.New(handler)
+
+	logger.Warn("source bundling failed", "context", "/tmp/spec.yaml")
+
+	assert.Empty(t, buf.String())
+	assert.Contains(t, handler.Buffered(), "source bundling failed")
+	assert.Contains(t, handler.Buffered(), "/tmp/spec.yaml")
+}
+
+func TestPrettyHandler_BufferModeFlushes(t *testing.T) {
+	var buf bytes.Buffer
+	handler := NewPrettyHandler(&PrettyHandlerOptions{
+		Writer:     &buf,
+		TimeFormat: TimeFormatTimeOnly,
+		Buffer:     true,
+	})
+	logger := slog.New(handler)
+
+	logger.Warn("source bundling failed", "context", "/tmp/spec.yaml")
+	assert.NoError(t, handler.Flush())
+
+	assert.Contains(t, buf.String(), "source bundling failed")
+	assert.Contains(t, buf.String(), "/tmp/spec.yaml")
+	assert.Empty(t, handler.Buffered())
+}
