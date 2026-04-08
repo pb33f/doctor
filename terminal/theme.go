@@ -42,6 +42,9 @@ type Palette struct {
 	Detail         color.Color
 	Nav            color.Color
 	HelpKey        color.Color
+	PrimaryBG      color.Color
+	SecondaryBG    color.Color
+	SubtleBG       color.Color
 	SelectedBG     color.Color
 	RangeBG        color.Color
 	AddedBG        color.Color
@@ -113,6 +116,9 @@ func PaletteForProfile(theme ThemeName, profile colorprofile.Profile, darkBackgr
 		Detail:         resolve(spec.detail),
 		Nav:            resolve(spec.nav),
 		HelpKey:        resolve(spec.helpKey),
+		PrimaryBG:      resolve(spec.primaryBG),
+		SecondaryBG:    resolve(spec.secondaryBG),
+		SubtleBG:       resolve(spec.subtleBG),
 		SelectedBG:     resolve(spec.selectedBG),
 		RangeBG:        resolve(spec.rangeBG),
 		AddedBG:        resolve(spec.addedBG),
@@ -133,6 +139,9 @@ type paletteSpec struct {
 	detail         colorSpec
 	nav            colorSpec
 	helpKey        colorSpec
+	primaryBG      colorSpec
+	secondaryBG    colorSpec
+	subtleBG       colorSpec
 	selectedBG     colorSpec
 	rangeBG        colorSpec
 	addedBG        colorSpec
@@ -156,6 +165,9 @@ func paletteSpecFor(theme ThemeName, darkBackground bool) paletteSpec {
 				detail:         colorSpec{ANSI: "8", ANSI256: "242", TrueColor: "#787878"},
 				nav:            colorSpec{ANSI: "8", ANSI256: "245", TrueColor: "#a7a7a7"},
 				helpKey:        colorSpec{ANSI: "15", ANSI256: "15", TrueColor: "#ffffff"},
+				primaryBG:      colorSpec{ANSI: "8", ANSI256: "236", TrueColor: "#1f1f1f"},
+				secondaryBG:    colorSpec{ANSI: "8", ANSI256: "236", TrueColor: "#2a2a2a"},
+				subtleBG:       colorSpec{ANSI: "8", ANSI256: "236", TrueColor: "#2f2f2f"},
 				selectedBG:     colorSpec{ANSI: "8", ANSI256: "238", TrueColor: "#444444"},
 				rangeBG:        colorSpec{ANSI: "8", ANSI256: "236", TrueColor: "#2f2f2f"},
 				addedBG:        colorSpec{ANSI: "8", ANSI256: "238", TrueColor: "#444444"},
@@ -175,6 +187,9 @@ func paletteSpecFor(theme ThemeName, darkBackground bool) paletteSpec {
 			detail:         colorSpec{ANSI: "8", ANSI256: "245", TrueColor: "#888888"},
 			nav:            colorSpec{ANSI: "8", ANSI256: "242", TrueColor: "#555555"},
 			helpKey:        colorSpec{ANSI: "0", ANSI256: "0", TrueColor: "#000000"},
+			primaryBG:      colorSpec{ANSI: "7", ANSI256: "255", TrueColor: "#eaf8fd"},
+			secondaryBG:    colorSpec{ANSI: "7", ANSI256: "255", TrueColor: "#fdf1fb"},
+			subtleBG:       colorSpec{ANSI: "7", ANSI256: "255", TrueColor: "#f5f5f5"},
 			selectedBG:     colorSpec{ANSI: "7", ANSI256: "252", TrueColor: "#dddddd"},
 			rangeBG:        colorSpec{ANSI: "7", ANSI256: "255", TrueColor: "#f5f5f5"},
 			addedBG:        colorSpec{ANSI: "7", ANSI256: "252", TrueColor: "#dddddd"},
@@ -190,10 +205,13 @@ func paletteSpecFor(theme ThemeName, darkBackground bool) paletteSpec {
 			modification:   colorSpec{ANSI: "10", ANSI256: "120", TrueColor: "#66ff66"},
 			removal:        colorSpec{ANSI: "10", ANSI256: "120", TrueColor: "#66ff66"},
 			breaking:       colorSpec{ANSI: "10", ANSI256: "120", TrueColor: "#66ff66"},
-			muted:          colorSpec{ANSI: "2", ANSI256: "34", TrueColor: "#22cc22"},
-			detail:         colorSpec{ANSI: "2", ANSI256: "28", TrueColor: "#1a991a"},
-			nav:            colorSpec{ANSI: "2", ANSI256: "34", TrueColor: "#22cc22"},
+			muted:          colorSpec{ANSI: "10", ANSI256: "83", TrueColor: "#33ff33"},
+			detail:         colorSpec{ANSI: "10", ANSI256: "120", TrueColor: "#66ff66"},
+			nav:            colorSpec{ANSI: "10", ANSI256: "83", TrueColor: "#33ff33"},
 			helpKey:        colorSpec{ANSI: "10", ANSI256: "120", TrueColor: "#66ff66"},
+			primaryBG:      colorSpec{ANSI: "2", ANSI256: "22", TrueColor: "#050a05"},
+			secondaryBG:    colorSpec{ANSI: "2", ANSI256: "22", TrueColor: "#0a1a0a"},
+			subtleBG:       colorSpec{ANSI: "2", ANSI256: "22", TrueColor: "#050a05"},
 			selectedBG:     colorSpec{ANSI: "2", ANSI256: "22", TrueColor: "#1e501e"},
 			rangeBG:        colorSpec{ANSI: "2", ANSI256: "22", TrueColor: "#143c14"},
 			addedBG:        colorSpec{ANSI: "2", ANSI256: "22", TrueColor: "#0a1a0a"},
@@ -213,8 +231,11 @@ func paletteSpecFor(theme ThemeName, darkBackground bool) paletteSpec {
 			detail:         colorSpec{ANSI: "8", ANSI256: LipglossLightGrey, TrueColor: "#a7a7a7"},
 			nav:            colorSpec{ANSI: "8", ANSI256: LipglossLightGrey, TrueColor: "#a7a7a7"},
 			helpKey:        colorSpec{ANSI: "13", ANSI256: "201", TrueColor: LipglossSecondaryPink},
-			selectedBG:     colorSpec{ANSI: "5", ANSI256: "60", TrueColor: "#4e3672"},
-			rangeBG:        colorSpec{ANSI: "5", ANSI256: "54", TrueColor: "#3b2957"},
+			primaryBG:      colorSpec{ANSI: "6", ANSI256: "23", TrueColor: "#002329"},
+			secondaryBG:    colorSpec{ANSI: "5", ANSI256: "53", TrueColor: "#2a1a2a"},
+			subtleBG:       colorSpec{ANSI: "8", ANSI256: "236", TrueColor: "#2f2f2f"},
+			selectedBG:     colorSpec{ANSI: "5", ANSI256: "53", TrueColor: "#4a1a4e"},
+			rangeBG:        colorSpec{ANSI: "5", ANSI256: "53", TrueColor: "#4a1a4e"},
 			addedBG:        colorSpec{ANSI: "2", ANSI256: "22", TrueColor: "#334d00"},
 			addedRangeBG:   colorSpec{ANSI: "2", ANSI256: "22", TrueColor: "#1f3000"},
 			removedBG:      colorSpec{ANSI: "1", ANSI256: "52", TrueColor: "#250911"},
