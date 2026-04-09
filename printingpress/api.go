@@ -27,7 +27,13 @@ type PrintingPressConfig struct {
 	BaseURL   string
 	BasePath  string
 	OutputDir string
+	AssetMode string
 }
+
+const (
+	HTMLAssetModePortable = "portable"
+	HTMLAssetModeServed   = "served"
+)
 
 /*
 Future design note, intentionally not part of the compiled API yet:
@@ -289,6 +295,7 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 	cfg := &pressEngineConfig{
 		OutputDir: outputDir,
 		BaseURL:   pp.config.BaseURL,
+		AssetMode: pp.config.AssetMode,
 		Title:     pp.config.Title,
 		Logger:    slog.Default(),
 		SyntheticTagFallback: &SyntheticTagFallbackConfig{
@@ -402,6 +409,18 @@ func validateAndNormalizeConfig(config *PrintingPressConfig, source pressSource)
 
 	normalized := *config
 	var issues []ValidationIssue
+
+	switch normalized.AssetMode {
+	case "", HTMLAssetModePortable:
+		normalized.AssetMode = HTMLAssetModePortable
+	case HTMLAssetModeServed:
+	default:
+		issues = append(issues, ValidationIssue{
+			Field:   "assetMode",
+			Err:     fmt.Errorf("invalid asset mode"),
+			Message: fmt.Sprintf("invalid asset mode %q: expected %q or %q", normalized.AssetMode, HTMLAssetModePortable, HTMLAssetModeServed),
+		})
+	}
 
 	switch err := validateSource(source); err {
 	case nil:

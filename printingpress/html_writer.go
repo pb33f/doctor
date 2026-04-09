@@ -60,9 +60,11 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	if err := os.MkdirAll(resolvedOutputDir, 0o755); err != nil {
 		return nil, fmt.Errorf("creating output directory: %w", err)
 	}
+	if err := cleanGeneratedHydrationAssets(resolvedOutputDir); err != nil {
+		return nil, fmt.Errorf("cleaning generated hydration assets: %w", err)
+	}
 
-	dirs := append([]string{"operations", "tags"}, modelDirs()...)
-	dirs = append(dirs, "static", "static/fonts", "static/shoelace/assets/icons")
+	dirs := []string{"static", "static/fonts", "static/shoelace/assets/icons"}
 	for _, dir := range dirs {
 		if err := os.MkdirAll(filepath.Join(resolvedOutputDir, dir), 0o755); err != nil {
 			return nil, fmt.Errorf("creating directory %s: %w", dir, err)
@@ -73,7 +75,8 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	if err != nil {
 		return nil, fmt.Errorf("copying static assets: %w", err)
 	}
-	sharedAssetPaths, err := writeHydrationAsset(resolvedOutputDir, htmlSharedDataAssetBase, sharedHydrationGlobal, buildSharedHydrationPayload(site))
+	assetMode := resolveHTMLAssetMode(site)
+	sharedAssetPaths, err := writeHydrationAsset(resolvedOutputDir, htmlSharedDataAssetBase, sharedHydrationGlobal, assetMode, buildSharedHydrationPayload(site))
 	if err != nil {
 		return nil, fmt.Errorf("writing shared hydration assets: %w", err)
 	}
@@ -87,6 +90,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	params := &pageParams{
 		SiteTitle:      title,
 		SpecFormat:     site.SpecFormat,
+		AssetMode:      assetMode,
 		SharedDataBase: htmlSharedDataAssetBase,
 		Lite:           site.Lite,
 	}
@@ -113,7 +117,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{"static/printing-press-operation.css"}
 		p.PageDataBase = filepath.ToSlash(filepath.Join(htmlPageDataAssetDir, "operations", op.Slug))
-		opAssetPaths, err := writeHydrationAsset(resolvedOutputDir, p.PageDataBase, pageHydrationGlobal, buildOperationHydrationPayload(op))
+		opAssetPaths, err := writeHydrationAsset(resolvedOutputDir, p.PageDataBase, pageHydrationGlobal, assetMode, buildOperationHydrationPayload(op))
 		if err != nil {
 			return nil, fmt.Errorf("writing operation hydration assets for %s: %w", op.Slug, err)
 		}
@@ -142,11 +146,31 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			p.BaseURL = resolveBase(resolvedBaseURL, 2)
 			p.ExtraCSS = []string{"static/printing-press-model.css"}
 			p.PageDataBase = filepath.ToSlash(filepath.Join(htmlPageDataAssetDir, "models", typeSlug, page.Slug))
-			modelAssetPaths, err := writeHydrationAsset(resolvedOutputDir, p.PageDataBase, pageHydrationGlobal, buildModelHydrationPayload(page))
+			modelAssetPaths, err := writeHydrationAsset(resolvedOutputDir, p.PageDataBase, pageHydrationGlobal, assetMode, buildModelHydrationPayload(page))
 			if err != nil {
 				return nil, fmt.Errorf("writing model hydration assets for %s/%s: %w", typeSlug, page.Slug, err)
 			}
 			staticPaths = append(staticPaths, modelAssetPaths...)
+			if diagramPayload := buildModelDiagramVisualizationPayload(page); diagramPayload != nil {
+				p.VizDiagramDataBase = filepath.ToSlash(filepath.Join(htmlVizDataAssetDir, "models", typeSlug, page.Slug+"-diagram"))
+				diagramAssetPaths, err := writeHydrationAsset(
+					resolvedOutputDir, p.VizDiagramDataBase, diagramHydrationGlobal, assetMode, diagramPayload,
+				)
+				if err != nil {
+					return nil, fmt.Errorf("writing model diagram assets for %s/%s: %w", typeSlug, page.Slug, err)
+				}
+				staticPaths = append(staticPaths, diagramAssetPaths...)
+			}
+			if graphPayload := buildModelGraphVisualizationPayload(page); graphPayload != nil {
+				p.VizGraphDataBase = filepath.ToSlash(filepath.Join(htmlVizDataAssetDir, "models", typeSlug, page.Slug+"-graph"))
+				graphAssetPaths, err := writeHydrationAsset(
+					resolvedOutputDir, p.VizGraphDataBase, graphHydrationGlobal, assetMode, graphPayload,
+				)
+				if err != nil {
+					return nil, fmt.Errorf("writing model graph assets for %s/%s: %w", typeSlug, page.Slug, err)
+				}
+				staticPaths = append(staticPaths, graphAssetPaths...)
+			}
 			modelContent := render.ModelPageTempl(page)
 			pageTitle := fmt.Sprintf("%s - %s", page.Name, title)
 			path := filepath.Join(resolvedOutputDir, "models", typeSlug, page.Slug+".html")
@@ -224,7 +248,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{"static/printing-press-operation.css"}
 		p.PageDataBase = filepath.ToSlash(filepath.Join(htmlPageDataAssetDir, "operations", wh.Slug))
-		whAssetPaths, err := writeHydrationAsset(resolvedOutputDir, p.PageDataBase, pageHydrationGlobal, buildOperationHydrationPayload(wh))
+		whAssetPaths, err := writeHydrationAsset(resolvedOutputDir, p.PageDataBase, pageHydrationGlobal, assetMode, buildOperationHydrationPayload(wh))
 		if err != nil {
 			return nil, fmt.Errorf("writing webhook hydration assets for %s: %w", wh.Slug, err)
 		}
@@ -270,6 +294,21 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	return written, nil
 }
 
+func cleanGeneratedHydrationAssets(outputDir string) error {
+	cleanupPaths := []string{
+		filepath.Join(outputDir, filepath.FromSlash(htmlPageDataAssetDir)),
+		filepath.Join(outputDir, filepath.FromSlash(htmlVizDataAssetDir)),
+		filepath.Join(outputDir, filepath.FromSlash(htmlSharedDataAssetBase+".json")),
+		filepath.Join(outputDir, filepath.FromSlash(htmlSharedDataAssetBase+".js")),
+	}
+	for _, target := range cleanupPaths {
+		if err := os.RemoveAll(target); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func resolveWriterBaseURL(site *ppmodel.Site, baseURL string) string {
 	if baseURL != "" {
 		return baseURL
@@ -282,24 +321,51 @@ func resolveWriterBaseURL(site *ppmodel.Site, baseURL string) string {
 
 // pageParams holds the shared parameters for writing a templ page.
 type pageParams struct {
-	SiteTitle      string
-	BaseURL        string
-	SpecFormat     string
-	SharedDataBase string
-	PageDataBase   string
-	ExtraCSS       []string
-	Lite           bool
+	SiteTitle          string
+	BaseURL            string
+	SpecFormat         string
+	AssetMode          string
+	SharedDataBase     string
+	PageDataBase       string
+	VizGraphDataBase   string
+	VizDiagramDataBase string
+	ExtraCSS           []string
+	Lite               bool
 }
 
 func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content templ.Component) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	layout := render.Layout(pageTitle, p.SiteTitle, p.BaseURL, activeSlug, p.SpecFormat, p.SharedDataBase, p.PageDataBase, p.ExtraCSS, p.Lite, content)
+	layout := render.Layout(
+		pageTitle,
+		p.SiteTitle,
+		p.BaseURL,
+		activeSlug,
+		p.SpecFormat,
+		p.AssetMode,
+		p.SharedDataBase,
+		p.PageDataBase,
+		p.VizGraphDataBase,
+		p.VizDiagramDataBase,
+		p.ExtraCSS,
+		p.Lite,
+		content,
+	)
 	return layout.Render(context.Background(), f)
+}
+
+func resolveHTMLAssetMode(site *ppmodel.Site) string {
+	if site == nil || site.AssetMode == "" {
+		return HTMLAssetModePortable
+	}
+	return site.AssetMode
 }
 
 // resolveBase returns the base href for a page at the given directory depth.

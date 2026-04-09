@@ -285,3 +285,14 @@ func TestCreatePrintingPress_ValidationAggregatesIssues(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNoSourceInput)
 	assert.ErrorIs(t, err, ErrInvalidBasePath)
 }
+
+func TestCreatePrintingPress_ValidationRejectsInvalidAssetMode(t *testing.T) {
+	_, err := CreatePrintingPressFromBytes([]byte("openapi: 3.1.0\ninfo:\n  title: x\n  version: 1\npaths: {}\n"), &PrintingPressConfig{
+		AssetMode: "wat",
+	})
+	require.Error(t, err)
+
+	var validationErr *ValidationError
+	require.ErrorAs(t, err, &validationErr)
+	assert.Contains(t, validationErr.Error(), "asset mode")
+}

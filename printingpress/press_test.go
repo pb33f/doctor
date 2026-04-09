@@ -169,6 +169,63 @@ func TestPrintingPress_PrintJSONArtifacts(t *testing.T) {
 	}
 }
 
+func TestPrintingPress_WritersDoNotCreateEmptyModelTypeDirs(t *testing.T) {
+	site := &Site{
+		SpecFormat: "OpenAPI 3.1",
+		Root: &RootPage{
+			Title: "Synthetic Test",
+		},
+		Models: map[string][]*ModelPage{
+			"schemas": {
+				{
+					Name:          "Widget",
+					Slug:          "widget",
+					TypeSlug:      "schemas",
+					ComponentType: "schemas",
+					SchemaJSON:    `{"type":"object"}`,
+				},
+			},
+		},
+		NavModelGroups: []*NavModelGroup{
+			{
+				Name:     "Schemas",
+				TypeSlug: "schemas",
+				Models: []*NavModel{
+					{
+						Name:     "Widget",
+						Slug:     "widget",
+						TypeSlug: "schemas",
+					},
+				},
+			},
+		},
+	}
+	unusedTypeSlug := "responses"
+
+	htmlOutputDir := t.TempDir()
+	err := WriteHTMLSite(site, htmlOutputDir, "")
+	require.NoError(t, err)
+	assertNoDirExists(t, filepath.Join(htmlOutputDir, "models", unusedTypeSlug))
+
+	jsonOutputDir := t.TempDir()
+	err = PrintJSONArtifacts(site, jsonOutputDir)
+	require.NoError(t, err)
+	assertNoDirExists(t, filepath.Join(jsonOutputDir, "models", unusedTypeSlug))
+
+	llmOutputDir := t.TempDir()
+	err = WriteLLMSite(site, llmOutputDir)
+	require.NoError(t, err)
+	assertNoDirExists(t, filepath.Join(llmOutputDir, "models", unusedTypeSlug))
+}
+
+func assertNoDirExists(t *testing.T, path string) {
+	t.Helper()
+	info, err := os.Stat(path)
+	require.Error(t, err)
+	assert.True(t, os.IsNotExist(err), "expected %s to not exist, got %v", path, err)
+	assert.Nil(t, info)
+}
+
 func TestPrintingPress_PrintJSONArtifacts_BundleAndManifest(t *testing.T) {
 	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
 	require.NoError(t, err)
@@ -266,8 +323,8 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	assert.FileExists(t, outputDir+"/models/index.html")
 	assert.FileExists(t, outputDir+"/static/printing-press.css")
 	assert.FileExists(t, outputDir+"/static/printing-press.js")
-	assert.FileExists(t, outputDir+"/static/printing-press-shared.json")
 	assert.FileExists(t, outputDir+"/static/printing-press-shared.js")
+	assert.NoFileExists(t, outputDir+"/static/printing-press-shared.json")
 
 	// Verify HTML content
 	indexHTML, err := os.ReadFile(outputDir + "/index.html")
@@ -275,11 +332,18 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	assert.Contains(t, string(indexHTML), "<!doctype html>")
 	assert.Contains(t, string(indexHTML), "Burger Shop")
 	assert.Contains(t, string(indexHTML), "pp-layout")
+	assert.Contains(t, string(indexHTML), `data-pp-asset-mode="portable"`)
 	assert.Contains(t, string(indexHTML), `data-pp-shared="static/printing-press-shared"`)
 	assert.NotContains(t, string(indexHTML), "pp-schema-registry")
 	assert.NotContains(t, string(indexHTML), "data-nav=")
 	assert.NotContains(t, string(indexHTML), "data-models=")
 	assert.NotContains(t, string(indexHTML), "data-webhooks=")
+
+	sharedJSON, err := os.ReadFile(filepath.Join(outputDir, "static", "printing-press-shared.js"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(sharedJSON), `"schemaJson"`)
+	assert.NotContains(t, string(sharedJSON), `"mockJson"`)
+	assert.Contains(t, string(sharedJSON), `"pageDataBase"`)
 
 	for _, op := range site.Operations {
 		assert.FileExists(t, outputDir+"/operations/"+op.Slug+".html")
@@ -292,8 +356,8 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 
 	require.NotEmpty(t, site.Operations)
 	op := site.Operations[0]
-	assert.FileExists(t, filepath.Join(outputDir, "static", "page-data", "operations", op.Slug+".json"))
 	assert.FileExists(t, filepath.Join(outputDir, "static", "page-data", "operations", op.Slug+".js"))
+	assert.NoFileExists(t, filepath.Join(outputDir, "static", "page-data", "operations", op.Slug+".json"))
 	opHTML, err := os.ReadFile(filepath.Join(outputDir, "operations", op.Slug+".html"))
 	require.NoError(t, err)
 	assert.Contains(t, string(opHTML), `data-pp-page="static/page-data/operations/`+op.Slug+`"`)
@@ -303,18 +367,35 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	assert.NotContains(t, string(opHTML), "content-json=")
 
 	var firstModel *ModelPage
+	var visualModel *ModelPage
 	for typeSlug, pages := range site.Models {
 		if typeSlug == "path-items" {
 			continue
 		}
 		if len(pages) > 0 {
-			firstModel = pages[0]
+			if firstModel == nil {
+				firstModel = pages[0]
+			}
+			for _, page := range pages {
+				if page.MermaidDiagram != "" || page.GraphJSON != "" {
+					visualModel = page
+					break
+				}
+			}
+		}
+		if firstModel != nil && visualModel != nil {
 			break
 		}
 	}
 	require.NotNil(t, firstModel)
-	assert.FileExists(t, filepath.Join(outputDir, "static", "page-data", "models", firstModel.TypeSlug, firstModel.Slug+".json"))
 	assert.FileExists(t, filepath.Join(outputDir, "static", "page-data", "models", firstModel.TypeSlug, firstModel.Slug+".js"))
+	assert.NoFileExists(t, filepath.Join(outputDir, "static", "page-data", "models", firstModel.TypeSlug, firstModel.Slug+".json"))
+	modelAssetJSON, err := os.ReadFile(filepath.Join(outputDir, "static", "page-data", "models", firstModel.TypeSlug, firstModel.Slug+".js"))
+	require.NoError(t, err)
+	assert.Contains(t, string(modelAssetJSON), `"model":{"name":`)
+	assert.Contains(t, string(modelAssetJSON), `"schemaJson"`)
+	assert.NotContains(t, string(modelAssetJSON), `"pp-mermaid-data"`)
+	assert.NotContains(t, string(modelAssetJSON), `"pp-graph-data"`)
 	modelHTML, err := os.ReadFile(filepath.Join(outputDir, "models", firstModel.TypeSlug, firstModel.Slug+".html"))
 	require.NoError(t, err)
 	assert.Contains(t, string(modelHTML), `data-pp-page="static/page-data/models/`+firstModel.TypeSlug+`/`+firstModel.Slug+`"`)
@@ -323,6 +404,29 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	assert.NotContains(t, string(modelHTML), "schema-raw-json=")
 	assert.NotContains(t, string(modelHTML), "schema-raw-yaml=")
 	assert.NotContains(t, string(modelHTML), "scheme-json=")
+
+	require.NotNil(t, visualModel)
+	visualHTML, err := os.ReadFile(filepath.Join(outputDir, "models", visualModel.TypeSlug, visualModel.Slug+".html"))
+	require.NoError(t, err)
+	if visualModel.MermaidDiagram != "" {
+		assert.Contains(t, string(visualHTML), `data-pp-viz-diagram="static/page-viz/models/`+visualModel.TypeSlug+`/`+visualModel.Slug+`-diagram"`)
+		assert.FileExists(t, filepath.Join(outputDir, "static", "page-viz", "models", visualModel.TypeSlug, visualModel.Slug+"-diagram.js"))
+		assert.NoFileExists(t, filepath.Join(outputDir, "static", "page-viz", "models", visualModel.TypeSlug, visualModel.Slug+"-diagram.json"))
+		diagramAssetJS, err := os.ReadFile(filepath.Join(outputDir, "static", "page-viz", "models", visualModel.TypeSlug, visualModel.Slug+"-diagram.js"))
+		require.NoError(t, err)
+		assert.Contains(t, string(diagramAssetJS), "pp-mermaid-data")
+		assert.NotContains(t, string(diagramAssetJS), "pp-graph-data")
+		assert.NotContains(t, string(diagramAssetJS), "pp-mermaid-highlighted")
+	}
+	if visualModel.GraphJSON != "" {
+		assert.Contains(t, string(visualHTML), `data-pp-viz-graph="static/page-viz/models/`+visualModel.TypeSlug+`/`+visualModel.Slug+`-graph"`)
+		assert.FileExists(t, filepath.Join(outputDir, "static", "page-viz", "models", visualModel.TypeSlug, visualModel.Slug+"-graph.js"))
+		assert.NoFileExists(t, filepath.Join(outputDir, "static", "page-viz", "models", visualModel.TypeSlug, visualModel.Slug+"-graph.json"))
+		graphAssetJS, err := os.ReadFile(filepath.Join(outputDir, "static", "page-viz", "models", visualModel.TypeSlug, visualModel.Slug+"-graph.js"))
+		require.NoError(t, err)
+		assert.Contains(t, string(graphAssetJS), "pp-graph-data")
+		assert.NotContains(t, string(graphAssetJS), "pp-mermaid-data")
+	}
 }
 
 func TestPrintingPress_WriteHTMLSite_UsesConfigOutputDirAndBaseURL(t *testing.T) {
@@ -354,6 +458,98 @@ func TestPrintingPress_WriteHTMLSite_UsesConfigOutputDirAndBaseURL(t *testing.T)
 	indexHTML, err := os.ReadFile(outputDir + "/index.html")
 	require.NoError(t, err)
 	assert.Contains(t, string(indexHTML), `<base href="/docs/">`)
+}
+
+func TestPrintingPress_WriteHTMLSite_ServedModeWritesJSONAssets(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	doc, err := libopenapi.NewDocument(specBytes)
+	require.NoError(t, err)
+
+	v3Model, buildErr := doc.BuildV3Model()
+	require.NoError(t, buildErr)
+
+	drDoc := model.NewDrDocument(v3Model)
+
+	pp := newPressEngine(&pressEngineConfig{DrDoc: drDoc, Title: "Burger Shop", AssetMode: HTMLAssetModeServed})
+	site, err := pp.pressSite()
+	require.NoError(t, err)
+
+	outputDir := t.TempDir()
+	err = WriteHTMLSite(site, outputDir, "")
+	require.NoError(t, err)
+
+	indexHTML, err := os.ReadFile(filepath.Join(outputDir, "index.html"))
+	require.NoError(t, err)
+	assert.Contains(t, string(indexHTML), `data-pp-asset-mode="served"`)
+	assert.FileExists(t, filepath.Join(outputDir, "static", "printing-press-shared.json"))
+	assert.NoFileExists(t, filepath.Join(outputDir, "static", "printing-press-shared.js"))
+
+	require.NotEmpty(t, site.Operations)
+	assert.FileExists(t, filepath.Join(outputDir, "static", "page-data", "operations", site.Operations[0].Slug+".json"))
+	assert.NoFileExists(t, filepath.Join(outputDir, "static", "page-data", "operations", site.Operations[0].Slug+".js"))
+}
+
+func TestPrintingPress_WriteHTMLSite_CleansStaleHydrationAssetsBetweenModes(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	doc, err := libopenapi.NewDocument(specBytes)
+	require.NoError(t, err)
+
+	v3Model, buildErr := doc.BuildV3Model()
+	require.NoError(t, buildErr)
+
+	drDoc := model.NewDrDocument(v3Model)
+	outputDir := t.TempDir()
+
+	portable := newPressEngine(&pressEngineConfig{DrDoc: drDoc, Title: "Burger Shop", AssetMode: HTMLAssetModePortable})
+	portableSite, err := portable.pressSite()
+	require.NoError(t, err)
+	err = WriteHTMLSite(portableSite, outputDir, "")
+	require.NoError(t, err)
+
+	require.NotEmpty(t, portableSite.Operations)
+	opSlug := portableSite.Operations[0].Slug
+	assert.FileExists(t, filepath.Join(outputDir, "static", "printing-press-shared.js"))
+	assert.FileExists(t, filepath.Join(outputDir, "static", "page-data", "operations", opSlug+".js"))
+
+	served := newPressEngine(&pressEngineConfig{DrDoc: drDoc, Title: "Burger Shop", AssetMode: HTMLAssetModeServed})
+	servedSite, err := served.pressSite()
+	require.NoError(t, err)
+	err = WriteHTMLSite(servedSite, outputDir, "")
+	require.NoError(t, err)
+
+	assert.FileExists(t, filepath.Join(outputDir, "static", "printing-press-shared.json"))
+	assert.NoFileExists(t, filepath.Join(outputDir, "static", "printing-press-shared.js"))
+	assert.FileExists(t, filepath.Join(outputDir, "static", "page-data", "operations", opSlug+".json"))
+	assert.NoFileExists(t, filepath.Join(outputDir, "static", "page-data", "operations", opSlug+".js"))
+
+	var visualModel *ModelPage
+	for typeSlug, pages := range servedSite.Models {
+		if typeSlug == "path-items" {
+			continue
+		}
+		for _, page := range pages {
+			if page.MermaidDiagram != "" || page.GraphJSON != "" {
+				visualModel = page
+				break
+			}
+		}
+		if visualModel != nil {
+			break
+		}
+	}
+	require.NotNil(t, visualModel)
+	if visualModel.MermaidDiagram != "" {
+		assert.FileExists(t, filepath.Join(outputDir, "static", "page-viz", "models", visualModel.TypeSlug, visualModel.Slug+"-diagram.json"))
+		assert.NoFileExists(t, filepath.Join(outputDir, "static", "page-viz", "models", visualModel.TypeSlug, visualModel.Slug+"-diagram.js"))
+	}
+	if visualModel.GraphJSON != "" {
+		assert.FileExists(t, filepath.Join(outputDir, "static", "page-viz", "models", visualModel.TypeSlug, visualModel.Slug+"-graph.json"))
+		assert.NoFileExists(t, filepath.Join(outputDir, "static", "page-viz", "models", visualModel.TypeSlug, visualModel.Slug+"-graph.js"))
+	}
 }
 
 func TestPrintingPress_PrintJSONArtifacts_UsesConfigOutputDir(t *testing.T) {

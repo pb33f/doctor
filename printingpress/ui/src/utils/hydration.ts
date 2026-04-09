@@ -1,4 +1,5 @@
 import {setSchemaRegistryEntries, type RegistryEntry} from './schema-registry.js';
+import {getBodyData, loadAsset} from './asset-loader.js';
 
 interface HydrationChild {
   tag: 'script' | 'template';
@@ -13,51 +14,25 @@ interface HydrationPayload {
   attributes?: Record<string, Record<string, string>>;
   children?: Record<string, HydrationChild[]>;
   schemaRegistry?: Record<string, RegistryEntry>;
+  model?: {
+    name: string;
+    componentType: string;
+    description?: string;
+    typeSlug: string;
+    slug: string;
+    schemaJson: string;
+    mockJson?: string;
+    rawYaml?: string;
+    schemaRawYaml?: string;
+    schemaRawJson?: string;
+  };
 }
 
 const sharedGlobalName = '__PP_SHARED_DATA__';
 const pageGlobalName = '__PP_PAGE_DATA__';
 
-function getBodyData(key: 'ppShared' | 'ppPage'): string {
-  const body = document.body as HTMLBodyElement & {dataset: DOMStringMap};
-  return body?.dataset?.[key] || '';
-}
-
-async function loadScriptPayload(assetBase: string, globalName: string): Promise<HydrationPayload | null> {
-  await new Promise<void>((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = `${assetBase}.js`;
-    script.async = false;
-    script.onload = () => {
-      script.remove();
-      resolve();
-    };
-    script.onerror = () => {
-      script.remove();
-      reject(new Error(`unable to load script payload: ${assetBase}.js`));
-    };
-    document.head.appendChild(script);
-  });
-
-  const payload = (globalThis as Record<string, unknown>)[globalName] as HydrationPayload | undefined;
-  delete (globalThis as Record<string, unknown>)[globalName];
-  return payload || null;
-}
-
-async function loadJSONPayload(assetBase: string): Promise<HydrationPayload | null> {
-  const response = await fetch(`${assetBase}.json`);
-  if (!response.ok) {
-    throw new Error(`unable to fetch hydration payload: ${assetBase}.json (${response.status})`);
-  }
-  return await response.json() as HydrationPayload;
-}
-
 async function loadHydrationPayload(assetBase: string, globalName: string): Promise<HydrationPayload | null> {
-  if (!assetBase) return null;
-  if (window.location.protocol === 'file:') {
-    return loadScriptPayload(assetBase, globalName);
-  }
-  return loadJSONPayload(assetBase);
+  return loadAsset<HydrationPayload>(assetBase, globalName);
 }
 
 function applyAttributes(attributes: Record<string, Record<string, string>>) {
@@ -111,6 +86,33 @@ function applyHydrationPayload(payload: HydrationPayload | null) {
   }
   if (payload.children) {
     applyChildren(payload.children);
+  }
+  if (payload.model) {
+    applyModelPayload(payload.model);
+  }
+}
+
+function applyModelPayload(model: NonNullable<HydrationPayload['model']>) {
+  const modelPage = document.getElementById('pp-model-page');
+  if (modelPage) {
+    modelPage.setAttribute('model-json', model.schemaJson);
+    if (model.mockJson) {
+      modelPage.setAttribute('mock-json', model.mockJson);
+    }
+    if (model.rawYaml) {
+      modelPage.setAttribute('raw-yaml', model.rawYaml);
+    }
+    if (model.schemaRawYaml) {
+      modelPage.setAttribute('schema-raw-yaml', model.schemaRawYaml);
+    }
+    if (model.schemaRawJson) {
+      modelPage.setAttribute('schema-raw-json', model.schemaRawJson);
+    }
+  }
+
+  const securityScheme = document.getElementById('pp-model-security-scheme');
+  if (securityScheme) {
+    securityScheme.setAttribute('scheme-json', model.schemaJson);
   }
 }
 

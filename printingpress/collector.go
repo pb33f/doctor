@@ -902,7 +902,6 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 					diagram := diagramatron.Mermaidify(context.Background(), sp, mermaidCfg)
 					if len(diagram.Relationships) > 0 {
 						page.MermaidDiagram = diagram.Render()
-						page.MermaidHighlightedHTML, _ = highlightCode(page.MermaidDiagram, "java")
 					}
 				}
 			}
