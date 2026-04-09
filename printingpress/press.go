@@ -8,6 +8,7 @@ import (
 	"context"
 	"log/slog"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -32,6 +33,9 @@ type pressEngineConfig struct {
 	Logger        *slog.Logger
 	SpecFormat    string // "yaml" or "json" — caller should set based on input format
 	SpecRoot      string // root directory of the spec; absolute paths are made relative to this
+	SpecPath      string // absolute local path to the root spec file when known
+	SpecLocation  string // display path of the root spec file relative to SpecRoot when possible
+	SpecURL       string // optional published source URL for the root spec file
 	NoMermaid     bool   // skip mermaid class diagram generation on model pages
 	NoExplorer    bool   // skip dependency explorer on model pages
 	BuildWarnings []*BuildWarning
@@ -112,10 +116,34 @@ func (pp *PrintingPress) initEngine(config *pressEngineConfig) {
 	pp.site = &Site{
 		Models: make(map[string][]*ModelPage),
 	}
+	if source := buildRootSourceRef(config); source != nil {
+		pp.site.Source = source
+	}
 	pp.warnings = nil
 	pp.modelIndex = nil
 	pp.syntheticTags = resolveSyntheticTagFallbackConfig(config)
 	pp.modelBuilt = false
+}
+
+func buildRootSourceRef(config *pressEngineConfig) *SourceRef {
+	if config == nil {
+		return nil
+	}
+	path := config.SpecLocation
+	if path == "" {
+		path = config.SpecPath
+	}
+	href := strings.TrimSpace(config.SpecURL)
+	if href == "" {
+		href = strings.TrimSpace(config.SpecPath)
+	}
+	if path == "" && href == "" {
+		return nil
+	}
+	return &SourceRef{
+		Path: path,
+		Href: href,
+	}
 }
 
 func resolveSyntheticTagFallbackConfig(config *pressEngineConfig) resolvedSyntheticTagFallbackConfig {

@@ -53,6 +53,41 @@ func TestBuildCurlCommandsPostJSONBody(t *testing.T) {
 	assert.Contains(t, cmd, `-d '{"name":"cheese"}'`)
 }
 
+func TestBuildCurlCommandsJSONPatchUsesDerivedPayloadAndContentType(t *testing.T) {
+	op := &OperationPage{
+		Method: "PATCH",
+		Path:   "/auth-org/lockout-config",
+		RequestBody: &RequestBodyInfo{
+			Content: []*MediaTypeInfo{
+				{
+					MediaType: "application/json-patch+json",
+					MockJSON:  `[{"op":"replace","path":"/maximumAttempts","value":"7,"},{"op":"add","path":"/lockoutDuration","value":35}]`,
+				},
+			},
+		},
+		Responses: []*ResponseInfo{
+			{
+				StatusCode: "200",
+				Content: []*MediaTypeInfo{
+					{
+						MediaType:  "application/json",
+						SchemaJSON: `{"type":"object","properties":{"lockoutDuration":{"type":"integer","example":15},"lockoutWindow":{"type":"integer","example":5},"maximumAttempts":{"type":"integer","example":5}}}`,
+						MockJSON:   `{"lockoutDuration":15,"lockoutWindow":5,"maximumAttempts":5}`,
+					},
+				},
+			},
+		},
+	}
+
+	variants := BuildCurlCommands(op, []*ServerInfo{{URL: "https://api.example.com"}}, nil)
+	require.Len(t, variants, 1)
+
+	cmd := variants[0].Command
+	assert.Contains(t, cmd, "-H 'Content-Type: application/json-patch+json'")
+	assert.Contains(t, cmd, `-d '[{"op":"replace","path":"/maximumAttempts","value":5},{"op":"replace","path":"/lockoutDuration","value":15}]'`)
+	assert.NotContains(t, cmd, `"7,"`)
+}
+
 func TestBuildCurlCommandsSecurityGroupsCreateVariants(t *testing.T) {
 	op := &OperationPage{
 		Method: "GET",

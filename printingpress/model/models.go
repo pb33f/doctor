@@ -29,6 +29,7 @@ type Site struct {
 	OutputDir      string                          `json:"-"` // default writer output directory from config
 	BaseURL        string                          `json:"-"` // default HTML base URL from config
 	AssetMode      string                          `json:"-"` // html hydration asset mode: portable or served
+	Source         *SourceRef                      `json:"source,omitempty"`
 }
 
 // SchemaRegistryEntry holds the data needed for hover popovers on $ref links.
@@ -56,6 +57,14 @@ type RootPage struct {
 	UntaggedOperations []*NavOperation
 	Webhooks           []*NavOperation
 	Warnings           []*BuildWarning
+	Source             *SourceRef `json:"source,omitempty"`
+}
+
+// SourceRef points back to the originating specification file for a rendered page or object.
+type SourceRef struct {
+	Path string `json:"path,omitempty"`
+	Line int    `json:"line,omitempty"`
+	Href string `json:"href,omitempty"`
 }
 
 // ContactInfo holds API contact metadata.
@@ -182,6 +191,7 @@ type OperationPage struct {
 	RawYAML               string            `json:"-"` // re-rendered YAML from Render(), for raw viewer
 	SourceLine            int               `json:"-"` // 1-based YAML line number of the operation
 	Location              string            `json:"-"` // source file path for multi-file specs
+	Source                *SourceRef        `json:"source,omitempty"`
 	CrossRefs             *OperationCrossRefs
 }
 
@@ -205,6 +215,7 @@ type ParameterInfo struct {
 	RawYAML     string            `json:"rawYaml,omitempty"`
 	SourceLine  int               `json:"sourceLine,omitempty"`
 	Location    string            `json:"location,omitempty"`
+	Source      *SourceRef        `json:"source,omitempty"`
 	Extensions  []*ExtensionEntry `json:"extensions,omitempty"`
 }
 
@@ -219,6 +230,7 @@ type RequestBodyInfo struct {
 	RawYAML        string            `json:"rawYaml,omitempty"`
 	SourceLine     int               `json:"sourceLine,omitempty"`
 	Location       string            `json:"location,omitempty"`
+	Source         *SourceRef        `json:"source,omitempty"`
 	Extensions     []*ExtensionEntry `json:"extensions,omitempty"`
 	ExtensionsJSON string            `json:"-"`
 }
@@ -252,6 +264,7 @@ type ResponseInfo struct {
 	RawYAML     string            `json:"rawYaml,omitempty"`
 	SourceLine  int               `json:"sourceLine,omitempty"`
 	Location    string            `json:"location,omitempty"`
+	Source      *SourceRef        `json:"source,omitempty"`
 	Extensions  []*ExtensionEntry `json:"extensions,omitempty"`
 }
 
@@ -315,6 +328,7 @@ type ModelPage struct {
 	Examples                 map[string]string
 	ExamplesJSON             string // pre-serialized for Lit component
 	Origin                   *bundler.ComponentOrigin
+	Source                   *SourceRef `json:"source,omitempty"`
 	Extensions               []*ExtensionEntry
 	ExtensionsJSON           string `json:"-"`
 	CrossRefs                *ModelCrossRefs

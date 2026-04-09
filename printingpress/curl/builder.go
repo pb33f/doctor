@@ -252,7 +252,7 @@ func buildCurlCommand(op *ppmodel.OperationPage, serverURL string, group *ppmode
 	if method != "GET" && method != "HEAD" {
 		if mediaType := selectRequestMediaType(op.RequestBody); mediaType != nil {
 			bodyContentType = mediaType.MediaType
-			bodyFlags = buildRequestBodyFlags(mediaType)
+			bodyFlags = buildRequestBodyFlags(op, mediaType)
 			if len(bodyFlags) == 0 {
 				bodyContentType = ""
 			}
@@ -467,6 +467,7 @@ func selectRequestMediaType(body *ppmodel.RequestBodyInfo) *ppmodel.MediaTypeInf
 	}
 
 	preferred := []string{
+		"application/json-patch+json",
 		"application/json",
 		"application/xml",
 		"multipart/form-data",
@@ -489,14 +490,20 @@ func selectRequestMediaType(body *ppmodel.RequestBodyInfo) *ppmodel.MediaTypeInf
 	return nil
 }
 
-func buildRequestBodyFlags(mediaType *ppmodel.MediaTypeInfo) []string {
+func buildRequestBodyFlags(op *ppmodel.OperationPage, mediaType *ppmodel.MediaTypeInfo) []string {
 	if mediaType == nil {
 		return nil
 	}
 
 	switch strings.ToLower(mediaType.MediaType) {
+	case "application/json-patch+json":
+		body := selectJSONBodyPayload(op, mediaType)
+		if body == "" {
+			return nil
+		}
+		return []string{fmt.Sprintf("-d %s", shellQuote(body))}
 	case "application/json":
-		body := compactJSON(mediaType.MockJSON)
+		body := selectJSONBodyPayload(op, mediaType)
 		if body == "" {
 			return nil
 		}
@@ -541,6 +548,225 @@ func buildRequestBodyFlags(mediaType *ppmodel.MediaTypeInfo) []string {
 		return []string{"--data-binary @file.bin"}
 	default:
 		return nil
+	}
+}
+
+func selectJSONBodyPayload(op *ppmodel.OperationPage, mediaType *ppmodel.MediaTypeInfo) string {
+	if mediaType == nil {
+		return ""
+	}
+	if strings.EqualFold(mediaType.MediaType, "application/json-patch+json") {
+		if body := deriveJSONPatchBodyPayload(op, mediaType); body != "" {
+			return body
+		}
+	}
+	if body := compactFirstJSONExample(mediaType.Examples); body != "" {
+		return body
+	}
+	return compactJSON(mediaType.MockJSON)
+}
+
+func compactFirstJSONExample(examples map[string]string) string {
+	if len(examples) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(examples))
+	for key := range examples {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if body := compactJSON(examples[key]); body != "" {
+			return body
+		}
+	}
+	return ""
+}
+
+func deriveJSONPatchBodyPayload(op *ppmodel.OperationPage, mediaType *ppmodel.MediaTypeInfo) string {
+	paths := deriveJSONPatchPaths(op, mediaType)
+	if len(paths) == 0 {
+		return ""
+	}
+
+	values := deriveJSONPatchValues(op)
+	limit := len(paths)
+	if limit > 2 {
+		limit = 2
+	}
+
+	ops := make([]map[string]any, 0, limit)
+	for i := 0; i < limit; i++ {
+		path := paths[i]
+		prop := strings.TrimPrefix(path, "/")
+		value, ok := values[prop]
+		if !ok {
+			value = "value"
+		}
+		ops = append(ops, map[string]any{
+			"op":    "replace",
+			"path":  path,
+			"value": value,
+		})
+	}
+
+	payload, err := json.Marshal(ops)
+	if err != nil {
+		return ""
+	}
+	return string(payload)
+}
+
+func deriveJSONPatchPaths(op *ppmodel.OperationPage, mediaType *ppmodel.MediaTypeInfo) []string {
+	seen := make(map[string]bool)
+	var paths []string
+
+	addPath := func(path string) {
+		path = strings.TrimSpace(path)
+		if path == "" || !strings.HasPrefix(path, "/") || seen[path] {
+			return
+		}
+		seen[path] = true
+		paths = append(paths, path)
+	}
+
+	for _, path := range patchPathsFromJSONArray(mediaType.MockJSON) {
+		addPath(path)
+	}
+	for _, path := range patchPathsFromResponses(op) {
+		addPath(path)
+	}
+
+	return paths
+}
+
+func patchPathsFromJSONArray(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	var payload []map[string]any
+	if json.Unmarshal([]byte(raw), &payload) != nil {
+		return nil
+	}
+	var paths []string
+	for _, item := range payload {
+		path, ok := item["path"].(string)
+		if ok && strings.HasPrefix(path, "/") {
+			paths = append(paths, path)
+		}
+	}
+	return paths
+}
+
+func patchPathsFromResponses(op *ppmodel.OperationPage) []string {
+	props := responsePropertySchemas(op)
+	if len(props) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(props))
+	for name := range props {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	paths := make([]string, 0, len(names))
+	for _, name := range names {
+		paths = append(paths, "/"+name)
+	}
+	return paths
+}
+
+func deriveJSONPatchValues(op *ppmodel.OperationPage) map[string]any {
+	props := responsePropertySchemas(op)
+	if len(props) == 0 {
+		return nil
+	}
+	values := make(map[string]any, len(props))
+	for name, prop := range props {
+		if value, ok := exampleValueFromSchemaMap(prop); ok {
+			values[name] = value
+		}
+	}
+	return values
+}
+
+func responsePropertySchemas(op *ppmodel.OperationPage) map[string]map[string]any {
+	if op == nil {
+		return nil
+	}
+	for _, resp := range op.Responses {
+		if resp == nil || !strings.HasPrefix(resp.StatusCode, "2") {
+			continue
+		}
+		for _, content := range resp.Content {
+			if content == nil || content.SchemaJSON == "" {
+				continue
+			}
+			var schema map[string]any
+			if json.Unmarshal([]byte(content.SchemaJSON), &schema) != nil {
+				continue
+			}
+			rawProps, ok := schema["properties"].(map[string]any)
+			if !ok || len(rawProps) == 0 {
+				continue
+			}
+			props := make(map[string]map[string]any, len(rawProps))
+			for name, raw := range rawProps {
+				prop, ok := raw.(map[string]any)
+				if !ok {
+					continue
+				}
+				props[name] = prop
+			}
+			if len(props) > 0 {
+				return props
+			}
+		}
+	}
+	return nil
+}
+
+func exampleValueFromSchemaMap(schema map[string]any) (any, bool) {
+	if schema == nil {
+		return nil, false
+	}
+	if value, ok := schema["example"]; ok && value != nil {
+		return value, true
+	}
+	if value, ok := schema["default"]; ok && value != nil {
+		return value, true
+	}
+	switch rawType := schema["type"].(type) {
+	case string:
+		return placeholderValueForType(rawType)
+	case []any:
+		for _, item := range rawType {
+			typeName, ok := item.(string)
+			if !ok || typeName == "null" {
+				continue
+			}
+			return placeholderValueForType(typeName)
+		}
+	}
+	return nil, false
+}
+
+func placeholderValueForType(typeName string) (any, bool) {
+	switch typeName {
+	case "string":
+		return "string", true
+	case "integer":
+		return 0, true
+	case "number":
+		return 0.0, true
+	case "boolean":
+		return true, true
+	case "array":
+		return []any{}, true
+	case "object":
+		return map[string]any{}, true
+	default:
+		return nil, false
 	}
 }
 

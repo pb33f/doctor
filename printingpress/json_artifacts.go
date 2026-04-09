@@ -19,6 +19,7 @@ const (
 type JSONBundle struct {
 	Format         string                                  `json:"format"`
 	Root           *JSONRootPage                           `json:"root,omitempty"`
+	Source         *ppmodel.SourceRef                      `json:"source,omitempty"`
 	Nav            []*ppmodel.NavTag                       `json:"nav,omitempty"`
 	ModelGroups    []*ppmodel.NavModelGroup                `json:"modelGroups,omitempty"`
 	SchemaRegistry map[string]*ppmodel.SchemaRegistryEntry `json:"schemaRegistry,omitempty"`
@@ -46,6 +47,7 @@ type JSONRootPage struct {
 	UntaggedOperations []*ppmodel.NavOperation             `json:"untaggedOperations,omitempty"`
 	Webhooks           []*ppmodel.NavOperation             `json:"webhooks,omitempty"`
 	Warnings           []JSONBuildWarning                  `json:"warnings,omitempty"`
+	Source             *ppmodel.SourceRef                  `json:"source,omitempty"`
 }
 
 // JSONContactInfo is the bundle-facing contact shape.
@@ -118,6 +120,7 @@ func buildJSONBundle(site *ppmodel.Site) *JSONBundle {
 	bundle := &JSONBundle{
 		Format:         jsonBundleFormat,
 		Root:           buildJSONRootPage(site.Root),
+		Source:         site.Source,
 		Nav:            site.NavTags,
 		ModelGroups:    site.NavModelGroups,
 		SchemaRegistry: site.SchemaRegistry,
@@ -151,6 +154,7 @@ func buildJSONRootPage(root *ppmodel.RootPage) *JSONRootPage {
 		UntaggedOperations: root.UntaggedOperations,
 		Webhooks:           root.Webhooks,
 		Warnings:           buildJSONWarnings(root.Warnings),
+		Source:             root.Source,
 	}
 }
 

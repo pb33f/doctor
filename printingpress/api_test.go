@@ -163,6 +163,95 @@ func TestCreatePrintingPress_SpecBytesUseConfiguredBasePath(t *testing.T) {
 	assert.FileExists(t, filepath.Join(outputDir, "index.html"))
 }
 
+func TestCreatePrintingPress_UsesConfiguredSpecPathForSourceMetadata(t *testing.T) {
+	specPath := filepath.Join("..", "test_specs", "burgershop.openapi.yaml")
+	specBytes, err := os.ReadFile(specPath)
+	require.NoError(t, err)
+
+	outputDir := t.TempDir()
+	pp, err := CreatePrintingPressFromBytes(specBytes, &PrintingPressConfig{
+		BasePath:  filepath.Dir(specPath),
+		SpecPath:  specPath,
+		OutputDir: outputDir,
+	})
+	require.NoError(t, err)
+
+	_, err = pp.PrintLLM()
+	require.NoError(t, err)
+
+	opBytes, err := os.ReadFile(filepath.Join(outputDir, "operations", "locate-burger.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(opBytes), "**Source:** [burgershop.openapi.yaml:")
+}
+
+func TestCreatePrintingPress_UsesSpecURLForRenderedSourceLinksAndJSON(t *testing.T) {
+	specPath := filepath.Join("..", "test_specs", "burgershop.openapi.yaml")
+	specBytes, err := os.ReadFile(specPath)
+	require.NoError(t, err)
+
+	outputDir := t.TempDir()
+	specURL := "https://example.com/repo/blob/main/burgershop.openapi.yaml"
+	pp, err := CreatePrintingPressFromBytes(specBytes, &PrintingPressConfig{
+		BasePath:  filepath.Dir(specPath),
+		SpecPath:  specPath,
+		SpecURL:   specURL,
+		OutputDir: outputDir,
+	})
+	require.NoError(t, err)
+
+	_, err = pp.PrintLLM()
+	require.NoError(t, err)
+
+	indexBytes, err := os.ReadFile(filepath.Join(outputDir, "llms.txt"))
+	require.NoError(t, err)
+	assert.Contains(t, string(indexBytes), "**Source spec:** [burgershop.openapi.yaml]("+specURL+")")
+
+	opBytes, err := os.ReadFile(filepath.Join(outputDir, "operations", "locate-burger.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(opBytes), "https://example.com/repo/blob/main/burgershop.openapi.yaml#L")
+
+	site, err := pp.PressModel()
+	require.NoError(t, err)
+	err = PrintJSONArtifacts(site, "")
+	require.NoError(t, err)
+
+	bundleJSON, err := os.ReadFile(filepath.Join(outputDir, "bundle.json"))
+	require.NoError(t, err)
+
+	var bundle JSONBundle
+	require.NoError(t, json.Unmarshal(bundleJSON, &bundle))
+	require.NotNil(t, bundle.Source)
+	assert.Equal(t, "burgershop.openapi.yaml", bundle.Source.Path)
+	assert.Equal(t, specURL, bundle.Source.Href)
+
+	operationJSON, err := os.ReadFile(filepath.Join(outputDir, "operations", "locate-burger.json"))
+	require.NoError(t, err)
+	var operationArtifact map[string]any
+	require.NoError(t, json.Unmarshal(operationJSON, &operationArtifact))
+	source, ok := operationArtifact["source"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "burgershop.openapi.yaml", source["path"])
+	assert.True(t, strings.HasPrefix(source["href"].(string), specURL+"#L"))
+}
+
+func TestCreatePrintingPress_DefaultSpecPathMatchesDetectedFormat(t *testing.T) {
+	yamlBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	yamlPP, err := CreatePrintingPressFromBytes(yamlBytes, &PrintingPressConfig{})
+	require.NoError(t, err)
+	require.NotNil(t, yamlPP.config)
+	assert.True(t, strings.HasSuffix(yamlPP.config.SpecPath, "openapi.yaml"))
+
+	jsonBytes, err := os.ReadFile("../test_specs/petstorev3.json")
+	require.NoError(t, err)
+
+	jsonPP, err := CreatePrintingPressFromBytes(jsonBytes, &PrintingPressConfig{})
+	require.NoError(t, err)
+	require.NotNil(t, jsonPP.config)
+	assert.True(t, strings.HasSuffix(jsonPP.config.SpecPath, "openapi.json"))
+}
+
 func TestCreatePrintingPress_BundlingFallbackWarningExposed(t *testing.T) {
 	specPath := filepath.Join("..", "test_specs", "test-relative", "spec.yaml")
 	specBytes, err := os.ReadFile(specPath)
