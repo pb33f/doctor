@@ -34,9 +34,8 @@ func PrintJSONArtifacts(site *ppmodel.Site, outputDir string) error {
 		return fmt.Errorf("creating output directory: %w", err)
 	}
 
-	// Create subdirectories
-	dirs := append([]string{"operations"}, modelDirs()...)
-	dirs = append(dirs, "static")
+	// Create shared subdirectories.
+	dirs := []string{"static"}
 	for _, dir := range dirs {
 		if err := os.MkdirAll(filepath.Join(resolvedOutputDir, dir), 0o755); err != nil {
 			return fmt.Errorf("creating directory %s: %w", dir, err)
@@ -111,6 +110,9 @@ func resolveWriterOutputDir(site *ppmodel.Site, outputDir string) (string, error
 func writeJSONFile(path string, data any) error {
 	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
 	return os.WriteFile(path, b, 0o644)

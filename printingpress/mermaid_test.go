@@ -233,11 +233,15 @@ components:
 		"customer page should contain <pp-class-diagram>")
 	assert.True(t, strings.Contains(string(customerHTML), `data-pp-page="static/page-data/models/schemas/customer"`),
 		"customer page should reference model hydration data")
+	assert.True(t, strings.Contains(string(customerHTML), `data-pp-viz-diagram="static/page-viz/models/schemas/customer-diagram"`),
+		"customer page should reference diagram hydration data")
 
-	customerHydration, err := os.ReadFile(filepath.Join(outDir, "static", "page-data", "models", "schemas", "customer.json"))
+	customerHydration, err := os.ReadFile(filepath.Join(outDir, "static", "page-viz", "models", "schemas", "customer-diagram.js"))
 	require.NoError(t, err)
 	assert.True(t, strings.Contains(string(customerHydration), "pp-mermaid-data"),
-		"customer hydration payload should contain mermaid data")
+		"customer diagram payload should contain mermaid data")
+	assert.False(t, strings.Contains(string(customerHydration), "pp-mermaid-highlighted"),
+		"customer diagram payload should not contain pre-highlighted mermaid html")
 
 	// Simple page should NOT contain <pp-class-diagram>
 	simpleHTML, err := os.ReadFile(filepath.Join(outDir, "models", "schemas", "simple.html"))

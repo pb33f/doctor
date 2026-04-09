@@ -1,7 +1,14 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state, query} from 'lit/decorators.js';
 import refPopoverCss from './ref-popover.css.js';
-import {getSchemaEntry, getSchemaEntryByRef, type RegistryEntry} from '../../utils/schema-registry.js';
+import {
+    getSchemaEntry,
+    getSchemaEntryByRef,
+    loadSchemaModel,
+    loadSchemaModelByRef,
+    type CanonicalModelData,
+    type RegistryEntry,
+} from '../../utils/schema-registry.js';
 import './schema-properties.js';
 import './code-viewer.js';
 import './icon-title.js';
@@ -14,6 +21,7 @@ export class PpRefPopover extends LitElement {
     @property({attribute: 'schema-ref'}) schemaRef = '';
     @state() private active = false;
     @state() private entry: RegistryEntry | null = null;
+    @state() private model: CanonicalModelData | null = null;
     @state() private parsedData: any = null;
 
     private showTimeout?: number;
@@ -29,14 +37,19 @@ export class PpRefPopover extends LitElement {
 
     private show() {
         clearTimeout(this.hideTimeout);
-        this.showTimeout = window.setTimeout(() => {
+        this.showTimeout = window.setTimeout(async () => {
             this.entry = (this.registryKey
                 ? getSchemaEntry(this.registryKey)
                 : getSchemaEntryByRef(this.schemaRef)) ?? null;
-            if (this.entry) {
-                try { this.parsedData = JSON.parse(this.entry.schemaJson); } catch { this.parsedData = null; }
-                this.active = true;
-            }
+            if (!this.entry) return;
+
+            this.model = (this.registryKey
+                ? await loadSchemaModel(this.registryKey)
+                : await loadSchemaModelByRef(this.schemaRef)) ?? null;
+            if (!this.model) return;
+
+            try { this.parsedData = JSON.parse(this.model.schemaJson); } catch { this.parsedData = null; }
+            this.active = true;
         }, 300);
     }
 
@@ -52,7 +65,7 @@ export class PpRefPopover extends LitElement {
     }
 
     private resolveExample(): string | null {
-        if (this.entry?.mockJson) return this.entry.mockJson;
+        if (this.model?.mockJson) return this.model.mockJson;
         const data = this.parsedData;
         if (!data) return null;
         if (data.schema?.example !== undefined) return JSON.stringify(data.schema.example);
@@ -62,12 +75,12 @@ export class PpRefPopover extends LitElement {
     }
 
     private getSchemaJson(): string {
-        if (!this.entry) return '';
+        if (!this.model) return '';
         const data = this.parsedData;
-        if (!data) return this.entry.schemaJson;
+        if (!data) return this.model.schemaJson;
         // parameter or header — pass the nested schema object
         if (data.schema) return JSON.stringify(data.schema);
-        return this.entry.schemaJson;
+        return this.model.schemaJson;
     }
 
     private formatJson(json: string): string {

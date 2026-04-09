@@ -27,6 +27,7 @@ type pressEngineConfig struct {
 	Origins       bundler.ComponentOriginMap
 	OutputDir     string
 	BaseURL       string
+	AssetMode     string
 	Title         string
 	Logger        *slog.Logger
 	SpecFormat    string // "yaml" or "json" — caller should set based on input format
@@ -288,6 +289,7 @@ func (pp *PrintingPress) pressSite() (*Site, error) {
 	}
 	pp.site.OutputDir = pp.engineConfig.OutputDir
 	pp.site.BaseURL = pp.engineConfig.BaseURL
+	pp.site.AssetMode = pp.engineConfig.AssetMode
 	pp.site.SpecFormat = pp.engineConfig.SpecFormat
 	if pp.site.SpecFormat == "" {
 		pp.site.SpecFormat = "yaml"

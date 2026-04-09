@@ -4,6 +4,7 @@ import {ExplorerComponent} from '@pb33f/cowboy-components/components/visualizer/
 import {ExplorerNodeClicked} from '@pb33f/cowboy-components/events/doctor.js';
 import {createElkLayoutWorker} from '../../elk-layout-worker-inline.js';
 import {createGraphDependentWorker} from '../../graph-dependent-worker-inline.js';
+import {ensureModelGraphVisualization} from '../../utils/model-visualization.js';
 import styles from './focused-explorer.css.js';
 
 // Set worker factories before any explorer element is created
@@ -30,6 +31,7 @@ export class PpFocusedExplorer extends LitElement {
     private _visibilityResizeObserver: ResizeObserver | null = null;
     private _tabShowHandler: ((event: Event) => void) | null = null;
     private embeddedDataObserver: MutationObserver | null = null;
+    private visualizationLoaded = false;
     private readonly _handleExplorerNodeClick = (event: Event) => {
         const detail = (event as CustomEvent<{nodeId?: string}>).detail;
         const nodeId = detail?.nodeId;
@@ -55,11 +57,13 @@ export class PpFocusedExplorer extends LitElement {
     connectedCallback() {
         super.connectedCallback();
         setTimeout(() => {
-            this.hydrateEmbeddedData();
             this.embeddedDataObserver = new MutationObserver(() => {
                 this.hydrateEmbeddedData();
             });
             this.embeddedDataObserver.observe(this, {childList: true});
+            if (!this.closest('sl-tab-group')) {
+                void this.loadVisualizationData();
+            }
         }, 0);
         this._setupVisibilityHooks();
     }
@@ -105,10 +109,20 @@ export class PpFocusedExplorer extends LitElement {
             this._tabShowHandler = (event: Event) => {
                 const detail = (event as CustomEvent<{ name?: string }>).detail;
                 if (!panelName || detail?.name !== panelName) return;
-                this._ensureExplorerReady();
-                this._scheduleViewportRefresh();
+                void this.loadVisualizationData().then(() => {
+                    this._ensureExplorerReady();
+                    this._scheduleViewportRefresh();
+                });
             };
             this.closest('sl-tab-group')?.addEventListener('sl-tab-show', this._tabShowHandler);
+        }
+    }
+
+    private async loadVisualizationData() {
+        if (this.visualizationLoaded) return;
+        this.visualizationLoaded = await ensureModelGraphVisualization('pp-model-explorer');
+        if (this.visualizationLoaded) {
+            this.hydrateEmbeddedData();
         }
     }
 

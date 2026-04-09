@@ -1,8 +1,8 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state, query} from 'lit/decorators.js';
-import {unsafeHTML} from 'lit/directives/unsafe-html.js';
 import '@pb33f/cowboy-components/components/mermaid/mermaid-renderer.js';
 import type {MermaidRenderer} from '@pb33f/cowboy-components/components/mermaid/mermaid-renderer.js';
+import {ensureModelDiagramVisualization} from '../../utils/model-visualization.js';
 import styles from './class-diagram.css.js';
 
 @customElement('pp-class-diagram')
@@ -11,7 +11,6 @@ export class PpClassDiagram extends LitElement {
 
     @property() name = '';
     @property({attribute: false}) diagram = '';
-    @property({attribute: false}) highlightedHTML = '';
     @state() wide = false;
 
     private diagramConfig = { class: { padding: 15 } };
@@ -24,25 +23,17 @@ export class PpClassDiagram extends LitElement {
     private resizeObserver: ResizeObserver | null = null;
     private expandedDialog: HTMLElement | null = null;
     private embeddedDataObserver: MutationObserver | null = null;
+    private tabShowHandler: ((event: Event) => void) | null = null;
+    private visualizationLoaded = false;
 
     private hydrateEmbeddedData() {
         const scriptEl = this.querySelector('script.pp-mermaid-data');
         this.diagram = scriptEl?.textContent?.trim() || '';
-
-        const highlightEl = this.querySelector('template.pp-mermaid-highlighted') as HTMLTemplateElement | null;
-        if (highlightEl?.content) {
-            const div = document.createElement('div');
-            div.appendChild(highlightEl.content.cloneNode(true));
-            this.highlightedHTML = div.innerHTML;
-            return;
-        }
-        this.highlightedHTML = '';
     }
 
     connectedCallback() {
         super.connectedCallback();
         setTimeout(() => {
-            this.hydrateEmbeddedData();
             this.wide = this.offsetWidth >= 900;
             this.requestUpdate();
 
@@ -57,6 +48,10 @@ export class PpClassDiagram extends LitElement {
                 }
             });
             this.resizeObserver.observe(this);
+            if (this.shouldLoadOnConnect()) {
+                void this.loadVisualizationData();
+            }
+            this.setupTabHooks();
         }, 0);
     }
 
@@ -68,8 +63,41 @@ export class PpClassDiagram extends LitElement {
         this.embeddedDataObserver = null;
         this.resizeObserver?.disconnect();
         this.resizeObserver = null;
+        if (this.tabShowHandler) {
+            this.closest('sl-tab-group')?.removeEventListener('sl-tab-show', this.tabShowHandler);
+            this.tabShowHandler = null;
+        }
         this.expandedDialog?.remove();
         this.expandedDialog = null;
+    }
+
+    private shouldLoadOnConnect(): boolean {
+        const group = this.closest('sl-tab-group');
+        if (!group) return true;
+        const panel = this.closest('sl-tab-panel');
+        return panel?.getAttribute('name') === 'class-diagram';
+    }
+
+    private setupTabHooks() {
+        const panel = this.closest('sl-tab-panel');
+        const panelName = panel?.getAttribute('name');
+        if (!panelName || this.tabShowHandler) return;
+        this.tabShowHandler = (event: Event) => {
+            const detail = (event as CustomEvent<{ name?: string }>).detail;
+            if (detail?.name !== panelName) return;
+            void this.loadVisualizationData();
+        };
+        this.closest('sl-tab-group')?.addEventListener('sl-tab-show', this.tabShowHandler);
+    }
+
+    private async loadVisualizationData() {
+        if (this.visualizationLoaded) return;
+        this.visualizationLoaded = await ensureModelDiagramVisualization('pp-model-diagram');
+        if (this.visualizationLoaded) {
+            this.hydrateEmbeddedData();
+            this._initialZoomDone = false;
+            this.requestUpdate();
+        }
     }
 
     exportSVG() {
@@ -305,9 +333,6 @@ export class PpClassDiagram extends LitElement {
     }
 
     renderCode() {
-        if (this.highlightedHTML) {
-            return html`<pre class="chroma"><code>${unsafeHTML(this.highlightedHTML)}</code></pre>`;
-        }
         return html`<pre><code>${this.diagram}</code></pre>`;
     }
 

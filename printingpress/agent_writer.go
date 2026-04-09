@@ -41,14 +41,6 @@ func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFu
 		return nil, fmt.Errorf("creating output directory: %w", err)
 	}
 
-	// Create subdirectories for individual files
-	dirs := append([]string{"operations"}, modelDirs()...)
-	for _, dir := range dirs {
-		if err := os.MkdirAll(filepath.Join(resolvedOutputDir, dir), 0o755); err != nil {
-			return nil, fmt.Errorf("creating directory %s: %w", dir, err)
-		}
-	}
-
 	written := make([]string, 0)
 	step := 0
 	total := 4 + len(site.Operations) + len(site.Webhooks)
@@ -265,6 +257,9 @@ func writeLLMOperationFiles(site *Site, outputDir string) ([]string, error) {
 	for _, op := range site.Operations {
 		content := renderOperationMD(op)
 		path := filepath.Join(outputDir, "operations", op.Slug+".md")
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return nil, err
+		}
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			return nil, fmt.Errorf("writing operation %s: %w", op.Slug, err)
 		}
@@ -273,6 +268,9 @@ func writeLLMOperationFiles(site *Site, outputDir string) ([]string, error) {
 	for _, wh := range site.Webhooks {
 		content := renderOperationMD(wh)
 		path := filepath.Join(outputDir, "operations", wh.Slug+".md")
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return nil, err
+		}
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			return nil, fmt.Errorf("writing webhook %s: %w", wh.Slug, err)
 		}
@@ -289,6 +287,9 @@ func writeLLMModelFiles(site *Site, outputDir string) ([]string, error) {
 		for _, page := range pages {
 			content := renderModelMD(page)
 			path := filepath.Join(outputDir, "models", group.TypeSlug, page.Slug+".md")
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				return nil, err
+			}
 			if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 				return nil, fmt.Errorf("writing model %s/%s: %w", group.TypeSlug, page.Slug, err)
 			}

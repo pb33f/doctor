@@ -13,7 +13,7 @@ import schemaPropertiesCss from './schema-properties.css.js';
 import {deriveSchemaType, resolveRefLink} from '../../utils/schema.js';
 import {renderMarkdown} from '../../utils/markdown.js';
 import {renderConstraints, renderSchemaType} from '../../utils/render-helpers.js';
-import {getSchemaEntryByRef} from '../../utils/schema-registry.js';
+import {getCachedSchemaModelByRef, getSchemaEntryByRef, preloadSchemaReferences} from '../../utils/schema-registry.js';
 import './ref-popover.js';
 
 @customElement('pp-schema-properties')
@@ -30,15 +30,21 @@ export class PpSchemaProperties extends LitElement {
             try {
                 this.schema = JSON.parse(this.schemaJson);
                 this.computeNameColumnWidth();
+                void this.primeReferencedSchemas(this.schema);
             } catch {
                 this.schema = null;
             }
         }
     }
 
+    private async primeReferencedSchemas(schema: any) {
+        await preloadSchemaReferences(schema);
+        this.requestUpdate();
+    }
+
     private parseRegistrySchema(ref: string, visited: Set<string>): any | null {
         if (visited.has(ref)) return null;
-        const registryEntry = getSchemaEntryByRef(ref);
+        const registryEntry = getCachedSchemaModelByRef(ref);
         if (!registryEntry?.schemaJson) return null;
         try {
             visited.add(ref);
