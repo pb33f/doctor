@@ -15,7 +15,7 @@ export default css`
         font-family: var(--font-stack-bold), monospace;
         font-weight: normal;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         border-bottom: 1px dashed var(--hrcolor);
     }
 
@@ -69,7 +69,7 @@ export default css`
         font-size: 0.85rem;
         color: var(--primary-color);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .filter-btn::part(base) {
@@ -80,7 +80,7 @@ export default css`
         border: 1px solid var(--primary-color);
         border-radius: 0;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .filter-btn::part(label) {

@@ -93,18 +93,22 @@ export class PpOperationParameters extends LitElement {
               <sl-icon class="param-in-icon" name="${this.inIcon(p.in)}"></sl-icon>
               <span class="param-in">${p.in}</span>
             </div>
-            <div class="param-desc-col">
-              ${renderMarkdown(p.description)}
+            <div class="param-desc-col ${!p.ref && (p.rawJson || p.rawYaml) ? 'has-actions' : ''}">
               ${!p.ref && (p.rawJson || p.rawYaml)
                   ? html`
-                    <pp-raw-viewer-btn
-                        title="${p.name} (${p.in})"
-                        raw-json=${p.rawJson || ''}
-                        raw-yaml=${p.rawYaml || ''}
-                        start-line=${p.sourceLine || 1}
-                        location=${p.location || ''}>
-                    </pp-raw-viewer-btn>`
+                    <div class="param-desc-actions">
+                      <pp-raw-viewer-btn
+                          title="${p.name} (${p.in})"
+                          raw-json=${p.rawJson || ''}
+                          raw-yaml=${p.rawYaml || ''}
+                          start-line=${p.sourceLine || 1}
+                          location=${p.location || ''}>
+                      </pp-raw-viewer-btn>
+                    </div>`
                   : nothing}
+              <div class="param-desc-body">
+                ${renderMarkdown(p.description)}
+              </div>
             </div>
             ${(!p.ref && (p.rawJson || p.rawYaml)) || p.mockJson || (p.examples && Object.keys(p.examples).length > 0)
                 ? html`

@@ -31,8 +31,8 @@ export default [dropdownCss, css`
     .curl-skeleton-button,
     .curl-skeleton-terminal,
     .curl-skeleton-line {
-        background: linear-gradient(90deg, var(--primary-color-verylowalpha) 0%, var(--secondary-color-lowalpha) 50%, var(--primary-color-verylowalpha) 100%);
-        border: 1px solid var(--hrcolor);
+        background: var(--secondary-color-lowalpha);
+        border: 1px dotted var(--hrcolor);
     }
 
     .curl-skeleton-button {

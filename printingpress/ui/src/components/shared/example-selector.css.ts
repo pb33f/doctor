@@ -1,7 +1,8 @@
 import {css} from "lit";
 import dropdownCss from '../../styles/dropdown.css.js';
+import codeActionsCss from '../../styles/code-actions.css.js';
 
-export default [dropdownCss, css`
+export default [dropdownCss, codeActionsCss, css`
     :host {
         display: inline-block;
         margin: var(--example-margin, var(--global-padding) 0 var(--global-padding) 0);
@@ -22,7 +23,7 @@ export default [dropdownCss, css`
         padding: var(--global-padding) var(--global-padding);
         font-family: var(--font-stack-bold), monospace;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         color: var(--font-color-sub1);
         transition: color 0.15s, border-color 0.15s;
     }
@@ -38,7 +39,7 @@ export default [dropdownCss, css`
         font-family: var(--font-stack), monospace;
         color: var(--font-color-sub1);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .inline-selector-row {
@@ -59,59 +60,6 @@ export default [dropdownCss, css`
         padding-top: 0;
     }
 
-    .code-container {
-        position: relative;
-    }
-
-    .floating-actions {
-        position: absolute;
-        top: var(--global-padding);
-        right: var(--global-padding);
-        z-index: 1;
-        display: flex;
-        gap: 0.25rem;
-        align-items: center;
-    }
-
-    .floating-copy {
-        --sl-color-primary-600: var(--primary-color);
-        --sl-tooltip-background-color: var(--background-color);
-        --sl-tooltip-color: var(--font-color);
-        --sl-tooltip-border-radius: 0;
-        --sl-tooltip-font-family: var(--font-stack), monospace;
-        --sl-tooltip-font-size: inherit;
-        --sl-tooltip-padding: var(--global-padding);
-        --sl-tooltip-arrow-size: 6px;
-    }
-
-    .floating-expand::part(base) {
-        color: var(--font-color-sub1);
-    }
-    .floating-expand::part(base):hover {
-        color: var(--primary-color);
-    }
-
-    .floating-actions sl-tooltip {
-        --sl-tooltip-background-color: var(--background-color);
-        --sl-tooltip-color: var(--font-color);
-        --sl-tooltip-border-radius: 0;
-        --sl-tooltip-font-family: var(--font-stack), monospace;
-        --sl-tooltip-font-size: inherit;
-        --sl-tooltip-padding: var(--global-padding);
-        --sl-tooltip-arrow-size: 6px;
-    }
-    .floating-actions sl-tooltip::part(body) {
-        border: 1px dashed var(--secondary-color);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    .floating-copy::part(body) {
-        border: 1px dashed var(--secondary-color);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    
     sl-dropdown {
         margin-top: 0;
     }

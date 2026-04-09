@@ -1,6 +1,7 @@
 import {css} from "lit";
+import codeActionsCss from '../../styles/code-actions.css.js';
 
-export default css`
+export default [codeActionsCss, css`
     :host {
         display: block;
     }
@@ -42,7 +43,7 @@ export default css`
         margin: 0;
         font-family: var(--font-stack-bold), monospace;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         color: var(--primary-color);
     }
 
@@ -76,34 +77,7 @@ export default css`
     }
 
     .code-container {
-        position: relative;
         flex: 1;
-    }
-
-    .floating-actions {
-        position: absolute;
-        right: var(--global-padding-double);
-        z-index: 1;
-        display: flex;
-        gap: 0.25rem;
-        align-items: center;
-    }
-
-    .floating-copy {
-        --sl-color-primary-600: var(--primary-color);
-        --sl-tooltip-background-color: var(--background-color);
-        --sl-tooltip-color: var(--font-color);
-        --sl-tooltip-border-radius: 0;
-        --sl-tooltip-font-family: var(--font-stack), monospace;
-        --sl-tooltip-font-size: 0.9rem;
-        --sl-tooltip-padding: 0.25rem 0.75rem;
-        --sl-tooltip-arrow-size: 6px;
-    }
-
-    .floating-copy::part(body) {
-        border: 1px dashed var(--secondary-color);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
     }
 
     pp-code-viewer {
@@ -123,7 +97,7 @@ export default css`
         font-family: var(--font-stack), monospace;
         padding: 0.25rem 0.75rem;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         transition: color 0.15s, border-color 0.15s;
     }
 
@@ -136,4 +110,4 @@ export default css`
         opacity: 0.3;
         cursor: not-allowed;
     }
-`
+`]

@@ -43,7 +43,7 @@
 sl-tooltip::part(body) {
     border: 1px dashed var(--secondary-color);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: var(--label-spacing);
 }
 
 /* Prevent body scroll — the split-panel content-panel owns scrolling */
@@ -99,7 +99,7 @@ pp-layout:not(:defined) > [slot="nav"] .pp-nav-fallback {
 pp-layout:not(:defined) > [slot="nav"] .pp-nav-fallback-home {
     padding: var(--global-padding) 0;
     color: var(--font-color);
-    letter-spacing: 0.05em;
+    letter-spacing: var(--label-spacing);
     font-size: 0.95rem;
 }
 
@@ -115,7 +115,7 @@ pp-layout:not(:defined) > [slot="nav"] .pp-nav-fallback-section h4 {
     font-family: var(--font-stack-bold), monospace;
     font-size: 1.3rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: var(--title-spacing);
 }
 
 pp-layout:not(:defined) > [slot="nav"] .pp-nav-fallback-list {
@@ -125,8 +125,8 @@ pp-layout:not(:defined) > [slot="nav"] .pp-nav-fallback-list {
 
 pp-layout:not(:defined) > [slot="nav"] .pp-nav-fallback-row {
     height: 1rem;
-    background: linear-gradient(90deg, var(--primary-color-verylowalpha) 0%, var(--secondary-color-lowalpha) 50%, var(--primary-color-verylowalpha) 100%);
-    border: 1px solid var(--hrcolor);
+    background: var(--secondary-color-lowalpha);
+    border: 1px dotted var(--hrcolor);
 }
 
 /* Content */
@@ -222,12 +222,21 @@ code {
     grid-template-columns: 200px auto;
     gap: var(--global-padding);
     align-items: baseline;
+    padding: var(--global-padding-half) 0;
 }
 
 .pp-security-name {
     font-family: var(--font-stack-bold), monospace;
     color: var(--primary-color);
     text-align: right;
+}
+
+.pp-security-details {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--global-padding-half);
+    min-width: 0;
 }
 
 .pp-security-badge {
@@ -247,9 +256,23 @@ code {
     font-size: 1.1em;
 }
 
-.pp-security-scopes code {
-    color: var(--warn-400);
-    font-size: 0.9em;
+.pp-security-scopes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--global-padding-half);
+}
+
+.pp-security-scope {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.18rem 0.5rem;
+    border: 1px solid var(--primary-color-lowalpha);
+    background: var(--primary-color-verylowalpha);
+    color: var(--primary-color);
+    font-family: var(--font-stack), monospace;
+    font-size: 0.85em;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
 }
 
 .pp-server-entry {
@@ -344,7 +367,7 @@ code {
     font-family: var(--font-stack-bold);
     color: var(--warn-400);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: var(--label-spacing);
     font-size: 0.85em;
 }
 
@@ -403,7 +426,7 @@ sl-details.pp-details::part(content) {
     margin: 0;
     border-bottom: none;
     padding: 0;
-    letter-spacing: 0.05em;
+    letter-spacing: var(--title-spacing);
     text-transform: uppercase;
 }
 
@@ -433,6 +456,7 @@ pp-curl-command {
 .title-section {
     display: flex;
     width: 100%;
+    min-height: 112px;
 }
 
 
@@ -457,7 +481,7 @@ pp-curl-command {
     border-radius: 0;
     font-family: var(--font-stack-bold), monospace;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: var(--label-spacing);
     border: 1px solid var(--error-color-dimmed);
 }
 
@@ -477,7 +501,7 @@ pp-curl-command {
 .pp-label {
     color: var(--font-color-sub1);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: var(--label-spacing);
     margin-right: var(--global-padding);
 }
 
@@ -499,6 +523,7 @@ html[theme="tektronix"] pb33f-http-method {
 .pp-model-header {
     display: flex;
     align-items: flex-start;
+    min-height: 56px;
 }
 
 .pp-model-header pp-icon-title {
@@ -514,7 +539,7 @@ html[theme="tektronix"] pb33f-http-method {
     padding: 0.15em 0.5em;
     border-radius: 0;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: var(--label-spacing);
 }
 
 .pp-origin {
@@ -652,7 +677,7 @@ li {
     margin-bottom: 20px;
     margin-top: 0;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: var(--title-spacing);
 }
 
 .pp-request-body .pp-description {
@@ -680,7 +705,7 @@ li {
     font-family: var(--font-stack), monospace;
     color: var(--font-color-sub1);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: var(--label-spacing);
     margin-bottom: 0.25rem;
 }
 
@@ -709,7 +734,7 @@ a.pp-ref-link:hover {
     font-family: var(--font-stack-bold);
     color: var(--primary-color);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: var(--label-spacing);
 }
 
 /* Operations overview on root page */
@@ -816,7 +841,7 @@ ul.pp-operation-list > li:before {
     color: var(--secondary-color);
     font-family: var(--font-stack-bold);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: var(--title-spacing);
     margin-bottom: 0.5rem;
 }
 
@@ -907,12 +932,68 @@ pb33f-http-method:not(:defined) {
     border: 1px solid var(--hrcolor);
 }
 
+pb33f-http-method:not(:defined)::before {
+    content: attr(method);
+}
+
 pb33f-http-method[mode="nav-naked"]:not(:defined) {
     background: none;
     border: none;
     padding: 0;
     font-size: 0.7rem;
     color: var(--font-color-sub1);
+}
+
+pb33f-render-operation-path:not(:defined) {
+    display: inline-block;
+    min-width: 0;
+    font-family: var(--font-stack-bold), monospace;
+    color: var(--font-color);
+    overflow-wrap: anywhere;
+}
+
+pb33f-render-operation-path:not(:defined)::before {
+    content: attr(path);
+}
+
+.title-section pp-icon-title:not(:defined),
+.pp-model-header > pp-icon-title:not(:defined) {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--global-padding);
+    min-height: 48px;
+    min-width: 0;
+}
+
+.title-section pp-icon-title:not(:defined)::before,
+.pp-model-header > pp-icon-title:not(:defined)::before {
+    content: "";
+    width: 28px;
+    height: 28px;
+    margin-top: var(--icon-title-icon-offset, 0.2em);
+    border: 2px solid var(--font-color-sub2);
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.title-section pp-icon-title:not(:defined)::after,
+.pp-model-header > pp-icon-title:not(:defined)::after {
+    content: attr(heading);
+    font-family: var(--font-stack-bold), monospace;
+    font-weight: normal;
+    color: var(--font-color);
+    overflow-wrap: anywhere;
+    min-width: 0;
+}
+
+.title-section pp-icon-title:not(:defined)::after {
+    font-size: var(--h1-size);
+    line-height: 1.1;
+}
+
+.pp-model-header > pp-icon-title:not(:defined)::after {
+    font-size: var(--h1-size);
+    line-height: 1.1;
 }
 
 /* ── Expanded class diagram dialog (light DOM, appended to body) ── */
@@ -946,7 +1027,7 @@ body.pp-dialog-open > pp-layout {
     font-family: var(--font-stack-bold), monospace;
     color: var(--font-color);
     padding: var(--global-padding);
-    letter-spacing: 0.05em;
+    letter-spacing: var(--title-spacing);
 }
 
 .pp-expanded-diagram-dialog::part(close-button__base) {
@@ -977,20 +1058,6 @@ body.pp-dialog-open > pp-layout {
     color: var(--primary-color);
 }
 
-.pp-expanded-diagram-dialog .expanded-toolbar sl-button::part(base) {
-    font-family: var(--font-stack), monospace;
-    color: var(--font-color-sub1);
-    gap: var(--global-padding);
-}
-
-.pp-expanded-diagram-dialog .expanded-toolbar sl-button::part(label) {
-    padding: 0;
-}
-
-.pp-expanded-diagram-dialog .expanded-toolbar sl-button::part(base):hover {
-    color: var(--primary-color);
-}
-
 .pp-expanded-diagram-dialog .expanded-toolbar sl-tooltip {
     --sl-tooltip-background-color: var(--background-color);
     --sl-tooltip-color: var(--font-color);
@@ -1004,7 +1071,7 @@ body.pp-dialog-open > pp-layout {
 .pp-expanded-diagram-dialog .expanded-toolbar sl-tooltip::part(body) {
     border: 1px dashed var(--secondary-color);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: var(--label-spacing);
 }
 
 .pp-expanded-diagram-dialog .expanded-diagram-area {

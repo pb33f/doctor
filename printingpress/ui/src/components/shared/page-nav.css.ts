@@ -85,7 +85,7 @@ export default css`
         cursor: pointer;
         font-family: var(--font-stack-bold), monospace;
         color: var(--primary-color);
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         word-break: break-all;
     }
 

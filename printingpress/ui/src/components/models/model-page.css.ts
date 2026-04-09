@@ -18,7 +18,7 @@ export default css`
         font-family: var(--font-stack-bold), monospace;
         font-weight: normal;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         border-bottom: 1px dashed var(--hrcolor);
     }
 
@@ -71,7 +71,7 @@ export default css`
         font-family: var(--font-stack-bold);
         margin-left: 0.5rem;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .enum-values {
@@ -123,7 +123,7 @@ export default css`
     }
 
     .property-grid-value code {
-        color: var(--warn-400);
+        color: var(--primary-color);
     }
 
     .enum-section-full {
@@ -248,9 +248,9 @@ export default css`
     .model-skeleton,
     .model-skeleton-split {
         margin-top: var(--global-padding-double);
-        border-top: 1px solid var(--secondary-color-lowalpha);
-        border-bottom: 1px solid var(--secondary-color-lowalpha);
-        padding: var(--global-padding) 0;
+        border: 1px dotted var(--hrcolor);
+        background: var(--secondary-color-lowalpha);
+        padding: var(--global-padding);
     }
 
     .model-skeleton-split {
@@ -265,7 +265,7 @@ export default css`
     }
 
     .model-skeleton-divider {
-        background: var(--secondary-color-lowalpha);
+        background: var(--hrcolor);
         min-height: 100%;
     }
 
@@ -273,8 +273,8 @@ export default css`
     .skeleton-row,
     .skeleton-example-header,
     .skeleton-example-block {
-        background: linear-gradient(90deg, var(--primary-color-verylowalpha) 0%, var(--secondary-color-lowalpha) 50%, var(--primary-color-verylowalpha) 100%);
-        border: 1px solid var(--hrcolor);
+        background: var(--secondary-color-lowalpha);
+        border: 1px dotted var(--hrcolor);
     }
 
     .skeleton-heading {

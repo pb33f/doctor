@@ -102,34 +102,6 @@ export class PpClassDiagram extends LitElement {
         }
     }
 
-    exportSVG() {
-        const svg = this.renderer?.exportSVG();
-        if (!svg) return;
-        this.downloadFile(svg, 'image/svg+xml', 'class-diagram.svg');
-    }
-
-    async exportPNG(renderer?: MermaidRenderer) {
-        const r = renderer || this.renderer;
-        const blob = await r?.exportPNG();
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'class-diagram.png';
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-
-    downloadFile(content: string, type: string, filename: string) {
-        const blob = new Blob([content], {type});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-
     private _initialZoomDone = false;
     private _zoomCheckInterval = 0;
     private _modalZoomInterval = 0;
@@ -249,19 +221,6 @@ export class PpClassDiagram extends LitElement {
             btn.addEventListener('click', handler);
             return wrapTooltip(btn, tip);
         };
-        const makeTextBtn = (text: string, iconName: string, tip: string, handler: () => void) => {
-            const btn = document.createElement('sl-button');
-            btn.setAttribute('size', 'small');
-            btn.setAttribute('variant', 'text');
-            btn.textContent = text;
-            const icon = document.createElement('sl-icon');
-            icon.setAttribute('name', iconName);
-            icon.setAttribute('slot', 'suffix');
-            btn.appendChild(icon);
-            btn.addEventListener('click', handler);
-            return wrapTooltip(btn, tip);
-        };
-
         const mermaidRenderer = document.createElement('pb33f-mermaid-renderer') as MermaidRenderer;
         mermaidRenderer.diagram = this.diagram;
         (mermaidRenderer as any).config = this.diagramConfig;
@@ -269,11 +228,6 @@ export class PpClassDiagram extends LitElement {
 
         toolbar.appendChild(makeIconBtn('zoom-in', 'Zoom In', 'zoom in', () => mermaidRenderer.zoomIn()));
         toolbar.appendChild(makeIconBtn('zoom-out', 'Zoom Out', 'zoom out', () => mermaidRenderer.zoomOut()));
-        toolbar.appendChild(makeTextBtn('SVG', 'image-alt', 'export as SVG', () => {
-            const svg = mermaidRenderer.exportSVG();
-            if (svg) this.downloadFile(svg, 'image/svg+xml', 'class-diagram.svg');
-        }));
-        toolbar.appendChild(makeTextBtn('PNG', 'image', 'export as PNG', () => this.exportPNG(mermaidRenderer)));
 
         const diagramArea = document.createElement('div');
         diagramArea.className = 'expanded-diagram-area';
@@ -317,18 +271,6 @@ export class PpClassDiagram extends LitElement {
                 <sl-tooltip content="expand fullscreen">
                     <sl-icon-button name="arrows-fullscreen" label="Expand"
                         @click=${this.openExpanded}></sl-icon-button>
-                </sl-tooltip>
-                <sl-tooltip content="export as SVG">
-                    <sl-button size="small" variant="text" @click=${this.exportSVG}>
-                        <sl-icon name="image-alt" slot="suffix"></sl-icon>
-                        SVG
-                    </sl-button>
-                </sl-tooltip>
-                <sl-tooltip content="export as PNG">
-                    <sl-button size="small" variant="text" @click=${this.exportPNG}>
-                        <sl-icon name="image" slot="suffix"></sl-icon>
-                        PNG
-                    </sl-button>
                 </sl-tooltip>
             </div>
         `;

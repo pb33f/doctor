@@ -60,7 +60,7 @@ export default css`
 
     .flow-heading {
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         font-family: var(--font-stack-bold), monospace;
         color: var(--primary-color);
         padding: var(--global-padding);
@@ -77,7 +77,7 @@ export default css`
 
     .scope-heading {
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         font-family: var(--font-stack), monospace;
         color: var(--font-color-sub1);
     }
@@ -87,8 +87,8 @@ export default css`
     }
 
     .scope-name {
-        font-family: var(--font-stack), monospace;
-        color: var(--warn-400);
+        font-family: var(--font-stack-bold), monospace;
+        color: var(--secondary-color);
         overflow-wrap: anywhere;
     }
 

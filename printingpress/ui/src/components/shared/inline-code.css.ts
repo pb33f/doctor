@@ -1,6 +1,7 @@
 import {css} from 'lit';
+import codeActionsCss from '../../styles/code-actions.css.js';
 
-export default css`
+export default [codeActionsCss, css`
     :host {
         display: block;
         margin-top: var(--global-padding-double);
@@ -21,7 +22,7 @@ export default css`
         font-family: var(--font-stack-bold), monospace;
         font-weight: normal;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         border-bottom: 1px dashed var(--hrcolor);
     }
 
@@ -40,7 +41,7 @@ export default css`
         padding: 0.2em 0.6em;
         cursor: pointer;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .toggle-btn:first-child {
@@ -57,15 +58,4 @@ export default css`
         color: var(--font-color-sub1);
     }
 
-    .code-container {
-        position: relative;
-
-    }
-
-    .floating-copy {
-        position: absolute;
-        top: var(--global-padding);
-        right: var(--global-padding);
-        z-index: 1;
-    }
-`;
+`];

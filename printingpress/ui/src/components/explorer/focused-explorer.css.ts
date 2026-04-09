@@ -39,7 +39,7 @@ export default css`
     .toolbar sl-tooltip::part(body) {
         border: 1px dashed var(--secondary-color);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
     .toolbar sl-icon-button::part(base) {
         color: var(--font-color-sub1);

@@ -3246,7 +3246,7 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
 
     h4 {
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         font-size: 1.3rem;
         color: var(--primary-color);
         font-family: var(--font-stack-bold), monospace;
@@ -3622,7 +3622,7 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
     sl-button::part(label) {
         overflow-x: hidden;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     sl-menu {
@@ -3639,7 +3639,7 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
         font-family: var(--font-stack);
         --sl-color-neutral-100: var(--secondary-color-lowalpha);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 `,Wu=[Uu,E`
     :host {
@@ -3671,8 +3671,8 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
     .curl-skeleton-button,
     .curl-skeleton-terminal,
     .curl-skeleton-line {
-        background: linear-gradient(90deg, var(--primary-color-verylowalpha) 0%, var(--secondary-color-lowalpha) 50%, var(--primary-color-verylowalpha) 100%);
-        border: 1px solid var(--hrcolor);
+        background: var(--secondary-color-lowalpha);
+        border: 1px dotted var(--hrcolor);
     }
 
     .curl-skeleton-button {
@@ -4163,14 +4163,10 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
 
     .parameter, .extensions {
         display: grid;
-        grid-template-columns: 200px 200px 150px 1fr;
+        grid-template-columns: 200px minmax(220px, 320px) 130px minmax(0, 1fr);
         gap: 0 20px;
         padding: var(--global-padding) var(--global-padding-double);
         border-top: 1px dotted var(--hrcolor);
-    }
-    
-    pp-raw-viewer-btn { 
-        float: right;
     }
 
     .parameter:first-child {
@@ -4184,14 +4180,17 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
     .param-name-col {
         text-align: right;
         white-space: nowrap;
+        min-width: 0;
     }
 
     .param-type-col {
-        white-space: nowrap;
+        min-width: 0;
     }
 
     .param-desc-col {
         color: var(--font-color-sub1);
+        min-width: 0;
+        position: relative;
     }
 
     .param-name {
@@ -4202,7 +4201,8 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
     .param-type {
         color: var(--primary-color);
         font-family: var(--font-stack), monospace;
-        white-space: nowrap;
+        white-space: normal;
+        overflow-wrap: anywhere;
     }
 
     a.ref-link.param-name {
@@ -4215,6 +4215,24 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
         gap: 0.3rem;
     }
 
+    .param-desc-actions {
+        position: absolute;
+        top: 0;
+        right: 0;
+        display: flex;
+        justify-content: flex-end;
+        align-items: flex-start;
+        z-index: 1;
+    }
+
+    .param-desc-body {
+        min-width: 0;
+    }
+
+    .param-desc-col.has-actions .param-desc-body {
+        padding-right: 2.75rem;
+    }
+
     .param-in-icon {
         color: var(--primary-color);
         padding-top: 1px;
@@ -4224,7 +4242,7 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
         color: var(--primary-color);
         font-family: var(--font-stack), monospace;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .required-badge {
@@ -4235,7 +4253,7 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
         font-family: var(--font-stack-bold), monospace;
         margin-left: var(--global-padding);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .deprecated-badge {
@@ -4243,7 +4261,7 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
         font-family: var(--font-stack-bold), monospace;
         margin-left: var(--global-padding);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         font-size: 0.8em;
     }
 
@@ -4406,7 +4424,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-family: var(--font-stack), monospace;
         color: var(--font-color-sub1);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         margin-bottom: var(--global-padding);
         text-align: left;
     }
@@ -4859,7 +4877,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-family: var(--font-stack-bold), monospace;
         margin-left: var(--global-padding);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     a.ref-type-link,
@@ -4935,7 +4953,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
     .composition-label {
         display: block;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         font-family: var(--font-stack), monospace;
         margin-bottom: var(--global-padding);
         color: var(--font-color-sub1);
@@ -5063,7 +5081,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         width: 100%;
         font-family: var(--font-stack-bold), monospace;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         padding: 0.5rem 0.8rem;
         color: var(--warn-color);
         border-radius: 0;
@@ -5407,7 +5425,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
     /* ── Location bar ── */
 
     .location {
-        padding: 0.5rem 1rem;
+        padding: var(--global-padding) calc(var(--global-padding-double) * 4) var(--global-padding) var(--global-padding-double);
         border-bottom: 1px solid var(--hrcolor);
         color: var(--font-color-sub2);
         font-family: var(--font-stack), monospace;
@@ -5421,8 +5439,8 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         color: transparent;
         user-select: none;
     }
-`;fp.default.manual=!0;var mp=class extends k{constructor(...e){super(...e),this.code=``,this.language=`json`,this.pretty=!1,this.lineNumbers=!1,this.highlightLines=``,this.startLine=1,this.location=``,this.embedded=!1,this.selectedLines=new Set,this.lastClickedLine=null,this._segmentCache={code:``,language:``,segments:[]},this._highlightCache={spec:``,parsed:new Set}}static{this.styles=[pp]}get displayCode(){if(!this.code)return``;if(this.pretty&&this.language===`json`)try{return JSON.stringify(JSON.parse(this.code),null,2)}catch{return this.code}return this.code}parseHighlightSpec(e){let t=new Set;if(!e)return t;for(let n of e.split(`,`)){let e=n.trim().match(/^(\d+)(?:-(\d+))?$/);if(!e)continue;let r=parseInt(e[1],10),i=e[2]?parseInt(e[2],10):r;for(let e=Math.min(r,i);e<=Math.max(r,i);e++)t.add(e)}return t}highlightCode(){let e=this.displayCode;if(!e)return``;try{let t=this.language===`xml`?`markup`:this.language;return fp.default.highlight(e,fp.default.languages[t],t)}catch{return e}}splitHighlightedLines(e){let t=[],n=``,r=[],i=0;for(;i<e.length;)if(e[i]===`
-`){for(let e=r.length-1;e>=0;e--)n+=`</span>`;t.push(n),n=r.join(``),i++}else if(e[i]===`<`)if(e.startsWith(`</span>`,i))n+=`</span>`,r.pop(),i+=7;else{let t=e.indexOf(`>`,i);if(t===-1){n+=e[i],i++;continue}let a=e.slice(i,t+1);n+=a,a.startsWith(`</`)||r.push(a),i=t+1}else n+=e[i],i++;for(let e=r.length-1;e>=0;e--)n+=`</span>`;return n&&t.push(n),t}getLineSegments(){let e=this.displayCode;if(e===this._segmentCache.code&&this.language===this._segmentCache.language)return this._segmentCache.segments;let t=this.highlightCode(),n=t?this.splitHighlightedLines(t):[];return this._segmentCache={code:e,language:this.language,segments:n},n}get parsedHighlights(){return this._highlightCache.spec!==this.highlightLines&&(this._highlightCache={spec:this.highlightLines,parsed:this.parseHighlightSpec(this.highlightLines)}),this._highlightCache.parsed}get effectiveHighlights(){let e=this.parsedHighlights;return e.size>0?e:this.selectedLines}get isLocked(){return this.parsedHighlights.size>0}handleLineClick(e,t){if(this.isLocked)return;let n=new Set;if(t.shiftKey&&this.lastClickedLine!==null){let t=Math.min(this.lastClickedLine,e),r=Math.max(this.lastClickedLine,e);for(let e=t;e<=r;e++)n.add(e)}else this.selectedLines.size===1&&this.selectedLines.has(e)||n.add(e);this.selectedLines=n,this.lastClickedLine=e}willUpdate(e){(e.has(`code`)||e.has(`language`))&&(this.selectedLines=new Set,this.lastClickedLine=null)}renderLocation(){return D`<div class="location ${this.location?``:`empty`}">${this.location||`\xA0`}</div>`}render(){if(!this.lineNumbers)return D`
+`;fp.default.manual=!0;var mp=class extends k{constructor(...e){super(...e),this.code=``,this.language=`json`,this.pretty=!1,this.lineNumbers=!1,this.highlightLines=``,this.startLine=1,this.location=``,this.embedded=!1,this.reserveLocation=!1,this.selectedLines=new Set,this.lastClickedLine=null,this._segmentCache={code:``,language:``,segments:[]},this._highlightCache={spec:``,parsed:new Set}}static{this.styles=[pp]}get displayCode(){if(!this.code)return``;if(this.pretty&&this.language===`json`)try{return JSON.stringify(JSON.parse(this.code),null,2)}catch{return this.code}return this.code}parseHighlightSpec(e){let t=new Set;if(!e)return t;for(let n of e.split(`,`)){let e=n.trim().match(/^(\d+)(?:-(\d+))?$/);if(!e)continue;let r=parseInt(e[1],10),i=e[2]?parseInt(e[2],10):r;for(let e=Math.min(r,i);e<=Math.max(r,i);e++)t.add(e)}return t}highlightCode(){let e=this.displayCode;if(!e)return``;try{let t=this.language===`xml`?`markup`:this.language;return fp.default.highlight(e,fp.default.languages[t],t)}catch{return e}}splitHighlightedLines(e){let t=[],n=``,r=[],i=0;for(;i<e.length;)if(e[i]===`
+`){for(let e=r.length-1;e>=0;e--)n+=`</span>`;t.push(n),n=r.join(``),i++}else if(e[i]===`<`)if(e.startsWith(`</span>`,i))n+=`</span>`,r.pop(),i+=7;else{let t=e.indexOf(`>`,i);if(t===-1){n+=e[i],i++;continue}let a=e.slice(i,t+1);n+=a,a.startsWith(`</`)||r.push(a),i=t+1}else n+=e[i],i++;for(let e=r.length-1;e>=0;e--)n+=`</span>`;return n&&t.push(n),t}getLineSegments(){let e=this.displayCode;if(e===this._segmentCache.code&&this.language===this._segmentCache.language)return this._segmentCache.segments;let t=this.highlightCode(),n=t?this.splitHighlightedLines(t):[];return this._segmentCache={code:e,language:this.language,segments:n},n}get parsedHighlights(){return this._highlightCache.spec!==this.highlightLines&&(this._highlightCache={spec:this.highlightLines,parsed:this.parseHighlightSpec(this.highlightLines)}),this._highlightCache.parsed}get effectiveHighlights(){let e=this.parsedHighlights;return e.size>0?e:this.selectedLines}get isLocked(){return this.parsedHighlights.size>0}handleLineClick(e,t){if(this.isLocked)return;let n=new Set;if(t.shiftKey&&this.lastClickedLine!==null){let t=Math.min(this.lastClickedLine,e),r=Math.max(this.lastClickedLine,e);for(let e=t;e<=r;e++)n.add(e)}else this.selectedLines.size===1&&this.selectedLines.has(e)||n.add(e);this.selectedLines=n,this.lastClickedLine=e}willUpdate(e){(e.has(`code`)||e.has(`language`))&&(this.selectedLines=new Set,this.lastClickedLine=null)}renderLocation(){return!this.location&&!this.reserveLocation?O:D`<div class="location ${this.location?``:`empty`}">${this.location||`\xA0`}</div>`}render(){if(!this.lineNumbers)return D`
               ${this.renderLocation()}
               <pre class="language-${this.language}"><code>${bd(this.highlightCode())}</code></pre>
             `;let e=this.getLineSegments(),t=Math.max(this.startLine,1),n=t+e.length-1,r=n>0?Math.floor(Math.log10(n))+1:1,i=this.effectiveHighlights,a=this.isLocked;return D`
@@ -5434,7 +5452,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
                 >${r}</span><span class="line-content">${bd(e||` `)}</span>
 </span>`})}</code></pre>
           </div>
-        `}};K([P()],mp.prototype,`code`,void 0),K([P()],mp.prototype,`language`,void 0),K([P({type:Boolean})],mp.prototype,`pretty`,void 0),K([P({attribute:`line-numbers`,type:Boolean})],mp.prototype,`lineNumbers`,void 0),K([P({attribute:`highlight-lines`})],mp.prototype,`highlightLines`,void 0),K([P({attribute:`start-line`,type:Number})],mp.prototype,`startLine`,void 0),K([P()],mp.prototype,`location`,void 0),K([P({type:Boolean,reflect:!0})],mp.prototype,`embedded`,void 0),K([F()],mp.prototype,`selectedLines`,void 0),K([F()],mp.prototype,`lastClickedLine`,void 0),mp=K([N(`pp-code-viewer`)],mp);var hp=E`
+        `}};K([P()],mp.prototype,`code`,void 0),K([P()],mp.prototype,`language`,void 0),K([P({type:Boolean})],mp.prototype,`pretty`,void 0),K([P({attribute:`line-numbers`,type:Boolean})],mp.prototype,`lineNumbers`,void 0),K([P({attribute:`highlight-lines`})],mp.prototype,`highlightLines`,void 0),K([P({attribute:`start-line`,type:Number})],mp.prototype,`startLine`,void 0),K([P()],mp.prototype,`location`,void 0),K([P({type:Boolean,reflect:!0})],mp.prototype,`embedded`,void 0),K([P({attribute:`reserve-location`,type:Boolean})],mp.prototype,`reserveLocation`,void 0),K([F()],mp.prototype,`selectedLines`,void 0),K([F()],mp.prototype,`lastClickedLine`,void 0),mp=K([N(`pp-code-viewer`)],mp);var hp=E`
     :host {
         display: flex;
         align-items: flex-start;
@@ -5554,16 +5572,20 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
               <sl-icon class="param-in-icon" name="${this.inIcon(e.in)}"></sl-icon>
               <span class="param-in">${e.in}</span>
             </div>
-            <div class="param-desc-col">
-              ${qf(e.description)}
+            <div class="param-desc-col ${!e.ref&&(e.rawJson||e.rawYaml)?`has-actions`:``}">
               ${!e.ref&&(e.rawJson||e.rawYaml)?D`
-                    <pp-raw-viewer-btn
-                        title="${e.name} (${e.in})"
-                        raw-json=${e.rawJson||``}
-                        raw-yaml=${e.rawYaml||``}
-                        start-line=${e.sourceLine||1}
-                        location=${e.location||``}>
-                    </pp-raw-viewer-btn>`:O}
+                    <div class="param-desc-actions">
+                      <pp-raw-viewer-btn
+                          title="${e.name} (${e.in})"
+                          raw-json=${e.rawJson||``}
+                          raw-yaml=${e.rawYaml||``}
+                          start-line=${e.sourceLine||1}
+                          location=${e.location||``}>
+                      </pp-raw-viewer-btn>
+                    </div>`:O}
+              <div class="param-desc-body">
+                ${qf(e.description)}
+              </div>
             </div>
             ${!e.ref&&(e.rawJson||e.rawYaml)||e.mockJson||e.examples&&Object.keys(e.examples).length>0?D`
                   <div class="param-extras">
@@ -5620,14 +5642,14 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         padding-bottom: var(--global-padding);
         margin-top: 40px;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
     }
     
     h3 {
         margin-bottom: 40px;
         font-family: var(--font-stack), monospace;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         font-size: 1.6rem;
         margin-top: 0;
     }
@@ -5668,7 +5690,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-weight: normal;
         color: var(--font-color-sub1);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         margin-bottom: var(--global-padding);
         border-bottom: 1px dotted var(--hrcolor);
         padding-bottom: var(--global-padding);
@@ -5726,7 +5748,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-family: var(--font-stack), monospace;
         font-size: 0.8em;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         padding: var(--global-padding);
     }
 
@@ -5799,7 +5821,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         padding-bottom: var(--global-padding);
         text-transform: uppercase;
         color: var(--font-color-sub1);
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         font-family: var(--font-stack), monospace;
     }
 
@@ -5816,7 +5838,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-weight: normal;
         color: var(--font-color-sub1);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         margin-bottom: var(--global-padding);
         border-bottom: 1px dotted var(--hrcolor);
         padding-bottom: var(--global-padding);
@@ -5948,7 +5970,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
 
     .pp-details-summary {
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         width: 100%;
     }
     
@@ -5957,7 +5979,64 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         border-bottom: none;
         padding: 0;
     }
-`;function wp(e){let t=parseInt(e,10);return t>=500?`status-error`:t>=400?`status-warn`:`status-ok`}var Tp={100:`Continue`,101:`Switching Protocols`,102:`Processing`,103:`Early Hints`,200:`OK`,201:`Created`,202:`Accepted`,203:`Non-Authoritative Information`,204:`No Content`,205:`Reset Content`,206:`Partial Content`,207:`Multi-Status`,208:`Already Reported`,226:`IM Used`,300:`Multiple Choices`,301:`Moved Permanently`,302:`Found`,303:`See Other`,304:`Not Modified`,305:`Use Proxy`,307:`Temporary Redirect`,308:`Permanent Redirect`,400:`Bad Request`,401:`Unauthorized`,402:`Payment Required`,403:`Forbidden`,404:`Not Found`,405:`Method Not Allowed`,406:`Not Acceptable`,407:`Proxy Authentication Required`,408:`Request Timeout`,409:`Conflict`,410:`Gone`,411:`Length Required`,412:`Precondition Failed`,413:`Content Too Large`,414:`URI Too Long`,415:`Unsupported Media Type`,416:`Range Not Satisfiable`,417:`Expectation Failed`,418:`I'm a Teapot`,421:`Misdirected Request`,422:`Unprocessable Entity`,423:`Locked`,424:`Failed Dependency`,425:`Too Early`,426:`Upgrade Required`,428:`Precondition Required`,429:`Too Many Requests`,431:`Request Header Fields Too Large`,451:`Unavailable For Legal Reasons`,500:`Internal Server Error`,501:`Not Implemented`,502:`Bad Gateway`,503:`Service Unavailable`,504:`Gateway Timeout`,505:`HTTP Version Not Supported`,506:`Variant Also Negotiates`,507:`Insufficient Storage`,508:`Loop Detected`,510:`Not Extended`,511:`Network Authentication Required`},Ep=[Uu,E`
+`;function wp(e){let t=parseInt(e,10);return t>=500?`status-error`:t>=400?`status-warn`:`status-ok`}var Tp={100:`Continue`,101:`Switching Protocols`,102:`Processing`,103:`Early Hints`,200:`OK`,201:`Created`,202:`Accepted`,203:`Non-Authoritative Information`,204:`No Content`,205:`Reset Content`,206:`Partial Content`,207:`Multi-Status`,208:`Already Reported`,226:`IM Used`,300:`Multiple Choices`,301:`Moved Permanently`,302:`Found`,303:`See Other`,304:`Not Modified`,305:`Use Proxy`,307:`Temporary Redirect`,308:`Permanent Redirect`,400:`Bad Request`,401:`Unauthorized`,402:`Payment Required`,403:`Forbidden`,404:`Not Found`,405:`Method Not Allowed`,406:`Not Acceptable`,407:`Proxy Authentication Required`,408:`Request Timeout`,409:`Conflict`,410:`Gone`,411:`Length Required`,412:`Precondition Failed`,413:`Content Too Large`,414:`URI Too Long`,415:`Unsupported Media Type`,416:`Range Not Satisfiable`,417:`Expectation Failed`,418:`I'm a Teapot`,421:`Misdirected Request`,422:`Unprocessable Entity`,423:`Locked`,424:`Failed Dependency`,425:`Too Early`,426:`Upgrade Required`,428:`Precondition Required`,429:`Too Many Requests`,431:`Request Header Fields Too Large`,451:`Unavailable For Legal Reasons`,500:`Internal Server Error`,501:`Not Implemented`,502:`Bad Gateway`,503:`Service Unavailable`,504:`Gateway Timeout`,505:`HTTP Version Not Supported`,506:`Variant Also Negotiates`,507:`Insufficient Storage`,508:`Loop Detected`,510:`Not Extended`,511:`Network Authentication Required`},Ep=E`
+    .code-container {
+        position: relative;
+    }
+
+    .floating-actions {
+        position: absolute;
+        top: 0;
+        right: var(--global-padding);
+        z-index: 1;
+        display: flex;
+        gap: var(--global-padding-half);
+        align-items: center;
+    }
+
+    .floating-copy {
+        position: absolute;
+        top: 0;
+        right: var(--global-padding);
+        z-index: 1;
+    }
+
+    .floating-actions sl-icon-button::part(base),
+    .floating-copy sl-icon-button::part(base) {
+        color: var(--font-color-sub1);
+        font-size: 1rem;
+        padding: var(--global-padding-half);
+    }
+
+    .floating-actions sl-icon-button::part(base):hover,
+    .floating-copy sl-icon-button::part(base):hover,
+    .floating-expand::part(base):hover {
+        color: var(--primary-color);
+    }
+
+    .floating-expand::part(base) {
+        color: var(--font-color-sub1);
+    }
+
+    .floating-actions sl-tooltip,
+    .floating-copy {
+        --sl-color-primary-600: var(--primary-color);
+        --sl-tooltip-background-color: var(--background-color);
+        --sl-tooltip-color: var(--font-color);
+        --sl-tooltip-border-radius: 0;
+        --sl-tooltip-font-family: var(--font-stack), monospace;
+        --sl-tooltip-font-size: inherit;
+        --sl-tooltip-padding: var(--global-padding);
+        --sl-tooltip-arrow-size: 6px;
+    }
+
+    .floating-actions sl-tooltip::part(body),
+    .floating-copy::part(body) {
+        border: 1px dashed var(--secondary-color);
+        text-transform: uppercase;
+        letter-spacing: var(--label-spacing);
+    }
+`,Dp=[Uu,Ep,E`
     :host {
         display: inline-block;
         margin: var(--example-margin, var(--global-padding) 0 var(--global-padding) 0);
@@ -5978,7 +6057,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         padding: var(--global-padding) var(--global-padding);
         font-family: var(--font-stack-bold), monospace;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         color: var(--font-color-sub1);
         transition: color 0.15s, border-color 0.15s;
     }
@@ -5994,7 +6073,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-family: var(--font-stack), monospace;
         color: var(--font-color-sub1);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .inline-selector-row {
@@ -6015,59 +6094,6 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         padding-top: 0;
     }
 
-    .code-container {
-        position: relative;
-    }
-
-    .floating-actions {
-        position: absolute;
-        top: var(--global-padding);
-        right: var(--global-padding);
-        z-index: 1;
-        display: flex;
-        gap: 0.25rem;
-        align-items: center;
-    }
-
-    .floating-copy {
-        --sl-color-primary-600: var(--primary-color);
-        --sl-tooltip-background-color: var(--background-color);
-        --sl-tooltip-color: var(--font-color);
-        --sl-tooltip-border-radius: 0;
-        --sl-tooltip-font-family: var(--font-stack), monospace;
-        --sl-tooltip-font-size: inherit;
-        --sl-tooltip-padding: var(--global-padding);
-        --sl-tooltip-arrow-size: 6px;
-    }
-
-    .floating-expand::part(base) {
-        color: var(--font-color-sub1);
-    }
-    .floating-expand::part(base):hover {
-        color: var(--primary-color);
-    }
-
-    .floating-actions sl-tooltip {
-        --sl-tooltip-background-color: var(--background-color);
-        --sl-tooltip-color: var(--font-color);
-        --sl-tooltip-border-radius: 0;
-        --sl-tooltip-font-family: var(--font-stack), monospace;
-        --sl-tooltip-font-size: inherit;
-        --sl-tooltip-padding: var(--global-padding);
-        --sl-tooltip-arrow-size: 6px;
-    }
-    .floating-actions sl-tooltip::part(body) {
-        border: 1px dashed var(--secondary-color);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    .floating-copy::part(body) {
-        border: 1px dashed var(--secondary-color);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    
     sl-dropdown {
         margin-top: 0;
     }
@@ -6075,13 +6101,13 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
     pp-code-viewer {
         margin-top: var(--code-viewer-margin-top, var(--global-padding));
     }
-`],Dp=E`
+`],Op=E`
     /* Direct sl-tooltip styling (used by pp-raw-viewer-btn etc.) */
     sl-tooltip::part(base){
         font-family: var(--font-stack), monospace;
         font-size: 1rem;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     sl-tooltip::part(body){
@@ -6092,37 +6118,13 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         border: 1px dashed var(--secondary-color);
         border-radius: 0;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     sl-tooltip::part(base__arrow){
         background-color: var(--secondary-color);
     }
-
-    /* sl-copy-button forwarded tooltip parts (tooltip lives inside
-       sl-copy-button's shadow DOM and is exposed via exportparts) */
-    sl-copy-button::part(tooltip__base){
-        font-family: var(--font-stack), monospace;
-        font-size: 1rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    sl-copy-button::part(tooltip__body){
-        font-family: var(--font-stack), monospace;
-        font-size: 0.9rem;
-        background-color: var(--background-color);
-        color: var(--font-color);
-        border: 1px dashed var(--secondary-color);
-        border-radius: 0;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    sl-copy-button::part(tooltip__base__arrow){
-        background-color: var(--secondary-color);
-    }
-`,Op=class extends k{constructor(...e){super(...e),this.examplesData=``,this.mockJson=``,this.examplesJson=``,this.descriptionsJson=``,this.mode=`drawer`,this.codeLanguage=`json`,this.hideLabel=!1,this.showExpand=!1,this.exampleTitle=`Example`,this.entries=[],this.descriptions={},this.selectedIndex=0}static{this.styles=[...Ep,dd,Dp]}willUpdate(e){(e.has(`examplesData`)||e.has(`mockJson`)||e.has(`examplesJson`)||e.has(`descriptionsJson`))&&this.buildEntries()}buildEntries(){let e=[],t=this.mockJson,n={};if(this.examplesData)try{let e=JSON.parse(this.examplesData);e.mockJson&&(t=e.mockJson),e.examples&&(n=e.examples)}catch{}if(this.examplesJson)try{n={...n,...JSON.parse(this.examplesJson)}}catch{}for(let[t,r]of Object.entries(n))r&&e.push({key:t,json:r});if(t&&e.push({key:``,json:t}),this.entries=e,this.selectedIndex=0,this.descriptionsJson)try{this.descriptions=JSON.parse(this.descriptionsJson)}catch{this.descriptions={}}else this.descriptions={}}showExample(e){let t=e.json;if(this.codeLanguage===`json`)try{t=JSON.stringify(JSON.parse(e.json),null,2)}catch{}let n=new CustomEvent(`pp-show-example`,{bubbles:!0,composed:!0,detail:{title:e.key,json:t,language:this.codeLanguage}});this.dispatchEvent(n)}handleSelect(e){let t=e.detail?.item?.value;if(t===void 0)return;let n=parseInt(t,10);n>=0&&n<this.entries.length&&this.showExample(this.entries[n])}render(){if(!this.entries.length)return O;if(this.mode===`inline`)return this.renderInline();if(this.entries.length===1){let e=this.entries[0];return D`
+`,kp=class extends k{constructor(...e){super(...e),this.examplesData=``,this.mockJson=``,this.examplesJson=``,this.descriptionsJson=``,this.mode=`drawer`,this.codeLanguage=`json`,this.hideLabel=!1,this.showExpand=!1,this.exampleTitle=`Example`,this.entries=[],this.descriptions={},this.selectedIndex=0}static{this.styles=[...Dp,dd,Op]}willUpdate(e){(e.has(`examplesData`)||e.has(`mockJson`)||e.has(`examplesJson`)||e.has(`descriptionsJson`))&&this.buildEntries()}buildEntries(){let e=[],t=this.mockJson,n={};if(this.examplesData)try{let e=JSON.parse(this.examplesData);e.mockJson&&(t=e.mockJson),e.examples&&(n=e.examples)}catch{}if(this.examplesJson)try{n={...n,...JSON.parse(this.examplesJson)}}catch{}for(let[t,r]of Object.entries(n))r&&e.push({key:t,json:r});if(t&&e.push({key:``,json:t}),this.entries=e,this.selectedIndex=0,this.descriptionsJson)try{this.descriptions=JSON.parse(this.descriptionsJson)}catch{this.descriptions={}}else this.descriptions={}}showExample(e){let t=e.json;if(this.codeLanguage===`json`)try{t=JSON.stringify(JSON.parse(e.json),null,2)}catch{}let n=new CustomEvent(`pp-show-example`,{bubbles:!0,composed:!0,detail:{title:e.key,json:t,language:this.codeLanguage}});this.dispatchEvent(n)}handleSelect(e){let t=e.detail?.item?.value;if(t===void 0)return;let n=parseInt(t,10);n>=0&&n<this.entries.length&&this.showExample(this.entries[n])}render(){if(!this.entries.length)return O;if(this.mode===`inline`)return this.renderInline();if(this.entries.length===1){let e=this.entries[0];return D`
         <div class="selector">
           <button @click=${()=>this.showExample(e)}>${e.key}</button>
         </div>
@@ -6175,7 +6177,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         </sl-dropdown>
         ${t?qf(t,{className:`inline-example-desc pp-markdown`}):O}
       </div>
-    `}handleInlineSelect(e){let t=e.detail?.item?.value;t!==void 0&&(this.selectedIndex=parseInt(t,10))}};K([P({attribute:`examples-data`})],Op.prototype,`examplesData`,void 0),K([P({attribute:`mock-json`})],Op.prototype,`mockJson`,void 0),K([P({attribute:`examples-json`})],Op.prototype,`examplesJson`,void 0),K([P({attribute:`descriptions-json`})],Op.prototype,`descriptionsJson`,void 0),K([P()],Op.prototype,`mode`,void 0),K([P({attribute:`code-language`})],Op.prototype,`codeLanguage`,void 0),K([P({type:Boolean,attribute:`hide-label`})],Op.prototype,`hideLabel`,void 0),K([P({type:Boolean,attribute:`show-expand`})],Op.prototype,`showExpand`,void 0),K([P({attribute:`example-title`})],Op.prototype,`exampleTitle`,void 0),K([F()],Op.prototype,`entries`,void 0),K([F()],Op.prototype,`descriptions`,void 0),K([F()],Op.prototype,`selectedIndex`,void 0),Op=K([N(`pp-example-selector`)],Op);var kp=[Uu,E`
+    `}handleInlineSelect(e){let t=e.detail?.item?.value;t!==void 0&&(this.selectedIndex=parseInt(t,10))}};K([P({attribute:`examples-data`})],kp.prototype,`examplesData`,void 0),K([P({attribute:`mock-json`})],kp.prototype,`mockJson`,void 0),K([P({attribute:`examples-json`})],kp.prototype,`examplesJson`,void 0),K([P({attribute:`descriptions-json`})],kp.prototype,`descriptionsJson`,void 0),K([P()],kp.prototype,`mode`,void 0),K([P({attribute:`code-language`})],kp.prototype,`codeLanguage`,void 0),K([P({type:Boolean,attribute:`hide-label`})],kp.prototype,`hideLabel`,void 0),K([P({type:Boolean,attribute:`show-expand`})],kp.prototype,`showExpand`,void 0),K([P({attribute:`example-title`})],kp.prototype,`exampleTitle`,void 0),K([F()],kp.prototype,`entries`,void 0),K([F()],kp.prototype,`descriptions`,void 0),K([F()],kp.prototype,`selectedIndex`,void 0),kp=K([N(`pp-example-selector`)],kp);var Ap=[Uu,E`
     :host {
         display: block;
     }
@@ -6191,7 +6193,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-family: var(--font-stack-bold), monospace;
         color: var(--primary-color);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .array-type {
@@ -6210,7 +6212,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-weight: normal;
         color: var(--font-color-sub1);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         margin: 0 0 var(--global-padding) 0;
     }
 
@@ -6254,7 +6256,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         --example-margin: 0;
         --code-viewer-margin-top: 0;
     }
-`],Ap=class extends k{constructor(...e){super(...e),this.contentJson=``,this.mediaTypes=[],this.selectedIndex=0,this.schemasIdentical=!1,this.wide=!1,this.resizeObserver=null,this.paneResizeObserver=null,this._sizePending=!1,this._rafId=0,this.observedPropsPane=null,this.observedExamplePane=null,this.observedPropsContent=null,this.observedExampleContent=null}static{this.styles=[ku,fd,kp]}connectedCallback(){super.connectedCallback(),setTimeout(()=>{this.wide=this.offsetWidth>=900,!(typeof ResizeObserver>`u`)&&(this.resizeObserver=new ResizeObserver(e=>{for(let t of e)this.wide=t.contentRect.width>=900}),this.resizeObserver.observe(this),this.paneResizeObserver=new ResizeObserver(()=>{this.sizeSplitPanel()}))},0)}disconnectedCallback(){super.disconnectedCallback(),cancelAnimationFrame(this._rafId),this.resizeObserver?.disconnect(),this.resizeObserver=null,this.paneResizeObserver?.disconnect(),this.paneResizeObserver=null,this.observedPropsPane=null,this.observedExamplePane=null,this.observedPropsContent=null,this.observedExampleContent=null}updated(e){(e.has(`wide`)||e.has(`selectedIndex`)||e.has(`mediaTypes`))&&this.sizeSplitPanel(),this.syncPaneObservers()}sizeSplitPanel(){!this.splitPanel||!this.propsPane||!this.examplePane||this._sizePending||(this._sizePending=!0,this._rafId=requestAnimationFrame(()=>{if(this._sizePending=!1,!this.splitPanel||!this.propsPane||!this.examplePane)return;let e=this.measurePaneContentHeight(this.propsPane),t=this.measurePaneContentHeight(this.examplePane),n=document.documentElement.clientHeight||800,r=this.mediaTypes[this.selectedIndex],i=this.getPropCount(r),a=Math.max(e,t),o=i>=6?300:220,s=n*.75,c=Math.max(o,Math.min(a,s)),l=getComputedStyle(this.splitPanel),u=parseFloat(l.paddingTop)+parseFloat(l.paddingBottom);this.splitPanel.style.height=`${c+u}px`}))}measurePaneContentHeight(e){let t=Array.from(e.children).reduce((e,t)=>e+Math.max(t.offsetHeight,t.scrollHeight),0),n=getComputedStyle(e);return t+(parseFloat(n.paddingTop)+parseFloat(n.paddingBottom))}syncPaneObservers(){if(!this.paneResizeObserver||typeof ResizeObserver>`u`)return;let e=this.propsPane??null,t=this.examplePane??null,n=e?.firstElementChild??null,r=t?.firstElementChild??null;this.observedPropsPane!==e&&(this.observedPropsPane&&this.paneResizeObserver.unobserve(this.observedPropsPane),e&&this.paneResizeObserver.observe(e),this.observedPropsPane=e),this.observedExamplePane!==t&&(this.observedExamplePane&&this.paneResizeObserver.unobserve(this.observedExamplePane),t&&this.paneResizeObserver.observe(t),this.observedExamplePane=t),this.observedPropsContent!==n&&(this.observedPropsContent&&this.paneResizeObserver.unobserve(this.observedPropsContent),n instanceof Element&&this.paneResizeObserver.observe(n),this.observedPropsContent=n),this.observedExampleContent!==r&&(this.observedExampleContent&&this.paneResizeObserver.unobserve(this.observedExampleContent),r instanceof Element&&this.paneResizeObserver.observe(r),this.observedExampleContent=r)}getPropCount(e){let t=e?.isArray&&e?.itemsSchemaJson?e.itemsSchemaJson:e?.schemaJson;if(!t)return 0;try{let e=JSON.parse(t);return e.properties?Object.keys(e.properties).length:0}catch{return 0}}isComplexWithExample(e){if(!e.schemaJson&&!(e.isArray&&e.itemsSchemaJson))return!1;let t=e.isArray&&e.itemsSchemaJson?e.itemsSchemaJson:e.schemaJson;if(!t)return!1;try{let n=JSON.parse(t),r=n.properties||n.allOf||n.oneOf||n.anyOf,i=!!(e.mockJson||e.mockYaml||e.mockXml||e.examples&&Object.keys(e.examples).length);return!!r&&i}catch{return!1}}willUpdate(e){if(e.has(`contentJson`)&&this.contentJson){try{this.mediaTypes=JSON.parse(this.contentJson)}catch{this.mediaTypes=[]}let e=this.mediaTypes.findIndex(e=>e.mediaType.toLowerCase()===`application/json`);this.selectedIndex=e>=0?e:0,this.schemasIdentical=this.mediaTypes.length>1&&new Set(this.mediaTypes.map(e=>this.schemaFingerprint(e))).size===1}}schemaFingerprint(e){return e.isArray&&e.itemsRef?`array:${e.itemsRef.slug}:${e.itemsSchemaJson||e.schemaJson}`:e.schemaRef?`ref:${e.schemaRef.componentType}/${e.schemaRef.slug}`:`inline:${e.schemaJson}`}getMockAndLanguage(e){let t=e.mediaType.toLowerCase();return(t.includes(`yaml`)||t.includes(`x-yaml`))&&e.mockYaml?{mock:e.mockYaml,language:`yaml`}:t.includes(`xml`)&&e.mockXml?{mock:e.mockXml,language:`xml`}:{mock:e.mockJson||``,language:`json`}}renderSchemaHeader(e){return e.isArray&&e.itemsRef?D`
+`],jp=class extends k{constructor(...e){super(...e),this.contentJson=``,this.mediaTypes=[],this.selectedIndex=0,this.schemasIdentical=!1,this.wide=!1,this.resizeObserver=null,this.paneResizeObserver=null,this._sizePending=!1,this._rafId=0,this.observedPropsPane=null,this.observedExamplePane=null,this.observedPropsContent=null,this.observedExampleContent=null}static{this.styles=[ku,fd,Ap]}connectedCallback(){super.connectedCallback(),setTimeout(()=>{this.wide=this.offsetWidth>=900,!(typeof ResizeObserver>`u`)&&(this.resizeObserver=new ResizeObserver(e=>{for(let t of e)this.wide=t.contentRect.width>=900}),this.resizeObserver.observe(this),this.paneResizeObserver=new ResizeObserver(()=>{this.sizeSplitPanel()}))},0)}disconnectedCallback(){super.disconnectedCallback(),cancelAnimationFrame(this._rafId),this.resizeObserver?.disconnect(),this.resizeObserver=null,this.paneResizeObserver?.disconnect(),this.paneResizeObserver=null,this.observedPropsPane=null,this.observedExamplePane=null,this.observedPropsContent=null,this.observedExampleContent=null}updated(e){(e.has(`wide`)||e.has(`selectedIndex`)||e.has(`mediaTypes`))&&this.sizeSplitPanel(),this.syncPaneObservers()}sizeSplitPanel(){!this.splitPanel||!this.propsPane||!this.examplePane||this._sizePending||(this._sizePending=!0,this._rafId=requestAnimationFrame(()=>{if(this._sizePending=!1,!this.splitPanel||!this.propsPane||!this.examplePane)return;let e=this.measurePaneContentHeight(this.propsPane),t=this.measurePaneContentHeight(this.examplePane),n=document.documentElement.clientHeight||800,r=this.mediaTypes[this.selectedIndex],i=this.getPropCount(r),a=Math.max(e,t),o=i>=6?300:220,s=n*.75,c=Math.max(o,Math.min(a,s)),l=getComputedStyle(this.splitPanel),u=parseFloat(l.paddingTop)+parseFloat(l.paddingBottom);this.splitPanel.style.height=`${c+u}px`}))}measurePaneContentHeight(e){let t=Array.from(e.children).reduce((e,t)=>e+Math.max(t.offsetHeight,t.scrollHeight),0),n=getComputedStyle(e);return t+(parseFloat(n.paddingTop)+parseFloat(n.paddingBottom))}syncPaneObservers(){if(!this.paneResizeObserver||typeof ResizeObserver>`u`)return;let e=this.propsPane??null,t=this.examplePane??null,n=e?.firstElementChild??null,r=t?.firstElementChild??null;this.observedPropsPane!==e&&(this.observedPropsPane&&this.paneResizeObserver.unobserve(this.observedPropsPane),e&&this.paneResizeObserver.observe(e),this.observedPropsPane=e),this.observedExamplePane!==t&&(this.observedExamplePane&&this.paneResizeObserver.unobserve(this.observedExamplePane),t&&this.paneResizeObserver.observe(t),this.observedExamplePane=t),this.observedPropsContent!==n&&(this.observedPropsContent&&this.paneResizeObserver.unobserve(this.observedPropsContent),n instanceof Element&&this.paneResizeObserver.observe(n),this.observedPropsContent=n),this.observedExampleContent!==r&&(this.observedExampleContent&&this.paneResizeObserver.unobserve(this.observedExampleContent),r instanceof Element&&this.paneResizeObserver.observe(r),this.observedExampleContent=r)}getPropCount(e){let t=e?.isArray&&e?.itemsSchemaJson?e.itemsSchemaJson:e?.schemaJson;if(!t)return 0;try{let e=JSON.parse(t);return e.properties?Object.keys(e.properties).length:0}catch{return 0}}isComplexWithExample(e){if(!e.schemaJson&&!(e.isArray&&e.itemsSchemaJson))return!1;let t=e.isArray&&e.itemsSchemaJson?e.itemsSchemaJson:e.schemaJson;if(!t)return!1;try{let n=JSON.parse(t),r=n.properties||n.allOf||n.oneOf||n.anyOf,i=!!(e.mockJson||e.mockYaml||e.mockXml||e.examples&&Object.keys(e.examples).length);return!!r&&i}catch{return!1}}willUpdate(e){if(e.has(`contentJson`)&&this.contentJson){try{this.mediaTypes=JSON.parse(this.contentJson)}catch{this.mediaTypes=[]}let e=this.mediaTypes.findIndex(e=>e.mediaType.toLowerCase()===`application/json`);this.selectedIndex=e>=0?e:0,this.schemasIdentical=this.mediaTypes.length>1&&new Set(this.mediaTypes.map(e=>this.schemaFingerprint(e))).size===1}}schemaFingerprint(e){return e.isArray&&e.itemsRef?`array:${e.itemsRef.slug}:${e.itemsSchemaJson||e.schemaJson}`:e.schemaRef?`ref:${e.schemaRef.componentType}/${e.schemaRef.slug}`:`inline:${e.schemaJson}`}getMockAndLanguage(e){let t=e.mediaType.toLowerCase();return(t.includes(`yaml`)||t.includes(`x-yaml`))&&e.mockYaml?{mock:e.mockYaml,language:`yaml`}:t.includes(`xml`)&&e.mockXml?{mock:e.mockXml,language:`xml`}:{mock:e.mockJson||``,language:`json`}}renderSchemaHeader(e){return e.isArray&&e.itemsRef?D`
                 <div class="media-type-ref">
                     <span class="media-type-label">${e.mediaType}</span>
                     <span class="array-type">Array&lt;${Jf(e.itemsRef)}&gt;</span>
@@ -6325,7 +6327,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
             ${this.renderInlineExamples(e,n,t)}
             ${this.renderSchemaProperties(e)}
             ${this.renderExtensions(e)}
-        `}};K([P({attribute:`content-json`})],Ap.prototype,`contentJson`,void 0),K([F()],Ap.prototype,`mediaTypes`,void 0),K([F()],Ap.prototype,`selectedIndex`,void 0),K([F()],Ap.prototype,`schemasIdentical`,void 0),K([F()],Ap.prototype,`wide`,void 0),K([I(`.schema-split`)],Ap.prototype,`splitPanel`,void 0),K([I(`.schema-props-pane`)],Ap.prototype,`propsPane`,void 0),K([I(`.schema-example-pane`)],Ap.prototype,`examplePane`,void 0),Ap=K([N(`pp-media-type-selector`)],Ap);var jp=class extends k{constructor(...e){super(...e),this.responsesJson=``,this.commonHeadersJson=``,this.responses=[],this.commonResponseHeaders=[],this.commonHeaderNames=new Set,this.commonErrorKeys=new Set,this.commonErrorResponses=new Map,this.successResponses=[],this.redirectResponses=[],this.errorResponses=[]}static{this.styles=[ku,ud,dd,fd,xp,Sp,Cp]}willUpdate(e){if(e.has(`responsesJson`)&&this.responsesJson){try{this.responses=JSON.parse(this.responsesJson)}catch{this.responses=[]}let e=[...this.responses].sort((e,t)=>parseInt(e.statusCode,10)-parseInt(t.statusCode,10)),t=[],n=[],r=[];for(let i of e){let e=parseInt(i.statusCode,10);e>=400?r.push(i):e>=300?n.push(i):t.push(i)}this.successResponses=t,this.redirectResponses=n,this.errorResponses=r;let{commonKeys:i,commonResponses:a}=this.computeCommonErrors(r);this.commonErrorKeys=i,this.commonErrorResponses=a}if(e.has(`commonHeadersJson`)&&this.commonHeadersJson){try{this.commonResponseHeaders=JSON.parse(this.commonHeadersJson)}catch{this.commonResponseHeaders=[]}this.commonHeaderNames=new Set(this.commonResponseHeaders.map(e=>e.name))}}getResponseNavItems(){let e=[];for(let t of[...this.successResponses,...this.redirectResponses,...this.errorResponses])e.push({label:`${t.statusCode} ${Tp[t.statusCode]||``}`.trim(),id:`response-${t.statusCode}`});return e}scrollToHeader(e){let t=this.shadowRoot?.getElementById(`header-`+e);if(!t)return;let n=t.closest(`sl-details`);n&&!n.open?(n.open=!0,n.updateComplete?.then(()=>{t.scrollIntoView({behavior:`auto`,block:`center`})})):t.scrollIntoView({behavior:`auto`,block:`center`})}renderHeaderEntry(e){return D`
+        `}};K([P({attribute:`content-json`})],jp.prototype,`contentJson`,void 0),K([F()],jp.prototype,`mediaTypes`,void 0),K([F()],jp.prototype,`selectedIndex`,void 0),K([F()],jp.prototype,`schemasIdentical`,void 0),K([F()],jp.prototype,`wide`,void 0),K([I(`.schema-split`)],jp.prototype,`splitPanel`,void 0),K([I(`.schema-props-pane`)],jp.prototype,`propsPane`,void 0),K([I(`.schema-example-pane`)],jp.prototype,`examplePane`,void 0),jp=K([N(`pp-media-type-selector`)],jp);var Mp=class extends k{constructor(...e){super(...e),this.responsesJson=``,this.commonHeadersJson=``,this.responses=[],this.commonResponseHeaders=[],this.commonHeaderNames=new Set,this.commonErrorKeys=new Set,this.commonErrorResponses=new Map,this.successResponses=[],this.redirectResponses=[],this.errorResponses=[]}static{this.styles=[ku,ud,dd,fd,xp,Sp,Cp]}willUpdate(e){if(e.has(`responsesJson`)&&this.responsesJson){try{this.responses=JSON.parse(this.responsesJson)}catch{this.responses=[]}let e=[...this.responses].sort((e,t)=>parseInt(e.statusCode,10)-parseInt(t.statusCode,10)),t=[],n=[],r=[];for(let i of e){let e=parseInt(i.statusCode,10);e>=400?r.push(i):e>=300?n.push(i):t.push(i)}this.successResponses=t,this.redirectResponses=n,this.errorResponses=r;let{commonKeys:i,commonResponses:a}=this.computeCommonErrors(r);this.commonErrorKeys=i,this.commonErrorResponses=a}if(e.has(`commonHeadersJson`)&&this.commonHeadersJson){try{this.commonResponseHeaders=JSON.parse(this.commonHeadersJson)}catch{this.commonResponseHeaders=[]}this.commonHeaderNames=new Set(this.commonResponseHeaders.map(e=>e.name))}}getResponseNavItems(){let e=[];for(let t of[...this.successResponses,...this.redirectResponses,...this.errorResponses])e.push({label:`${t.statusCode} ${Tp[t.statusCode]||``}`.trim(),id:`response-${t.statusCode}`});return e}scrollToHeader(e){let t=this.shadowRoot?.getElementById(`header-`+e);if(!t)return;let n=t.closest(`sl-details`);n&&!n.open?(n.open=!0,n.updateComplete?.then(()=>{t.scrollIntoView({behavior:`auto`,block:`center`})})):t.scrollIntoView({behavior:`auto`,block:`center`})}renderHeaderEntry(e){return D`
             <div class="header-entry">
                 <div class="header-name-col">
                     ${e.ref?D`
@@ -6459,7 +6461,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
                     ${this.errorResponses.map(n=>this.renderResponse(n,e,t))}
                 </sl-details>
             `:O}
-        `}};K([P({attribute:`responses-json`})],jp.prototype,`responsesJson`,void 0),K([P({attribute:`common-headers-json`})],jp.prototype,`commonHeadersJson`,void 0),K([F()],jp.prototype,`responses`,void 0),K([F()],jp.prototype,`commonResponseHeaders`,void 0),K([F()],jp.prototype,`commonHeaderNames`,void 0),K([F()],jp.prototype,`commonErrorKeys`,void 0),K([F()],jp.prototype,`commonErrorResponses`,void 0),K([F()],jp.prototype,`successResponses`,void 0),K([F()],jp.prototype,`redirectResponses`,void 0),K([F()],jp.prototype,`errorResponses`,void 0),jp=K([N(`pp-operation-responses`)],jp);var Mp=E`
+        `}};K([P({attribute:`responses-json`})],Mp.prototype,`responsesJson`,void 0),K([P({attribute:`common-headers-json`})],Mp.prototype,`commonHeadersJson`,void 0),K([F()],Mp.prototype,`responses`,void 0),K([F()],Mp.prototype,`commonResponseHeaders`,void 0),K([F()],Mp.prototype,`commonHeaderNames`,void 0),K([F()],Mp.prototype,`commonErrorKeys`,void 0),K([F()],Mp.prototype,`commonErrorResponses`,void 0),K([F()],Mp.prototype,`successResponses`,void 0),K([F()],Mp.prototype,`redirectResponses`,void 0),K([F()],Mp.prototype,`errorResponses`,void 0),Mp=K([N(`pp-operation-responses`)],Mp);var Np=E`
     :host {
         display: block;
     }
@@ -6479,7 +6481,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-family: var(--font-stack-bold), monospace;
         color: var(--font-color);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         margin-bottom: var(--global-padding-double);
     }
 
@@ -6517,7 +6519,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-family: var(--font-stack), monospace;
         color: var(--font-color-sub1);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         margin-bottom: var(--global-padding);
         margin-top: var(--global-padding-double);
     }
@@ -6537,7 +6539,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         color: var(--font-color-sub1);
     }
 
-`,Np=class extends k{constructor(...e){super(...e),this.callbacksJson=``,this.callbacks=[]}static{this.styles=[ku,dd,fd,xp,Mp]}willUpdate(e){if(e.has(`callbacksJson`)&&this.callbacksJson)try{this.callbacks=JSON.parse(this.callbacksJson)}catch{this.callbacks=[]}}renderRequestBody(e){return e.ref?D`<div class="callback-section-label">Request Body</div>${Jf(e.ref,!0)}`:e.content?.length?D`
+`,Pp=class extends k{constructor(...e){super(...e),this.callbacksJson=``,this.callbacks=[]}static{this.styles=[ku,dd,fd,xp,Np]}willUpdate(e){if(e.has(`callbacksJson`)&&this.callbacksJson)try{this.callbacks=JSON.parse(this.callbacksJson)}catch{this.callbacks=[]}}renderRequestBody(e){return e.ref?D`<div class="callback-section-label">Request Body</div>${Jf(e.ref,!0)}`:e.content?.length?D`
             <div class="callback-section-label">Request Body${e.required?` (required)`:``}</div>
             ${e.descHtml?D`<div class="callback-desc">${bd(e.descHtml)}</div>`:qf(e.description,{className:`callback-desc pp-markdown`})}
             <pp-media-type-selector content-json=${JSON.stringify(e.content)}></pp-media-type-selector>
@@ -6572,7 +6574,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
                     ${e.operations.map(e=>this.renderCallbackOperation(e))}
                 </div>
             `)}
-        `:O}};K([P({attribute:`callbacks-json`})],Np.prototype,`callbacksJson`,void 0),K([F()],Np.prototype,`callbacks`,void 0),Np=K([N(`pp-operation-callbacks`)],Np);var Pp=E`
+        `:O}};K([P({attribute:`callbacks-json`})],Pp.prototype,`callbacksJson`,void 0),K([F()],Pp.prototype,`callbacks`,void 0),Pp=K([N(`pp-operation-callbacks`)],Pp);var Fp=E`
     :host {
         display: block;
         margin-top: var(--global-padding-double);
@@ -6590,7 +6592,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-family: var(--font-stack-bold), monospace;
         font-weight: normal;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         border-bottom: 1px dashed var(--hrcolor);
     }
 
@@ -6643,7 +6645,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-family: var(--font-stack-bold);
         margin-left: 0.5rem;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .enum-values {
@@ -6695,7 +6697,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
     }
 
     .property-grid-value code {
-        color: var(--warn-400);
+        color: var(--primary-color);
     }
 
     .enum-section-full {
@@ -6820,9 +6822,9 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
     .model-skeleton,
     .model-skeleton-split {
         margin-top: var(--global-padding-double);
-        border-top: 1px solid var(--secondary-color-lowalpha);
-        border-bottom: 1px solid var(--secondary-color-lowalpha);
-        padding: var(--global-padding) 0;
+        border: 1px dotted var(--hrcolor);
+        background: var(--secondary-color-lowalpha);
+        padding: var(--global-padding);
     }
 
     .model-skeleton-split {
@@ -6837,7 +6839,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
     }
 
     .model-skeleton-divider {
-        background: var(--secondary-color-lowalpha);
+        background: var(--hrcolor);
         min-height: 100%;
     }
 
@@ -6845,8 +6847,8 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
     .skeleton-row,
     .skeleton-example-header,
     .skeleton-example-block {
-        background: linear-gradient(90deg, var(--primary-color-verylowalpha) 0%, var(--secondary-color-lowalpha) 50%, var(--primary-color-verylowalpha) 100%);
-        border: 1px solid var(--hrcolor);
+        background: var(--secondary-color-lowalpha);
+        border: 1px dotted var(--hrcolor);
     }
 
     .skeleton-heading {
@@ -6878,7 +6880,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         opacity: 0.55;
     }
 
-`,Fp=E`
+`,Ip=[Ep,E`
     :host {
         display: block;
         margin-top: var(--global-padding-double);
@@ -6899,7 +6901,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-family: var(--font-stack-bold), monospace;
         font-weight: normal;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         border-bottom: 1px dashed var(--hrcolor);
     }
 
@@ -6918,7 +6920,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         padding: 0.2em 0.6em;
         cursor: pointer;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .toggle-btn:first-child {
@@ -6935,18 +6937,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         color: var(--font-color-sub1);
     }
 
-    .code-container {
-        position: relative;
-
-    }
-
-    .floating-copy {
-        position: absolute;
-        top: var(--global-padding);
-        right: var(--global-padding);
-        z-index: 1;
-    }
-`,Ip=class extends k{constructor(...e){super(...e),this.rawJson=``,this.rawYaml=``,this.startLine=1,this.title=`Schema`,this.location=``,this.noLineNumbers=!1,this.mode=`yaml`}static{this.styles=[Fp,Dp]}connectedCallback(){super.connectedCallback();let e=document.body.getAttribute(`data-spec-format`);(e===`json`||e===`yaml`)&&(this.mode=e)}render(){if(!this.rawJson&&!this.rawYaml)return O;let e=!!this.rawJson,t=!!this.rawYaml,n=this.mode===`yaml`&&t?this.rawYaml:this.rawJson,r=this.mode===`yaml`&&t?`yaml`:`json`,i=e&&t;return D`
+`],Lp=class extends k{constructor(...e){super(...e),this.rawJson=``,this.rawYaml=``,this.startLine=1,this.title=`Schema`,this.location=``,this.noLineNumbers=!1,this.mode=`yaml`}static{this.styles=[Ip,Op]}connectedCallback(){super.connectedCallback();let e=document.body.getAttribute(`data-spec-format`);(e===`json`||e===`yaml`)&&(this.mode=e)}render(){if(!this.rawJson&&!this.rawYaml)return O;let e=!!this.rawJson,t=!!this.rawYaml,n=this.mode===`yaml`&&t?this.rawYaml:this.rawJson,r=this.mode===`yaml`&&t?`yaml`:`json`,i=e&&t;return D`
       ${this.title||i?D`
       <div class="toolbar">
         ${this.title?D`<h3>${this.title}</h3>`:O}
@@ -6979,7 +6970,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
           location=${this.location}>
         </pp-code-viewer>
       </div>
-    `}};K([P({attribute:`raw-json`})],Ip.prototype,`rawJson`,void 0),K([P({attribute:`raw-yaml`})],Ip.prototype,`rawYaml`,void 0),K([P({attribute:`start-line`,type:Number})],Ip.prototype,`startLine`,void 0),K([P()],Ip.prototype,`title`,void 0),K([P()],Ip.prototype,`location`,void 0),K([P({attribute:`no-line-numbers`,type:Boolean})],Ip.prototype,`noLineNumbers`,void 0),K([F()],Ip.prototype,`mode`,void 0),Ip=K([N(`pp-inline-code`)],Ip);var Q=class extends k{constructor(...e){super(...e),this.modelJson=``,this.name=``,this.layoutMode=`stacked`,this.estimatedBodyHeight=0,this.estimatedSplitHeight=0,this.propertyCount=0,this.requiredCount=0,this.hasExample=!1,this.rawYaml=``,this.schemaRawYaml=``,this.schemaRawJson=``,this.schemaStartLine=1,this.startLine=1,this.location=``,this.mockJson=``,this.parsed=null,this.wide=typeof window<`u`?window.innerWidth>=900:!1,this.exampleJson=``,this.resizeObserver=null,this.paneResizeObserver=null,this._sizePending=!1,this._rafId=0,this.observedPropsPane=null,this.observedExamplePane=null,this.observedPropsContent=null,this.observedExampleContent=null}static{this.styles=[ku,ud,Pp]}connectedCallback(){super.connectedCallback(),this.wide=this.offsetWidth>=900,!(typeof ResizeObserver>`u`)&&(this.resizeObserver=new ResizeObserver(e=>{for(let t of e)this.wide=t.contentRect.width>=900}),this.resizeObserver.observe(this),this.paneResizeObserver=new ResizeObserver(()=>{this.sizeSplitPanel()}))}disconnectedCallback(){super.disconnectedCallback(),cancelAnimationFrame(this._rafId),this.resizeObserver?.disconnect(),this.resizeObserver=null,this.paneResizeObserver?.disconnect(),this.paneResizeObserver=null,this.observedPropsPane=null,this.observedExamplePane=null,this.observedPropsContent=null,this.observedExampleContent=null}updated(e){(e.has(`wide`)||e.has(`parsed`)||e.has(`exampleJson`))&&this.sizeSplitPanel(),this.syncPaneObservers()}sizeSplitPanel(){!this.splitPanel||!this.propsPane||!this.examplePane||this._sizePending||(this._sizePending=!0,this._rafId=requestAnimationFrame(()=>{if(this._sizePending=!1,!this.splitPanel||!this.propsPane||!this.examplePane)return;let e=this.measurePaneContentHeight(this.propsPane),t=this.measurePaneContentHeight(this.examplePane),n=document.documentElement.clientHeight||800,r=this.parsed?.properties?Object.keys(this.parsed.properties).length:0,i=Math.max(e,t),a=(this.estimatedSplitHeight>0?this.estimatedSplitHeight:0)||(r>=6?300:220),o=Math.max(a,Math.min(i,n*.75)),s=getComputedStyle(this.splitPanel),c=parseFloat(s.paddingTop)+parseFloat(s.paddingBottom);this.splitPanel.style.height=`${o+c}px`}))}measurePaneContentHeight(e){let t=Array.from(e.children).reduce((e,t)=>e+Math.max(t.offsetHeight,t.scrollHeight),0),n=getComputedStyle(e);return t+(parseFloat(n.paddingTop)+parseFloat(n.paddingBottom))}syncPaneObservers(){if(!this.paneResizeObserver||typeof ResizeObserver>`u`)return;let e=this.propsPane??null,t=this.examplePane??null,n=e?.firstElementChild??null,r=t?.firstElementChild??null;this.observedPropsPane!==e&&(this.observedPropsPane&&this.paneResizeObserver.unobserve(this.observedPropsPane),e&&this.paneResizeObserver.observe(e),this.observedPropsPane=e),this.observedExamplePane!==t&&(this.observedExamplePane&&this.paneResizeObserver.unobserve(this.observedExamplePane),t&&this.paneResizeObserver.observe(t),this.observedExamplePane=t),this.observedPropsContent!==n&&(this.observedPropsContent&&this.paneResizeObserver.unobserve(this.observedPropsContent),n instanceof Element&&this.paneResizeObserver.observe(n),this.observedPropsContent=n),this.observedExampleContent!==r&&(this.observedExampleContent&&this.paneResizeObserver.unobserve(this.observedExampleContent),r instanceof Element&&this.paneResizeObserver.observe(r),this.observedExampleContent=r)}willUpdate(e){if(e.has(`modelJson`)&&this.modelJson)try{this.parsed=JSON.parse(this.modelJson)}catch{this.parsed=null}if(e.has(`parsed`)||e.has(`mockJson`)){let e=this.parsed;e?.example===void 0?this.exampleJson=this.mockJson||``:this.exampleJson=JSON.stringify(e.example,null,2)}}renderExamples(e,t){if(e.examples){let t={},n={};for(let[r,i]of Object.entries(e.examples)){i.value!==void 0&&(t[r]=JSON.stringify(i.value,null,2));let e=i.description||i.summary||``;e&&(n[r]=e)}if(!Object.keys(t).length)return O;let r=Object.keys(n).length?JSON.stringify(n):``;return D`<pp-example-selector mode="inline"
+    `}};K([P({attribute:`raw-json`})],Lp.prototype,`rawJson`,void 0),K([P({attribute:`raw-yaml`})],Lp.prototype,`rawYaml`,void 0),K([P({attribute:`start-line`,type:Number})],Lp.prototype,`startLine`,void 0),K([P()],Lp.prototype,`title`,void 0),K([P()],Lp.prototype,`location`,void 0),K([P({attribute:`no-line-numbers`,type:Boolean})],Lp.prototype,`noLineNumbers`,void 0),K([F()],Lp.prototype,`mode`,void 0),Lp=K([N(`pp-inline-code`)],Lp);var Q=class extends k{constructor(...e){super(...e),this.modelJson=``,this.name=``,this.layoutMode=`stacked`,this.estimatedBodyHeight=0,this.estimatedSplitHeight=0,this.propertyCount=0,this.requiredCount=0,this.hasExample=!1,this.rawYaml=``,this.schemaRawYaml=``,this.schemaRawJson=``,this.schemaStartLine=1,this.startLine=1,this.location=``,this.mockJson=``,this.parsed=null,this.wide=typeof window<`u`?window.innerWidth>=900:!1,this.exampleJson=``,this.resizeObserver=null,this.paneResizeObserver=null,this._sizePending=!1,this._rafId=0,this.observedPropsPane=null,this.observedExamplePane=null,this.observedPropsContent=null,this.observedExampleContent=null}static{this.styles=[ku,ud,Fp]}connectedCallback(){super.connectedCallback(),this.wide=this.offsetWidth>=900,!(typeof ResizeObserver>`u`)&&(this.resizeObserver=new ResizeObserver(e=>{for(let t of e)this.wide=t.contentRect.width>=900}),this.resizeObserver.observe(this),this.paneResizeObserver=new ResizeObserver(()=>{this.sizeSplitPanel()}))}disconnectedCallback(){super.disconnectedCallback(),cancelAnimationFrame(this._rafId),this.resizeObserver?.disconnect(),this.resizeObserver=null,this.paneResizeObserver?.disconnect(),this.paneResizeObserver=null,this.observedPropsPane=null,this.observedExamplePane=null,this.observedPropsContent=null,this.observedExampleContent=null}updated(e){(e.has(`wide`)||e.has(`parsed`)||e.has(`exampleJson`))&&this.sizeSplitPanel(),this.syncPaneObservers()}sizeSplitPanel(){!this.splitPanel||!this.propsPane||!this.examplePane||this._sizePending||(this._sizePending=!0,this._rafId=requestAnimationFrame(()=>{if(this._sizePending=!1,!this.splitPanel||!this.propsPane||!this.examplePane)return;let e=this.measurePaneContentHeight(this.propsPane),t=this.measurePaneContentHeight(this.examplePane),n=document.documentElement.clientHeight||800,r=this.parsed?.properties?Object.keys(this.parsed.properties).length:0,i=Math.max(e,t),a=(this.estimatedSplitHeight>0?this.estimatedSplitHeight:0)||(r>=6?300:220),o=Math.max(a,Math.min(i,n*.75)),s=getComputedStyle(this.splitPanel),c=parseFloat(s.paddingTop)+parseFloat(s.paddingBottom);this.splitPanel.style.height=`${o+c}px`}))}measurePaneContentHeight(e){let t=Array.from(e.children).reduce((e,t)=>e+Math.max(t.offsetHeight,t.scrollHeight),0),n=getComputedStyle(e);return t+(parseFloat(n.paddingTop)+parseFloat(n.paddingBottom))}syncPaneObservers(){if(!this.paneResizeObserver||typeof ResizeObserver>`u`)return;let e=this.propsPane??null,t=this.examplePane??null,n=e?.firstElementChild??null,r=t?.firstElementChild??null;this.observedPropsPane!==e&&(this.observedPropsPane&&this.paneResizeObserver.unobserve(this.observedPropsPane),e&&this.paneResizeObserver.observe(e),this.observedPropsPane=e),this.observedExamplePane!==t&&(this.observedExamplePane&&this.paneResizeObserver.unobserve(this.observedExamplePane),t&&this.paneResizeObserver.observe(t),this.observedExamplePane=t),this.observedPropsContent!==n&&(this.observedPropsContent&&this.paneResizeObserver.unobserve(this.observedPropsContent),n instanceof Element&&this.paneResizeObserver.observe(n),this.observedPropsContent=n),this.observedExampleContent!==r&&(this.observedExampleContent&&this.paneResizeObserver.unobserve(this.observedExampleContent),r instanceof Element&&this.paneResizeObserver.observe(r),this.observedExampleContent=r)}willUpdate(e){if(e.has(`modelJson`)&&this.modelJson)try{this.parsed=JSON.parse(this.modelJson)}catch{this.parsed=null}if(e.has(`parsed`)||e.has(`mockJson`)){let e=this.parsed;e?.example===void 0?this.exampleJson=this.mockJson||``:this.exampleJson=JSON.stringify(e.example,null,2)}}renderExamples(e,t){if(e.examples){let t={},n={};for(let[r,i]of Object.entries(e.examples)){i.value!==void 0&&(t[r]=JSON.stringify(i.value,null,2));let e=i.description||i.summary||``;e&&(n[r]=e)}if(!Object.keys(t).length)return O;let r=Object.keys(n).length?JSON.stringify(n):``;return D`<pp-example-selector mode="inline"
         examples-json=${JSON.stringify(t)}
         descriptions-json=${r}></pp-example-selector>`}let n=e.example??t?.example;return n===void 0?O:D`<pp-example-selector mode="inline" mock-json=${JSON.stringify(n,null,2)}></pp-example-selector>`}collectSchemaEntries(e){let t=[];e.type&&t.push({label:`type`,value:e.type+(e.format?` (${e.format})`:``),isCode:!0}),e.default!==void 0&&t.push({label:`default`,value:JSON.stringify(e.default),isCode:!0});for(let n of _d(e))t.push(n);return e.enum?.length&&t.push({label:`enum`,value:D`<div class="enum-grid">${e.enum.map(e=>D`<span class="enum-value">${JSON.stringify(e)}</span>`)}</div>`}),t}renderPropertyGrid(e){return e.length?D`
       <div class="property-grid">
@@ -7048,7 +7039,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
           ${this.renderSkeletonRows(this.propertyCount)}
         </div>
       </div>
-    `}render(){if(!this.parsed)return this.renderSkeleton();let e=this.parsed;return e.in?this.renderParameter(e):e.schema&&!e.properties&&!e.in?this.renderHeader(e):this.renderSchema(e)}};K([P({attribute:`model-json`})],Q.prototype,`modelJson`,void 0),K([P()],Q.prototype,`name`,void 0),K([P({attribute:`layout-mode`})],Q.prototype,`layoutMode`,void 0),K([P({attribute:`estimated-body-height`,type:Number})],Q.prototype,`estimatedBodyHeight`,void 0),K([P({attribute:`estimated-split-height`,type:Number})],Q.prototype,`estimatedSplitHeight`,void 0),K([P({attribute:`property-count`,type:Number})],Q.prototype,`propertyCount`,void 0),K([P({attribute:`required-count`,type:Number})],Q.prototype,`requiredCount`,void 0),K([P({attribute:`has-example`,type:Boolean})],Q.prototype,`hasExample`,void 0),K([P({attribute:`raw-yaml`})],Q.prototype,`rawYaml`,void 0),K([P({attribute:`schema-raw-yaml`})],Q.prototype,`schemaRawYaml`,void 0),K([P({attribute:`schema-raw-json`})],Q.prototype,`schemaRawJson`,void 0),K([P({attribute:`schema-start-line`,type:Number})],Q.prototype,`schemaStartLine`,void 0),K([P({attribute:`start-line`,type:Number})],Q.prototype,`startLine`,void 0),K([P()],Q.prototype,`location`,void 0),K([P({attribute:`mock-json`})],Q.prototype,`mockJson`,void 0),K([F()],Q.prototype,`parsed`,void 0),K([F()],Q.prototype,`wide`,void 0),K([F()],Q.prototype,`exampleJson`,void 0),K([I(`.schema-split`)],Q.prototype,`splitPanel`,void 0),K([I(`.schema-props-pane`)],Q.prototype,`propsPane`,void 0),K([I(`.schema-example-pane`)],Q.prototype,`examplePane`,void 0),Q=K([N(`pp-model-page`)],Q);var Lp=E`
+    `}render(){if(!this.parsed)return this.renderSkeleton();let e=this.parsed;return e.in?this.renderParameter(e):e.schema&&!e.properties&&!e.in?this.renderHeader(e):this.renderSchema(e)}};K([P({attribute:`model-json`})],Q.prototype,`modelJson`,void 0),K([P()],Q.prototype,`name`,void 0),K([P({attribute:`layout-mode`})],Q.prototype,`layoutMode`,void 0),K([P({attribute:`estimated-body-height`,type:Number})],Q.prototype,`estimatedBodyHeight`,void 0),K([P({attribute:`estimated-split-height`,type:Number})],Q.prototype,`estimatedSplitHeight`,void 0),K([P({attribute:`property-count`,type:Number})],Q.prototype,`propertyCount`,void 0),K([P({attribute:`required-count`,type:Number})],Q.prototype,`requiredCount`,void 0),K([P({attribute:`has-example`,type:Boolean})],Q.prototype,`hasExample`,void 0),K([P({attribute:`raw-yaml`})],Q.prototype,`rawYaml`,void 0),K([P({attribute:`schema-raw-yaml`})],Q.prototype,`schemaRawYaml`,void 0),K([P({attribute:`schema-raw-json`})],Q.prototype,`schemaRawJson`,void 0),K([P({attribute:`schema-start-line`,type:Number})],Q.prototype,`schemaStartLine`,void 0),K([P({attribute:`start-line`,type:Number})],Q.prototype,`startLine`,void 0),K([P()],Q.prototype,`location`,void 0),K([P({attribute:`mock-json`})],Q.prototype,`mockJson`,void 0),K([F()],Q.prototype,`parsed`,void 0),K([F()],Q.prototype,`wide`,void 0),K([F()],Q.prototype,`exampleJson`,void 0),K([I(`.schema-split`)],Q.prototype,`splitPanel`,void 0),K([I(`.schema-props-pane`)],Q.prototype,`propsPane`,void 0),K([I(`.schema-example-pane`)],Q.prototype,`examplePane`,void 0),Q=K([N(`pp-model-page`)],Q);var Rp=E`
   :host {
     display: block;
   }
@@ -7084,19 +7075,19 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
     margin: 0;
     overflow-wrap: break-word;
   }
-`,Rp=class extends k{constructor(...e){super(...e),this.name=``,this.href=``,this.description=``}static{this.styles=[dd,Lp]}render(){return D`
+`,zp=class extends k{constructor(...e){super(...e),this.name=``,this.href=``,this.description=``}static{this.styles=[dd,Rp]}render(){return D`
       <a href=${this.href}>
         <strong>${this.name}</strong>
         ${qf(this.description)}
       </a>
-    `}};K([P()],Rp.prototype,`name`,void 0),K([P()],Rp.prototype,`href`,void 0),K([P()],Rp.prototype,`description`,void 0),Rp=K([N(`pp-model-card`)],Rp);var zp=E`
+    `}};K([P()],zp.prototype,`name`,void 0),K([P()],zp.prototype,`href`,void 0),K([P()],zp.prototype,`description`,void 0),zp=K([N(`pp-model-card`)],zp);var Bp=E`
     :host {
         display: block;
         margin-top: var(--global-padding);
         padding-top: var(--global-padding);
         border-top: 1px dashed var(--secondary-color-dimmer);
     }
-`,Bp=E`
+`,Vp=E`
     :host {
         display: block;
         margin-bottom: var(--global-padding);
@@ -7111,7 +7102,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-family: var(--font-stack-bold), monospace;
         font-weight: normal;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         border-bottom: 1px dashed var(--hrcolor);
     }
 
@@ -7165,7 +7156,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-size: 0.85rem;
         color: var(--primary-color);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .filter-btn::part(base) {
@@ -7176,13 +7167,13 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         border: 1px solid var(--primary-color);
         border-radius: 0;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .filter-btn::part(label) {
         font-family: var(--font-stack), monospace;
     }
-`,Vp=E`
+`,Hp=E`
   :host {
     display: block;
   }
@@ -7468,7 +7459,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
   .input--no-spin-buttons input[type='number'] {
     -moz-appearance: textfield;
   }
-`,Hp=(e=`value`)=>(t,n)=>{let r=t.constructor,i=r.prototype.attributeChangedCallback;r.prototype.attributeChangedCallback=function(t,a,o){let s=r.getPropertyOptions(e);if(t===(typeof s.attribute==`string`?s.attribute:e)){let t=s.converter||Me,r=(typeof t==`function`?t:t?.fromAttribute??Me.fromAttribute)(o,s.type);this[e]!==r&&(this[n]=r)}i.call(this,t,a,o)}},Up=E`
+`,Up=(e=`value`)=>(t,n)=>{let r=t.constructor,i=r.prototype.attributeChangedCallback;r.prototype.attributeChangedCallback=function(t,a,o){let s=r.getPropertyOptions(e);if(t===(typeof s.attribute==`string`?s.attribute:e)){let t=s.converter||Me,r=(typeof t==`function`?t:t?.fromAttribute??Me.fromAttribute)(o,s.type);this[e]!==r&&(this[n]=r)}i.call(this,t,a,o)}},Wp=E`
   .form-control .form-control__label {
     display: none;
   }
@@ -7524,7 +7515,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
   .form-control--has-help-text.form-control--radio-group .form-control__help-text {
     margin-top: var(--sl-spacing-2x-small);
   }
-`,Wp=vn(class extends yn{constructor(e){if(super(e),e.type!==_n.PROPERTY&&e.type!==_n.ATTRIBUTE&&e.type!==_n.BOOLEAN_ATTRIBUTE)throw Error("The `live` directive is not allowed on child or event bindings");if(!ln(e))throw Error("`live` bindings can only contain a single expression")}render(e){return e}update(e,[t]){if(t===rt||t===O)return t;let n=e.element,r=e.name;if(e.type===_n.PROPERTY){if(t===n[r])return rt}else if(e.type===_n.BOOLEAN_ATTRIBUTE){if(!!t===n.hasAttribute(r))return rt}else if(e.type===_n.ATTRIBUTE&&n.getAttribute(r)===t+``)return rt;return dn(e),t}}),$=class extends L{constructor(){super(...arguments),this.formControlController=new Ra(this,{assumeInteractionOn:[`sl-blur`,`sl-input`]}),this.hasSlotController=new xa(this,`help-text`,`label`),this.localize=new Rn(this),this.hasFocus=!1,this.title=``,this.__numberInput=Object.assign(document.createElement(`input`),{type:`number`}),this.__dateInput=Object.assign(document.createElement(`input`),{type:`date`}),this.type=`text`,this.name=``,this.value=``,this.defaultValue=``,this.size=`medium`,this.filled=!1,this.pill=!1,this.label=``,this.helpText=``,this.clearable=!1,this.disabled=!1,this.placeholder=``,this.readonly=!1,this.passwordToggle=!1,this.passwordVisible=!1,this.noSpinButtons=!1,this.form=``,this.required=!1,this.spellcheck=!0}get valueAsDate(){return this.__dateInput.type=this.type,this.__dateInput.value=this.value,this.input?.valueAsDate||this.__dateInput.valueAsDate}set valueAsDate(e){this.__dateInput.type=this.type,this.__dateInput.valueAsDate=e,this.value=this.__dateInput.value}get valueAsNumber(){return this.__numberInput.value=this.value,this.input?.valueAsNumber||this.__numberInput.valueAsNumber}set valueAsNumber(e){this.__numberInput.valueAsNumber=e,this.value=this.__numberInput.value}get validity(){return this.input.validity}get validationMessage(){return this.input.validationMessage}firstUpdated(){this.formControlController.updateValidity()}handleBlur(){this.hasFocus=!1,this.emit(`sl-blur`)}handleChange(){this.value=this.input.value,this.emit(`sl-change`)}handleClearClick(e){e.preventDefault(),this.value!==``&&(this.value=``,this.emit(`sl-clear`),this.emit(`sl-input`),this.emit(`sl-change`)),this.input.focus()}handleFocus(){this.hasFocus=!0,this.emit(`sl-focus`)}handleInput(){this.value=this.input.value,this.formControlController.updateValidity(),this.emit(`sl-input`)}handleInvalid(e){this.formControlController.setValidity(!1),this.formControlController.emitInvalidEvent(e)}handleKeyDown(e){let t=e.metaKey||e.ctrlKey||e.shiftKey||e.altKey;e.key===`Enter`&&!t&&setTimeout(()=>{!e.defaultPrevented&&!e.isComposing&&this.formControlController.submit()})}handlePasswordToggle(){this.passwordVisible=!this.passwordVisible}handleDisabledChange(){this.formControlController.setValidity(this.disabled)}handleStepChange(){this.input.step=String(this.step),this.formControlController.updateValidity()}async handleValueChange(){await this.updateComplete,this.formControlController.updateValidity()}focus(e){this.input.focus(e)}blur(){this.input.blur()}select(){this.input.select()}setSelectionRange(e,t,n=`none`){this.input.setSelectionRange(e,t,n)}setRangeText(e,t,n,r=`preserve`){let i=t??this.input.selectionStart,a=n??this.input.selectionEnd;this.input.setRangeText(e,i,a,r),this.value!==this.input.value&&(this.value=this.input.value)}showPicker(){`showPicker`in HTMLInputElement.prototype&&this.input.showPicker()}stepUp(){this.input.stepUp(),this.value!==this.input.value&&(this.value=this.input.value)}stepDown(){this.input.stepDown(),this.value!==this.input.value&&(this.value=this.input.value)}checkValidity(){return this.input.checkValidity()}getForm(){return this.formControlController.getForm()}reportValidity(){return this.input.reportValidity()}setCustomValidity(e){this.input.setCustomValidity(e),this.formControlController.updateValidity()}render(){let e=this.hasSlotController.test(`label`),t=this.hasSlotController.test(`help-text`),n=this.label?!0:!!e,r=this.helpText?!0:!!t,i=this.clearable&&!this.disabled&&!this.readonly&&(typeof this.value==`number`||this.value.length>0);return D`
+`,Gp=vn(class extends yn{constructor(e){if(super(e),e.type!==_n.PROPERTY&&e.type!==_n.ATTRIBUTE&&e.type!==_n.BOOLEAN_ATTRIBUTE)throw Error("The `live` directive is not allowed on child or event bindings");if(!ln(e))throw Error("`live` bindings can only contain a single expression")}render(e){return e}update(e,[t]){if(t===rt||t===O)return t;let n=e.element,r=e.name;if(e.type===_n.PROPERTY){if(t===n[r])return rt}else if(e.type===_n.BOOLEAN_ATTRIBUTE){if(!!t===n.hasAttribute(r))return rt}else if(e.type===_n.ATTRIBUTE&&n.getAttribute(r)===t+``)return rt;return dn(e),t}}),$=class extends L{constructor(){super(...arguments),this.formControlController=new Ra(this,{assumeInteractionOn:[`sl-blur`,`sl-input`]}),this.hasSlotController=new xa(this,`help-text`,`label`),this.localize=new Rn(this),this.hasFocus=!1,this.title=``,this.__numberInput=Object.assign(document.createElement(`input`),{type:`number`}),this.__dateInput=Object.assign(document.createElement(`input`),{type:`date`}),this.type=`text`,this.name=``,this.value=``,this.defaultValue=``,this.size=`medium`,this.filled=!1,this.pill=!1,this.label=``,this.helpText=``,this.clearable=!1,this.disabled=!1,this.placeholder=``,this.readonly=!1,this.passwordToggle=!1,this.passwordVisible=!1,this.noSpinButtons=!1,this.form=``,this.required=!1,this.spellcheck=!0}get valueAsDate(){return this.__dateInput.type=this.type,this.__dateInput.value=this.value,this.input?.valueAsDate||this.__dateInput.valueAsDate}set valueAsDate(e){this.__dateInput.type=this.type,this.__dateInput.valueAsDate=e,this.value=this.__dateInput.value}get valueAsNumber(){return this.__numberInput.value=this.value,this.input?.valueAsNumber||this.__numberInput.valueAsNumber}set valueAsNumber(e){this.__numberInput.valueAsNumber=e,this.value=this.__numberInput.value}get validity(){return this.input.validity}get validationMessage(){return this.input.validationMessage}firstUpdated(){this.formControlController.updateValidity()}handleBlur(){this.hasFocus=!1,this.emit(`sl-blur`)}handleChange(){this.value=this.input.value,this.emit(`sl-change`)}handleClearClick(e){e.preventDefault(),this.value!==``&&(this.value=``,this.emit(`sl-clear`),this.emit(`sl-input`),this.emit(`sl-change`)),this.input.focus()}handleFocus(){this.hasFocus=!0,this.emit(`sl-focus`)}handleInput(){this.value=this.input.value,this.formControlController.updateValidity(),this.emit(`sl-input`)}handleInvalid(e){this.formControlController.setValidity(!1),this.formControlController.emitInvalidEvent(e)}handleKeyDown(e){let t=e.metaKey||e.ctrlKey||e.shiftKey||e.altKey;e.key===`Enter`&&!t&&setTimeout(()=>{!e.defaultPrevented&&!e.isComposing&&this.formControlController.submit()})}handlePasswordToggle(){this.passwordVisible=!this.passwordVisible}handleDisabledChange(){this.formControlController.setValidity(this.disabled)}handleStepChange(){this.input.step=String(this.step),this.formControlController.updateValidity()}async handleValueChange(){await this.updateComplete,this.formControlController.updateValidity()}focus(e){this.input.focus(e)}blur(){this.input.blur()}select(){this.input.select()}setSelectionRange(e,t,n=`none`){this.input.setSelectionRange(e,t,n)}setRangeText(e,t,n,r=`preserve`){let i=t??this.input.selectionStart,a=n??this.input.selectionEnd;this.input.setRangeText(e,i,a,r),this.value!==this.input.value&&(this.value=this.input.value)}showPicker(){`showPicker`in HTMLInputElement.prototype&&this.input.showPicker()}stepUp(){this.input.stepUp(),this.value!==this.input.value&&(this.value=this.input.value)}stepDown(){this.input.stepDown(),this.value!==this.input.value&&(this.value=this.input.value)}checkValidity(){return this.input.checkValidity()}getForm(){return this.formControlController.getForm()}reportValidity(){return this.input.reportValidity()}setCustomValidity(e){this.input.setCustomValidity(e),this.formControlController.updateValidity()}render(){let e=this.hasSlotController.test(`label`),t=this.hasSlotController.test(`help-text`),n=this.label?!0:!!e,r=this.helpText?!0:!!t,i=this.clearable&&!this.disabled&&!this.readonly&&(typeof this.value==`number`||this.value.length>0);return D`
       <div
         part="form-control"
         class=${R({"form-control":!0,"form-control--small":this.size===`small`,"form-control--medium":this.size===`medium`,"form-control--large":this.size===`large`,"form-control--has-label":n,"form-control--has-help-text":r})}
@@ -7563,7 +7554,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
               min=${z(this.min)}
               max=${z(this.max)}
               step=${z(this.step)}
-              .value=${Wp(this.value)}
+              .value=${Gp(this.value)}
               autocapitalize=${z(this.autocapitalize)}
               autocomplete=${z(this.autocomplete)}
               autocorrect=${z(this.autocorrect)}
@@ -7631,7 +7622,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
           <slot name="help-text">${this.helpText}</slot>
         </div>
       </div>
-    `}};$.styles=[M,Up,Vp],$.dependencies={"sl-icon":gn},A([I(`.input__control`)],$.prototype,`input`,2),A([F()],$.prototype,`hasFocus`,2),A([P()],$.prototype,`title`,2),A([P({reflect:!0})],$.prototype,`type`,2),A([P()],$.prototype,`name`,2),A([P()],$.prototype,`value`,2),A([Hp()],$.prototype,`defaultValue`,2),A([P({reflect:!0})],$.prototype,`size`,2),A([P({type:Boolean,reflect:!0})],$.prototype,`filled`,2),A([P({type:Boolean,reflect:!0})],$.prototype,`pill`,2),A([P()],$.prototype,`label`,2),A([P({attribute:`help-text`})],$.prototype,`helpText`,2),A([P({type:Boolean})],$.prototype,`clearable`,2),A([P({type:Boolean,reflect:!0})],$.prototype,`disabled`,2),A([P()],$.prototype,`placeholder`,2),A([P({type:Boolean,reflect:!0})],$.prototype,`readonly`,2),A([P({attribute:`password-toggle`,type:Boolean})],$.prototype,`passwordToggle`,2),A([P({attribute:`password-visible`,type:Boolean})],$.prototype,`passwordVisible`,2),A([P({attribute:`no-spin-buttons`,type:Boolean})],$.prototype,`noSpinButtons`,2),A([P({reflect:!0})],$.prototype,`form`,2),A([P({type:Boolean,reflect:!0})],$.prototype,`required`,2),A([P()],$.prototype,`pattern`,2),A([P({type:Number})],$.prototype,`minlength`,2),A([P({type:Number})],$.prototype,`maxlength`,2),A([P()],$.prototype,`min`,2),A([P()],$.prototype,`max`,2),A([P()],$.prototype,`step`,2),A([P()],$.prototype,`autocapitalize`,2),A([P()],$.prototype,`autocorrect`,2),A([P()],$.prototype,`autocomplete`,2),A([P({type:Boolean})],$.prototype,`autofocus`,2),A([P()],$.prototype,`enterkeyhint`,2),A([P({type:Boolean,converter:{fromAttribute:e=>!(!e||e===`false`),toAttribute:e=>e?`true`:`false`}})],$.prototype,`spellcheck`,2),A([P()],$.prototype,`inputmode`,2),A([j(`disabled`,{waitUntilFirstUpdate:!0})],$.prototype,`handleDisabledChange`,1),A([j(`step`,{waitUntilFirstUpdate:!0})],$.prototype,`handleStepChange`,1),A([j(`value`,{waitUntilFirstUpdate:!0})],$.prototype,`handleValueChange`,1),$.define(`sl-input`);var Gp={schemas:`Schemas`,responses:`Responses`,parameters:`Parameters`,requestBodies:`Request Bodies`,headers:`Headers`,securitySchemes:`Security Schemes`,examples:`Examples`,links:`Links`,callbacks:`Callbacks`},Kp=[`GET`,`POST`,`PUT`,`DELETE`,`PATCH`,`OPTIONS`,`HEAD`,`QUERY`],qp=class extends k{constructor(...e){super(...e),this.type=`operations`,this.heading=``,this.items=[],this.filterValue=``,this.searchTerm=``,this.filteredItems=[],this.filterOptions=[],this.handleClear=()=>{clearTimeout(this.searchTimeout),this.searchTerm=``}}static{this.styles=Bp}disconnectedCallback(){super.disconnectedCallback(),clearTimeout(this.searchTimeout)}willUpdate(e){e.has(`items`)&&this.type===`components`&&(this.filterOptions=[...new Set(this.items.map(e=>e.componentType))].sort()),(e.has(`items`)||e.has(`filterValue`)||e.has(`searchTerm`))&&(this.filteredItems=this.computeFiltered())}computeFiltered(){let e=this.searchTerm.toLowerCase();if(this.type===`operations`){let t=this.items;return this.filterValue&&(t=t.filter(e=>e.method.toUpperCase()===this.filterValue)),e&&(t=t.filter(t=>t.path.toLowerCase().includes(e))),t}else{let t=this.items;return this.filterValue&&(t=t.filter(e=>e.componentType===this.filterValue)),e&&(t=t.filter(t=>t.name.toLowerCase().includes(e))),t}}handleSearch(e){clearTimeout(this.searchTimeout);let t=e.target.value;this.searchTimeout=window.setTimeout(()=>{this.searchTerm=t},150)}handleFilter(e){this.filterValue=e.detail?.item?.value??``}renderToolbar(){let e=this.type===`operations`?this.filterValue||`ALL METHODS`:Gp[this.filterValue]?.toUpperCase()||this.filterValue?.toUpperCase()||`ALL TYPES`;return D`
+    `}};$.styles=[M,Wp,Hp],$.dependencies={"sl-icon":gn},A([I(`.input__control`)],$.prototype,`input`,2),A([F()],$.prototype,`hasFocus`,2),A([P()],$.prototype,`title`,2),A([P({reflect:!0})],$.prototype,`type`,2),A([P()],$.prototype,`name`,2),A([P()],$.prototype,`value`,2),A([Up()],$.prototype,`defaultValue`,2),A([P({reflect:!0})],$.prototype,`size`,2),A([P({type:Boolean,reflect:!0})],$.prototype,`filled`,2),A([P({type:Boolean,reflect:!0})],$.prototype,`pill`,2),A([P()],$.prototype,`label`,2),A([P({attribute:`help-text`})],$.prototype,`helpText`,2),A([P({type:Boolean})],$.prototype,`clearable`,2),A([P({type:Boolean,reflect:!0})],$.prototype,`disabled`,2),A([P()],$.prototype,`placeholder`,2),A([P({type:Boolean,reflect:!0})],$.prototype,`readonly`,2),A([P({attribute:`password-toggle`,type:Boolean})],$.prototype,`passwordToggle`,2),A([P({attribute:`password-visible`,type:Boolean})],$.prototype,`passwordVisible`,2),A([P({attribute:`no-spin-buttons`,type:Boolean})],$.prototype,`noSpinButtons`,2),A([P({reflect:!0})],$.prototype,`form`,2),A([P({type:Boolean,reflect:!0})],$.prototype,`required`,2),A([P()],$.prototype,`pattern`,2),A([P({type:Number})],$.prototype,`minlength`,2),A([P({type:Number})],$.prototype,`maxlength`,2),A([P()],$.prototype,`min`,2),A([P()],$.prototype,`max`,2),A([P()],$.prototype,`step`,2),A([P()],$.prototype,`autocapitalize`,2),A([P()],$.prototype,`autocorrect`,2),A([P()],$.prototype,`autocomplete`,2),A([P({type:Boolean})],$.prototype,`autofocus`,2),A([P()],$.prototype,`enterkeyhint`,2),A([P({type:Boolean,converter:{fromAttribute:e=>!(!e||e===`false`),toAttribute:e=>e?`true`:`false`}})],$.prototype,`spellcheck`,2),A([P()],$.prototype,`inputmode`,2),A([j(`disabled`,{waitUntilFirstUpdate:!0})],$.prototype,`handleDisabledChange`,1),A([j(`step`,{waitUntilFirstUpdate:!0})],$.prototype,`handleStepChange`,1),A([j(`value`,{waitUntilFirstUpdate:!0})],$.prototype,`handleValueChange`,1),$.define(`sl-input`);var Kp={schemas:`Schemas`,responses:`Responses`,parameters:`Parameters`,requestBodies:`Request Bodies`,headers:`Headers`,securitySchemes:`Security Schemes`,examples:`Examples`,links:`Links`,callbacks:`Callbacks`},qp=[`GET`,`POST`,`PUT`,`DELETE`,`PATCH`,`OPTIONS`,`HEAD`,`QUERY`],Jp=class extends k{constructor(...e){super(...e),this.type=`operations`,this.heading=``,this.items=[],this.filterValue=``,this.searchTerm=``,this.filteredItems=[],this.filterOptions=[],this.handleClear=()=>{clearTimeout(this.searchTimeout),this.searchTerm=``}}static{this.styles=Vp}disconnectedCallback(){super.disconnectedCallback(),clearTimeout(this.searchTimeout)}willUpdate(e){e.has(`items`)&&this.type===`components`&&(this.filterOptions=[...new Set(this.items.map(e=>e.componentType))].sort()),(e.has(`items`)||e.has(`filterValue`)||e.has(`searchTerm`))&&(this.filteredItems=this.computeFiltered())}computeFiltered(){let e=this.searchTerm.toLowerCase();if(this.type===`operations`){let t=this.items;return this.filterValue&&(t=t.filter(e=>e.method.toUpperCase()===this.filterValue)),e&&(t=t.filter(t=>t.path.toLowerCase().includes(e))),t}else{let t=this.items;return this.filterValue&&(t=t.filter(e=>e.componentType===this.filterValue)),e&&(t=t.filter(t=>t.name.toLowerCase().includes(e))),t}}handleSearch(e){clearTimeout(this.searchTimeout);let t=e.target.value;this.searchTimeout=window.setTimeout(()=>{this.searchTerm=t},150)}handleFilter(e){this.filterValue=e.detail?.item?.value??``}renderToolbar(){let e=this.type===`operations`?this.filterValue||`ALL METHODS`:Kp[this.filterValue]?.toUpperCase()||this.filterValue?.toUpperCase()||`ALL TYPES`;return D`
             <div class="toolbar">
                 <sl-dropdown>
                     <sl-button slot="trigger" class="filter-btn" caret size="small">
@@ -7641,10 +7632,10 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
                         <sl-menu-item value="">
                             ${this.type===`operations`?`ALL METHODS`:`ALL TYPES`}
                         </sl-menu-item>
-                        ${this.type===`operations`?Kp.map(e=>D`
+                        ${this.type===`operations`?qp.map(e=>D`
                                 <sl-menu-item value=${e}><pb33f-http-method method=${e}></pb33f-http-method></sl-menu-item>`):this.filterOptions.map(e=>D`
                                 <sl-menu-item value=${e}>
-                                    ${Gp[e]||e}
+                                    ${Kp[e]||e}
                                 </sl-menu-item>`)}
                     </sl-menu>
                 </sl-dropdown>
@@ -7685,7 +7676,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
                             .label=${this.heading}
                             hideSparks>
                         </pb33f-paginator-navigation>`:D`<div class="empty-state">No matching references</div>`}
-        `}};K([P()],qp.prototype,`type`,void 0),K([P()],qp.prototype,`heading`,void 0),K([P({type:Array})],qp.prototype,`items`,void 0),K([F()],qp.prototype,`filterValue`,void 0),K([F()],qp.prototype,`searchTerm`,void 0),K([F()],qp.prototype,`filteredItems`,void 0),K([F()],qp.prototype,`filterOptions`,void 0),qp=K([N(`pp-ref-list`)],qp);var Jp=class extends k{constructor(...e){super(...e),this.refsJson=``,this.refs={}}static{this.styles=zp}willUpdate(e){if(e.has(`refsJson`)&&this.refsJson)try{this.refs=JSON.parse(this.refsJson)}catch{this.refs={}}}render(){let{refs:e}=this,t=(e.usedByOperations?.length??0)>0,n=(e.usedByModels?.length??0)>0,r=(e.usesModels?.length??0)>0;return!t&&!n&&!r?O:D`
+        `}};K([P()],Jp.prototype,`type`,void 0),K([P()],Jp.prototype,`heading`,void 0),K([P({type:Array})],Jp.prototype,`items`,void 0),K([F()],Jp.prototype,`filterValue`,void 0),K([F()],Jp.prototype,`searchTerm`,void 0),K([F()],Jp.prototype,`filteredItems`,void 0),K([F()],Jp.prototype,`filterOptions`,void 0),Jp=K([N(`pp-ref-list`)],Jp);var Yp=class extends k{constructor(...e){super(...e),this.refsJson=``,this.refs={}}static{this.styles=Bp}willUpdate(e){if(e.has(`refsJson`)&&this.refsJson)try{this.refs=JSON.parse(this.refsJson)}catch{this.refs={}}}render(){let{refs:e}=this,t=(e.usedByOperations?.length??0)>0,n=(e.usedByModels?.length??0)>0,r=(e.usesModels?.length??0)>0;return!t&&!n&&!r?O:D`
             ${t?D`
                 <pp-ref-list
                     type="operations"
@@ -7704,188 +7695,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
                     heading="References"
                     .items=${e.usesModels}>
                 </pp-ref-list>`:O}
-        `}};K([P({attribute:`refs-json`})],Jp.prototype,`refsJson`,void 0),K([F()],Jp.prototype,`refs`,void 0),Jp=K([N(`pp-cross-refs`)],Jp);var Yp=E`
-  :host {
-    display: block;
-    margin: var(--global-padding-double);
-  }
-  details {
-    border: 1px dashed var(--hrcolor);
-    border-radius: 0;
-  }
-  summary {
-    cursor: pointer;
-    padding: var(--global-padding) var(--global-padding-double);
-    font-family: var(--font-stack-bold), monospace;
-    background: var(--card-background-color);
-    border-radius: 0;
-    color: var(--font-color-sub1);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  summary:hover {
-    color: var(--primary-color,;
-  }
-  pre {
-    margin: 0;
-    padding: var(--global-padding-double);
-    overflow-x: auto;
-    background: var(--terminal-background);
-    color: var(--font-color);
-  }
-  code {
-    background: none;
-    padding: 0;
-    border: none;
-    color: inherit;
-  }
-`,Xp=$a`
-  
-  code,
-  pre {
-    color: var(--font-color);
-    background: none;
-    font-family: var(--font-stack), sans-serif;
-    font-size: 1em;
-    text-align: left;
-    white-space: pre;
-    word-spacing: normal;
-    word-break: normal;
-    word-wrap: normal;
-    line-height: 1.5;
-    tab-size: 4;
-    hyphens: none;
-  }
-    
-  pre.yaml {
-      color: var(--secondary-color);
-  }
-
-    pre.json {
-        color: var(--secondary-color);
-    }
-
-    /* Code blocks */
-
-  pre[class*="language-"] {
-    padding: 1em;
-    margin: .5em 0;
-    overflow: auto;
-    border-radius: 0.3em;
-  }
-
-
-  /* Inline code */
-
-  :not(pre) > code[class*="language-"] {
-    padding: .1em;
-    border-radius: .3em;
-    white-space: normal;
-  }
-
-  .token.comment,
-  .token.prolog,
-  .token.doctype,
-  .token.cdata {
-    color: var(--font-color-sub2);
-  }
-
-  .token.punctuation {
-    color: var(--font-color-sub1);
-  }
-
-  .token.namespace {
-    opacity: .7;
-  }
-
-  .token.property,
-  .token.tag,
-  .token.constant,
-  .token.symbol,
-  .token.deleted {
-    color: var(--primary-color);
-  }
-
-  .token.boolean,
-  .token.number {
-    color: var(--secondary-color);
-  }
-
-  .token.selector,
-  .token.attr-name,
-  .token.string,
-  .token.char,
-  .token.builtin,
-  .token.inserted {
-    color: var(--secondary-color);
-  }
-
-  .token.operator,
-  .token.entity,
-  .token.url,
-  .language-css .token.string,
-  .style .token.string,
-  .token.variable {
-    color: var(--tertiary-color);
-  }
-
-  .token.atrule {
-      color: var(--primary-color);
-  }
-  
-  .token.attr-value,
-  .token.function,
-  .token.class-name {
-    color: var(--terminal-text);
-  }
-
-  .token.keyword {
-    color: var(--primary-color);
-  }
-
-  .token.regex,
-  .token.important {
-    color: #fd971f;
-  }
-
-  .token.important,
-  .token.bold {
-    font-weight: bold;
-  }
-
-  .token.italic {
-    font-style: italic;
-  }
-
-  .token.entity {
-    cursor: help;
-  }
-
- 
-`,Zp=E`
-  /* Override: number tokens use tertiary instead of secondary */
-  .token.number {
-    color: var(--tertiary-color);
-  }
-
-  /* Override: function/class-name tokens use secondary instead of terminal-text */
-  .token.attr-value,
-  .token.function,
-  .token.class-name {
-    color: var(--secondary-color);
-  }
-
-  /* Override: keyword/null tokens use secondary instead of primary */
-  .token.keyword,
-  .token.null {
-    color: var(--secondary-color);
-  }
-`;fp.default.manual=!0;var Qp=class extends k{constructor(...e){super(...e),this.name=``,this.exampleJson=``,this.formatted=``}static{this.styles=[Yp,Xp,Zp]}willUpdate(e){if(e.has(`exampleJson`)&&this.exampleJson)try{let e=JSON.parse(this.exampleJson);this.formatted=JSON.stringify(e,null,2)}catch{this.formatted=``}}render(){if(!this.formatted)return O;let e;try{e=fp.default.highlight(this.formatted,fp.default.languages.json,`json`)}catch{e=this.formatted}return D`
-      <details>
-        <summary>${this.name||`Example`}</summary>
-        <pre class="json"><code>${bd(e)}</code></pre>
-      </details>
-    `}};K([P()],Qp.prototype,`name`,void 0),K([P({attribute:`example-json`})],Qp.prototype,`exampleJson`,void 0),K([F()],Qp.prototype,`formatted`,void 0),Qp=K([N(`pp-example-block`)],Qp);var $p=E`
+        `}};K([P({attribute:`refs-json`})],Yp.prototype,`refsJson`,void 0),K([F()],Yp.prototype,`refs`,void 0),Yp=K([N(`pp-cross-refs`)],Yp);var Xp=[Ep,E`
     :host {
         display: block;
     }
@@ -7927,7 +7737,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         margin: 0;
         font-family: var(--font-stack-bold), monospace;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         color: var(--primary-color);
     }
 
@@ -7961,34 +7771,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
     }
 
     .code-container {
-        position: relative;
         flex: 1;
-    }
-
-    .floating-actions {
-        position: absolute;
-        right: var(--global-padding-double);
-        z-index: 1;
-        display: flex;
-        gap: 0.25rem;
-        align-items: center;
-    }
-
-    .floating-copy {
-        --sl-color-primary-600: var(--primary-color);
-        --sl-tooltip-background-color: var(--background-color);
-        --sl-tooltip-color: var(--font-color);
-        --sl-tooltip-border-radius: 0;
-        --sl-tooltip-font-family: var(--font-stack), monospace;
-        --sl-tooltip-font-size: 0.9rem;
-        --sl-tooltip-padding: 0.25rem 0.75rem;
-        --sl-tooltip-arrow-size: 6px;
-    }
-
-    .floating-copy::part(body) {
-        border: 1px dashed var(--secondary-color);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
     }
 
     pp-code-viewer {
@@ -8008,7 +7791,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-family: var(--font-stack), monospace;
         padding: 0.25rem 0.75rem;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         transition: color 0.15s, border-color 0.15s;
     }
 
@@ -8021,7 +7804,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         opacity: 0.3;
         cursor: not-allowed;
     }
-`,em=class extends k{constructor(...e){super(...e),this.title=``,this.json=``,this.yaml=``,this.format=`json`,this.rawMode=!1,this.highlightLines=``,this.startLine=1,this.location=``,this.method=``,this.path=``,this.componentType=``,this.handleShowExample=e=>{let t=e.detail;if(this.title=t.title,this.json=t.json,this.yaml=t.yaml||``,this.rawMode=t.rawMode??!1,this.highlightLines=t.highlightLines||``,this.startLine=t.startLine??1,this.location=t.location||``,this.method=t.method||``,this.path=t.path||``,this.componentType=t.componentType||``,t.language)this.format=t.language;else{let e=document.body.getAttribute(`data-spec-format`);e===`yaml`&&t.yaml?this.format=`yaml`:e===`json`&&t.json?this.format=`json`:this.format=t.yaml?`yaml`:`json`}this.updateComplete.then(()=>{let e=this.drawer;e&&typeof e.show==`function`&&(e.updateComplete?e.updateComplete.then(()=>e.show()):e.show())})}}static{this.styles=[$p,Dp]}connectedCallback(){super.connectedCallback(),document.addEventListener(`pp-show-example`,this.handleShowExample)}disconnectedCallback(){super.disconnectedCallback(),document.removeEventListener(`pp-show-example`,this.handleShowExample)}get copyText(){let e=this.shadowRoot?.querySelector(`pp-code-viewer`);return e?e.displayCode:this.format===`yaml`&&this.yaml?this.yaml:this.json}async copyCurrentCode(){let e=this.copyText;e&&await navigator.clipboard.writeText(e)}renderHeader(){return this.method&&this.path?D`
+`],Zp=class extends k{constructor(...e){super(...e),this.title=``,this.json=``,this.yaml=``,this.format=`json`,this.rawMode=!1,this.highlightLines=``,this.startLine=1,this.location=``,this.method=``,this.path=``,this.componentType=``,this.handleShowExample=e=>{let t=e.detail;if(this.title=t.title,this.json=t.json,this.yaml=t.yaml||``,this.rawMode=t.rawMode??!1,this.highlightLines=t.highlightLines||``,this.startLine=t.startLine??1,this.location=t.location||``,this.method=t.method||``,this.path=t.path||``,this.componentType=t.componentType||``,t.language)this.format=t.language;else{let e=document.body.getAttribute(`data-spec-format`);e===`yaml`&&t.yaml?this.format=`yaml`:e===`json`&&t.json?this.format=`json`:this.format=t.yaml?`yaml`:`json`}this.updateComplete.then(()=>{let e=this.drawer;e&&typeof e.show==`function`&&(e.updateComplete?e.updateComplete.then(()=>e.show()):e.show())})}}static{this.styles=[Xp,Op]}connectedCallback(){super.connectedCallback(),document.addEventListener(`pp-show-example`,this.handleShowExample)}disconnectedCallback(){super.disconnectedCallback(),document.removeEventListener(`pp-show-example`,this.handleShowExample)}get copyText(){let e=this.shadowRoot?.querySelector(`pp-code-viewer`);return e?e.displayCode:this.format===`yaml`&&this.yaml?this.yaml:this.json}async copyCurrentCode(){let e=this.copyText;e&&await navigator.clipboard.writeText(e)}renderHeader(){return this.method&&this.path?D`
         <div class="rich-header">
           <pb33f-http-method method=${this.method}></pb33f-http-method>
           <pb33f-render-operation-path path=${this.path} nowrap></pb33f-render-operation-path>
@@ -8064,6 +7847,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
             .language=${t}
             ?line-numbers=${this.rawMode}
             .pretty=${t===`json`}
+            reserve-location
             .startLine=${this.startLine}
             .location=${this.location}
             highlight-lines=${this.highlightLines}
@@ -8071,24 +7855,24 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
           </pp-code-viewer>
         </div>
       </sl-drawer>
-    `}};K([F()],em.prototype,`title`,void 0),K([F()],em.prototype,`json`,void 0),K([F()],em.prototype,`yaml`,void 0),K([F()],em.prototype,`format`,void 0),K([F()],em.prototype,`rawMode`,void 0),K([F()],em.prototype,`highlightLines`,void 0),K([F()],em.prototype,`startLine`,void 0),K([F()],em.prototype,`location`,void 0),K([F()],em.prototype,`method`,void 0),K([F()],em.prototype,`path`,void 0),K([F()],em.prototype,`componentType`,void 0),K([I(`sl-drawer`)],em.prototype,`drawer`,void 0),em=K([N(`pp-example-drawer`)],em);var tm=E`
+    `}};K([F()],Zp.prototype,`title`,void 0),K([F()],Zp.prototype,`json`,void 0),K([F()],Zp.prototype,`yaml`,void 0),K([F()],Zp.prototype,`format`,void 0),K([F()],Zp.prototype,`rawMode`,void 0),K([F()],Zp.prototype,`highlightLines`,void 0),K([F()],Zp.prototype,`startLine`,void 0),K([F()],Zp.prototype,`location`,void 0),K([F()],Zp.prototype,`method`,void 0),K([F()],Zp.prototype,`path`,void 0),K([F()],Zp.prototype,`componentType`,void 0),K([I(`sl-drawer`)],Zp.prototype,`drawer`,void 0),Zp=K([N(`pp-example-drawer`)],Zp);var Qp=E`
     :host {
         display: inline-block;
     }
 
     sl-button::part(base) {
         font-family: var(--font-stack), monospace;
-        padding: var(--global-padding);
+        padding: 0;
         font-size: 1.5rem;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
-`,nm=class extends k{constructor(...e){super(...e),this.btnTitle=``,this.rawJson=``,this.rawYaml=``,this.highlightLines=``,this.startLine=1,this.location=``,this.method=``,this.path=``,this.componentType=``,this.showTextLabel=!1}static{this.styles=[tm,Dp]}showRaw(){let e=new CustomEvent(`pp-show-example`,{bubbles:!0,composed:!0,detail:{title:this.btnTitle||`Raw Object`,json:this.rawJson,yaml:this.rawYaml,rawMode:!0,highlightLines:this.highlightLines||void 0,startLine:this.startLine>1?this.startLine:void 0,location:this.location||void 0,method:this.method||void 0,path:this.path||void 0,componentType:this.componentType||void 0}});this.dispatchEvent(e)}render(){return!this.rawJson&&!this.rawYaml?O:D`
+`,$p=class extends k{constructor(...e){super(...e),this.btnTitle=``,this.rawJson=``,this.rawYaml=``,this.highlightLines=``,this.startLine=1,this.location=``,this.method=``,this.path=``,this.componentType=``,this.showTextLabel=!1}static{this.styles=[Qp,Op]}showRaw(){let e=new CustomEvent(`pp-show-example`,{bubbles:!0,composed:!0,detail:{title:this.btnTitle||`Raw Object`,json:this.rawJson,yaml:this.rawYaml,rawMode:!0,highlightLines:this.highlightLines||void 0,startLine:this.startLine>1?this.startLine:void 0,location:this.location||void 0,method:this.method||void 0,path:this.path||void 0,componentType:this.componentType||void 0}});this.dispatchEvent(e)}render(){return!this.rawJson&&!this.rawYaml?O:D`
             <sl-tooltip content="VIEW RAW OBJECT">
                 <sl-button variant="text" size="small" @click=${this.showRaw}>
                     <sl-icon slot="prefix" name="braces" label="VIEW RAW OBJECT" ></sl-icon>
                 </sl-button>
-            </sl-tooltip>`}};K([P({attribute:`title`})],nm.prototype,`btnTitle`,void 0),K([P({attribute:`raw-json`})],nm.prototype,`rawJson`,void 0),K([P({attribute:`raw-yaml`})],nm.prototype,`rawYaml`,void 0),K([P({attribute:`highlight-lines`})],nm.prototype,`highlightLines`,void 0),K([P({attribute:`start-line`,type:Number})],nm.prototype,`startLine`,void 0),K([P()],nm.prototype,`location`,void 0),K([P()],nm.prototype,`method`,void 0),K([P()],nm.prototype,`path`,void 0),K([P({attribute:`component-type`})],nm.prototype,`componentType`,void 0),K([P({type:Boolean})],nm.prototype,`showTextLabel`,void 0),nm=K([N(`pp-raw-viewer-btn`)],nm);var rm=E`
+            </sl-tooltip>`}};K([P({attribute:`title`})],$p.prototype,`btnTitle`,void 0),K([P({attribute:`raw-json`})],$p.prototype,`rawJson`,void 0),K([P({attribute:`raw-yaml`})],$p.prototype,`rawYaml`,void 0),K([P({attribute:`highlight-lines`})],$p.prototype,`highlightLines`,void 0),K([P({attribute:`start-line`,type:Number})],$p.prototype,`startLine`,void 0),K([P()],$p.prototype,`location`,void 0),K([P()],$p.prototype,`method`,void 0),K([P()],$p.prototype,`path`,void 0),K([P({attribute:`component-type`})],$p.prototype,`componentType`,void 0),K([P({type:Boolean})],$p.prototype,`showTextLabel`,void 0),$p=K([N(`pp-raw-viewer-btn`)],$p);var em=E`
     :host {
         display: block;
         margin-top: var(--global-padding);
@@ -8148,7 +7932,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
 
     .flow-heading {
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         font-family: var(--font-stack-bold), monospace;
         color: var(--primary-color);
         padding: var(--global-padding);
@@ -8165,7 +7949,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
 
     .scope-heading {
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         font-family: var(--font-stack), monospace;
         color: var(--font-color-sub1);
     }
@@ -8175,8 +7959,8 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
     }
 
     .scope-name {
-        font-family: var(--font-stack), monospace;
-        color: var(--warn-400);
+        font-family: var(--font-stack-bold), monospace;
+        color: var(--secondary-color);
         overflow-wrap: anywhere;
     }
 
@@ -8184,7 +7968,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         font-family: var(--font-stack), monospace;
         color: var(--font-color-sub1);
     }
-`,im={implicit:`IMPLICIT`,authorizationCode:`AUTHORIZATION CODE`,clientCredentials:`CLIENT CREDENTIALS`,password:`PASSWORD`};function am(e,t,n){switch(e){case`apiKey`:switch(t){case`cookie`:return`cookie`;case`header`:return`envelope`;case`query`:return`signpost`;default:return`key`}case`http`:switch(n){case`bearer`:return`shield-lock`;case`basic`:return`person-lock`;default:return`lock`}case`oauth2`:return`key`;case`openIdConnect`:return`fingerprint`;default:return`lock`}}var om=class extends k{constructor(...e){super(...e),this.schemeJson=``,this.scheme=null}static{this.styles=[ku,rm]}willUpdate(e){if(e.has(`schemeJson`)&&this.schemeJson)try{this.scheme=JSON.parse(this.schemeJson)}catch{this.scheme=null}}renderProperty(e,t){return D`
+`,tm={implicit:`IMPLICIT`,authorizationCode:`AUTHORIZATION CODE`,clientCredentials:`CLIENT CREDENTIALS`,password:`PASSWORD`};function nm(e,t,n){switch(e){case`apiKey`:switch(t){case`cookie`:return`cookie`;case`header`:return`envelope`;case`query`:return`signpost`;default:return`key`}case`http`:switch(n){case`bearer`:return`shield-lock`;case`basic`:return`person-lock`;default:return`lock`}case`oauth2`:return`key`;case`openIdConnect`:return`fingerprint`;default:return`lock`}}var rm=class extends k{constructor(...e){super(...e),this.schemeJson=``,this.scheme=null}static{this.styles=[ku,em]}willUpdate(e){if(e.has(`schemeJson`)&&this.schemeJson)try{this.scheme=JSON.parse(this.schemeJson)}catch{this.scheme=null}}renderProperty(e,t){return D`
             <div class="property">
                 <div class="prop-name-col"><span class="prop-name">${e}</span></div>
                 <div class="prop-type-col"><span class="prop-type">${t}</span></div>
@@ -8219,13 +8003,13 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
             </div>
         `}renderFlow(e,t){return t?D`
             <div class="flow-section">
-                <div class="flow-heading">${im[e]||e.toUpperCase()}</div>
+                <div class="flow-heading">${tm[e]||e.toUpperCase()}</div>
                 ${t.authorizationUrl?this.renderUrlProperty(`authorizationUrl`,t.authorizationUrl):O}
                 ${t.tokenUrl?this.renderUrlProperty(`tokenUrl`,t.tokenUrl):O}
                 ${t.refreshUrl?this.renderUrlProperty(`refreshUrl`,t.refreshUrl):O}
                 ${t.scopes&&Object.keys(t.scopes).length>0?this.renderScopes(t.scopes):O}
             </div>
-        `:O}renderFlows(e){if(!e||typeof e!=`object`)return O;let t=Object.keys(e);return t.length===0?O:t.map(t=>this.renderFlow(t,e[t]))}render(){if(!this.scheme)return O;let{type:e,name:t,scheme:n,bearerFormat:r,openIdConnectUrl:i,flows:a}=this.scheme,o=am(e,this.scheme.in,n);return D`
+        `:O}renderFlows(e){if(!e||typeof e!=`object`)return O;let t=Object.keys(e);return t.length===0?O:t.map(t=>this.renderFlow(t,e[t]))}render(){if(!this.scheme)return O;let{type:e,name:t,scheme:n,bearerFormat:r,openIdConnectUrl:i,flows:a}=this.scheme,o=nm(e,this.scheme.in,n);return D`
             <div class="scheme-properties">
                 ${e?this.renderTypeProperty(e,o):O}
                 ${t?this.renderProperty(`name`,t):O}
@@ -8235,7 +8019,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
                 ${i?this.renderUrlProperty(`openIdConnectUrl`,i):O}
                 ${e===`oauth2`?this.renderFlows(a):O}
             </div>
-        `}};K([P({attribute:`scheme-json`})],om.prototype,`schemeJson`,void 0),K([F()],om.prototype,`scheme`,void 0),om=K([N(`pp-security-scheme`)],om);var sm=E`
+        `}};K([P({attribute:`scheme-json`})],rm.prototype,`schemeJson`,void 0),K([F()],rm.prototype,`scheme`,void 0),rm=K([N(`pp-security-scheme`)],rm);var im=E`
     :host {
         display: block;
         position: fixed;
@@ -8320,7 +8104,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
         cursor: pointer;
         font-family: var(--font-stack-bold), monospace;
         color: var(--primary-color);
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         word-break: break-all;
     }
 
@@ -8384,7 +8168,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
     a.status-3xx, a.status-3xx:hover { color: var(--primary-color); }
     a.status-4xx, a.status-4xx:hover { color: var(--warn-color); }
     a.status-5xx, a.status-5xx:hover { color: var(--error-color); }
-`,cm=`pp-page-nav-collapsed`,lm=`pp-page-nav-hidden`,um=class extends k{constructor(...e){super(...e),this.pageTitle=``,this.sectionsJson=``,this.sections=[],this.collapsed=!1,this.navHidden=!1,this.activeId=``,this.scrollContainer=null,this.rafId=0,this.scrollSpySuppressed=!1,this.suppressionTimerId=0,this.boundScrollHandler=()=>this.onScroll(),this.boundHydrationHandler=()=>this.handleHydrationComplete()}static{this.styles=[sm]}connectedCallback(){super.connectedCallback(),this.collapsed=localStorage.getItem(cm)===`true`,this.navHidden=localStorage.getItem(lm)===`true`,document.addEventListener(`pp:hydrated`,this.boundHydrationHandler)}disconnectedCallback(){super.disconnectedCallback(),this.scrollContainer?.removeEventListener(`scroll`,this.boundScrollHandler),this.clearSuppressionTimer(),document.removeEventListener(`pp:hydrated`,this.boundHydrationHandler)}clearSuppressionTimer(){this.suppressionTimerId&&=(window.clearTimeout(this.suppressionTimerId),0)}updated(e){e.has(`navHidden`)&&this.toggleAttribute(`nav-hidden`,this.navHidden)}willUpdate(e){if(e.has(`sectionsJson`)&&this.sectionsJson){try{this.sections=JSON.parse(this.sectionsJson)}catch{this.sections=[]}this.loadResponseChildren(),requestAnimationFrame(()=>this.setupScrollSpy())}}loadResponseChildren(){let e=this.sections.find(e=>e.id===`section-responses`);if(!e)return;let t=()=>{let t=document.getElementById(`section-responses`);t&&typeof t.getResponseNavItems==`function`&&(e.children=t.getResponseNavItems(),this.requestUpdate())};t(),e.children?.length||customElements.whenDefined(`pp-operation-responses`).then(()=>{requestAnimationFrame(()=>{requestAnimationFrame(()=>t())})})}setupScrollSpy(){this.scrollContainer?.removeEventListener(`scroll`,this.boundScrollHandler),this.scrollContainer=document.querySelector(`pp-layout`)?.shadowRoot?.querySelector(`.content-panel`)||null,this.scrollContainer&&this.scrollContainer.addEventListener(`scroll`,this.boundScrollHandler,{passive:!0})}handleHydrationComplete(){this.loadResponseChildren(),requestAnimationFrame(()=>this.setupScrollSpy())}suppressScrollSpy(){this.scrollSpySuppressed=!0,this.clearSuppressionTimer()}scheduleScrollSpyResume(){this.clearSuppressionTimer(),this.suppressionTimerId=window.setTimeout(()=>{this.scrollSpySuppressed=!1,this.suppressionTimerId=0},150)}onScroll(){if(this.scrollSpySuppressed){this.scheduleScrollSpyResume();return}this.rafId||=requestAnimationFrame(()=>{this.rafId=0,this.updateActiveSection()})}updateActiveSection(){let e=``;for(let t of this.sections){let n=this.findElement(t.id);if(n&&n.getBoundingClientRect().top<=100&&(e=t.id),t.children)for(let n of t.children){let t=this.findElement(n.id);t&&t.getBoundingClientRect().top<=100&&(e=n.id)}}e&&e!==this.activeId&&(this.activeId=e)}findElement(e){let t=document.getElementById(e);if(t)return t;let n=document.getElementById(`section-responses`);return n?.shadowRoot?n.shadowRoot.getElementById(e):null}navigateTo(e){this.suppressScrollSpy(),this.activeId=e;let t=this.findElement(e);if(!t)return;let n=t.closest(`sl-details`);n&&!n.open?(n.addEventListener(`sl-after-show`,()=>{t.scrollIntoView({behavior:`auto`,block:`center`})},{once:!0}),n.open=!0):t.scrollIntoView({behavior:`auto`,block:`center`})}toggleCollapsed(){this.collapsed=!this.collapsed,localStorage.setItem(cm,String(this.collapsed))}toggleNavHidden(){let e=this.shadowRoot?.querySelector(`.collapse-tab`);e&&(e.addEventListener(`animationend`,()=>e.classList.remove(`flashing`),{once:!0}),e.classList.add(`flashing`));let t=this.shadowRoot?.querySelector(`.nav-container`);!this.navHidden&&t?t.style.height=t.offsetHeight+`px`:this.navHidden&&t&&(t.style.height=``),this.navHidden=!this.navHidden,localStorage.setItem(lm,String(this.navHidden))}handleTabKeydown(e){(e.key===`Enter`||e.key===` `)&&(e.preventDefault(),this.toggleNavHidden())}statusColorClass(e){let t=e.substring(0,1);return t===`2`?`status-2xx`:t===`3`?`status-3xx`:t===`4`?`status-4xx`:t===`5`?`status-5xx`:``}render(){return D`
+`,am=`pp-page-nav-collapsed`,om=`pp-page-nav-hidden`,sm=class extends k{constructor(...e){super(...e),this.pageTitle=``,this.sectionsJson=``,this.sections=[],this.collapsed=!1,this.navHidden=!1,this.activeId=``,this.scrollContainer=null,this.rafId=0,this.scrollSpySuppressed=!1,this.suppressionTimerId=0,this.boundScrollHandler=()=>this.onScroll(),this.boundHydrationHandler=()=>this.handleHydrationComplete()}static{this.styles=[im]}connectedCallback(){super.connectedCallback(),this.collapsed=localStorage.getItem(am)===`true`,this.navHidden=localStorage.getItem(om)===`true`,document.addEventListener(`pp:hydrated`,this.boundHydrationHandler)}disconnectedCallback(){super.disconnectedCallback(),this.scrollContainer?.removeEventListener(`scroll`,this.boundScrollHandler),this.clearSuppressionTimer(),document.removeEventListener(`pp:hydrated`,this.boundHydrationHandler)}clearSuppressionTimer(){this.suppressionTimerId&&=(window.clearTimeout(this.suppressionTimerId),0)}updated(e){e.has(`navHidden`)&&this.toggleAttribute(`nav-hidden`,this.navHidden)}willUpdate(e){if(e.has(`sectionsJson`)&&this.sectionsJson){try{this.sections=JSON.parse(this.sectionsJson)}catch{this.sections=[]}this.loadResponseChildren(),requestAnimationFrame(()=>this.setupScrollSpy())}}loadResponseChildren(){let e=this.sections.find(e=>e.id===`section-responses`);if(!e)return;let t=()=>{let t=document.getElementById(`section-responses`);t&&typeof t.getResponseNavItems==`function`&&(e.children=t.getResponseNavItems(),this.requestUpdate())};t(),e.children?.length||customElements.whenDefined(`pp-operation-responses`).then(()=>{requestAnimationFrame(()=>{requestAnimationFrame(()=>t())})})}setupScrollSpy(){this.scrollContainer?.removeEventListener(`scroll`,this.boundScrollHandler),this.scrollContainer=document.querySelector(`pp-layout`)?.shadowRoot?.querySelector(`.content-panel`)||null,this.scrollContainer&&this.scrollContainer.addEventListener(`scroll`,this.boundScrollHandler,{passive:!0})}handleHydrationComplete(){this.loadResponseChildren(),requestAnimationFrame(()=>this.setupScrollSpy())}suppressScrollSpy(){this.scrollSpySuppressed=!0,this.clearSuppressionTimer()}scheduleScrollSpyResume(){this.clearSuppressionTimer(),this.suppressionTimerId=window.setTimeout(()=>{this.scrollSpySuppressed=!1,this.suppressionTimerId=0},150)}onScroll(){if(this.scrollSpySuppressed){this.scheduleScrollSpyResume();return}this.rafId||=requestAnimationFrame(()=>{this.rafId=0,this.updateActiveSection()})}updateActiveSection(){let e=``;for(let t of this.sections){let n=this.findElement(t.id);if(n&&n.getBoundingClientRect().top<=100&&(e=t.id),t.children)for(let n of t.children){let t=this.findElement(n.id);t&&t.getBoundingClientRect().top<=100&&(e=n.id)}}e&&e!==this.activeId&&(this.activeId=e)}findElement(e){let t=document.getElementById(e);if(t)return t;let n=document.getElementById(`section-responses`);return n?.shadowRoot?n.shadowRoot.getElementById(e):null}navigateTo(e){this.suppressScrollSpy(),this.activeId=e;let t=this.findElement(e);if(!t)return;let n=t.closest(`sl-details`);n&&!n.open?(n.addEventListener(`sl-after-show`,()=>{t.scrollIntoView({behavior:`auto`,block:`center`})},{once:!0}),n.open=!0):t.scrollIntoView({behavior:`auto`,block:`center`})}toggleCollapsed(){this.collapsed=!this.collapsed,localStorage.setItem(am,String(this.collapsed))}toggleNavHidden(){let e=this.shadowRoot?.querySelector(`.collapse-tab`);e&&(e.addEventListener(`animationend`,()=>e.classList.remove(`flashing`),{once:!0}),e.classList.add(`flashing`));let t=this.shadowRoot?.querySelector(`.nav-container`);!this.navHidden&&t?t.style.height=t.offsetHeight+`px`:this.navHidden&&t&&(t.style.height=``),this.navHidden=!this.navHidden,localStorage.setItem(om,String(this.navHidden))}handleTabKeydown(e){(e.key===`Enter`||e.key===` `)&&(e.preventDefault(),this.toggleNavHidden())}statusColorClass(e){let t=e.substring(0,1);return t===`2`?`status-2xx`:t===`3`?`status-3xx`:t===`4`?`status-4xx`:t===`5`?`status-5xx`:``}render(){return D`
             <div class="nav-container">
                 <nav aria-label="Page sections">
                     <div class="nav-header" @click=${this.toggleCollapsed}
@@ -8430,4 +8214,4 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
                     <sl-icon name=${this.navHidden?`chevron-left`:`chevron-right`}></sl-icon>
                 </div>
             </div>
-        `}};K([P({attribute:`page-title`})],um.prototype,`pageTitle`,void 0),K([P({attribute:`sections-json`})],um.prototype,`sectionsJson`,void 0),K([F()],um.prototype,`sections`,void 0),K([F()],um.prototype,`collapsed`,void 0),K([F()],um.prototype,`navHidden`,void 0),K([F()],um.prototype,`activeId`,void 0),um=K([N(`pp-page-nav`)],um),Tt(`static/shoelace`);var dm={sun:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6m0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>`,moon:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278M4.858 1.311A7.27 7.27 0 0 0 1.025 7.71c0 4.02 3.279 7.276 7.319 7.276a7.32 7.32 0 0 0 5.205-2.162q-.506.063-1.029.063c-4.61 0-8.343-3.714-8.343-8.29 0-1.167.242-2.278.681-3.286"/></svg>`,display:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M0 4s0-2 2-2h12s2 0 2 2v6s0 2-2 2h-4q0 1 .25 1.5H11a.5.5 0 0 1 0 1H5a.5.5 0 0 1 0-1h.75Q6 13 6 12H2s-2 0-2-2zm1.398-.855a.76.76 0 0 0-.254.302A1.5 1.5 0 0 0 1 4.01V10c0 .325.078.502.145.602q.105.156.302.254a1.5 1.5 0 0 0 .538.143L2.01 11H14c.325 0 .502-.078.602-.145a.76.76 0 0 0 .254-.302 1.5 1.5 0 0 0 .143-.538L15 9.99V4c0-.325-.078-.502-.145-.602a.76.76 0 0 0-.302-.254A1.5 1.5 0 0 0 13.99 3H2c-.325 0-.502.078-.602.145"/></svg>`,"chevron-left":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0"/></svg>`,"chevron-right":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/></svg>`,"chevron-down":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg>`,"grip-vertical":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M7 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0M7 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0M7 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0m-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0m-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></svg>`,copy:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10 1.5a1.5 1.5 0 0 1 1.5 1.5v1H13A1.5 1.5 0 0 1 14.5 5.5v8A1.5 1.5 0 0 1 13 15H6a1.5 1.5 0 0 1-1.5-1.5V12H3A1.5 1.5 0 0 1 1.5 10.5v-7A1.5 1.5 0 0 1 3 2h7zm.5 2A.5.5 0 0 0 10 3H3a.5.5 0 0 0-.5.5v7A.5.5 0 0 0 3 11h1.5V5.5A1.5 1.5 0 0 1 6 4h4.5zM6 5a.5.5 0 0 0-.5.5v8A.5.5 0 0 0 6 14h7a.5.5 0 0 0 .5-.5v-8A.5.5 0 0 0 13 5z"/></svg>`,braces:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M2.114 8.063V7.9c1.005-.102 1.497-.615 1.497-1.6V4.503c0-1.094.39-1.538 1.354-1.538h.273V2h-.376C3.25 2 2.49 2.759 2.49 4.352v1.524c0 1.094-.376 1.456-1.49 1.456v1.299c1.114 0 1.49.362 1.49 1.456v1.524c0 1.593.759 2.352 2.372 2.352h.376v-.964h-.273c-.964 0-1.354-.444-1.354-1.538V9.663c0-.984-.492-1.497-1.497-1.6M13.886 7.9v.163c-1.005.103-1.497.616-1.497 1.6v1.798c0 1.094-.39 1.538-1.354 1.538h-.273v.964h.376c1.613 0 2.372-.759 2.372-2.352v-1.524c0-1.094.376-1.456 1.49-1.456V7.332c-1.114 0-1.49-.362-1.49-1.456V4.352C13.51 2.759 12.75 2 11.138 2h-.376v.964h.273c.964 0 1.354.444 1.354 1.538V6.3c0 .984.492 1.497 1.497 1.6"/></svg>`,envelope:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1zm13 2.383-4.708 2.825L15 11.105zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741M1 11.105l4.708-2.897L1 5.383z"/></svg>`,"question-diamond":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M6.95.435c.58-.58 1.52-.58 2.1 0l6.515 6.516c.58.58.58 1.519 0 2.098L9.05 15.565c-.58.58-1.519.58-2.098 0L.435 9.05a1.48 1.48 0 0 1 0-2.098zm1.4.7a.495.495 0 0 0-.7 0L1.134 7.65a.495.495 0 0 0 0 .7l6.516 6.516a.495.495 0 0 0 .7 0l6.516-6.516a.495.495 0 0 0 0-.7L8.35 1.134z"/> <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217a.25.25 0 0 0 .25.246h.811a.25.25 0 0 0 .25-.25v-.105c0-.718.273-.927 1.01-1.486.609-.463 1.244-.977 1.244-2.056 0-1.511-1.276-2.241-2.673-2.241-1.267 0-2.655.59-2.75 2.286m1.557 5.763c0 .533.425.927 1.01.927.609 0 1.028-.394 1.028-.927 0-.552-.42-.94-1.029-.94-.584 0-1.009.388-1.009.94"/></svg>`,cookie:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M6 7.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0m4.5.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3m-.5 3.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"/> <path d="M8 0a7.96 7.96 0 0 0-4.075 1.114q-.245.102-.437.28A8 8 0 1 0 8 0m3.25 14.201a1.5 1.5 0 0 0-2.13.71A7 7 0 0 1 8 15a6.97 6.97 0 0 1-3.845-1.15 1.5 1.5 0 1 0-2.005-2.005A6.97 6.97 0 0 1 1 8c0-1.953.8-3.719 2.09-4.989a1.5 1.5 0 1 0 2.469-1.574A7 7 0 0 1 8 1c1.42 0 2.742.423 3.845 1.15a1.5 1.5 0 1 0 2.005 2.005A6.97 6.97 0 0 1 15 8c0 .596-.074 1.174-.214 1.727a1.5 1.5 0 1 0-1.025 2.25 7 7 0 0 1-2.51 2.224Z"/></svg>`,signpost:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M7 1.414V4H2a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h5v6h2v-6h3.532a1 1 0 0 0 .768-.36l1.933-2.32a.5.5 0 0 0 0-.64L13.3 4.36a1 1 0 0 0-.768-.36H9V1.414a1 1 0 0 0-2 0M12.532 5l1.666 2-1.666 2H2V5z"/></svg>`,"shield-lock":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M5.338 1.59a61 61 0 0 0-2.837.856.48.48 0 0 0-.328.39c-.554 4.157.726 7.19 2.253 9.188a10.7 10.7 0 0 0 2.287 2.233c.346.244.652.42.893.533q.18.085.293.118a1 1 0 0 0 .101.025 1 1 0 0 0 .1-.025q.114-.034.294-.118c.24-.113.547-.29.893-.533a10.7 10.7 0 0 0 2.287-2.233c1.527-1.997 2.807-5.031 2.253-9.188a.48.48 0 0 0-.328-.39c-.651-.213-1.75-.56-2.837-.855C9.552 1.29 8.531 1.067 8 1.067c-.53 0-1.552.223-2.662.524zM5.072.56C6.157.265 7.31 0 8 0s1.843.265 2.928.56c1.11.3 2.229.655 2.887.87a1.54 1.54 0 0 1 1.044 1.262c.596 4.477-.787 7.795-2.465 9.99a11.8 11.8 0 0 1-2.517 2.453 7 7 0 0 1-1.048.625c-.28.132-.581.24-.829.24s-.548-.108-.829-.24a7 7 0 0 1-1.048-.625 11.8 11.8 0 0 1-2.517-2.453C1.928 10.487.545 7.169 1.141 2.692A1.54 1.54 0 0 1 2.185 1.43 63 63 0 0 1 5.072.56"/> <path d="M9.5 6.5a1.5 1.5 0 0 1-1 1.415l.385 1.99a.5.5 0 0 1-.491.595h-.788a.5.5 0 0 1-.49-.595l.384-1.99a1.5 1.5 0 1 1 2-1.415"/></svg>`,"person-lock":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M11 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0M8 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4m0 5.996V14H3s-1 0-1-1 1-4 6-4q.845.002 1.544.107a4.5 4.5 0 0 0-.803.918A11 11 0 0 0 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664zM9 13a1 1 0 0 1 1-1v-1a2 2 0 1 1 4 0v1a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1zm3-3a1 1 0 0 0-1 1v1h2v-1a1 1 0 0 0-1-1"/></svg>`,lock:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2M5 8h6a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1"/></svg>`,key:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M0 8a4 4 0 0 1 7.465-2H14a.5.5 0 0 1 .354.146l1.5 1.5a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0L13 9.207l-.646.647a.5.5 0 0 1-.708 0L11 9.207l-.646.647a.5.5 0 0 1-.708 0L9 9.207l-.646.647A.5.5 0 0 1 8 10h-.535A4 4 0 0 1 0 8m4-3a3 3 0 1 0 2.712 4.285A.5.5 0 0 1 7.163 9h.63l.853-.854a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.793-.793-1-1h-6.63a.5.5 0 0 1-.451-.285A3 3 0 0 0 4 5"/> <path d="M4 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></svg>`,plug:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plug" viewBox="0 0 16 16"><path d="M6 0a.5.5 0 0 1 .5.5V3h3V.5a.5.5 0 0 1 1 0V3h1a.5.5 0 0 1 .5.5v3A3.5 3.5 0 0 1 8.5 10c-.002.434-.01.845-.04 1.22-.041.514-.126 1.003-.317 1.424a2.08 2.08 0 0 1-.97 1.028C6.725 13.9 6.169 14 5.5 14c-.998 0-1.61.33-1.974.718A1.92 1.92 0 0 0 3 16H2c0-.616.232-1.367.797-1.968C3.374 13.42 4.261 13 5.5 13c.581 0 .962-.088 1.218-.219.241-.123.4-.3.514-.55.121-.266.193-.621.23-1.09.027-.34.035-.718.037-1.141A3.5 3.5 0 0 1 4 6.5v-3a.5.5 0 0 1 .5-.5h1V.5A.5.5 0 0 1 6 0M5 4v2.5A2.5 2.5 0 0 0 7.5 9h1A2.5 2.5 0 0 0 11 6.5V4z"/></svg>`,fingerprint:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M8.06 6.5a.5.5 0 0 1 .5.5v.776a11.5 11.5 0 0 1-.552 3.519l-1.331 4.14a.5.5 0 0 1-.952-.305l1.33-4.141a10.5 10.5 0 0 0 .504-3.213V7a.5.5 0 0 1 .5-.5Z"/> <path d="M6.06 7a2 2 0 1 1 4 0 .5.5 0 1 1-1 0 1 1 0 1 0-2 0v.332q0 .613-.066 1.221A.5.5 0 0 1 6 8.447q.06-.555.06-1.115zm3.509 1a.5.5 0 0 1 .487.513 11.5 11.5 0 0 1-.587 3.339l-1.266 3.8a.5.5 0 0 1-.949-.317l1.267-3.8a10.5 10.5 0 0 0 .535-3.048A.5.5 0 0 1 9.569 8m-3.356 2.115a.5.5 0 0 1 .33.626L5.24 14.939a.5.5 0 1 1-.955-.296l1.303-4.199a.5.5 0 0 1 .625-.329"/> <path d="M4.759 5.833A3.501 3.501 0 0 1 11.559 7a.5.5 0 0 1-1 0 2.5 2.5 0 0 0-4.857-.833.5.5 0 1 1-.943-.334m.3 1.67a.5.5 0 0 1 .449.546 10.7 10.7 0 0 1-.4 2.031l-1.222 4.072a.5.5 0 1 1-.958-.287L4.15 9.793a9.7 9.7 0 0 0 .363-1.842.5.5 0 0 1 .546-.449Zm6 .647a.5.5 0 0 1 .5.5c0 1.28-.213 2.552-.632 3.762l-1.09 3.145a.5.5 0 0 1-.944-.327l1.089-3.145c.382-1.105.578-2.266.578-3.435a.5.5 0 0 1 .5-.5Z"/> <path d="M3.902 4.222a5 5 0 0 1 5.202-2.113.5.5 0 0 1-.208.979 4 4 0 0 0-4.163 1.69.5.5 0 0 1-.831-.556m6.72-.955a.5.5 0 0 1 .705-.052A4.99 4.99 0 0 1 13.059 7v1.5a.5.5 0 1 1-1 0V7a3.99 3.99 0 0 0-1.386-3.028.5.5 0 0 1-.051-.705M3.68 5.842a.5.5 0 0 1 .422.568q-.044.289-.044.59c0 .71-.1 1.417-.298 2.1l-1.14 3.923a.5.5 0 1 1-.96-.279L2.8 8.821A6.5 6.5 0 0 0 3.058 7q0-.375.054-.736a.5.5 0 0 1 .568-.422m8.882 3.66a.5.5 0 0 1 .456.54c-.084 1-.298 1.986-.64 2.934l-.744 2.068a.5.5 0 0 1-.941-.338l.745-2.07a10.5 10.5 0 0 0 .584-2.678.5.5 0 0 1 .54-.456"/> <path d="M4.81 1.37A6.5 6.5 0 0 1 14.56 7a.5.5 0 1 1-1 0 5.5 5.5 0 0 0-8.25-4.765.5.5 0 0 1-.5-.865m-.89 1.257a.5.5 0 0 1 .04.706A5.48 5.48 0 0 0 2.56 7a.5.5 0 0 1-1 0c0-1.664.626-3.184 1.655-4.333a.5.5 0 0 1 .706-.04ZM1.915 8.02a.5.5 0 0 1 .346.616l-.779 2.767a.5.5 0 1 1-.962-.27l.778-2.767a.5.5 0 0 1 .617-.346m12.15.481a.5.5 0 0 1 .49.51c-.03 1.499-.161 3.025-.727 4.533l-.07.187a.5.5 0 0 1-.936-.351l.07-.187c.506-1.35.634-2.74.663-4.202a.5.5 0 0 1 .51-.49"/></svg>`,"x-lg":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/></svg>`,"hdd-network":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M4.5 5a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1M3 4.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0"/> <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H8.5v3a1.5 1.5 0 0 1 1.5 1.5h5.5a.5.5 0 0 1 0 1H10A1.5 1.5 0 0 1 8.5 14h-1A1.5 1.5 0 0 1 6 12.5H.5a.5.5 0 0 1 0-1H6A1.5 1.5 0 0 1 7.5 10V7H2a2 2 0 0 1-2-2zm1 0v1a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1m6 7.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5"/></svg>`,"box-arrow-up-right":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5"/> <path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0z"/></svg>`,box:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5 8 5.961 14.154 3.5zM15 4.239l-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923zM7.443.184a1.5 1.5 0 0 1 1.114 0l7.129 2.852A.5.5 0 0 1 16 3.5v8.662a1 1 0 0 1-.629.928l-7.185 2.874a.5.5 0 0 1-.372 0L.63 13.09a1 1 0 0 1-.63-.928V3.5a.5.5 0 0 1 .314-.464z"/></svg>`,"box-arrow-left":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M6 12.5a.5.5 0 0 0 .5.5h8a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-8a.5.5 0 0 0-.5.5v2a.5.5 0 0 1-1 0v-2A1.5 1.5 0 0 1 6.5 2h8A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 5 12.5v-2a.5.5 0 0 1 1 0z"/> <path fill-rule="evenodd" d="M.146 8.354a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L1.707 7.5H10.5a.5.5 0 0 1 0 1H1.707l2.147 2.146a.5.5 0 0 1-.708.708z"/></svg>`,"braces-asterisk":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M1.114 8.063V7.9c1.005-.102 1.497-.615 1.497-1.6V4.503c0-1.094.39-1.538 1.354-1.538h.273V2h-.376C2.25 2 1.49 2.759 1.49 4.352v1.524c0 1.094-.376 1.456-1.49 1.456v1.299c1.114 0 1.49.362 1.49 1.456v1.524c0 1.593.759 2.352 2.372 2.352h.376v-.964h-.273c-.964 0-1.354-.444-1.354-1.538V9.663c0-.984-.492-1.497-1.497-1.6M14.886 7.9v.164c-1.005.103-1.497.616-1.497 1.6v1.798c0 1.094-.39 1.538-1.354 1.538h-.273v.964h.376c1.613 0 2.372-.759 2.372-2.352v-1.524c0-1.094.376-1.456 1.49-1.456v-1.3c-1.114 0-1.49-.362-1.49-1.456V4.352C14.51 2.759 13.75 2 12.138 2h-.376v.964h.273c.964 0 1.354.444 1.354 1.538V6.3c0 .984.492 1.497 1.497 1.6M7.5 11.5V9.207l-1.621 1.621-.707-.707L6.792 8.5H4.5v-1h2.293L5.172 5.879l.707-.707L7.5 6.792V4.5h1v2.293l1.621-1.621.707.707L9.208 7.5H11.5v1H9.207l1.621 1.621-.707.707L8.5 9.208V11.5z"/></svg>`,"box-arrow-in-right":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M6 3.5a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 0-1 0v2A1.5 1.5 0 0 0 6.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-8A1.5 1.5 0 0 0 5 3.5v2a.5.5 0 0 0 1 0z"/> <path fill-rule="evenodd" d="M11.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H1.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/></svg>`,link:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M6.354 5.5H4a3 3 0 0 0 0 6h3a3 3 0 0 0 2.83-4H9q-.13 0-.25.031A2 2 0 0 1 7 10.5H4a2 2 0 1 1 0-4h1.535c.218-.376.495-.714.82-1z"/> <path d="M9 5.5a3 3 0 0 0-2.83 4h1.098A2 2 0 0 1 9 6.5h3a2 2 0 1 1 0 4h-1.535a4 4 0 0 1-.82 1H12a3 3 0 1 0 0-6z"/></svg>`,"telephone-outbound":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.6 17.6 0 0 0 4.168 6.608 17.6 17.6 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.68.68 0 0 0-.58-.122l-2.19.547a1.75 1.75 0 0 1-1.657-.459L5.482 8.062a1.75 1.75 0 0 1-.46-1.657l.548-2.19a.68.68 0 0 0-.122-.58zM1.884.511a1.745 1.745 0 0 1 2.612.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.68.68 0 0 0 .178.643l2.457 2.457a.68.68 0 0 0 .644.178l2.189-.547a1.75 1.75 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.6 18.6 0 0 1-7.01-4.42 18.6 18.6 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877zM11 .5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V1.707l-4.146 4.147a.5.5 0 0 1-.708-.708L14.293 1H11.5a.5.5 0 0 1-.5-.5"/></svg>`,geo:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M8 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6M4 4a4 4 0 1 1 4.5 3.969V13.5a.5.5 0 0 1-1 0V7.97A4 4 0 0 1 4 3.999zm2.493 8.574a.5.5 0 0 1-.411.575c-.712.118-1.28.295-1.655.493a1.3 1.3 0 0 0-.37.265.3.3 0 0 0-.057.09V14l.002.008.016.033a.6.6 0 0 0 .145.15c.165.13.435.27.813.395.751.25 1.82.414 3.024.414s2.273-.163 3.024-.414c.378-.126.648-.265.813-.395a.6.6 0 0 0 .146-.15l.015-.033L12 14v-.004a.3.3 0 0 0-.057-.09 1.3 1.3 0 0 0-.37-.264c-.376-.198-.943-.375-1.655-.493a.5.5 0 1 1 .164-.986c.77.127 1.452.328 1.957.594C12.5 13 13 13.4 13 14c0 .426-.26.752-.544.977-.29.228-.68.413-1.116.558-.878.293-2.059.465-3.34.465s-2.462-.172-3.34-.465c-.436-.145-.826-.33-1.116-.558C3.26 14.752 3 14.426 3 14c0-.599.5-1 .961-1.243.505-.266 1.187-.467 1.957-.594a.5.5 0 0 1 .575.411"/></svg>`,"chat-left-quote":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/> <path d="M7.066 4.76A1.665 1.665 0 0 0 4 5.668a1.667 1.667 0 0 0 2.561 1.406c-.131.389-.375.804-.777 1.22a.417.417 0 1 0 .6.58c1.486-1.54 1.293-3.214.682-4.112zm4 0A1.665 1.665 0 0 0 8 5.668a1.667 1.667 0 0 0 2.561 1.406c-.131.389-.375.804-.777 1.22a.417.417 0 1 0 .6.58c1.486-1.54 1.293-3.214.682-4.112z"/></svg>`,"arrow-clockwise":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/> <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>`,"arrow-counterclockwise":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/> <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308c-.12.1-.12.284 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>`,"x-diamond":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M7.987 16a1.53 1.53 0 0 1-1.07-.448L.45 9.082a1.53 1.53 0 0 1 0-2.165L6.917.45a1.53 1.53 0 0 1 2.166 0l6.469 6.468a1.53 1.53 0 0 1 0 2.164l-6.48 6.48a1.53 1.53 0 0 1-1.085.448M.879 8l7.108 7.108L15.096 8 7.987.879zM5.846 4.553a.5.5 0 1 0-.708.708L7.293 7.41 5.138 9.564a.5.5 0 0 0 .708.708L8 8.118l2.154 2.154a.5.5 0 0 0 .708-.708L8.708 7.41l2.154-2.149a.5.5 0 1 0-.708-.708L8 6.702z"/></svg>`,"gear-wide-connected":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M7.068.727c.243-.97 1.62-.97 1.864 0l.071.286a.96.96 0 0 0 1.622.434l.205-.211c.695-.719 1.888-.03 1.613.931l-.08.284a.96.96 0 0 0 1.187 1.187l.283-.081c.96-.275 1.65.918.931 1.613l-.211.205a.96.96 0 0 0 .434 1.622l.286.071c.97.243.97 1.62 0 1.864l-.286.071a.96.96 0 0 0-.434 1.622l.211.205c.719.695.03 1.888-.931 1.613l-.284-.08a.96.96 0 0 0-1.187 1.187l.081.283c.275.96-.918 1.65-1.613.931l-.205-.211a.96.96 0 0 0-1.622.434l-.071.286c-.243.97-1.62.97-1.864 0l-.071-.286a.96.96 0 0 0-1.622-.434l-.205.211c-.695.719-1.888.03-1.613-.931l.08-.284a.96.96 0 0 0-1.186-1.187l-.284.081c-.96.275-1.65-.918-.931-1.613l.211-.205a.96.96 0 0 0-.434-1.622l-.286-.071c-.97-.243-.97-1.62 0-1.864l.286-.071a.96.96 0 0 0 .434-1.622l-.211-.205c-.719-.695-.03-1.888.931-1.613l.284.08a.96.96 0 0 0 1.187-1.186l-.081-.284c-.275-.96.918-1.65 1.613-.931l.205.211a.96.96 0 0 0 1.622-.434zM12.973 8.5H8.25l-2.834 3.779A4.998 4.998 0 0 0 12.973 8.5m0-1a4.998 4.998 0 0 0-7.557-3.779l2.834 3.78zM5.048 3.967l-.087.065zm-.431.355A4.98 4.98 0 0 0 3.002 8c0 1.455.622 2.765 1.615 3.678L7.375 8zm.344 7.646.087.065z"/></svg>`,"chevron-double-left":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M8.354 1.646a.5.5 0 0 1 0 .708L2.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0"/> <path fill-rule="evenodd" d="M12.354 1.646a.5.5 0 0 1 0 .708L6.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0"/></svg>`,"chevron-double-right":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M3.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L9.293 8 3.646 2.354a.5.5 0 0 1 0-.708"/> <path fill-rule="evenodd" d="M7.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L13.293 8 7.646 2.354a.5.5 0 0 1 0-.708"/></svg>`,"zoom-in":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11M13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0"/><path d="M10.344 11.742q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1 6.5 6.5 0 0 1-1.398 1.4z"/><path fill-rule="evenodd" d="M6.5 3a.5.5 0 0 1 .5.5V6h2.5a.5.5 0 0 1 0 1H7v2.5a.5.5 0 0 1-1 0V7H3.5a.5.5 0 0 1 0-1H6V3.5a.5.5 0 0 1 .5-.5"/></svg>`,"zoom-out":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11M13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0"/><path d="M10.344 11.742q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1 6.5 6.5 0 0 1-1.398 1.4z"/><path fill-rule="evenodd" d="M3 6.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5"/></svg>`,"image-alt":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M7 2.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0m4.225 4.053a.5.5 0 0 0-.577.093l-3.71 4.71-2.66-2.772a.5.5 0 0 0-.63.062L.002 13v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4.5z"/></svg>`,image:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"/><path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1z"/></svg>`,eye:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/></svg>`,"eye-slash":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7 7 0 0 0-2.79.588l.77.771A6 6 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755q-.247.248-.517.486z"/><path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829"/><path d="M3.35 5.47q-.27.24-.518.487A13 13 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7 7 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12z"/></svg>`,"arrows-fullscreen":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M5.828 10.172a.5.5 0 0 0-.707 0l-4.096 4.096V11.5a.5.5 0 0 0-1 0v3.975a.5.5 0 0 0 .5.5H4.5a.5.5 0 0 0 0-1H1.732l4.096-4.096a.5.5 0 0 0 0-.707m4.344 0a.5.5 0 0 1 .707 0l4.096 4.096V11.5a.5.5 0 1 1 1 0v3.975a.5.5 0 0 1-.5.5H11.5a.5.5 0 0 1 0-1h2.768l-4.096-4.096a.5.5 0 0 1 0-.707m0-4.344a.5.5 0 0 0 .707 0l4.096-4.096V4.5a.5.5 0 1 0 1 0V.525a.5.5 0 0 0-.5-.5H11.5a.5.5 0 0 0 0 1h2.768l-4.096 4.096a.5.5 0 0 0 0 .707m-4.344 0a.5.5 0 0 1-.707 0L1.025 1.732V4.5a.5.5 0 0 1-1 0V.525a.5.5 0 0 1 .5-.5H4.5a.5.5 0 0 1 0 1H1.732l4.096 4.096a.5.5 0 0 1 0 .707"/></svg>`,"filetype-svg":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M14 4.5V14a2 2 0 0 1-2 2v-1a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v9H2V2a2 2 0 0 1 2-2h5.5zM0 14.841a1.13 1.13 0 0 0 .401.823q.194.162.478.252.285.091.665.091.507 0 .858-.158.355-.158.54-.44a1.17 1.17 0 0 0 .187-.656q0-.336-.135-.56a1 1 0 0 0-.375-.357a2 2 0 0 0-.565-.21l-.621-.144a1 1 0 0 1-.405-.176.37.37 0 0 1-.143-.299q0-.234.184-.384.187-.152.513-.152.214 0 .37.068a.6.6 0 0 1 .245.181.56.56 0 0 1 .12.258h.75a1.1 1.1 0 0 0-.199-.566a1.2 1.2 0 0 0-.5-.41a1.8 1.8 0 0 0-.78-.152q-.44 0-.776.15-.337.149-.528.421-.19.273-.19.639 0 .302.123.524t.351.367q.229.143.54.213l.618.144q.31.073.462.193a.39.39 0 0 1 .153.326.5.5 0 0 1-.085.29.56.56 0 0 1-.256.193q-.167.07-.413.07-.176 0-.32-.04a.8.8 0 0 1-.248-.115.58.58 0 0 1-.255-.384zm4.575 1.09h.952l1.327-3.999h-.879l-.887 3.138H5.05l-.897-3.138h-.917zm5.483-3.293q.114.228.14.492h-.776a.8.8 0 0 0-.096-.249.7.7 0 0 0-.17-.19.7.7 0 0 0-.237-.126 1 1 0 0 0-.3-.044q-.427 0-.664.302-.235.3-.235.85v.497q0 .352.097.616a.9.9 0 0 0 .305.413.87.87 0 0 0 .518.146 1 1 0 0 0 .457-.097.67.67 0 0 0 .273-.263q.09-.164.09-.364v-.254h-.823v-.59h1.576v.798q0 .29-.096.55a1.3 1.3 0 0 1-.293.457 1.4 1.4 0 0 1-.495.314q-.296.111-.698.111a2 2 0 0 1-.752-.132 1.45 1.45 0 0 1-.534-.377 1.6 1.6 0 0 1-.319-.58 2.5 2.5 0 0 1-.105-.745v-.507q0-.54.199-.949.202-.406.583-.633.383-.228.926-.228.357 0 .635.1.282.1.48.275.2.176.314.407"/></svg>`};return Pt(`default`,{resolver:e=>{let t=dm[e];return t?`data:image/svg+xml,${encodeURIComponent(t)}`:`static/shoelace/assets/icons/${e}.svg`}}),document.body?fe():document.addEventListener(`DOMContentLoaded`,()=>{fe()},{once:!0}),Object.defineProperty(e,`PpCodeViewer`,{enumerable:!0,get:function(){return mp}}),Object.defineProperty(e,`PpCrossRefs`,{enumerable:!0,get:function(){return Jp}}),Object.defineProperty(e,`PpCurlCommand`,{enumerable:!0,get:function(){return ld}}),Object.defineProperty(e,`PpExampleBlock`,{enumerable:!0,get:function(){return Qp}}),Object.defineProperty(e,`PpExampleDrawer`,{enumerable:!0,get:function(){return em}}),Object.defineProperty(e,`PpExampleSelector`,{enumerable:!0,get:function(){return Op}}),Object.defineProperty(e,`PpExtensions`,{enumerable:!0,get:function(){return yp}}),Object.defineProperty(e,`PpIconTitle`,{enumerable:!0,get:function(){return gp}}),Object.defineProperty(e,`PpInlineCode`,{enumerable:!0,get:function(){return Ip}}),Object.defineProperty(e,`PpLayout`,{enumerable:!0,get:function(){return Mu}}),Object.defineProperty(e,`PpMediaTypeSelector`,{enumerable:!0,get:function(){return Ap}}),Object.defineProperty(e,`PpModelCard`,{enumerable:!0,get:function(){return Rp}}),Object.defineProperty(e,`PpModelPage`,{enumerable:!0,get:function(){return Q}}),Object.defineProperty(e,`PpNav`,{enumerable:!0,get:function(){return Pu}}),Object.defineProperty(e,`PpNavModelGroup`,{enumerable:!0,get:function(){return Bu}}),Object.defineProperty(e,`PpNavOperation`,{enumerable:!0,get:function(){return Hu}}),Object.defineProperty(e,`PpNavTag`,{enumerable:!0,get:function(){return Lu}}),Object.defineProperty(e,`PpOperationCallbacks`,{enumerable:!0,get:function(){return Np}}),Object.defineProperty(e,`PpOperationParameters`,{enumerable:!0,get:function(){return bp}}),Object.defineProperty(e,`PpOperationResponses`,{enumerable:!0,get:function(){return jp}}),Object.defineProperty(e,`PpPageNav`,{enumerable:!0,get:function(){return um}}),Object.defineProperty(e,`PpRawViewerBtn`,{enumerable:!0,get:function(){return nm}}),Object.defineProperty(e,`PpRefList`,{enumerable:!0,get:function(){return qp}}),Object.defineProperty(e,`PpRefPopover`,{enumerable:!0,get:function(){return _p}}),Object.defineProperty(e,`PpSchemaProperties`,{enumerable:!0,get:function(){return dp}}),Object.defineProperty(e,`PpSecurityScheme`,{enumerable:!0,get:function(){return om}}),e})({});
+        `}};K([P({attribute:`page-title`})],sm.prototype,`pageTitle`,void 0),K([P({attribute:`sections-json`})],sm.prototype,`sectionsJson`,void 0),K([F()],sm.prototype,`sections`,void 0),K([F()],sm.prototype,`collapsed`,void 0),K([F()],sm.prototype,`navHidden`,void 0),K([F()],sm.prototype,`activeId`,void 0),sm=K([N(`pp-page-nav`)],sm),Tt(`static/shoelace`);var cm={sun:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6m0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/></svg>`,moon:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278M4.858 1.311A7.27 7.27 0 0 0 1.025 7.71c0 4.02 3.279 7.276 7.319 7.276a7.32 7.32 0 0 0 5.205-2.162q-.506.063-1.029.063c-4.61 0-8.343-3.714-8.343-8.29 0-1.167.242-2.278.681-3.286"/></svg>`,display:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M0 4s0-2 2-2h12s2 0 2 2v6s0 2-2 2h-4q0 1 .25 1.5H11a.5.5 0 0 1 0 1H5a.5.5 0 0 1 0-1h.75Q6 13 6 12H2s-2 0-2-2zm1.398-.855a.76.76 0 0 0-.254.302A1.5 1.5 0 0 0 1 4.01V10c0 .325.078.502.145.602q.105.156.302.254a1.5 1.5 0 0 0 .538.143L2.01 11H14c.325 0 .502-.078.602-.145a.76.76 0 0 0 .254-.302 1.5 1.5 0 0 0 .143-.538L15 9.99V4c0-.325-.078-.502-.145-.602a.76.76 0 0 0-.302-.254A1.5 1.5 0 0 0 13.99 3H2c-.325 0-.502.078-.602.145"/></svg>`,"chevron-left":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0"/></svg>`,"chevron-right":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/></svg>`,"chevron-down":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg>`,"grip-vertical":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M7 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0M7 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0M7 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0m-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0m-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></svg>`,copy:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10 1.5a1.5 1.5 0 0 1 1.5 1.5v1H13A1.5 1.5 0 0 1 14.5 5.5v8A1.5 1.5 0 0 1 13 15H6a1.5 1.5 0 0 1-1.5-1.5V12H3A1.5 1.5 0 0 1 1.5 10.5v-7A1.5 1.5 0 0 1 3 2h7zm.5 2A.5.5 0 0 0 10 3H3a.5.5 0 0 0-.5.5v7A.5.5 0 0 0 3 11h1.5V5.5A1.5 1.5 0 0 1 6 4h4.5zM6 5a.5.5 0 0 0-.5.5v8A.5.5 0 0 0 6 14h7a.5.5 0 0 0 .5-.5v-8A.5.5 0 0 0 13 5z"/></svg>`,braces:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M2.114 8.063V7.9c1.005-.102 1.497-.615 1.497-1.6V4.503c0-1.094.39-1.538 1.354-1.538h.273V2h-.376C3.25 2 2.49 2.759 2.49 4.352v1.524c0 1.094-.376 1.456-1.49 1.456v1.299c1.114 0 1.49.362 1.49 1.456v1.524c0 1.593.759 2.352 2.372 2.352h.376v-.964h-.273c-.964 0-1.354-.444-1.354-1.538V9.663c0-.984-.492-1.497-1.497-1.6M13.886 7.9v.163c-1.005.103-1.497.616-1.497 1.6v1.798c0 1.094-.39 1.538-1.354 1.538h-.273v.964h.376c1.613 0 2.372-.759 2.372-2.352v-1.524c0-1.094.376-1.456 1.49-1.456V7.332c-1.114 0-1.49-.362-1.49-1.456V4.352C13.51 2.759 12.75 2 11.138 2h-.376v.964h.273c.964 0 1.354.444 1.354 1.538V6.3c0 .984.492 1.497 1.497 1.6"/></svg>`,envelope:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1zm13 2.383-4.708 2.825L15 11.105zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741M1 11.105l4.708-2.897L1 5.383z"/></svg>`,"question-diamond":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M6.95.435c.58-.58 1.52-.58 2.1 0l6.515 6.516c.58.58.58 1.519 0 2.098L9.05 15.565c-.58.58-1.519.58-2.098 0L.435 9.05a1.48 1.48 0 0 1 0-2.098zm1.4.7a.495.495 0 0 0-.7 0L1.134 7.65a.495.495 0 0 0 0 .7l6.516 6.516a.495.495 0 0 0 .7 0l6.516-6.516a.495.495 0 0 0 0-.7L8.35 1.134z"/> <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217a.25.25 0 0 0 .25.246h.811a.25.25 0 0 0 .25-.25v-.105c0-.718.273-.927 1.01-1.486.609-.463 1.244-.977 1.244-2.056 0-1.511-1.276-2.241-2.673-2.241-1.267 0-2.655.59-2.75 2.286m1.557 5.763c0 .533.425.927 1.01.927.609 0 1.028-.394 1.028-.927 0-.552-.42-.94-1.029-.94-.584 0-1.009.388-1.009.94"/></svg>`,cookie:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M6 7.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0m4.5.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3m-.5 3.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"/> <path d="M8 0a7.96 7.96 0 0 0-4.075 1.114q-.245.102-.437.28A8 8 0 1 0 8 0m3.25 14.201a1.5 1.5 0 0 0-2.13.71A7 7 0 0 1 8 15a6.97 6.97 0 0 1-3.845-1.15 1.5 1.5 0 1 0-2.005-2.005A6.97 6.97 0 0 1 1 8c0-1.953.8-3.719 2.09-4.989a1.5 1.5 0 1 0 2.469-1.574A7 7 0 0 1 8 1c1.42 0 2.742.423 3.845 1.15a1.5 1.5 0 1 0 2.005 2.005A6.97 6.97 0 0 1 15 8c0 .596-.074 1.174-.214 1.727a1.5 1.5 0 1 0-1.025 2.25 7 7 0 0 1-2.51 2.224Z"/></svg>`,signpost:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M7 1.414V4H2a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h5v6h2v-6h3.532a1 1 0 0 0 .768-.36l1.933-2.32a.5.5 0 0 0 0-.64L13.3 4.36a1 1 0 0 0-.768-.36H9V1.414a1 1 0 0 0-2 0M12.532 5l1.666 2-1.666 2H2V5z"/></svg>`,"shield-lock":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M5.338 1.59a61 61 0 0 0-2.837.856.48.48 0 0 0-.328.39c-.554 4.157.726 7.19 2.253 9.188a10.7 10.7 0 0 0 2.287 2.233c.346.244.652.42.893.533q.18.085.293.118a1 1 0 0 0 .101.025 1 1 0 0 0 .1-.025q.114-.034.294-.118c.24-.113.547-.29.893-.533a10.7 10.7 0 0 0 2.287-2.233c1.527-1.997 2.807-5.031 2.253-9.188a.48.48 0 0 0-.328-.39c-.651-.213-1.75-.56-2.837-.855C9.552 1.29 8.531 1.067 8 1.067c-.53 0-1.552.223-2.662.524zM5.072.56C6.157.265 7.31 0 8 0s1.843.265 2.928.56c1.11.3 2.229.655 2.887.87a1.54 1.54 0 0 1 1.044 1.262c.596 4.477-.787 7.795-2.465 9.99a11.8 11.8 0 0 1-2.517 2.453 7 7 0 0 1-1.048.625c-.28.132-.581.24-.829.24s-.548-.108-.829-.24a7 7 0 0 1-1.048-.625 11.8 11.8 0 0 1-2.517-2.453C1.928 10.487.545 7.169 1.141 2.692A1.54 1.54 0 0 1 2.185 1.43 63 63 0 0 1 5.072.56"/> <path d="M9.5 6.5a1.5 1.5 0 0 1-1 1.415l.385 1.99a.5.5 0 0 1-.491.595h-.788a.5.5 0 0 1-.49-.595l.384-1.99a1.5 1.5 0 1 1 2-1.415"/></svg>`,"person-lock":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M11 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0M8 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4m0 5.996V14H3s-1 0-1-1 1-4 6-4q.845.002 1.544.107a4.5 4.5 0 0 0-.803.918A11 11 0 0 0 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664zM9 13a1 1 0 0 1 1-1v-1a2 2 0 1 1 4 0v1a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1zm3-3a1 1 0 0 0-1 1v1h2v-1a1 1 0 0 0-1-1"/></svg>`,lock:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2M5 8h6a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1"/></svg>`,key:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M0 8a4 4 0 0 1 7.465-2H14a.5.5 0 0 1 .354.146l1.5 1.5a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0L13 9.207l-.646.647a.5.5 0 0 1-.708 0L11 9.207l-.646.647a.5.5 0 0 1-.708 0L9 9.207l-.646.647A.5.5 0 0 1 8 10h-.535A4 4 0 0 1 0 8m4-3a3 3 0 1 0 2.712 4.285A.5.5 0 0 1 7.163 9h.63l.853-.854a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.793-.793-1-1h-6.63a.5.5 0 0 1-.451-.285A3 3 0 0 0 4 5"/> <path d="M4 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></svg>`,plug:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plug" viewBox="0 0 16 16"><path d="M6 0a.5.5 0 0 1 .5.5V3h3V.5a.5.5 0 0 1 1 0V3h1a.5.5 0 0 1 .5.5v3A3.5 3.5 0 0 1 8.5 10c-.002.434-.01.845-.04 1.22-.041.514-.126 1.003-.317 1.424a2.08 2.08 0 0 1-.97 1.028C6.725 13.9 6.169 14 5.5 14c-.998 0-1.61.33-1.974.718A1.92 1.92 0 0 0 3 16H2c0-.616.232-1.367.797-1.968C3.374 13.42 4.261 13 5.5 13c.581 0 .962-.088 1.218-.219.241-.123.4-.3.514-.55.121-.266.193-.621.23-1.09.027-.34.035-.718.037-1.141A3.5 3.5 0 0 1 4 6.5v-3a.5.5 0 0 1 .5-.5h1V.5A.5.5 0 0 1 6 0M5 4v2.5A2.5 2.5 0 0 0 7.5 9h1A2.5 2.5 0 0 0 11 6.5V4z"/></svg>`,fingerprint:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M8.06 6.5a.5.5 0 0 1 .5.5v.776a11.5 11.5 0 0 1-.552 3.519l-1.331 4.14a.5.5 0 0 1-.952-.305l1.33-4.141a10.5 10.5 0 0 0 .504-3.213V7a.5.5 0 0 1 .5-.5Z"/> <path d="M6.06 7a2 2 0 1 1 4 0 .5.5 0 1 1-1 0 1 1 0 1 0-2 0v.332q0 .613-.066 1.221A.5.5 0 0 1 6 8.447q.06-.555.06-1.115zm3.509 1a.5.5 0 0 1 .487.513 11.5 11.5 0 0 1-.587 3.339l-1.266 3.8a.5.5 0 0 1-.949-.317l1.267-3.8a10.5 10.5 0 0 0 .535-3.048A.5.5 0 0 1 9.569 8m-3.356 2.115a.5.5 0 0 1 .33.626L5.24 14.939a.5.5 0 1 1-.955-.296l1.303-4.199a.5.5 0 0 1 .625-.329"/> <path d="M4.759 5.833A3.501 3.501 0 0 1 11.559 7a.5.5 0 0 1-1 0 2.5 2.5 0 0 0-4.857-.833.5.5 0 1 1-.943-.334m.3 1.67a.5.5 0 0 1 .449.546 10.7 10.7 0 0 1-.4 2.031l-1.222 4.072a.5.5 0 1 1-.958-.287L4.15 9.793a9.7 9.7 0 0 0 .363-1.842.5.5 0 0 1 .546-.449Zm6 .647a.5.5 0 0 1 .5.5c0 1.28-.213 2.552-.632 3.762l-1.09 3.145a.5.5 0 0 1-.944-.327l1.089-3.145c.382-1.105.578-2.266.578-3.435a.5.5 0 0 1 .5-.5Z"/> <path d="M3.902 4.222a5 5 0 0 1 5.202-2.113.5.5 0 0 1-.208.979 4 4 0 0 0-4.163 1.69.5.5 0 0 1-.831-.556m6.72-.955a.5.5 0 0 1 .705-.052A4.99 4.99 0 0 1 13.059 7v1.5a.5.5 0 1 1-1 0V7a3.99 3.99 0 0 0-1.386-3.028.5.5 0 0 1-.051-.705M3.68 5.842a.5.5 0 0 1 .422.568q-.044.289-.044.59c0 .71-.1 1.417-.298 2.1l-1.14 3.923a.5.5 0 1 1-.96-.279L2.8 8.821A6.5 6.5 0 0 0 3.058 7q0-.375.054-.736a.5.5 0 0 1 .568-.422m8.882 3.66a.5.5 0 0 1 .456.54c-.084 1-.298 1.986-.64 2.934l-.744 2.068a.5.5 0 0 1-.941-.338l.745-2.07a10.5 10.5 0 0 0 .584-2.678.5.5 0 0 1 .54-.456"/> <path d="M4.81 1.37A6.5 6.5 0 0 1 14.56 7a.5.5 0 1 1-1 0 5.5 5.5 0 0 0-8.25-4.765.5.5 0 0 1-.5-.865m-.89 1.257a.5.5 0 0 1 .04.706A5.48 5.48 0 0 0 2.56 7a.5.5 0 0 1-1 0c0-1.664.626-3.184 1.655-4.333a.5.5 0 0 1 .706-.04ZM1.915 8.02a.5.5 0 0 1 .346.616l-.779 2.767a.5.5 0 1 1-.962-.27l.778-2.767a.5.5 0 0 1 .617-.346m12.15.481a.5.5 0 0 1 .49.51c-.03 1.499-.161 3.025-.727 4.533l-.07.187a.5.5 0 0 1-.936-.351l.07-.187c.506-1.35.634-2.74.663-4.202a.5.5 0 0 1 .51-.49"/></svg>`,"x-lg":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/></svg>`,"hdd-network":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M4.5 5a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1M3 4.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0"/> <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H8.5v3a1.5 1.5 0 0 1 1.5 1.5h5.5a.5.5 0 0 1 0 1H10A1.5 1.5 0 0 1 8.5 14h-1A1.5 1.5 0 0 1 6 12.5H.5a.5.5 0 0 1 0-1H6A1.5 1.5 0 0 1 7.5 10V7H2a2 2 0 0 1-2-2zm1 0v1a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1m6 7.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5"/></svg>`,"box-arrow-up-right":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5"/> <path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0z"/></svg>`,box:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5 8 5.961 14.154 3.5zM15 4.239l-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923zM7.443.184a1.5 1.5 0 0 1 1.114 0l7.129 2.852A.5.5 0 0 1 16 3.5v8.662a1 1 0 0 1-.629.928l-7.185 2.874a.5.5 0 0 1-.372 0L.63 13.09a1 1 0 0 1-.63-.928V3.5a.5.5 0 0 1 .314-.464z"/></svg>`,"box-arrow-left":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M6 12.5a.5.5 0 0 0 .5.5h8a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-8a.5.5 0 0 0-.5.5v2a.5.5 0 0 1-1 0v-2A1.5 1.5 0 0 1 6.5 2h8A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 5 12.5v-2a.5.5 0 0 1 1 0z"/> <path fill-rule="evenodd" d="M.146 8.354a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L1.707 7.5H10.5a.5.5 0 0 1 0 1H1.707l2.147 2.146a.5.5 0 0 1-.708.708z"/></svg>`,"braces-asterisk":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M1.114 8.063V7.9c1.005-.102 1.497-.615 1.497-1.6V4.503c0-1.094.39-1.538 1.354-1.538h.273V2h-.376C2.25 2 1.49 2.759 1.49 4.352v1.524c0 1.094-.376 1.456-1.49 1.456v1.299c1.114 0 1.49.362 1.49 1.456v1.524c0 1.593.759 2.352 2.372 2.352h.376v-.964h-.273c-.964 0-1.354-.444-1.354-1.538V9.663c0-.984-.492-1.497-1.497-1.6M14.886 7.9v.164c-1.005.103-1.497.616-1.497 1.6v1.798c0 1.094-.39 1.538-1.354 1.538h-.273v.964h.376c1.613 0 2.372-.759 2.372-2.352v-1.524c0-1.094.376-1.456 1.49-1.456v-1.3c-1.114 0-1.49-.362-1.49-1.456V4.352C14.51 2.759 13.75 2 12.138 2h-.376v.964h.273c.964 0 1.354.444 1.354 1.538V6.3c0 .984.492 1.497 1.497 1.6M7.5 11.5V9.207l-1.621 1.621-.707-.707L6.792 8.5H4.5v-1h2.293L5.172 5.879l.707-.707L7.5 6.792V4.5h1v2.293l1.621-1.621.707.707L9.208 7.5H11.5v1H9.207l1.621 1.621-.707.707L8.5 9.208V11.5z"/></svg>`,"box-arrow-in-right":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M6 3.5a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 0-1 0v2A1.5 1.5 0 0 0 6.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-8A1.5 1.5 0 0 0 5 3.5v2a.5.5 0 0 0 1 0z"/> <path fill-rule="evenodd" d="M11.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H1.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/></svg>`,link:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M6.354 5.5H4a3 3 0 0 0 0 6h3a3 3 0 0 0 2.83-4H9q-.13 0-.25.031A2 2 0 0 1 7 10.5H4a2 2 0 1 1 0-4h1.535c.218-.376.495-.714.82-1z"/> <path d="M9 5.5a3 3 0 0 0-2.83 4h1.098A2 2 0 0 1 9 6.5h3a2 2 0 1 1 0 4h-1.535a4 4 0 0 1-.82 1H12a3 3 0 1 0 0-6z"/></svg>`,"telephone-outbound":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.6 17.6 0 0 0 4.168 6.608 17.6 17.6 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.68.68 0 0 0-.58-.122l-2.19.547a1.75 1.75 0 0 1-1.657-.459L5.482 8.062a1.75 1.75 0 0 1-.46-1.657l.548-2.19a.68.68 0 0 0-.122-.58zM1.884.511a1.745 1.745 0 0 1 2.612.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.68.68 0 0 0 .178.643l2.457 2.457a.68.68 0 0 0 .644.178l2.189-.547a1.75 1.75 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.6 18.6 0 0 1-7.01-4.42 18.6 18.6 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877zM11 .5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V1.707l-4.146 4.147a.5.5 0 0 1-.708-.708L14.293 1H11.5a.5.5 0 0 1-.5-.5"/></svg>`,geo:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M8 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6M4 4a4 4 0 1 1 4.5 3.969V13.5a.5.5 0 0 1-1 0V7.97A4 4 0 0 1 4 3.999zm2.493 8.574a.5.5 0 0 1-.411.575c-.712.118-1.28.295-1.655.493a1.3 1.3 0 0 0-.37.265.3.3 0 0 0-.057.09V14l.002.008.016.033a.6.6 0 0 0 .145.15c.165.13.435.27.813.395.751.25 1.82.414 3.024.414s2.273-.163 3.024-.414c.378-.126.648-.265.813-.395a.6.6 0 0 0 .146-.15l.015-.033L12 14v-.004a.3.3 0 0 0-.057-.09 1.3 1.3 0 0 0-.37-.264c-.376-.198-.943-.375-1.655-.493a.5.5 0 1 1 .164-.986c.77.127 1.452.328 1.957.594C12.5 13 13 13.4 13 14c0 .426-.26.752-.544.977-.29.228-.68.413-1.116.558-.878.293-2.059.465-3.34.465s-2.462-.172-3.34-.465c-.436-.145-.826-.33-1.116-.558C3.26 14.752 3 14.426 3 14c0-.599.5-1 .961-1.243.505-.266 1.187-.467 1.957-.594a.5.5 0 0 1 .575.411"/></svg>`,"chat-left-quote":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/> <path d="M7.066 4.76A1.665 1.665 0 0 0 4 5.668a1.667 1.667 0 0 0 2.561 1.406c-.131.389-.375.804-.777 1.22a.417.417 0 1 0 .6.58c1.486-1.54 1.293-3.214.682-4.112zm4 0A1.665 1.665 0 0 0 8 5.668a1.667 1.667 0 0 0 2.561 1.406c-.131.389-.375.804-.777 1.22a.417.417 0 1 0 .6.58c1.486-1.54 1.293-3.214.682-4.112z"/></svg>`,"arrow-clockwise":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/> <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg>`,"arrow-counterclockwise":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/> <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308c-.12.1-.12.284 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>`,"x-diamond":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M7.987 16a1.53 1.53 0 0 1-1.07-.448L.45 9.082a1.53 1.53 0 0 1 0-2.165L6.917.45a1.53 1.53 0 0 1 2.166 0l6.469 6.468a1.53 1.53 0 0 1 0 2.164l-6.48 6.48a1.53 1.53 0 0 1-1.085.448M.879 8l7.108 7.108L15.096 8 7.987.879zM5.846 4.553a.5.5 0 1 0-.708.708L7.293 7.41 5.138 9.564a.5.5 0 0 0 .708.708L8 8.118l2.154 2.154a.5.5 0 0 0 .708-.708L8.708 7.41l2.154-2.149a.5.5 0 1 0-.708-.708L8 6.702z"/></svg>`,"gear-wide-connected":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path d="M7.068.727c.243-.97 1.62-.97 1.864 0l.071.286a.96.96 0 0 0 1.622.434l.205-.211c.695-.719 1.888-.03 1.613.931l-.08.284a.96.96 0 0 0 1.187 1.187l.283-.081c.96-.275 1.65.918.931 1.613l-.211.205a.96.96 0 0 0 .434 1.622l.286.071c.97.243.97 1.62 0 1.864l-.286.071a.96.96 0 0 0-.434 1.622l.211.205c.719.695.03 1.888-.931 1.613l-.284-.08a.96.96 0 0 0-1.187 1.187l.081.283c.275.96-.918 1.65-1.613.931l-.205-.211a.96.96 0 0 0-1.622.434l-.071.286c-.243.97-1.62.97-1.864 0l-.071-.286a.96.96 0 0 0-1.622-.434l-.205.211c-.695.719-1.888.03-1.613-.931l.08-.284a.96.96 0 0 0-1.186-1.187l-.284.081c-.96.275-1.65-.918-.931-1.613l.211-.205a.96.96 0 0 0-.434-1.622l-.286-.071c-.97-.243-.97-1.62 0-1.864l.286-.071a.96.96 0 0 0 .434-1.622l-.211-.205c-.719-.695-.03-1.888.931-1.613l.284.08a.96.96 0 0 0 1.187-1.186l-.081-.284c-.275-.96.918-1.65 1.613-.931l.205.211a.96.96 0 0 0 1.622-.434zM12.973 8.5H8.25l-2.834 3.779A4.998 4.998 0 0 0 12.973 8.5m0-1a4.998 4.998 0 0 0-7.557-3.779l2.834 3.78zM5.048 3.967l-.087.065zm-.431.355A4.98 4.98 0 0 0 3.002 8c0 1.455.622 2.765 1.615 3.678L7.375 8zm.344 7.646.087.065z"/></svg>`,"chevron-double-left":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M8.354 1.646a.5.5 0 0 1 0 .708L2.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0"/> <path fill-rule="evenodd" d="M12.354 1.646a.5.5 0 0 1 0 .708L6.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0"/></svg>`,"chevron-double-right":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"> <path fill-rule="evenodd" d="M3.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L9.293 8 3.646 2.354a.5.5 0 0 1 0-.708"/> <path fill-rule="evenodd" d="M7.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L13.293 8 7.646 2.354a.5.5 0 0 1 0-.708"/></svg>`,"zoom-in":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11M13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0"/><path d="M10.344 11.742q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1 6.5 6.5 0 0 1-1.398 1.4z"/><path fill-rule="evenodd" d="M6.5 3a.5.5 0 0 1 .5.5V6h2.5a.5.5 0 0 1 0 1H7v2.5a.5.5 0 0 1-1 0V7H3.5a.5.5 0 0 1 0-1H6V3.5a.5.5 0 0 1 .5-.5"/></svg>`,"zoom-out":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11M13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0"/><path d="M10.344 11.742q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1 6.5 6.5 0 0 1-1.398 1.4z"/><path fill-rule="evenodd" d="M3 6.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5"/></svg>`,"image-alt":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M7 2.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0m4.225 4.053a.5.5 0 0 0-.577.093l-3.71 4.71-2.66-2.772a.5.5 0 0 0-.63.062L.002 13v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4.5z"/></svg>`,image:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"/><path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1z"/></svg>`,eye:`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/></svg>`,"eye-slash":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7 7 0 0 0-2.79.588l.77.771A6 6 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755q-.247.248-.517.486z"/><path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829"/><path d="M3.35 5.47q-.27.24-.518.487A13 13 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7 7 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12z"/></svg>`,"arrows-fullscreen":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M5.828 10.172a.5.5 0 0 0-.707 0l-4.096 4.096V11.5a.5.5 0 0 0-1 0v3.975a.5.5 0 0 0 .5.5H4.5a.5.5 0 0 0 0-1H1.732l4.096-4.096a.5.5 0 0 0 0-.707m4.344 0a.5.5 0 0 1 .707 0l4.096 4.096V11.5a.5.5 0 1 1 1 0v3.975a.5.5 0 0 1-.5.5H11.5a.5.5 0 0 1 0-1h2.768l-4.096-4.096a.5.5 0 0 1 0-.707m0-4.344a.5.5 0 0 0 .707 0l4.096-4.096V4.5a.5.5 0 1 0 1 0V.525a.5.5 0 0 0-.5-.5H11.5a.5.5 0 0 0 0 1h2.768l-4.096 4.096a.5.5 0 0 0 0 .707m-4.344 0a.5.5 0 0 1-.707 0L1.025 1.732V4.5a.5.5 0 0 1-1 0V.525a.5.5 0 0 1 .5-.5H4.5a.5.5 0 0 1 0 1H1.732l4.096 4.096a.5.5 0 0 1 0 .707"/></svg>`,"filetype-svg":`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M14 4.5V14a2 2 0 0 1-2 2v-1a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v9H2V2a2 2 0 0 1 2-2h5.5zM0 14.841a1.13 1.13 0 0 0 .401.823q.194.162.478.252.285.091.665.091.507 0 .858-.158.355-.158.54-.44a1.17 1.17 0 0 0 .187-.656q0-.336-.135-.56a1 1 0 0 0-.375-.357a2 2 0 0 0-.565-.21l-.621-.144a1 1 0 0 1-.405-.176.37.37 0 0 1-.143-.299q0-.234.184-.384.187-.152.513-.152.214 0 .37.068a.6.6 0 0 1 .245.181.56.56 0 0 1 .12.258h.75a1.1 1.1 0 0 0-.199-.566a1.2 1.2 0 0 0-.5-.41a1.8 1.8 0 0 0-.78-.152q-.44 0-.776.15-.337.149-.528.421-.19.273-.19.639 0 .302.123.524t.351.367q.229.143.54.213l.618.144q.31.073.462.193a.39.39 0 0 1 .153.326.5.5 0 0 1-.085.29.56.56 0 0 1-.256.193q-.167.07-.413.07-.176 0-.32-.04a.8.8 0 0 1-.248-.115.58.58 0 0 1-.255-.384zm4.575 1.09h.952l1.327-3.999h-.879l-.887 3.138H5.05l-.897-3.138h-.917zm5.483-3.293q.114.228.14.492h-.776a.8.8 0 0 0-.096-.249.7.7 0 0 0-.17-.19.7.7 0 0 0-.237-.126 1 1 0 0 0-.3-.044q-.427 0-.664.302-.235.3-.235.85v.497q0 .352.097.616a.9.9 0 0 0 .305.413.87.87 0 0 0 .518.146 1 1 0 0 0 .457-.097.67.67 0 0 0 .273-.263q.09-.164.09-.364v-.254h-.823v-.59h1.576v.798q0 .29-.096.55a1.3 1.3 0 0 1-.293.457 1.4 1.4 0 0 1-.495.314q-.296.111-.698.111a2 2 0 0 1-.752-.132 1.45 1.45 0 0 1-.534-.377 1.6 1.6 0 0 1-.319-.58 2.5 2.5 0 0 1-.105-.745v-.507q0-.54.199-.949.202-.406.583-.633.383-.228.926-.228.357 0 .635.1.282.1.48.275.2.176.314.407"/></svg>`};return Pt(`default`,{resolver:e=>{let t=cm[e];return t?`data:image/svg+xml,${encodeURIComponent(t)}`:`static/shoelace/assets/icons/${e}.svg`}}),document.body?fe():document.addEventListener(`DOMContentLoaded`,()=>{fe()},{once:!0}),Object.defineProperty(e,`PpCodeViewer`,{enumerable:!0,get:function(){return mp}}),Object.defineProperty(e,`PpCrossRefs`,{enumerable:!0,get:function(){return Yp}}),Object.defineProperty(e,`PpCurlCommand`,{enumerable:!0,get:function(){return ld}}),Object.defineProperty(e,`PpExampleDrawer`,{enumerable:!0,get:function(){return Zp}}),Object.defineProperty(e,`PpExampleSelector`,{enumerable:!0,get:function(){return kp}}),Object.defineProperty(e,`PpExtensions`,{enumerable:!0,get:function(){return yp}}),Object.defineProperty(e,`PpIconTitle`,{enumerable:!0,get:function(){return gp}}),Object.defineProperty(e,`PpInlineCode`,{enumerable:!0,get:function(){return Lp}}),Object.defineProperty(e,`PpLayout`,{enumerable:!0,get:function(){return Mu}}),Object.defineProperty(e,`PpMediaTypeSelector`,{enumerable:!0,get:function(){return jp}}),Object.defineProperty(e,`PpModelCard`,{enumerable:!0,get:function(){return zp}}),Object.defineProperty(e,`PpModelPage`,{enumerable:!0,get:function(){return Q}}),Object.defineProperty(e,`PpNav`,{enumerable:!0,get:function(){return Pu}}),Object.defineProperty(e,`PpNavModelGroup`,{enumerable:!0,get:function(){return Bu}}),Object.defineProperty(e,`PpNavOperation`,{enumerable:!0,get:function(){return Hu}}),Object.defineProperty(e,`PpNavTag`,{enumerable:!0,get:function(){return Lu}}),Object.defineProperty(e,`PpOperationCallbacks`,{enumerable:!0,get:function(){return Pp}}),Object.defineProperty(e,`PpOperationParameters`,{enumerable:!0,get:function(){return bp}}),Object.defineProperty(e,`PpOperationResponses`,{enumerable:!0,get:function(){return Mp}}),Object.defineProperty(e,`PpPageNav`,{enumerable:!0,get:function(){return sm}}),Object.defineProperty(e,`PpRawViewerBtn`,{enumerable:!0,get:function(){return $p}}),Object.defineProperty(e,`PpRefList`,{enumerable:!0,get:function(){return Jp}}),Object.defineProperty(e,`PpRefPopover`,{enumerable:!0,get:function(){return _p}}),Object.defineProperty(e,`PpSchemaProperties`,{enumerable:!0,get:function(){return dp}}),Object.defineProperty(e,`PpSecurityScheme`,{enumerable:!0,get:function(){return rm}}),e})({});

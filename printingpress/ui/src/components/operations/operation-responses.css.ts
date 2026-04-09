@@ -12,14 +12,14 @@ export default css`
         padding-bottom: var(--global-padding);
         margin-top: 40px;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
     }
     
     h3 {
         margin-bottom: 40px;
         font-family: var(--font-stack), monospace;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         font-size: 1.6rem;
         margin-top: 0;
     }
@@ -60,7 +60,7 @@ export default css`
         font-weight: normal;
         color: var(--font-color-sub1);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         margin-bottom: var(--global-padding);
         border-bottom: 1px dotted var(--hrcolor);
         padding-bottom: var(--global-padding);
@@ -118,7 +118,7 @@ export default css`
         font-family: var(--font-stack), monospace;
         font-size: 0.8em;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         padding: var(--global-padding);
     }
 
@@ -191,7 +191,7 @@ export default css`
         padding-bottom: var(--global-padding);
         text-transform: uppercase;
         color: var(--font-color-sub1);
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         font-family: var(--font-stack), monospace;
     }
 
@@ -208,7 +208,7 @@ export default css`
         font-weight: normal;
         color: var(--font-color-sub1);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         margin-bottom: var(--global-padding);
         border-bottom: 1px dotted var(--hrcolor);
         padding-bottom: var(--global-padding);

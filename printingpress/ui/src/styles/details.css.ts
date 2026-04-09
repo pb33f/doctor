@@ -41,7 +41,7 @@ export default css`
 
     .pp-details-summary {
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         width: 100%;
     }
     
