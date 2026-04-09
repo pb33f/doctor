@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	doctormodel "github.com/pb33f/doctor/model"
@@ -26,6 +27,8 @@ type PrintingPressConfig struct {
 	Title     string
 	BaseURL   string
 	BasePath  string
+	SpecPath  string
+	SpecURL   string
 	OutputDir string
 	AssetMode string
 }
@@ -297,6 +300,7 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 		BaseURL:   pp.config.BaseURL,
 		AssetMode: pp.config.AssetMode,
 		Title:     pp.config.Title,
+		SpecURL:   pp.config.SpecURL,
 		Logger:    slog.Default(),
 		SyntheticTagFallback: &SyntheticTagFallbackConfig{
 			Enabled:         true,
@@ -321,6 +325,8 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 			return nil, err
 		}
 		cfg.SpecRoot = basePath
+		cfg.SpecLocation = formatSpecLocation(pp.config.SpecPath, basePath)
+		cfg.SpecPath = pp.config.SpecPath
 
 		docConfig := datamodel.NewDocumentConfiguration()
 		docConfig.AllowFileReferences = true
@@ -521,6 +527,37 @@ func validateAndNormalizeConfig(config *PrintingPressConfig, source pressSource)
 		}
 	}
 
+	if len(source.specBytes) > 0 {
+		if normalized.SpecPath != "" {
+			abs, err := filepath.Abs(normalized.SpecPath)
+			if err != nil {
+				issues = append(issues, ValidationIssue{
+					Field:   "specPath",
+					Err:     ErrInvalidBasePath,
+					Message: fmt.Sprintf("%s: %v", ErrInvalidBasePath.Error(), err),
+				})
+			} else {
+				normalized.SpecPath = abs
+				if normalized.BasePath == "" {
+					normalized.BasePath = filepath.Dir(abs)
+				}
+			}
+		} else {
+			filename := defaultSpecFilename(DetectSpecFormat(source.specBytes))
+			base := normalized.BasePath
+			if base == "" {
+				if wd, err := os.Getwd(); err == nil {
+					base = wd
+				}
+			}
+			if base != "" {
+				normalized.SpecPath = filepath.Join(base, filename)
+			} else {
+				normalized.SpecPath = filename
+			}
+		}
+	}
+
 	if source.drModel != nil && source.drModel.V3Document == nil {
 		issues = append(issues, ValidationIssue{
 			Field:   "drModel",
@@ -533,6 +570,27 @@ func validateAndNormalizeConfig(config *PrintingPressConfig, source pressSource)
 		return nil, &ValidationError{Issues: issues}
 	}
 	return &normalized, nil
+}
+
+func defaultSpecFilename(specFormat string) string {
+	switch specFormat {
+	case "json":
+		return "openapi.json"
+	default:
+		return "openapi.yaml"
+	}
+}
+
+func formatSpecLocation(specPath, specRoot string) string {
+	if specPath == "" {
+		return ""
+	}
+	loc := specPath
+	if specRoot != "" && strings.HasPrefix(loc, specRoot) {
+		loc = strings.TrimPrefix(loc, specRoot)
+		loc = strings.TrimPrefix(loc, string(filepath.Separator))
+	}
+	return filepath.ToSlash(loc)
 }
 
 func (pp *PrintingPress) resolveOutputDir() (string, error) {

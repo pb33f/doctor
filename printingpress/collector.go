@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -168,6 +169,7 @@ func (pp *PrintingPress) buildModelIndex() {
 // visitDocument collects all top-level document data: info, tags, servers, components, webhooks.
 func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 	root := &RootPage{}
+	root.Source = pp.site.Source
 
 	if doc.Document != nil {
 		if doc.Document.Info != nil {
@@ -465,7 +467,10 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 		if piOrigin.Line > 0 {
 			page.SourceLine = piOrigin.Line
 		}
+	} else if page.Location == "" {
+		page.Location = pp.engineConfig.SpecLocation
 	}
+	page.Source = pp.buildSourceRef(page.Location, pp.sourceTargetForLocation(page.Location, piOrigin), page.SourceLine)
 
 	pp.site.Operations = append(pp.site.Operations, page)
 }
@@ -490,6 +495,7 @@ func (pp *PrintingPress) collectParameters(params []*v3.Parameter, piOrigin *bun
 		if loc, _ := pp.resolveObjectOrigin(p.Value.GoLow(), piOrigin); loc != "" {
 			pi.Location = loc
 		}
+		pi.Source = pp.buildSourceRef(pi.Location, pp.sourceTargetForLocation(pi.Location, nil), pi.SourceLine)
 		if low := p.Value.GoLow(); low != nil && low.IsReference() {
 			if link := pp.resolveComponentLink(low.GetReference()); link != nil {
 				pi.Ref = link
@@ -574,6 +580,7 @@ func (pp *PrintingPress) collectRequestBody(rb *v3.RequestBody, piOrigin *bundle
 	if loc, _ := pp.resolveObjectOrigin(val.GoLow(), piOrigin); loc != "" {
 		rbi.Location = loc
 	}
+	rbi.Source = pp.buildSourceRef(rbi.Location, pp.sourceTargetForLocation(rbi.Location, nil), rbi.SourceLine)
 	rbi.Extensions = collectExtensions(val.Extensions)
 	if rbi.Extensions != nil {
 		rbi.ExtensionsJSON = render.MustJSON(rbi.Extensions)
@@ -746,6 +753,7 @@ func (pp *PrintingPress) collectResponses(responses *v3.Responses, piOrigin *bun
 		if loc, _ := pp.resolveObjectOrigin(resp.Value.GoLow(), piOrigin); loc != "" {
 			ri.Location = loc
 		}
+		ri.Source = pp.buildSourceRef(ri.Location, pp.sourceTargetForLocation(ri.Location, nil), ri.SourceLine)
 		ri.Extensions = collectExtensions(resp.Value.Extensions)
 		if resp.Value.IsReference() {
 			if link := pp.resolveComponentLink(resp.Value.GetReference()); link != nil {
@@ -930,6 +938,10 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 		applyModelLayoutHints(page)
 
 		page.Origin = pp.resolveOrigin("schemas", name)
+		if page.Origin == nil && pp.engineConfig.SpecLocation != "" {
+			page.Origin = &bundler.ComponentOrigin{OriginalFile: pp.engineConfig.SpecLocation}
+		}
+		page.Source = pp.buildModelSourceRef(page.Origin)
 
 		if sp.Schema != nil && sp.Schema.Value != nil && sp.Schema.Value.Extensions != nil {
 			page.Extensions = collectExtensions(sp.Schema.Value.Extensions)
@@ -1176,6 +1188,10 @@ func collectRenderable[V interface{ GetValue() any }](
 		applyModelLayoutHints(page)
 
 		page.Origin = pp.resolveOrigin(componentType, name)
+		if page.Origin == nil && pp.engineConfig.SpecLocation != "" {
+			page.Origin = &bundler.ComponentOrigin{OriginalFile: pp.engineConfig.SpecLocation}
+		}
+		page.Source = pp.buildModelSourceRef(page.Origin)
 
 		if page.SchemaRawYAML != "" && page.RawYAML != "" {
 			page.SchemaStartLine = computeSchemaStartLine(page.RawYAML, page.Origin)
@@ -1729,6 +1745,89 @@ func (pp *PrintingPress) formatLocation(origin *bundler.ComponentOrigin) string 
 	return loc
 }
 
+func (pp *PrintingPress) sourceTargetForLocation(location string, origin *bundler.ComponentOrigin) string {
+	if origin != nil && origin.OriginalFile != "" {
+		return origin.OriginalFile
+	}
+	if location == "" {
+		return ""
+	}
+	if pp.engineConfig != nil {
+		if pp.engineConfig.SpecLocation != "" && location == pp.engineConfig.SpecLocation && pp.engineConfig.SpecPath != "" {
+			return pp.engineConfig.SpecPath
+		}
+		if pp.engineConfig.SpecRoot != "" {
+			return filepath.Join(pp.engineConfig.SpecRoot, filepath.FromSlash(location))
+		}
+	}
+	return location
+}
+
+func (pp *PrintingPress) buildSourceRef(location, target string, line int) *SourceRef {
+	if location == "" && target == "" {
+		return nil
+	}
+	path := location
+	if path == "" {
+		path = target
+	}
+	href := strings.TrimSpace(target)
+	if url := pp.sourceURLForLocation(location, line); url != "" {
+		href = url
+	}
+	return &SourceRef{
+		Path: path,
+		Line: line,
+		Href: href,
+	}
+}
+
+func (pp *PrintingPress) buildModelSourceRef(origin *bundler.ComponentOrigin) *SourceRef {
+	if origin == nil && (pp.engineConfig == nil || pp.engineConfig.SpecLocation == "" && pp.engineConfig.SpecPath == "") {
+		return nil
+	}
+	location := ""
+	target := ""
+	line := 0
+	if origin != nil {
+		line = origin.Line
+		if origin.OriginalFile != "" {
+			if pp.engineConfig != nil && pp.engineConfig.SpecLocation != "" && origin.OriginalFile == pp.engineConfig.SpecLocation {
+				location = pp.engineConfig.SpecLocation
+				target = pp.engineConfig.SpecPath
+			} else if pp.engineConfig != nil && pp.engineConfig.SpecRoot != "" && strings.HasPrefix(origin.OriginalFile, pp.engineConfig.SpecRoot) {
+				location = pp.formatLocation(origin)
+				target = origin.OriginalFile
+			} else {
+				location = origin.OriginalFile
+				target = origin.OriginalFile
+			}
+		}
+	}
+	if location == "" {
+		location = pp.engineConfig.SpecLocation
+		target = pp.engineConfig.SpecPath
+	}
+	return pp.buildSourceRef(location, target, line)
+}
+
+func (pp *PrintingPress) sourceURLForLocation(location string, line int) string {
+	if pp == nil || pp.engineConfig == nil {
+		return ""
+	}
+	base := strings.TrimSpace(pp.engineConfig.SpecURL)
+	if base == "" {
+		return ""
+	}
+	if pp.engineConfig.SpecLocation != "" && location != "" && location != pp.engineConfig.SpecLocation {
+		return ""
+	}
+	if line > 0 && !strings.Contains(base, "#") {
+		return fmt.Sprintf("%s#L%d", base, line)
+	}
+	return base
+}
+
 // resolveObjectOrigin resolves the source file and line number for a sub-object
 // (response, parameter, request body) within an operation. It checks if the object
 // itself is a $ref with its own origin, then falls back to the path item origin.
@@ -1749,6 +1848,9 @@ func (pp *PrintingPress) resolveObjectOrigin(
 	// exact line for inline objects, so return 0
 	if piOrigin != nil && piOrigin.OriginalFile != "" {
 		return pp.formatLocation(piOrigin), 0
+	}
+	if pp.engineConfig.SpecLocation != "" {
+		return pp.engineConfig.SpecLocation, 0
 	}
 	return "", 0
 }

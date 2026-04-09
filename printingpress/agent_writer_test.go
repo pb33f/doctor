@@ -5,6 +5,7 @@
 package printingpress
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -150,6 +151,7 @@ func TestWriteLLMSite_UsesConfigOutputDir(t *testing.T) {
 }
 
 func TestRenderOperationMD(t *testing.T) {
+	site := &Site{}
 	op := &OperationPage{
 		Method:      "GET",
 		Path:        "/items",
@@ -168,12 +170,12 @@ func TestRenderOperationMD(t *testing.T) {
 		},
 		CrossRefs: &OperationCrossRefs{
 			ReferencesModels: []*ComponentRef{
-				{Name: "Item", ComponentType: "schemas"},
+				{Name: "Item", ComponentType: "schemas", TypeSlug: "schemas", Slug: "item"},
 			},
 		},
 	}
 
-	md := renderOperationMD(op)
+	md := renderOperationMD(rootLLMRenderContext(site), op)
 
 	assert.Contains(t, md, "### GET /items")
 	assert.Contains(t, md, "List all items")
@@ -184,7 +186,8 @@ func TestRenderOperationMD(t *testing.T) {
 	assert.Contains(t, md, "#### Responses")
 	assert.Contains(t, md, "**200**")
 	assert.Contains(t, md, "**404**")
-	assert.Contains(t, md, "**Models referenced:** Item")
+	assert.Contains(t, md, "#### Parameter Details")
+	assert.Contains(t, md, "[Item](models/schemas/item.md)")
 }
 
 func TestRenderParamsTable(t *testing.T) {
@@ -415,7 +418,7 @@ func TestRenderResponsesMD_Dedup(t *testing.T) {
 		}},
 	}
 
-	result := renderResponsesMD(responses)
+	result := renderResponsesMD(rootLLMRenderContext(&Site{}), responses)
 
 	// 200 and 400 should have full schemas
 	assert.Contains(t, result, "**200**")
@@ -424,6 +427,316 @@ func TestRenderResponsesMD_Dedup(t *testing.T) {
 	assert.Contains(t, result, "*Same schema as 400 response.*")
 	// The error schema should appear only once (for 400)
 	assert.Equal(t, 1, strings.Count(result, `"message"`))
+}
+
+func TestRenderOperationMD_EffectiveSecurityAndProvenance(t *testing.T) {
+	site := &Site{
+		Root: &RootPage{
+			SecurityGroups: []*SecurityRequirementGroup{
+				{
+					Requirements: []*SecurityRequirement{
+						{
+							Name:       "userAuth",
+							SchemeType: "oauth2",
+							Scopes:     []string{"idn:identity-history:manage"},
+						},
+					},
+				},
+			},
+		},
+		Operations: []*OperationPage{
+			{
+				Method:      "GET",
+				Path:        "/accounts",
+				Slug:        "list-accounts",
+				OperationID: "listAccounts",
+			},
+			{
+				Method:      "GET",
+				Path:        "/configuration-hub/object-mappings/{sourceOrg}",
+				Slug:        "get-object-mappings",
+				OperationID: "getObjectMappings",
+				Tags:        []string{"Configuration Hub"},
+				Summary:     "Gets list of object mappings",
+			},
+			{
+				Method:      "POST",
+				Path:        "/configuration-hub/object-mappings/{sourceOrg}/bulk-create",
+				Slug:        "create-object-mappings",
+				OperationID: "createObjectMappings",
+				Tags:        []string{"Configuration Hub"},
+				Summary:     "Bulk creates object mappings",
+			},
+		},
+	}
+	op := &OperationPage{
+		Method:      "GET",
+		Path:        "/account-usages/{accountId}/summaries",
+		OperationID: "getUsagesByAccountId",
+		Parameters: []*ParameterInfo{
+			{
+				Name:        "accountId",
+				In:          "path",
+				Required:    true,
+				Description: "ID of IDN account",
+				Extensions: []*ExtensionEntry{
+					{Key: "sailpoint-resource-operation-id", Value: "listAccounts"},
+				},
+			},
+		},
+	}
+
+	md := renderOperationMD(rootLLMRenderContext(site), op)
+
+	assert.Contains(t, md, "#### Security")
+	assert.Contains(t, md, "userAuth")
+	assert.Contains(t, md, "idn:identity-history:manage")
+	assert.Contains(t, md, "#### How To Find IDs")
+	assert.Contains(t, md, "Find `accountId` via [GET /accounts](operations/list-accounts.md).")
+	assert.Contains(t, md, "**Resource ID source:** [GET /accounts](operations/list-accounts.md)")
+}
+
+func TestRenderOperationMD_CurlRelatedOpsGuidanceAndScopeDedup(t *testing.T) {
+	site := &Site{
+		Root: &RootPage{
+			SecurityGroups: []*SecurityRequirementGroup{
+				{
+					Requirements: []*SecurityRequirement{
+						{Name: "userAuth", SchemeType: "oauth2", Scopes: []string{"sp:config-object-mapping:manage"}},
+					},
+				},
+			},
+		},
+		Operations: []*OperationPage{
+			{
+				Method:  "GET",
+				Path:    "/configuration-hub/object-mappings/{sourceOrg}",
+				Slug:    "get-object-mappings",
+				Tags:    []string{"Configuration Hub"},
+				Summary: "Gets list of object mappings",
+			},
+			{
+				Method:  "POST",
+				Path:    "/configuration-hub/object-mappings/{sourceOrg}/bulk-create",
+				Slug:    "create-object-mappings",
+				Tags:    []string{"Configuration Hub"},
+				Summary: "Bulk creates object mappings",
+			},
+		},
+	}
+	curlVariants := []*CurlVariant{
+		{Label: "Default", Command: "curl -X POST https://api.example.com/configuration-hub/object-mappings/default"},
+		{Label: "Alt", Command: "curl -X POST https://alt.example.com/configuration-hub/object-mappings/default"},
+	}
+	curlJSON, err := json.Marshal(curlVariants)
+	require.NoError(t, err)
+	op := &OperationPage{
+		Method:      "POST",
+		Path:        "/configuration-hub/object-mappings/{sourceOrg}",
+		Slug:        "create-object-mapping",
+		OperationID: "createObjectMapping",
+		Tags:        []string{"Configuration Hub"},
+		Summary:     "Creates an object mapping",
+		Description: "This creates an object mapping between current org and source org.\nSource org should be \"default\" when creating an object mapping that is not to be associated to any particular org.\nThe request will need the following security scope:\n- sp:config-object-mapping:manage",
+		CurlJSON:    string(curlJSON),
+		Parameters: []*ParameterInfo{
+			{
+				Name:        "sourceOrg",
+				In:          "path",
+				Required:    true,
+				Description: "The name of the source org.",
+			},
+		},
+	}
+
+	md := renderOperationMD(rootLLMRenderContext(site), op)
+
+	assert.Contains(t, md, "#### cURL")
+	assert.Contains(t, md, "curl -X POST https://api.example.com/configuration-hub/object-mappings/default")
+	assert.Contains(t, md, "Additional variants:")
+	assert.Contains(t, md, "**Guidance:** Use `default`")
+	assert.Contains(t, md, "#### Related Operations")
+	assert.Contains(t, md, "[GET /configuration-hub/object-mappings/{sourceOrg}](operations/get-object-mappings.md)")
+	assert.Contains(t, md, "[POST /configuration-hub/object-mappings/{sourceOrg}/bulk-create](operations/create-object-mappings.md)")
+	assert.Equal(t, 1, strings.Count(md, "sp:config-object-mapping:manage"))
+}
+
+func TestRenderOperationMD_CurlSuppressesDuplicateVariants(t *testing.T) {
+	curlVariants := []*CurlVariant{
+		{Label: "Default", Command: "curl https://api.example.com/items"},
+		{Label: "Same command, different label", Command: "curl https://api.example.com/items"},
+	}
+	curlJSON, err := json.Marshal(curlVariants)
+	require.NoError(t, err)
+
+	op := &OperationPage{
+		Method:   "GET",
+		Path:     "/items",
+		Summary:  "List items",
+		CurlJSON: string(curlJSON),
+	}
+
+	md := renderOperationMD(rootLLMRenderContext(&Site{}), op)
+
+	assert.Contains(t, md, "#### cURL")
+	assert.Contains(t, md, "curl https://api.example.com/items")
+	assert.NotContains(t, md, "Additional variants:")
+}
+
+func TestRenderRequestBodyMD_JSONPatchShowsSupportedPathsAndSafeExample(t *testing.T) {
+	op := &OperationPage{
+		Method: "PATCH",
+		Path:   "/auth-org/lockout-config",
+		Responses: []*ResponseInfo{
+			{
+				StatusCode: "200",
+				Content: []*MediaTypeInfo{
+					{
+						MediaType:  "application/json",
+						SchemaJSON: `{"type":"object","properties":{"lockoutDuration":{"type":"integer","example":15},"lockoutWindow":{"type":"integer","example":5},"maximumAttempts":{"type":"integer","example":5}}}`,
+					},
+				},
+			},
+		},
+	}
+	rb := &RequestBodyInfo{
+		Required: true,
+		Content: []*MediaTypeInfo{
+			{
+				MediaType:  "application/json-patch+json",
+				SchemaJSON: `{"type":"array","items":{"$ref":"#/components/schemas/JsonPatchOperation"}}`,
+				MockJSON:   "[\n  {\n    \"op\": \"replace\",\n    \"path\": \"/maximumAttempts\",\n    \"value\": \"7,\"\n  },\n  {\n    \"op\": \"add\",\n    \"path\": \"/lockoutDuration\",\n    \"value\": 35\n  }\n]",
+				ItemsRef:   &ComponentLink{Name: "JsonPatchOperation", TypeSlug: "schemas", Slug: "json-patch-operation"},
+			},
+		},
+	}
+
+	md := renderRequestBodyMD(rootLLMRenderContext(&Site{}), op, rb)
+
+	assert.Contains(t, md, "**Supported patch paths**")
+	assert.Contains(t, md, "- `/maximumAttempts`")
+	assert.Contains(t, md, "- `/lockoutDuration`")
+	assert.Contains(t, md, "- `/lockoutWindow`")
+	assert.Contains(t, md, `"value": 5`)
+	assert.Contains(t, md, `"value": 15`)
+	assert.NotContains(t, md, `"7,"`)
+}
+
+func TestCollectRelatedOperations_PrefersSamePathSibling(t *testing.T) {
+	site := &Site{
+		Operations: []*OperationPage{
+			{
+				Method:  "PATCH",
+				Path:    "/auth-org/lockout-config",
+				Slug:    "patch-auth-org-lockout-config",
+				Tags:    []string{"Global Tenant Security Settings"},
+				Summary: "Update auth org lockout configuration",
+			},
+			{
+				Method:  "GET",
+				Path:    "/auth-org/lockout-config",
+				Slug:    "get-auth-org-lockout-config",
+				Tags:    []string{"Global Tenant Security Settings"},
+				Summary: "Get auth org lockout configuration",
+			},
+			{
+				Method:  "GET",
+				Path:    "/auth-org/network-config",
+				Slug:    "get-auth-org-network-config",
+				Tags:    []string{"Global Tenant Security Settings"},
+				Summary: "Get auth org network configuration",
+			},
+		},
+	}
+
+	related := collectRelatedOperations(site, site.Operations[0])
+	require.NotEmpty(t, related)
+	assert.Equal(t, "get-auth-org-lockout-config", related[0].Slug)
+}
+
+func TestRenderModelMD_IncludesSchemaSummaryAndCrossRefLinks(t *testing.T) {
+	page := &ModelPage{
+		Name:        "AccountUsage",
+		TypeSlug:    "schemas",
+		Description: "Account usage summary.",
+		SchemaJSON:  `{"type":"object","required":["date"],"properties":{"date":{"type":"string","format":"date","description":"Month bucket"},"count":{"type":"integer","format":"int64","description":"Active days"}}}`,
+		CrossRefs: &ModelCrossRefs{
+			UsedByOperations: []*OperationRef{{Method: "GET", Path: "/account-usages/{accountId}/summaries", Slug: "get-usages-by-account-id"}},
+		},
+	}
+
+	md := renderModelMD(rootLLMRenderContext(&Site{}), page)
+
+	assert.Contains(t, md, "#### Schema Summary")
+	assert.Contains(t, md, "`date` (`string` format `date`) required")
+	assert.Contains(t, md, "[GET /account-usages/{accountId}/summaries](operations/get-usages-by-account-id.md)")
+	assert.NotContains(t, md, "\"properties\"")
+}
+
+func TestRenderModelMD_RetainsRawSchemaForComposedSchemas(t *testing.T) {
+	page := &ModelPage{
+		Name:       "ComposedThing",
+		TypeSlug:   "schemas",
+		SchemaJSON: `{"allOf":[{"$ref":"#/components/schemas/BaseThing"},{"type":"object","properties":{"name":{"type":"string"}}}]}`,
+	}
+
+	md := renderModelMD(rootLLMRenderContext(&Site{}), page)
+
+	assert.Contains(t, md, "#### Schema Summary")
+	assert.Contains(t, md, "\"allOf\"")
+}
+
+func TestRenderRequestBodyMD_OmitsRawSchemaWhenSummaryAndExampleExist(t *testing.T) {
+	op := &OperationPage{Method: "POST", Path: "/widgets"}
+	rb := &RequestBodyInfo{
+		Content: []*MediaTypeInfo{
+			{
+				MediaType:  "application/json",
+				SchemaRef:  &ComponentLink{Name: "WidgetRequest", TypeSlug: "schemas", Slug: "widget-request"},
+				SchemaJSON: `{"type":"object","properties":{"name":{"type":"string"}}}`,
+				MockJSON:   `{"name":"demo"}`,
+			},
+		},
+	}
+
+	md := renderRequestBodyMD(rootLLMRenderContext(&Site{}), op, rb)
+
+	assert.Contains(t, md, "**Schema ref:** [WidgetRequest](models/schemas/widget-request.md)")
+	assert.Contains(t, md, "**Example payload**")
+	assert.NotContains(t, md, "\"properties\"")
+}
+
+func TestRenderResponsesMD_OmitsRawSchemaWhenSummaryAndExampleExist(t *testing.T) {
+	responses := []*ResponseInfo{
+		{
+			StatusCode:  "200",
+			Description: "Success",
+			Content: []*MediaTypeInfo{
+				{
+					MediaType:  "application/json",
+					SchemaRef:  &ComponentLink{Name: "Widget", TypeSlug: "schemas", Slug: "widget"},
+					SchemaJSON: `{"type":"object","properties":{"id":{"type":"string"}}}`,
+					MockJSON:   `{"id":"123"}`,
+				},
+			},
+		},
+	}
+
+	md := renderResponsesMD(rootLLMRenderContext(&Site{}), responses)
+
+	assert.Contains(t, md, "**Schema ref:** [Widget](models/schemas/widget.md)")
+	assert.Contains(t, md, "**Example payload**")
+	assert.NotContains(t, md, "\"properties\"")
+}
+
+func TestRenderSchemaSummaryMD_LongEnumFormatting(t *testing.T) {
+	schema := `{"type":"object","properties":{"objectType":{"type":"string","enum":["ACCESS_PROFILE","ACCESS_REQUEST_CONFIG","ATTR_SYNC_SOURCE_CONFIG","AUTH_ORG","CAMPAIGN_FILTER","ENTITLEMENT","FORM_DEFINITION","GOVERNANCE_GROUP"]}}}`
+
+	md := renderSchemaSummaryMD(rootLLMRenderContext(&Site{}), schema, nil, nil)
+
+	assert.Contains(t, md, "Allowed values:")
+	assert.Contains(t, md, "    - `ACCESS_PROFILE`")
+	assert.NotContains(t, md, "Enum: `ACCESS_PROFILE`, `ACCESS_REQUEST_CONFIG`, `ATTR_SYNC_SOURCE_CONFIG`, `AUTH_ORG`, `CAMPAIGN_FILTER`, `ENTITLEMENT`, `FORM_DEFINITION`, `GOVERNANCE_GROUP`")
 }
 
 func TestRenderOperationsIndex_Grouped(t *testing.T) {
