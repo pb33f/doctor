@@ -109,19 +109,18 @@ templ OperationPageTempl(page *ppmodel.OperationPage) {
 						} else {
 							<span class="pp-security-name">{ sec.Name }</span>
 						}
-						if sec.SchemeType != "" {
-							@SecuritySchemeTypeBadge(sec)
-						}
-						if len(sec.Scopes) > 0 {
-							<span class="pp-security-scopes">
-								for i, scope := range sec.Scopes {
-									if i > 0 {
-										{ ", " }
+						<div class="pp-security-details">
+							if sec.SchemeType != "" {
+								@SecuritySchemeTypeBadge(sec)
+							}
+							if len(sec.Scopes) > 0 {
+								<div class="pp-security-scopes" aria-label="Required OAuth scopes">
+									for _, scope := range sec.Scopes {
+										<span class="pp-security-scope">{ scope }</span>
 									}
-									<code>{ scope }</code>
-								}
-							</span>
-						}
+								</div>
+							}
+						</div>
 					</div>
 				}
 			</div>

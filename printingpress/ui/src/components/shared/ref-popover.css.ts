@@ -57,7 +57,7 @@ export default css`
         font-family: var(--font-stack), monospace;
         color: var(--font-color-sub1);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         margin-bottom: var(--global-padding);
         text-align: left;
     }

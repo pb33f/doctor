@@ -31,6 +31,8 @@ html {
     --global-padding: 10px;
     --footer-padding: 5px;
     --global-font-spacing: -3px;
+    --title-spacing: 0.05rem;
+    --label-spacing: 0.05em;
 
     --font-stack-bold: BerkeleyMono-Bold, Roboto Mono, Monaco, Menlo, Helvetica Neue,Helvetica,Verdana,Tahoma, Arial, sans-serif;
     --font-stack-italic: BerkeleyMono-Italic, Roboto Mono, Monaco, Menlo, Helvetica Neue,Helvetica,Verdana,Tahoma, Arial, sans-serif;

@@ -49,7 +49,7 @@ export default css`
 
     h4 {
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         font-size: 1.3rem;
         color: var(--primary-color);
         font-family: var(--font-stack-bold), monospace;

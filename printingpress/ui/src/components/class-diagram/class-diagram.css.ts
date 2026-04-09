@@ -45,12 +45,12 @@ export default css`
     .code-header sl-tooltip::part(body) {
         border: 1px dashed var(--secondary-color);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
     .copy-source-btn::part(body) {
         border: 1px dashed var(--secondary-color);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
     .toolbar sl-icon-button::part(base) {
         color: var(--font-color-sub1);
@@ -60,17 +60,6 @@ export default css`
     }
     .hide-toggle.hidden::part(base) {
         color: var(--error-color);
-    }
-    .toolbar sl-button::part(base) {
-        font-family: var(--font-stack);
-        color: var(--font-color-sub1);
-        gap: 0.35rem;
-    }
-    .toolbar sl-button::part(base):hover {
-        color: var(--primary-color);
-    }
-    .toolbar sl-button::part(label) {
-        padding: 0;
     }
 
     /* Narrow code section (collapsible) */

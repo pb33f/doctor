@@ -17,7 +17,7 @@ export default [dropdownCss, css`
         font-family: var(--font-stack-bold), monospace;
         color: var(--primary-color);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .array-type {
@@ -36,7 +36,7 @@ export default [dropdownCss, css`
         font-weight: normal;
         color: var(--font-color-sub1);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--title-spacing);
         margin: 0 0 var(--global-padding) 0;
     }
 

@@ -153,6 +153,7 @@ export class PpExampleDrawer extends LitElement {
             .language=${lang}
             ?line-numbers=${this.rawMode}
             .pretty=${lang === 'json'}
+            reserve-location
             .startLine=${this.startLine}
             .location=${this.location}
             highlight-lines=${this.highlightLines}

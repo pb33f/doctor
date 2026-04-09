@@ -60,7 +60,7 @@ export default [dropdownCss, css`
         font-family: var(--font-stack-bold), monospace;
         margin-left: var(--global-padding);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     a.ref-type-link,
@@ -136,7 +136,7 @@ export default [dropdownCss, css`
     .composition-label {
         display: block;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         font-family: var(--font-stack), monospace;
         margin-bottom: var(--global-padding);
         color: var(--font-color-sub1);
@@ -264,7 +264,7 @@ export default [dropdownCss, css`
         width: 100%;
         font-family: var(--font-stack-bold), monospace;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         padding: 0.5rem 0.8rem;
         color: var(--warn-color);
         border-radius: 0;

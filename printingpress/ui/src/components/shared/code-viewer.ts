@@ -20,6 +20,7 @@ export class PpCodeViewer extends LitElement {
     @property({attribute: 'start-line', type: Number}) startLine = 1;
     @property() location = '';
     @property({type: Boolean, reflect: true}) embedded = false;
+    @property({attribute: 'reserve-location', type: Boolean}) reserveLocation = false;
 
     @state() private selectedLines: Set<number> = new Set();
     @state() private lastClickedLine: number | null = null;
@@ -149,6 +150,9 @@ export class PpCodeViewer extends LitElement {
     }
 
     private renderLocation() {
+        if (!this.location && !this.reserveLocation) {
+            return nothing;
+        }
         const empty = !this.location;
         return html`<div class="location ${empty ? 'empty' : ''}">${this.location || '\u00A0'}</div>`;
     }

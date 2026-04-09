@@ -98,7 +98,6 @@ export { PpOperationCallbacks } from './components/operations/operation-callback
 export { PpModelPage } from './components/models/model-page.js';
 export { PpModelCard } from './components/models/model-card.js';
 export { PpCrossRefs } from './components/shared/cross-refs.js';
-export { PpExampleBlock } from './components/shared/example-block.js';
 export { PpExampleDrawer } from './components/shared/example-drawer.js';
 export { PpExampleSelector } from './components/shared/example-selector.js';
 export { PpRawViewerBtn } from './components/shared/raw-viewer-btn.js';

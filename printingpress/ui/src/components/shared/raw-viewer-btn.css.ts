@@ -7,9 +7,9 @@ export default css`
 
     sl-button::part(base) {
         font-family: var(--font-stack), monospace;
-        padding: var(--global-padding);
+        padding: 0;
         font-size: 1.5rem;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 `;

@@ -10,14 +10,10 @@ export default css`
 
     .parameter, .extensions {
         display: grid;
-        grid-template-columns: 200px 200px 150px 1fr;
+        grid-template-columns: 200px minmax(220px, 320px) 130px minmax(0, 1fr);
         gap: 0 20px;
         padding: var(--global-padding) var(--global-padding-double);
         border-top: 1px dotted var(--hrcolor);
-    }
-    
-    pp-raw-viewer-btn { 
-        float: right;
     }
 
     .parameter:first-child {
@@ -31,14 +27,17 @@ export default css`
     .param-name-col {
         text-align: right;
         white-space: nowrap;
+        min-width: 0;
     }
 
     .param-type-col {
-        white-space: nowrap;
+        min-width: 0;
     }
 
     .param-desc-col {
         color: var(--font-color-sub1);
+        min-width: 0;
+        position: relative;
     }
 
     .param-name {
@@ -49,7 +48,8 @@ export default css`
     .param-type {
         color: var(--primary-color);
         font-family: var(--font-stack), monospace;
-        white-space: nowrap;
+        white-space: normal;
+        overflow-wrap: anywhere;
     }
 
     a.ref-link.param-name {
@@ -62,6 +62,24 @@ export default css`
         gap: 0.3rem;
     }
 
+    .param-desc-actions {
+        position: absolute;
+        top: 0;
+        right: 0;
+        display: flex;
+        justify-content: flex-end;
+        align-items: flex-start;
+        z-index: 1;
+    }
+
+    .param-desc-body {
+        min-width: 0;
+    }
+
+    .param-desc-col.has-actions .param-desc-body {
+        padding-right: 2.75rem;
+    }
+
     .param-in-icon {
         color: var(--primary-color);
         padding-top: 1px;
@@ -71,7 +89,7 @@ export default css`
         color: var(--primary-color);
         font-family: var(--font-stack), monospace;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .required-badge {
@@ -82,7 +100,7 @@ export default css`
         font-family: var(--font-stack-bold), monospace;
         margin-left: var(--global-padding);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     .deprecated-badge {
@@ -90,7 +108,7 @@ export default css`
         font-family: var(--font-stack-bold), monospace;
         margin-left: var(--global-padding);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
         font-size: 0.8em;
     }
 

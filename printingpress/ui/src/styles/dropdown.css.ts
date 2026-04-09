@@ -16,7 +16,7 @@ export default css`
     sl-button::part(label) {
         overflow-x: hidden;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 
     sl-menu {
@@ -33,6 +33,6 @@ export default css`
         font-family: var(--font-stack);
         --sl-color-neutral-100: var(--secondary-color-lowalpha);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: var(--label-spacing);
     }
 `

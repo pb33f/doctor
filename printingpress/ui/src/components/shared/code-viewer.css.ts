@@ -237,7 +237,7 @@ export default css`
     /* ── Location bar ── */
 
     .location {
-        padding: 0.5rem 1rem;
+        padding: var(--global-padding) calc(var(--global-padding-double) * 4) var(--global-padding) var(--global-padding-double);
         border-bottom: 1px solid var(--hrcolor);
         color: var(--font-color-sub2);
         font-family: var(--font-stack), monospace;
