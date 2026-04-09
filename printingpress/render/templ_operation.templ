@@ -150,31 +150,31 @@ templ OperationPageTempl(page *ppmodel.OperationPage) {
 			</pp-operation-responses>
 		}
 		if page.ParametersJSON != "" {
-			<sl-details class="pp-details" id="section-parameters" data-nav-label="Parameters">
+			<sl-details class="pp-details" id="section-parameters" data-nav-label="Parameters" style="display:block;min-height:64px;">
 				<span slot="summary" class="pp-details-summary"><h3>Parameters</h3></span>
 				<pp-operation-parameters id="pp-operation-parameters"></pp-operation-parameters>
 			</sl-details>
 		}
 		if page.CurlJSON != "" {
-			<sl-details class="pp-details" id="section-curl" data-nav-label="cURL">
+			<sl-details class="pp-details" id="section-curl" data-nav-label="cURL" style="display:block;min-height:64px;">
 				<span slot="summary" class="pp-details-summary"><h3>cURL</h3></span>
-				<pp-curl-command id="pp-operation-curl"></pp-curl-command>
+				<pp-curl-command id="pp-operation-curl" style="display:block;min-height:156px;"></pp-curl-command>
 			</sl-details>
 		}
 		if page.ExtensionsJSON != "" {
-            <sl-details class="pp-details" id="section-extensions" data-nav-label="Extensions">
+            <sl-details class="pp-details" id="section-extensions" data-nav-label="Extensions" style="display:block;min-height:64px;">
                 <span slot="summary" class="pp-details-summary"><h3>Operation Extensions</h3></span>
                 <pp-extensions extensions-json={ page.ExtensionsJSON }></pp-extensions>
             </sl-details>
         }
 		if page.PathExtensionsJSON != "" {
-            <sl-details class="pp-details" id="section-path-extensions" data-nav-label="Path Extensions">
+            <sl-details class="pp-details" id="section-path-extensions" data-nav-label="Path Extensions" style="display:block;min-height:64px;">
                 <span slot="summary" class="pp-details-summary"><h3>Path Extensions</h3></span>
                 <pp-extensions extensions-json={ page.PathExtensionsJSON }></pp-extensions>
             </sl-details>
         }
 		if page.CallbacksJSON != "" {
-			<sl-details class="pp-details" id="section-callbacks" data-nav-label="Callbacks">
+			<sl-details class="pp-details" id="section-callbacks" data-nav-label="Callbacks" style="display:block;min-height:64px;">
 				<span slot="summary" class="pp-details-summary"><h3>Callbacks</h3></span>
 				<pp-operation-callbacks id="pp-operation-callbacks"></pp-operation-callbacks>
 			</sl-details>

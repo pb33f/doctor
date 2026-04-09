@@ -322,48 +322,80 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 		}
 		cfg.SpecRoot = basePath
 
-		job.snapshot("bundling source bytes", 0, 3, 0)
-		result, bundleErr := bundleBytesWithOrigins(specBytes, &datamodel.DocumentConfiguration{
-			AllowFileReferences: true,
-			BasePath:            basePath,
-		}, nil)
-
-		modelBytes := specBytes
-		if bundleErr == nil && result != nil {
-			cfg.Origins = result.Origins
-			modelBytes = result.Bytes
-			job.snapshot("bundled source bytes", 1, 3, 0)
-		} else {
-			cfg.BuildWarnings = append(cfg.BuildWarnings, &ppmodel.BuildWarning{
-				Message: "source bundling failed; falling back to single-file parse, multi-file output may be incomplete",
-				Context: basePath,
-				Err:     bundleErr,
-			})
-			job.snapshot("bundle fallback to single file", 1, 3, 0)
-		}
-
-		job.snapshot("building libopenapi document", 1, 3, 0)
-		doc, err := libopenapi.NewDocument(modelBytes)
+		docConfig := datamodel.NewDocumentConfiguration()
+		docConfig.AllowFileReferences = true
+		docConfig.BasePath = basePath
+		docConfig.Logger = cfg.Logger
+		job.snapshot("building libopenapi document", 0, 4, 0)
+		doc, err := libopenapi.NewDocumentWithConfiguration(specBytes, docConfig)
 		if err != nil {
 			return nil, fmt.Errorf("building document from source bytes: %w", err)
 		}
 
-		job.snapshot("building v3 model", 2, 3, 0)
-		v3Model, buildErr := doc.BuildV3Model()
-		if buildErr != nil {
-			cfg.BuildErrors = append(cfg.BuildErrors, buildErr)
-		}
+		job.snapshot("building v3 model", 1, 4, 0)
+		v3Model, initialBuildErr := doc.BuildV3Model()
 		if v3Model == nil {
+			if initialBuildErr != nil {
+				cfg.BuildErrors = append(cfg.BuildErrors, initialBuildErr)
+			}
 			return nil, ErrNoV3Document
 		}
+
+		if shouldBundleModel(v3Model) {
+			job.snapshot("bundling source bytes", 2, 4, 0)
+			result, bundleErr := bundleBytesWithOrigins(specBytes, &datamodel.DocumentConfiguration{
+				AllowFileReferences: true,
+				BasePath:            basePath,
+				Logger:              cfg.Logger,
+			}, nil)
+			if bundleErr == nil && result != nil {
+				cfg.Origins = result.Origins
+				job.snapshot("building bundled v3 model", 3, 4, 0)
+				bundledDoc, err := libopenapi.NewDocumentWithConfiguration(result.Bytes, docConfig)
+				if err != nil {
+					return nil, fmt.Errorf("building bundled document from source bytes: %w", err)
+				}
+				bundledV3Model, buildErr := bundledDoc.BuildV3Model()
+				if buildErr != nil {
+					cfg.BuildErrors = append(cfg.BuildErrors, buildErr)
+				}
+				if bundledV3Model == nil {
+					return nil, ErrNoV3Document
+				}
+				v3Model = bundledV3Model
+			} else {
+				cfg.BuildWarnings = append(cfg.BuildWarnings, &ppmodel.BuildWarning{
+					Message: "source bundling failed; falling back to single-file parse, multi-file output may be incomplete",
+					Context: basePath,
+					Err:     bundleErr,
+				})
+				if initialBuildErr != nil {
+					cfg.BuildErrors = append(cfg.BuildErrors, initialBuildErr)
+				}
+			}
+		} else if initialBuildErr != nil {
+			cfg.BuildErrors = append(cfg.BuildErrors, initialBuildErr)
+		}
+
 		cfg.DrDoc = buildDrDocument(v3Model)
-		job.snapshot("doctor model built", 3, 3, 0)
+		job.snapshot("doctor model built", 4, 4, 0)
 	}
 
 	if cfg.DrDoc == nil {
 		return nil, ErrNoDrDocument
 	}
 	return cfg, nil
+}
+
+func shouldBundleModel(v3Model *libopenapi.DocumentModel[highv3.Document]) bool {
+	if v3Model == nil || v3Model.Index == nil {
+		return false
+	}
+	rolodex := v3Model.Index.GetRolodex()
+	if rolodex == nil {
+		return false
+	}
+	return len(rolodex.GetIndexes()) > 0
 }
 
 func buildDrDocument(v3Model *libopenapi.DocumentModel[highv3.Document]) *doctormodel.DrDocument {

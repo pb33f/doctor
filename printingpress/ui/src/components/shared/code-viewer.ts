@@ -149,8 +149,8 @@ export class PpCodeViewer extends LitElement {
     }
 
     private renderLocation() {
-        if (!this.location) return nothing;
-        return html`<div class="location">${this.location}</div>`;
+        const empty = !this.location;
+        return html`<div class="location ${empty ? 'empty' : ''}">${this.location || '\u00A0'}</div>`;
     }
 
     render() {

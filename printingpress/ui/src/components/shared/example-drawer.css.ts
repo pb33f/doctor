@@ -80,10 +80,16 @@ export default css`
         flex: 1;
     }
 
-    .floating-copy {
+    .floating-actions {
         position: absolute;
         right: var(--global-padding-double);
         z-index: 1;
+        display: flex;
+        gap: 0.25rem;
+        align-items: center;
+    }
+
+    .floating-copy {
         --sl-color-primary-600: var(--primary-color);
         --sl-tooltip-background-color: var(--background-color);
         --sl-tooltip-color: var(--font-color);
@@ -94,7 +100,7 @@ export default css`
         --sl-tooltip-arrow-size: 6px;
     }
 
-    .floating-copy::part(tooltip__body) {
+    .floating-copy::part(body) {
         border: 1px dashed var(--secondary-color);
         text-transform: uppercase;
         letter-spacing: 0.05em;

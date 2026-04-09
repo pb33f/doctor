@@ -1,6 +1,8 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state, query} from 'lit/decorators.js';
 import '@pb33f/cowboy-components/components/mermaid/mermaid-renderer.js';
+import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
+import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import type {MermaidRenderer} from '@pb33f/cowboy-components/components/mermaid/mermaid-renderer.js';
 import {ensureModelDiagramVisualization} from '../../utils/model-visualization.js';
 import styles from './class-diagram.css.js';
@@ -373,8 +375,12 @@ export class PpClassDiagram extends LitElement {
                     <div slot="end" class="code-view">
                         <div class="code-header">
                             MERMAID SOURCE
-                            <sl-tooltip content="copy mermaid source to clipboard">
-                                <sl-copy-button .value=${this.diagram} class="copy-source-btn"></sl-copy-button>
+                            <sl-tooltip class="copy-source-btn" content="copy mermaid source to clipboard">
+                                <sl-icon-button
+                                    name="copy"
+                                    label="Copy Mermaid source to clipboard"
+                                    @click=${() => navigator.clipboard.writeText(this.diagram)}>
+                                </sl-icon-button>
                             </sl-tooltip>
                             <sl-icon-button name="chevron-right" label="Collapse source"
                                 class="collapse-btn"

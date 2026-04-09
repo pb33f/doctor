@@ -4,8 +4,9 @@ import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
+import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
+import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import type {ShowExampleDetail} from './example-drawer.js';
-import '@shoelace-style/shoelace/dist/components/copy-button/copy-button.js';
 import exampleSelectorCss from './example-selector.css.js';
 import markdownCss from '../../styles/markdown.css.js';
 import tooltipCss from '../../styles/tooltip.css.js';
@@ -170,7 +171,13 @@ export class PpExampleSelector extends LitElement {
                 @click=${() => this.expandToDrawer(code)}></sl-icon-button>
             </sl-tooltip>
           ` : nothing}
-          <sl-copy-button .value=${code} class="floating-copy"></sl-copy-button>
+          <sl-tooltip class="floating-copy" content="copy example to clipboard">
+            <sl-icon-button
+              name="copy"
+              label="Copy example to clipboard"
+              @click=${() => navigator.clipboard.writeText(code)}>
+            </sl-icon-button>
+          </sl-tooltip>
         </div>
         <pp-code-viewer .code=${code} .language=${this.codeLanguage}
             ?pretty=${this.codeLanguage === 'json'}></pp-code-viewer>

@@ -66,8 +66,21 @@ export class PpCurlCommand extends LitElement {
     }
   }
 
+  private renderSkeleton() {
+    return html`
+      <div class="selector-row curl-skeleton-row" aria-hidden="true">
+        <div class="curl-skeleton-button"></div>
+      </div>
+      <div class="curl-skeleton-terminal" aria-hidden="true">
+        <div class="curl-skeleton-line short"></div>
+        <div class="curl-skeleton-line"></div>
+        <div class="curl-skeleton-line mid"></div>
+      </div>
+    `;
+  }
+
   render() {
-    if (this.variants.length === 0) return nothing;
+    if (this.variants.length === 0) return this.renderSkeleton();
 
     const current = this.variants[this.selectedIndex] || this.variants[0];
     if (!current) return nothing;

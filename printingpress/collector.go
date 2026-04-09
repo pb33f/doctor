@@ -921,11 +921,13 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 			}
 		}
 		if page.MockJSON != "" || len(page.Examples) > 0 {
+			page.HasExamplePayload = true
 			page.ExamplesJSON = render.MustJSON(struct {
 				MockJSON string            `json:"mockJson,omitempty"`
 				Examples map[string]string `json:"examples,omitempty"`
 			}{page.MockJSON, page.Examples})
 		}
+		applyModelLayoutHints(page)
 
 		page.Origin = pp.resolveOrigin("schemas", name)
 
@@ -1161,12 +1163,17 @@ func collectRenderable[V interface{ GetValue() any }](
 					}
 				}
 				if len(page.Examples) > 0 {
+					page.HasExamplePayload = true
 					page.ExamplesJSON = render.MustJSON(struct {
 						Examples map[string]string `json:"examples,omitempty"`
 					}{page.Examples})
 				}
 			}
 		}
+		if page.MockJSON != "" {
+			page.HasExamplePayload = true
+		}
+		applyModelLayoutHints(page)
 
 		page.Origin = pp.resolveOrigin(componentType, name)
 
@@ -1560,7 +1567,10 @@ func computeNavModelGroupCardMinWidth(pages []*ModelPage) int {
 
 // generateMock produces a pretty-printed JSON mock from any mockable object.
 func (pp *PrintingPress) generateMock(mockable any) string {
-	mock, err := pp.mockGen.GenerateMock(mockable, "")
+	if schema, ok := mockable.(*highbase.Schema); ok {
+		return pp.generateSchemaMockAs(schema, "json")
+	}
+	mock, err := pp.safeGenerateMock(pp.mockGen, mockable, "")
 	if err != nil || mock == nil {
 		return ""
 	}
@@ -1569,6 +1579,9 @@ func (pp *PrintingPress) generateMock(mockable any) string {
 
 // generateMockAs produces a mock in the specified language format.
 func (pp *PrintingPress) generateMockAs(mockable any, lang string) string {
+	if schema, ok := mockable.(*highbase.Schema); ok {
+		return pp.generateSchemaMockAs(schema, lang)
+	}
 	var gen *renderer.MockGenerator
 	switch lang {
 	case "yaml":
@@ -1581,11 +1594,74 @@ func (pp *PrintingPress) generateMockAs(mockable any, lang string) string {
 	if gen == nil {
 		return ""
 	}
-	mock, err := gen.GenerateMock(mockable, "")
+	mock, err := pp.safeGenerateMock(gen, mockable, "")
 	if err != nil || mock == nil {
 		return ""
 	}
 	return string(mock)
+}
+
+type schemaMockable struct {
+	Example  *yaml.Node
+	Examples *orderedmap.Map[string, *highbase.Example]
+	Schema   *highbase.Schema
+}
+
+func (pp *PrintingPress) generateSchemaMockAs(schema *highbase.Schema, lang string) string {
+	if schema == nil {
+		return ""
+	}
+
+	mockable := &schemaMockable{
+		Example: schema.Example,
+		Schema:  schema,
+	}
+	if len(schema.Examples) > 0 {
+		examples := orderedmap.New[string, *highbase.Example]()
+		for i, node := range schema.Examples {
+			if node == nil {
+				continue
+			}
+			examples.Set(fmt.Sprintf("%d", i), &highbase.Example{Value: node})
+		}
+		if examples.Len() > 0 {
+			mockable.Examples = examples
+		}
+	}
+
+	var gen *renderer.MockGenerator
+	switch lang {
+	case "yaml":
+		gen = pp.mockGenYAML
+	case "xml":
+		gen = pp.mockGenXML
+	default:
+		gen = pp.mockGen
+	}
+	if gen == nil {
+		return ""
+	}
+	mock, err := pp.safeGenerateMock(gen, mockable, "")
+	if err != nil || mock == nil {
+		return ""
+	}
+	return string(mock)
+}
+
+func (pp *PrintingPress) safeGenerateMock(gen *renderer.MockGenerator, mockable any, label string) (mock []byte, err error) {
+	if gen == nil {
+		return nil, nil
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("mock generation panic")
+			if pp != nil {
+				pp.warn("mock generation failed; omitting generated mock", label, fmt.Errorf("%v", r))
+			}
+			mock = nil
+		}
+	}()
+	return gen.GenerateMock(mockable, "")
 }
 
 // yamlNodeToJSON converts a *yaml.Node to a JSON string.

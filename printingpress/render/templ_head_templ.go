@@ -29,14 +29,14 @@ func Head(title string, baseURL string, extraCSS []string, lite bool) templ.Comp
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><script>\n\t\t\t(function() {\n\t\t\t\ttry {\n\t\t\t\t\tvar root = document.documentElement;\n\t\t\t\t\tvar storedTheme = localStorage.getItem('pb33f-theme');\n\t\t\t\t\tvar theme = storedTheme === 'tektronix' ? 'tektronix' : (storedTheme === 'light' ? 'light' : 'dark');\n\t\t\t\t\tvar splitPos = sessionStorage.getItem('pp-split-position');\n\t\t\t\t\troot.setAttribute('theme', theme);\n\t\t\t\t\troot.style.setProperty('--pp-split-position', splitPos ? splitPos + '%' : '20%');\n\t\t\t\t\tif (theme === 'light') {\n\t\t\t\t\t\troot.classList.remove('sl-theme-dark');\n\t\t\t\t\t} else {\n\t\t\t\t\t\troot.classList.add('sl-theme-dark');\n\t\t\t\t\t}\n\t\t\t\t} catch (_) {}\n\t\t\t})();\n\t\t</script><title>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 7, Col: 16}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 24, Col: 16}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -54,7 +54,7 @@ func Head(title string, baseURL string, extraCSS []string, lite bool) templ.Comp
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(baseURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 11, Col: 23}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 28, Col: 23}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -77,7 +77,7 @@ func Head(title string, baseURL string, extraCSS []string, lite bool) templ.Comp
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(css)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 19, Col: 36}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 36, Col: 36}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -89,12 +89,12 @@ func Head(title string, baseURL string, extraCSS []string, lite bool) templ.Comp
 			}
 		}
 		if lite {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<script src=\"static/printing-press-lite.js\"></script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<script defer src=\"static/printing-press-lite.js\"></script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<script src=\"static/printing-press.js\"></script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<script defer src=\"static/printing-press.js\"></script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

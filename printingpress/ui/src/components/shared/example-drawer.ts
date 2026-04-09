@@ -1,7 +1,7 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, state, query} from 'lit/decorators.js';
-import '@shoelace-style/shoelace/dist/components/copy-button/copy-button.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
+import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import './code-viewer.js';
 import type {PpCodeViewer} from './code-viewer.js';
 import exampleDrawerCss from './example-drawer.css.js';
@@ -91,6 +91,12 @@ export class PpExampleDrawer extends LitElement {
     return this.json;
   }
 
+  private async copyCurrentCode() {
+    const code = this.copyText;
+    if (!code) return;
+    await navigator.clipboard.writeText(code);
+  }
+
   private renderHeader() {
     if (this.method && this.path) {
       return html`
@@ -133,7 +139,15 @@ export class PpExampleDrawer extends LitElement {
           </div>
         </div>
         <div class="code-container">
-          <sl-copy-button .value=${code} class="floating-copy"></sl-copy-button>
+          <div class="floating-actions">
+            <sl-tooltip class="floating-copy" content="copy example to clipboard">
+              <sl-icon-button
+                name="copy"
+                label="Copy example to clipboard"
+                @click=${this.copyCurrentCode}>
+              </sl-icon-button>
+            </sl-tooltip>
+          </div>
           <pp-code-viewer
             .code=${code}
             .language=${lang}

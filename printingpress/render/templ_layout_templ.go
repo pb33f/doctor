@@ -167,20 +167,33 @@ func Layout(pageTitle string, siteTitle string, baseURL string, activeSlug strin
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\"><pp-nav id=\"pp-nav\" slot=\"nav\" data-active=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\"><div class=\"pp-layout-fallback-header\" aria-hidden=\"true\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(activeSlug)
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(siteTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 30, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 30, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\"></pp-nav><main slot=\"content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div><pp-nav id=\"pp-nav\" slot=\"nav\" data-active=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var10 string
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(activeSlug)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 31, Col: 59}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\"><div class=\"pp-nav-fallback\" aria-hidden=\"true\"><div class=\"pp-nav-fallback-home\">API OVERVIEW</div><div class=\"pp-nav-fallback-section\"><h4>Operations</h4><div class=\"pp-nav-fallback-list\"><div class=\"pp-nav-fallback-row\" style=\"width:100%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:92%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:84%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:78%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:88%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:74%;\"></div></div></div><div class=\"pp-nav-fallback-section\"><h4>Models</h4><div class=\"pp-nav-fallback-list\"><div class=\"pp-nav-fallback-row\" style=\"width:96%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:86%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:82%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:90%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:76%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:88%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:80%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:72%;\"></div></div></div></div></pp-nav><main slot=\"content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -188,7 +201,15 @@ func Layout(pageTitle string, siteTitle string, baseURL string, activeSlug strin
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</main></pp-layout> <pp-example-drawer></pp-example-drawer></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</main></pp-layout>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = BootstrapHydrationScript(assetMode, sharedDataBase, pageDataBase).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<pp-example-drawer></pp-example-drawer></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

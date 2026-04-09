@@ -4,6 +4,23 @@ templ Head(title string, baseURL string, extraCSS []string, lite bool) {
 	<head>
 		<meta charset="UTF-8"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<script>
+			(function() {
+				try {
+					var root = document.documentElement;
+					var storedTheme = localStorage.getItem('pb33f-theme');
+					var theme = storedTheme === 'tektronix' ? 'tektronix' : (storedTheme === 'light' ? 'light' : 'dark');
+					var splitPos = sessionStorage.getItem('pp-split-position');
+					root.setAttribute('theme', theme);
+					root.style.setProperty('--pp-split-position', splitPos ? splitPos + '%' : '20%');
+					if (theme === 'light') {
+						root.classList.remove('sl-theme-dark');
+					} else {
+						root.classList.add('sl-theme-dark');
+					}
+				} catch (_) {}
+			})();
+		</script>
 		<title>{ title }</title>
 		// All hrefs in templates and Lit components MUST be root-relative (e.g. "operations/foo.html",
 		// "models/schemas/bar.html") — never use "../" prefixes. The <base href> already handles depth.
@@ -19,9 +36,9 @@ templ Head(title string, baseURL string, extraCSS []string, lite bool) {
 			<link rel="stylesheet" href={ css }/>
 		}
 		if lite {
-			<script src="static/printing-press-lite.js"></script>
+			<script defer src="static/printing-press-lite.js"></script>
 		} else {
-			<script src="static/printing-press.js"></script>
+			<script defer src="static/printing-press.js"></script>
 		}
 	</head>
 }

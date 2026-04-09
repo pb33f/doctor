@@ -30,28 +30,16 @@ interface ModelAssetPayload {
 
 const registry: Map<string, RegistryEntry> = new Map();
 const modelCache: Map<string, CanonicalModelData> = new Map();
-let initialized = false;
 const pageGlobalName = '__PP_PAGE_DATA__';
-
-function init() {
-    if (initialized) return;
-    const el = document.getElementById('pp-schema-registry');
-    if (!el?.textContent) return;
-    try {
-        setSchemaRegistryEntries(JSON.parse(el.textContent) as Record<string, RegistryEntry>);
-    } catch { /* empty registry is fine */ }
-}
 
 export function setSchemaRegistryEntries(data: Record<string, RegistryEntry>) {
     registry.clear();
     for (const [key, entry] of Object.entries(data)) {
         registry.set(key, entry);
     }
-    initialized = true;
 }
 
 export function getSchemaEntry(key: string): RegistryEntry | undefined {
-    init();
     return registry.get(key);
 }
 
@@ -124,5 +112,12 @@ function collectSchemaRefs(value: any, refs = new Set<string>()): Set<string> {
 export function resetRegistry() {
     registry.clear();
     modelCache.clear();
-    initialized = false;
+}
+
+/** @internal test-only: seed canonical model payloads without fetching assets */
+export function seedCachedSchemaModels(data: Record<string, CanonicalModelData>) {
+    modelCache.clear();
+    for (const [key, model] of Object.entries(data)) {
+        modelCache.set(key, model);
+    }
 }

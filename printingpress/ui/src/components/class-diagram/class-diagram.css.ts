@@ -47,7 +47,7 @@ export default css`
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
-    .copy-source-btn::part(tooltip__body) {
+    .copy-source-btn::part(body) {
         border: 1px dashed var(--secondary-color);
         text-transform: uppercase;
         letter-spacing: 0.05em;
@@ -134,10 +134,10 @@ export default css`
         margin-left: auto;
         --sl-color-primary-600: var(--primary-color);
     }
-    .copy-source-btn::part(button) {
+    .copy-source-btn sl-icon-button::part(base) {
         color: var(--font-color-sub1);
     }
-    .copy-source-btn::part(button):hover {
+    .copy-source-btn sl-icon-button::part(base):hover {
         color: var(--primary-color);
     }
     .collapse-btn::part(base) {

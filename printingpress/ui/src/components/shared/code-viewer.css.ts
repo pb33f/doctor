@@ -246,4 +246,9 @@ export default css`
         overflow: hidden;
         text-overflow: ellipsis;
     }
+
+    .location.empty {
+        color: transparent;
+        user-select: none;
+    }
 `;
