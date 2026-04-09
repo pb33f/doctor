@@ -1,18 +1,31 @@
 import { defineConfig, Plugin } from 'vite';
 import path from 'path';
-import { copyFileSync } from 'fs';
+import { copyFileSync, readFileSync, writeFileSync } from 'fs';
+import { createRequire } from 'module';
 
-const cowboyRoot = path.resolve(__dirname, 'node_modules/@pb33f/cowboy-components');
+const require = createRequire(import.meta.url);
+const cowboyCssPath = require.resolve('@pb33f/cowboy-components/cowboy-components.css');
+const cowboyThemePath = require.resolve('@pb33f/cowboy-components/pb33f-theme.css');
+const cowboyRoot = path.resolve(path.dirname(cowboyCssPath), '..');
+const elkBundlePath = require.resolve('elkjs/lib/elk.bundled.js', {
+  paths: [cowboyRoot, __dirname],
+});
 
-// Copy cowboy-components.css from the source package into ../static/ during build
-// so it can be go:embed'd. This avoids committing a duplicate of the file.
-function copyCowboyCSS() {
+// Copy exported cowboy static CSS assets into ../static/ during build so they can
+// be go:embed'd. The theme file needs a font-path rewrite for the hosted docs
+// layout, but the source of truth remains cowboy-components.
+function copyCowboyStaticAssets() {
   return {
-    name: 'copy-cowboy-css',
+    name: 'copy-cowboy-static-assets',
     closeBundle() {
-      const src = path.join(cowboyRoot, 'src/css/cowboy-components.css');
-      const dest = path.resolve(__dirname, '../static/cowboy-components.css');
-      copyFileSync(src, dest);
+      const cowboyCssDest = path.resolve(__dirname, '../static/cowboy-components.css');
+      copyFileSync(cowboyCssPath, cowboyCssDest);
+
+      const themeDest = path.resolve(__dirname, '../static/pb33f-theme.css');
+      const themeCss = readFileSync(cowboyThemePath, 'utf8')
+        .replaceAll("url('../fonts/", "url('fonts/")
+        .replaceAll('url("../fonts/', 'url("fonts/');
+      writeFileSync(themeDest, themeCss);
     },
   };
 }
@@ -76,11 +89,10 @@ function stubWorkerInline(): Plugin {
 export default defineConfig({
   resolve: {
     alias: {
-      '@pb33f/cowboy-components': cowboyRoot + '/src',
-      '@report-elkjs': path.resolve(cowboyRoot, 'node_modules/elkjs/lib/elk.bundled.js'),
+      '@report-elkjs': elkBundlePath,
     },
   },
-  plugins: [copyCowboyCSS(), stubVisualizationsInLite(), stubWorkerInline()],
+  plugins: [copyCowboyStaticAssets(), stubVisualizationsInLite(), stubWorkerInline()],
   build: {
     lib: {
       entry: 'src/index.ts',
