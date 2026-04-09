@@ -164,7 +164,8 @@ func TestCreatePrintingPress_SpecBytesUseConfiguredBasePath(t *testing.T) {
 }
 
 func TestCreatePrintingPress_BundlingFallbackWarningExposed(t *testing.T) {
-	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	specPath := filepath.Join("..", "test_specs", "test-relative", "spec.yaml")
+	specBytes, err := os.ReadFile(specPath)
 	require.NoError(t, err)
 
 	originalBundle := bundleBytesWithOrigins
@@ -176,6 +177,7 @@ func TestCreatePrintingPress_BundlingFallbackWarningExposed(t *testing.T) {
 	}()
 
 	pp, err := CreatePrintingPressFromBytes(specBytes, &PrintingPressConfig{
+		BasePath:  filepath.Dir(specPath),
 		OutputDir: t.TempDir(),
 	})
 	require.NoError(t, err)
@@ -193,8 +195,37 @@ func TestCreatePrintingPress_BundlingFallbackWarningExposed(t *testing.T) {
 	require.Error(t, stats.Warnings[0].Err)
 }
 
+func TestCreatePrintingPress_BundlingFallbackStillUsesConfiguredDocumentSettings(t *testing.T) {
+	specPath := filepath.Join("..", "test_specs", "test-relative", "spec.yaml")
+	specBytes, err := os.ReadFile(specPath)
+	require.NoError(t, err)
+
+	originalBundle := bundleBytesWithOrigins
+	bundleBytesWithOrigins = func(specBytes []byte, configuration *datamodel.DocumentConfiguration, compositionConfig *bundler.BundleCompositionConfig) (*bundler.BundleResult, error) {
+		return nil, errors.New("forced bundle failure")
+	}
+	defer func() {
+		bundleBytesWithOrigins = originalBundle
+	}()
+
+	pp, err := CreatePrintingPressFromBytes(specBytes, &PrintingPressConfig{
+		BasePath:  filepath.Dir(specPath),
+		OutputDir: t.TempDir(),
+	})
+	require.NoError(t, err)
+
+	site, err := pp.PressModel()
+	require.NoError(t, err)
+	require.NotNil(t, site)
+	require.NotEmpty(t, site.Operations)
+	require.NotEmpty(t, site.Models["schemas"])
+	require.NotEmpty(t, site.Warnings)
+	assert.Contains(t, site.Warnings[0].Message, "source bundling failed")
+}
+
 func TestCreatePrintingPress_JSONBundleIncludesBundlingFallbackWarning(t *testing.T) {
-	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	specPath := filepath.Join("..", "test_specs", "test-relative", "spec.yaml")
+	specBytes, err := os.ReadFile(specPath)
 	require.NoError(t, err)
 
 	originalBundle := bundleBytesWithOrigins
@@ -207,6 +238,7 @@ func TestCreatePrintingPress_JSONBundleIncludesBundlingFallbackWarning(t *testin
 
 	outputDir := t.TempDir()
 	pp, err := CreatePrintingPressFromBytes(specBytes, &PrintingPressConfig{
+		BasePath:  filepath.Dir(specPath),
 		OutputDir: outputDir,
 	})
 	require.NoError(t, err)
@@ -225,6 +257,32 @@ func TestCreatePrintingPress_JSONBundleIncludesBundlingFallbackWarning(t *testin
 	require.NotEmpty(t, bundle.Warnings)
 	assert.Contains(t, bundle.Warnings[0].Message, "source bundling failed")
 	assert.Contains(t, bundle.Warnings[0].Error, "forced bundle failure")
+}
+
+func TestCreatePrintingPress_SingleFileSpecSkipsBundling(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	originalBundle := bundleBytesWithOrigins
+	bundleCalled := false
+	bundleBytesWithOrigins = func(specBytes []byte, configuration *datamodel.DocumentConfiguration, compositionConfig *bundler.BundleCompositionConfig) (*bundler.BundleResult, error) {
+		bundleCalled = true
+		return nil, errors.New("forced bundle failure")
+	}
+	defer func() {
+		bundleBytesWithOrigins = originalBundle
+	}()
+
+	pp, err := CreatePrintingPressFromBytes(specBytes, &PrintingPressConfig{
+		OutputDir: t.TempDir(),
+	})
+	require.NoError(t, err)
+
+	site, err := pp.PressModel()
+	require.NoError(t, err)
+	require.NotNil(t, site)
+	assert.False(t, bundleCalled)
+	assert.Empty(t, site.Warnings)
 }
 
 func TestCreatePrintingPress_PressModelMutationsAffectLaterPrints(t *testing.T) {

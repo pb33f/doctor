@@ -15,8 +15,10 @@ import (
 	. "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/bundler"
+	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.yaml.in/yaml/v4"
 )
 
 type countingRenderable struct {
@@ -205,6 +207,32 @@ components:
 	// Without origin, SchemaStartLine = 1 + schemaKeyLine (origin defaults to 1)
 	assert.Equal(t, schemaKeyLine+1, p.SchemaStartLine,
 		"SchemaStartLine should be schema: line + 1 (content starts after the key)")
+}
+
+func TestGenerateMock_SchemaExamplesArray_DoesNotPanic(t *testing.T) {
+	pp := newPressEngine(&pressEngineConfig{})
+
+	firstExample := &yaml.Node{}
+	require.NoError(t, firstExample.Encode(map[string]any{
+		"id":   "chatcmpl-1",
+		"type": "chat.completion",
+	}))
+	secondExample := &yaml.Node{}
+	require.NoError(t, secondExample.Encode(map[string]any{
+		"id":   "chatcmpl-2",
+		"type": "chat.completion.chunk",
+	}))
+
+	schema := &highbase.Schema{
+		Type:     []string{"object"},
+		Examples: []*yaml.Node{firstExample, secondExample},
+	}
+
+	require.NotPanics(t, func() {
+		mock := pp.generateMock(schema)
+		assert.Contains(t, mock, "\"id\": \"chatcmpl-1\"")
+		assert.Contains(t, mock, "\"type\": \"chat.completion\"")
+	})
 }
 
 func TestComputeNavModelGroupCardMinWidth(t *testing.T) {

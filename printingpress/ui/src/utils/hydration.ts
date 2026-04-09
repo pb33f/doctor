@@ -31,7 +31,35 @@ interface HydrationPayload {
 const sharedGlobalName = '__PP_SHARED_DATA__';
 const pageGlobalName = '__PP_PAGE_DATA__';
 
-async function loadHydrationPayload(assetBase: string, globalName: string): Promise<HydrationPayload | null> {
+interface BootstrapStore {
+  shared?: HydrationPayload | null;
+  page?: HydrationPayload | null;
+  sharedPromise?: Promise<HydrationPayload | null>;
+  pagePromise?: Promise<HydrationPayload | null>;
+}
+
+function getBootstrapStore(): BootstrapStore | null {
+  return (globalThis as Record<string, unknown>).__PP_BOOTSTRAP__ as BootstrapStore || null;
+}
+
+async function loadHydrationPayload(assetBase: string, globalName: string, kind: 'shared' | 'page'): Promise<HydrationPayload | null> {
+  const store = getBootstrapStore();
+  const pending = kind === 'shared' ? store?.sharedPromise : store?.pagePromise;
+  if (pending) {
+    try {
+      return await pending;
+    } catch {
+      const cached = store?.[kind];
+      if (cached) {
+        return cached || null;
+      }
+    }
+  }
+
+  if (store?.[kind]) {
+    return store[kind] || null;
+  }
+
   return loadAsset<HydrationPayload>(assetBase, globalName);
 }
 
@@ -121,15 +149,26 @@ function notifyHydrationComplete() {
 }
 
 export async function hydratePrintingPressPage() {
-  try {
-    const sharedAssetBase = getBodyData('ppShared');
-    const pageAssetBase = getBodyData('ppPage');
-    const sharedPayload = await loadHydrationPayload(sharedAssetBase, sharedGlobalName);
-    applyHydrationPayload(sharedPayload);
-    const pagePayload = await loadHydrationPayload(pageAssetBase, pageGlobalName);
-    applyHydrationPayload(pagePayload);
-    notifyHydrationComplete();
-  } catch (error) {
-    console.error('printing-press hydration failed', error);
+  const sharedAssetBase = getBodyData('ppShared');
+  const pageAssetBase = getBodyData('ppPage');
+
+  const sharedTask = loadHydrationPayload(sharedAssetBase, sharedGlobalName, 'shared')
+    .then((payload) => {
+      applyHydrationPayload(payload);
+      return payload;
+    });
+
+  const pageTask = loadHydrationPayload(pageAssetBase, pageGlobalName, 'page')
+    .then((payload) => {
+      applyHydrationPayload(payload);
+      return payload;
+    });
+
+  const results = await Promise.allSettled([sharedTask, pageTask]);
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      console.error('printing-press hydration failed', result.reason);
+    }
   }
+  notifyHydrationComplete();
 }

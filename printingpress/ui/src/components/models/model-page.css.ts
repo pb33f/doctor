@@ -6,11 +6,15 @@ export default css`
         margin-top: var(--global-padding-double);
     }
 
-    h3 {
+    .schema-stacked {
+        min-height: 0;
+    }
+
+    h2 {
         margin-top: var(--subheader-margin-top);
         margin-bottom: 0;
         padding-bottom: var(--subheader-padding-bottom);
-        font-size: var(--h3-size);
+        font-size: var(--h2-size);
         font-family: var(--font-stack-bold), monospace;
         font-weight: normal;
         text-transform: uppercase;
@@ -239,6 +243,67 @@ export default css`
         --code-border-color: var(--primary-color-lowalpha);
         --example-margin: 0;
         --code-viewer-margin-top: 0;
+    }
+
+    .model-skeleton,
+    .model-skeleton-split {
+        margin-top: var(--global-padding-double);
+        border-top: 1px solid var(--secondary-color-lowalpha);
+        border-bottom: 1px solid var(--secondary-color-lowalpha);
+        padding: var(--global-padding) 0;
+    }
+
+    .model-skeleton-split {
+        display: grid;
+        grid-template-columns: minmax(0, 3fr) 2px minmax(0, 2fr);
+        gap: var(--global-padding-double);
+        align-items: stretch;
+    }
+
+    .model-skeleton-pane {
+        min-height: 100%;
+    }
+
+    .model-skeleton-divider {
+        background: var(--secondary-color-lowalpha);
+        min-height: 100%;
+    }
+
+    .skeleton-heading,
+    .skeleton-row,
+    .skeleton-example-header,
+    .skeleton-example-block {
+        background: linear-gradient(90deg, var(--primary-color-verylowalpha) 0%, var(--secondary-color-lowalpha) 50%, var(--primary-color-verylowalpha) 100%);
+        border: 1px solid var(--hrcolor);
+    }
+
+    .skeleton-heading {
+        width: 10rem;
+        height: 1.1rem;
+        margin-bottom: var(--global-padding-double);
+    }
+
+    .skeleton-list {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .skeleton-row {
+        height: 2.75rem;
+    }
+
+    .skeleton-example-header {
+        width: 8rem;
+        height: 0.9rem;
+        margin-bottom: var(--global-padding);
+    }
+
+    .skeleton-example-block {
+        min-height: 10rem;
+    }
+
+    .skeleton-example-block-muted {
+        opacity: 0.55;
     }
 
 `

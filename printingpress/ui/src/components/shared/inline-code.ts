@@ -2,7 +2,8 @@ import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import inlineCodeCss from './inline-code.css.js';
 import tooltipCss from '../../styles/tooltip.css.js';
-import '@shoelace-style/shoelace/dist/components/copy-button/copy-button.js';
+import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
+import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import './code-viewer.js';
 
 @customElement('pp-inline-code')
@@ -49,7 +50,13 @@ export class PpInlineCode extends LitElement {
       </div>
       ` : nothing}
       <div class="code-container">
-        <sl-copy-button .value=${code} class="floating-copy"></sl-copy-button>
+        <sl-tooltip class="floating-copy" content="copy code to clipboard">
+          <sl-icon-button
+            name="copy"
+            label="Copy code to clipboard"
+            @click=${() => navigator.clipboard.writeText(code)}>
+          </sl-icon-button>
+        </sl-tooltip>
         <pp-code-viewer
           code=${code}
           language=${lang}

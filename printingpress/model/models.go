@@ -299,29 +299,36 @@ type HeaderInfo struct {
 
 // ModelPage is the full data for rendering a component detail page.
 type ModelPage struct {
-	Name                  string
-	ComponentType         string // "schemas", "responses", "parameters", etc.
-	TypeSlug              string // URL path segment for the component type
-	Slug                  string
-	Description           string
-	DescHTML              string
-	SchemaJSON            string // JSON representation for cowboy-components rendering
-	SchemaHighlightedHTML string `json:"-"` // chroma output, templ only
-	RawYAML               string `json:"-"` // re-rendered YAML from Render(), for raw viewer
-	SchemaRawYAML         string `json:"-"` // schema-only YAML for inline viewer (parameters, headers)
-	SchemaRawJSON         string `json:"-"` // schema-only JSON for inline viewer (parameters, headers)
-	SchemaStartLine       int    `json:"-"` // 1-based source line where schema content begins (parameters, headers)
-	MockJSON              string
-	Examples              map[string]string
-	ExamplesJSON          string // pre-serialized for Lit component
-	Origin                *bundler.ComponentOrigin
-	Extensions            []*ExtensionEntry
-	ExtensionsJSON        string `json:"-"`
-	CrossRefs             *ModelCrossRefs
-	CrossRefsJSON         string `json:"-"`
-	MermaidDiagram        string `json:"-"` // mermaid class diagram DSL; empty if no relationships
-	GraphJSON             string `json:"-"` // pre-filtered dependency subgraph for explorer
-	GraphNodeID           string `json:"-"` // exact JSONPath node ID for POV focus
+	Name                     string
+	ComponentType            string // "schemas", "responses", "parameters", etc.
+	TypeSlug                 string // URL path segment for the component type
+	Slug                     string
+	Description              string
+	DescHTML                 string
+	SchemaJSON               string // JSON representation for cowboy-components rendering
+	SchemaHighlightedHTML    string `json:"-"` // chroma output, templ only
+	RawYAML                  string `json:"-"` // re-rendered YAML from Render(), for raw viewer
+	SchemaRawYAML            string `json:"-"` // schema-only YAML for inline viewer (parameters, headers)
+	SchemaRawJSON            string `json:"-"` // schema-only JSON for inline viewer (parameters, headers)
+	SchemaStartLine          int    `json:"-"` // 1-based source line where schema content begins (parameters, headers)
+	MockJSON                 string
+	Examples                 map[string]string
+	ExamplesJSON             string // pre-serialized for Lit component
+	Origin                   *bundler.ComponentOrigin
+	Extensions               []*ExtensionEntry
+	ExtensionsJSON           string `json:"-"`
+	CrossRefs                *ModelCrossRefs
+	CrossRefsJSON            string `json:"-"`
+	MermaidDiagram           string `json:"-"` // mermaid class diagram DSL; empty if no relationships
+	GraphJSON                string `json:"-"` // pre-filtered dependency subgraph for explorer
+	GraphNodeID              string `json:"-"` // exact JSONPath node ID for POV focus
+	LayoutMode               string `json:"-"` // simple, stacked, or split
+	EstimatedBodyHeight      int    `json:"-"`
+	EstimatedSplitHeight     int    `json:"-"`
+	EstimatedCrossRefsHeight int    `json:"-"`
+	PropertyCount            int    `json:"-"`
+	RequiredCount            int    `json:"-"`
+	HasExamplePayload        bool   `json:"-"`
 }
 
 // ModelCrossRefs holds cross-reference information for a model.

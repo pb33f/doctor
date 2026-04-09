@@ -16,6 +16,12 @@ export class PpModelPage extends LitElement {
 
   @property({attribute: 'model-json'}) modelJson = '';
   @property() name = '';
+  @property({attribute: 'layout-mode'}) layoutMode = 'stacked';
+  @property({attribute: 'estimated-body-height', type: Number}) estimatedBodyHeight = 0;
+  @property({attribute: 'estimated-split-height', type: Number}) estimatedSplitHeight = 0;
+  @property({attribute: 'property-count', type: Number}) propertyCount = 0;
+  @property({attribute: 'required-count', type: Number}) requiredCount = 0;
+  @property({attribute: 'has-example', type: Boolean}) hasExample = false;
   @property({attribute: 'raw-yaml'}) rawYaml = '';
   @property({attribute: 'schema-raw-yaml'}) schemaRawYaml = '';
   @property({attribute: 'schema-raw-json'}) schemaRawJson = '';
@@ -24,7 +30,7 @@ export class PpModelPage extends LitElement {
   @property() location = '';
   @property({attribute: 'mock-json'}) mockJson = '';
   @state() private parsed: any = null;
-  @state() private wide = false;
+  @state() private wide = typeof window !== 'undefined' ? window.innerWidth >= 900 : false;
   @state() private exampleJson = '';
   private resizeObserver: ResizeObserver | null = null;
   private paneResizeObserver: ResizeObserver | null = null;
@@ -40,19 +46,17 @@ export class PpModelPage extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    setTimeout(() => {
-      this.wide = this.offsetWidth >= 900;
-      if (typeof ResizeObserver === 'undefined') return;
-      this.resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          this.wide = entry.contentRect.width >= 900;
-        }
-      });
-      this.resizeObserver.observe(this);
-      this.paneResizeObserver = new ResizeObserver(() => {
-        this.sizeSplitPanel();
-      });
-    }, 0);
+    this.wide = this.offsetWidth >= 900;
+    if (typeof ResizeObserver === 'undefined') return;
+    this.resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        this.wide = entry.contentRect.width >= 900;
+      }
+    });
+    this.resizeObserver.observe(this);
+    this.paneResizeObserver = new ResizeObserver(() => {
+      this.sizeSplitPanel();
+    });
   }
 
   disconnectedCallback() {
@@ -88,7 +92,8 @@ export class PpModelPage extends LitElement {
       const vh = document.documentElement.clientHeight || 800;
       const propCount = this.parsed?.properties ? Object.keys(this.parsed.properties).length : 0;
       const preferredHeight = Math.max(propsHeight, exampleHeight);
-      const minHeight = propCount >= 6 ? 300 : 220;
+      const hintedHeight = this.estimatedSplitHeight > 0 ? this.estimatedSplitHeight : 0;
+      const minHeight = hintedHeight || (propCount >= 6 ? 300 : 220);
       const h = Math.max(minHeight, Math.min(preferredHeight, vh * 0.75));
       const splitStyle = getComputedStyle(this.splitPanel);
       const splitPadding = parseFloat(splitStyle.paddingTop) + parseFloat(splitStyle.paddingBottom);
@@ -254,10 +259,11 @@ export class PpModelPage extends LitElement {
   }
 
   private renderSchemaSplit(heading: string) {
+    const splitStyle = this.estimatedSplitHeight > 0 ? `height: ${this.estimatedSplitHeight}px;` : '';
     return html`
-      <sl-split-panel class="schema-split" position="60">
+      <sl-split-panel class="schema-split" position="60" style=${splitStyle}>
         <div slot="start" class="split-pane schema-props-pane">
-          <h3>${heading}</h3>
+          <h2>${heading}</h2>
           <pp-schema-properties schema-json=${this.modelJson} compact></pp-schema-properties>
         </div>
         <sl-icon slot="divider" name="grip-vertical"></sl-icon>
@@ -270,17 +276,78 @@ export class PpModelPage extends LitElement {
   }
 
   private renderSchemaStacked(heading: string) {
+    const style = this.estimatedBodyHeight > 0 ? `min-height: ${this.estimatedBodyHeight}px;` : '';
     return html`
-      ${this.exampleJson
-        ? html`<pp-example-selector mode="inline" mock-json=${this.exampleJson}></pp-example-selector>`
-        : nothing}
-      <h3>${heading}</h3>
-      <pp-schema-properties schema-json=${this.modelJson}></pp-schema-properties>
+      <div class="schema-stacked" style=${style}>
+        ${this.exampleJson
+          ? html`<pp-example-selector mode="inline" mock-json=${this.exampleJson}></pp-example-selector>`
+          : nothing}
+        <h2>${heading}</h2>
+        <pp-schema-properties schema-json=${this.modelJson}></pp-schema-properties>
+      </div>
+    `;
+  }
+
+  private getReservedHeight(): number {
+    if (this.wide && this.layoutMode === 'split' && this.estimatedSplitHeight > 0) {
+      return this.estimatedSplitHeight;
+    }
+    if (this.estimatedBodyHeight > 0) {
+      return this.estimatedBodyHeight;
+    }
+    if (this.propertyCount > 0) {
+      return Math.min(640, Math.max(220, 160 + this.propertyCount * 40));
+    }
+    return this.hasExample ? 360 : 240;
+  }
+
+  private renderSkeletonRows(count: number) {
+    return Array.from({length: Math.max(3, count || 4)}, (_, index) => html`
+      <div class="skeleton-row" style=${`width: ${100 - Math.min(index * 7, 28)}%;`}></div>
+    `);
+  }
+
+  private renderSkeleton() {
+    const reservedHeight = this.getReservedHeight();
+    const style = `min-height: ${reservedHeight}px;`;
+    if (this.wide && this.layoutMode === 'split') {
+      return html`
+        <div class="model-skeleton model-skeleton-split" style=${style}>
+          <div class="model-skeleton-pane">
+            <div class="skeleton-heading"></div>
+            <div class="skeleton-list">
+              ${this.renderSkeletonRows(this.propertyCount)}
+            </div>
+          </div>
+          <div class="model-skeleton-divider"></div>
+          <div class="model-skeleton-pane">
+            ${this.hasExample ? html`
+              <div class="skeleton-example-header"></div>
+              <div class="skeleton-example-block"></div>
+            ` : html`
+              <div class="skeleton-example-block skeleton-example-block-muted"></div>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    return html`
+      <div class="model-skeleton" style=${style}>
+        ${this.hasExample ? html`
+          <div class="skeleton-example-header"></div>
+          <div class="skeleton-example-block"></div>
+        ` : nothing}
+        <div class="skeleton-heading"></div>
+        <div class="skeleton-list">
+          ${this.renderSkeletonRows(this.propertyCount)}
+        </div>
+      </div>
     `;
   }
 
   render() {
-    if (!this.parsed) return nothing;
+    if (!this.parsed) return this.renderSkeleton();
     const data = this.parsed;
 
     // Parameter: has "in" field

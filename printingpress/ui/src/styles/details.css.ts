@@ -2,8 +2,23 @@ import {css} from "lit";
 
 export default css`
     sl-details.pp-details {
+        display: block;
+        min-height: 64px;
         margin-top: 40px;
         position: relative;
+    }
+
+    sl-details.pp-details:not(:defined) {
+        display: block;
+        min-height: 64px;
+    }
+
+    sl-details.pp-details:not(:defined) > :not([slot="summary"]) {
+        display: none !important;
+    }
+
+    sl-details.pp-details:not(:defined) > [slot="summary"] {
+        display: block;
     }
 
     sl-details.pp-details::part(base) {

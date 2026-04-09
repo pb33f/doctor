@@ -334,6 +334,11 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	assert.Contains(t, string(indexHTML), "pp-layout")
 	assert.Contains(t, string(indexHTML), `data-pp-asset-mode="portable"`)
 	assert.Contains(t, string(indexHTML), `data-pp-shared="static/printing-press-shared"`)
+	assert.Contains(t, string(indexHTML), `<script defer src="static/printing-press.js"></script>`)
+	assert.Contains(t, string(indexHTML), `__PP_BOOTSTRAP__`)
+	assert.Contains(t, string(indexHTML), `pp-layout-fallback-header`)
+	assert.Contains(t, string(indexHTML), `pp-nav-fallback`)
+	assert.Contains(t, string(indexHTML), `localStorage.getItem('pb33f-theme')`)
 	assert.NotContains(t, string(indexHTML), "pp-schema-registry")
 	assert.NotContains(t, string(indexHTML), "data-nav=")
 	assert.NotContains(t, string(indexHTML), "data-models=")
@@ -361,6 +366,13 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	opHTML, err := os.ReadFile(filepath.Join(outputDir, "operations", op.Slug+".html"))
 	require.NoError(t, err)
 	assert.Contains(t, string(opHTML), `data-pp-page="static/page-data/operations/`+op.Slug+`"`)
+	if op.ParametersJSON != "" {
+		assert.Contains(t, string(opHTML), `id="section-parameters" data-nav-label="Parameters" style="display:block;min-height:64px;"`)
+	}
+	if op.CurlJSON != "" {
+		assert.Contains(t, string(opHTML), `id="section-curl" data-nav-label="cURL" style="display:block;min-height:64px;"`)
+		assert.Contains(t, string(opHTML), `pp-operation-curl" style="display:block;min-height:156px;"`)
+	}
 	assert.NotContains(t, string(opHTML), "responses-json=")
 	assert.NotContains(t, string(opHTML), "parameters-json=")
 	assert.NotContains(t, string(opHTML), "curl-json=")
@@ -399,11 +411,36 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	modelHTML, err := os.ReadFile(filepath.Join(outputDir, "models", firstModel.TypeSlug, firstModel.Slug+".html"))
 	require.NoError(t, err)
 	assert.Contains(t, string(modelHTML), `data-pp-page="static/page-data/models/`+firstModel.TypeSlug+`/`+firstModel.Slug+`"`)
+	if firstModel.TypeSlug == "schemas" {
+		assert.Contains(t, string(modelHTML), `layout-mode="`)
+		assert.Contains(t, string(modelHTML), `estimated-body-height="`)
+	}
 	assert.NotContains(t, string(modelHTML), "model-json=")
 	assert.NotContains(t, string(modelHTML), "mock-json=")
 	assert.NotContains(t, string(modelHTML), "schema-raw-json=")
 	assert.NotContains(t, string(modelHTML), "schema-raw-yaml=")
 	assert.NotContains(t, string(modelHTML), "scheme-json=")
+
+	var modelWithCrossRefs *ModelPage
+	for typeSlug, pages := range site.Models {
+		if typeSlug == "path-items" {
+			continue
+		}
+		for _, page := range pages {
+			if page.CrossRefsJSON != "" {
+				modelWithCrossRefs = page
+				break
+			}
+		}
+		if modelWithCrossRefs != nil {
+			break
+		}
+	}
+	if modelWithCrossRefs != nil {
+		crossRefHTML, err := os.ReadFile(filepath.Join(outputDir, "models", modelWithCrossRefs.TypeSlug, modelWithCrossRefs.Slug+".html"))
+		require.NoError(t, err)
+		assert.Contains(t, string(crossRefHTML), `style="display:block;min-height:`)
+	}
 
 	require.NotNil(t, visualModel)
 	visualHTML, err := os.ReadFile(filepath.Join(outputDir, "models", visualModel.TypeSlug, visualModel.Slug+".html"))

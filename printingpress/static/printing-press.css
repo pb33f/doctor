@@ -53,6 +53,82 @@ html, body {
     scroll-behavior: auto;
 }
 
+pp-layout:not(:defined) {
+    display: grid;
+    width: 100%;
+    grid-template-columns: minmax(200px, var(--pp-split-position, 20%)) minmax(0, 1fr);
+    grid-template-rows: var(--pp-header-height) minmax(0, 1fr);
+    min-height: 100vh;
+    justify-items: stretch;
+    align-items: stretch;
+}
+
+pp-layout:not(:defined) > .pp-layout-fallback-header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    padding: 0 var(--global-padding-double);
+    border-bottom: 1px dashed var(--hrcolor);
+    font-family: var(--font-stack-bold), monospace;
+    color: var(--font-color);
+    background: var(--background-color);
+}
+
+pp-layout:not(:defined) > [slot="nav"] {
+    display: block;
+    min-width: 0;
+    border-right: 1px solid var(--hrcolor);
+    overflow: hidden;
+    width: 100%;
+}
+
+pp-layout:not(:defined) > [slot="content"] {
+    display: block;
+    min-width: 0;
+    width: 100%;
+    padding: var(--global-padding-double) 40px;
+    overflow: hidden;
+}
+
+pp-layout:not(:defined) > [slot="nav"] .pp-nav-fallback {
+    display: block;
+    padding: var(--global-padding);
+    font-family: var(--font-stack), monospace;
+}
+
+pp-layout:not(:defined) > [slot="nav"] .pp-nav-fallback-home {
+    padding: var(--global-padding) 0;
+    color: var(--font-color);
+    letter-spacing: 0.05em;
+    font-size: 0.95rem;
+}
+
+pp-layout:not(:defined) > [slot="nav"] .pp-nav-fallback-section {
+    margin-top: var(--global-padding-double);
+}
+
+pp-layout:not(:defined) > [slot="nav"] .pp-nav-fallback-section h4 {
+    margin: 0 0 var(--global-padding) 0;
+    padding-bottom: var(--global-padding);
+    border-bottom: 1px dashed var(--primary-color-lowalpha);
+    color: var(--primary-color);
+    font-family: var(--font-stack-bold), monospace;
+    font-size: 1.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+pp-layout:not(:defined) > [slot="nav"] .pp-nav-fallback-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+pp-layout:not(:defined) > [slot="nav"] .pp-nav-fallback-row {
+    height: 1rem;
+    background: linear-gradient(90deg, var(--primary-color-verylowalpha) 0%, var(--secondary-color-lowalpha) 50%, var(--primary-color-verylowalpha) 100%);
+    border: 1px solid var(--hrcolor);
+}
+
 /* Content */
 main {
     padding: var(--global-padding-double) 40px;
@@ -285,8 +361,23 @@ code {
 
 /* Collapsible details sections */
 sl-details.pp-details {
+    display: block;
+    min-height: 64px;
     margin-top: 40px;
     position: relative;
+}
+
+sl-details.pp-details:not(:defined) {
+    display: block;
+    min-height: 64px;
+}
+
+sl-details.pp-details:not(:defined) > :not([slot="summary"]) {
+    display: none !important;
+}
+
+sl-details.pp-details:not(:defined) > [slot="summary"] {
+    display: block;
 }
 
 sl-details.pp-details::part(base) {
@@ -314,6 +405,16 @@ sl-details.pp-details::part(content) {
     padding: 0;
     letter-spacing: 0.05em;
     text-transform: uppercase;
+}
+
+pp-cross-refs {
+    display: block;
+    min-height: 240px;
+}
+
+pp-curl-command {
+    display: block;
+    min-height: 156px;
 }
 
 /* Operation page */

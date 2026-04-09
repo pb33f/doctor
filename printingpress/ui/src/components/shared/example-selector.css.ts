@@ -106,7 +106,7 @@ export default [dropdownCss, css`
         letter-spacing: 0.05em;
     }
 
-    .floating-copy::part(tooltip__body) {
+    .floating-copy::part(body) {
         border: 1px dashed var(--secondary-color);
         text-transform: uppercase;
         letter-spacing: 0.05em;

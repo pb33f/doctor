@@ -1,5 +1,5 @@
 import {describe, it, expect, beforeAll, beforeEach} from 'vitest';
-import {resetRegistry} from '../src/utils/schema-registry.js';
+import {resetRegistry, seedCachedSchemaModels, setSchemaRegistryEntries} from '../src/utils/schema-registry.js';
 import '../src/components/shared/schema-properties.js';
 import type {PpSchemaProperties} from '../src/components/shared/schema-properties.js';
 
@@ -15,30 +15,64 @@ class IntersectionObserverStub {
     disconnect() {}
 }
 
-// Fixed registry fixture — inject before tests so ref lookups work
-const registryFixture = {
+function registryEntry(key: string, description: string) {
+    const parts = key.split('/');
+    const name = parts[1];
+    const typeSlug = parts[0];
+    return {
+        name,
+        componentType: typeSlug,
+        description,
+        typeSlug,
+        slug: name.toLowerCase(),
+        href: `models/${typeSlug}/${name.toLowerCase()}.html`,
+        pageDataBase: `static/page-data/models/${typeSlug}/${name.toLowerCase()}`,
+    };
+}
+
+const registryEntries = {
+    'schemas/WrapperCollection': registryEntry('schemas/WrapperCollection', 'A paginated collection wrapper'),
+    'schemas/LinksSelf': registryEntry('schemas/LinksSelf', 'Self link'),
+    'schemas/LinksPagination': registryEntry('schemas/LinksPagination', 'Pagination links'),
+    'schemas/BookingPayment': registryEntry('schemas/BookingPayment', 'Payment details'),
+    'schemas/CardSource': registryEntry('schemas/CardSource', 'Card payment source'),
+    'schemas/BankSource': registryEntry('schemas/BankSource', 'Bank payment source'),
+    'schemas/LinksBooking': registryEntry('schemas/LinksBooking', 'Booking links'),
+    'schemas/WideOption': registryEntry('schemas/WideOption', 'Wide option payload'),
+};
+
+// Fixed model fixture — seed before tests so ref lookups work
+const modelFixture = {
     'schemas/WrapperCollection': {
         name: 'WrapperCollection',
         componentType: 'schemas',
         description: 'A paginated collection wrapper',
+        typeSlug: 'schemas',
+        slug: 'wrappercollection',
         schemaJson: '{"type":"object","properties":{"links":{"type":"object"}}}',
     },
     'schemas/LinksSelf': {
         name: 'LinksSelf',
         componentType: 'schemas',
         description: 'Self link',
+        typeSlug: 'schemas',
+        slug: 'linksself',
         schemaJson: '{"type":"object","properties":{"self":{"type":"string"}}}',
     },
     'schemas/LinksPagination': {
         name: 'LinksPagination',
         componentType: 'schemas',
         description: 'Pagination links',
+        typeSlug: 'schemas',
+        slug: 'linkspagination',
         schemaJson: '{"type":"object","properties":{"next":{"type":"string"}}}',
     },
     'schemas/BookingPayment': {
         name: 'BookingPayment',
         componentType: 'schemas',
         description: 'Payment details',
+        typeSlug: 'schemas',
+        slug: 'bookingpayment',
         schemaJson: JSON.stringify({
             type: 'object',
             properties: {
@@ -57,24 +91,32 @@ const registryFixture = {
         name: 'CardSource',
         componentType: 'schemas',
         description: 'Card payment source',
+        typeSlug: 'schemas',
+        slug: 'cardsource',
         schemaJson: '{"type":"object","properties":{"object":{"type":"string"}}}',
     },
     'schemas/BankSource': {
         name: 'BankSource',
         componentType: 'schemas',
         description: 'Bank payment source',
+        typeSlug: 'schemas',
+        slug: 'banksource',
         schemaJson: '{"type":"object","properties":{"object":{"type":"string"}}}',
     },
     'schemas/LinksBooking': {
         name: 'LinksBooking',
         componentType: 'schemas',
         description: 'Booking links',
+        typeSlug: 'schemas',
+        slug: 'linksbooking',
         schemaJson: '{"type":"object","properties":{"booking":{"type":"string"}}}',
     },
     'schemas/WideOption': {
         name: 'WideOption',
         componentType: 'schemas',
         description: 'Wide option payload',
+        typeSlug: 'schemas',
+        slug: 'wideoption',
         schemaJson: JSON.stringify({
             type: 'object',
             properties: {
@@ -83,17 +125,11 @@ const registryFixture = {
             required: ['very_long_property_name_for_compact_width'],
         }),
     },
-};
+} as const;
 
-function injectRegistry() {
-    let el = document.getElementById('pp-schema-registry');
-    if (!el) {
-        el = document.createElement('script');
-        el.id = 'pp-schema-registry';
-        el.setAttribute('type', 'application/json');
-        document.head.appendChild(el);
-    }
-    el.textContent = JSON.stringify(registryFixture);
+function seedRegistry() {
+    setSchemaRegistryEntries(registryEntries);
+    seedCachedSchemaModels(modelFixture);
 }
 
 function create(schemaJson: string, compact = false): PpSchemaProperties {
@@ -112,13 +148,13 @@ describe('pp-schema-properties allOf', () => {
         if (!('IntersectionObserver' in globalThis)) {
             (globalThis as typeof globalThis & {IntersectionObserver: typeof IntersectionObserverStub}).IntersectionObserver = IntersectionObserverStub;
         }
-        injectRegistry();
+        seedRegistry();
     });
 
     beforeEach(() => {
         document.body.innerHTML = '';
         resetRegistry();
-        injectRegistry();
+        seedRegistry();
     });
 
     it('renders composition refs for allOf with refs only', async () => {

@@ -177,7 +177,7 @@ export class PpRefList extends LitElement {
         const showToolbar = this.items.length > 20;
 
         return html`
-            <h3>${this.heading}</h3>
+            <h2>${this.heading}</h2>
             ${showToolbar ? this.renderToolbar() : nothing}
             ${this.filteredItems.length
                 ? html`<pb33f-paginator-navigation

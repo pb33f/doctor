@@ -624,19 +624,19 @@ func OperationPageTempl(page *ppmodel.OperationPage) templ.Component {
 			}
 		}
 		if page.ParametersJSON != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "<sl-details class=\"pp-details\" id=\"section-parameters\" data-nav-label=\"Parameters\"><span slot=\"summary\" class=\"pp-details-summary\"><h3>Parameters</h3></span> <pp-operation-parameters id=\"pp-operation-parameters\"></pp-operation-parameters></sl-details> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "<sl-details class=\"pp-details\" id=\"section-parameters\" data-nav-label=\"Parameters\" style=\"display:block;min-height:64px;\"><span slot=\"summary\" class=\"pp-details-summary\"><h3>Parameters</h3></span> <pp-operation-parameters id=\"pp-operation-parameters\"></pp-operation-parameters></sl-details> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if page.CurlJSON != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<sl-details class=\"pp-details\" id=\"section-curl\" data-nav-label=\"cURL\"><span slot=\"summary\" class=\"pp-details-summary\"><h3>cURL</h3></span> <pp-curl-command id=\"pp-operation-curl\"></pp-curl-command></sl-details> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<sl-details class=\"pp-details\" id=\"section-curl\" data-nav-label=\"cURL\" style=\"display:block;min-height:64px;\"><span slot=\"summary\" class=\"pp-details-summary\"><h3>cURL</h3></span> <pp-curl-command id=\"pp-operation-curl\" style=\"display:block;min-height:156px;\"></pp-curl-command></sl-details> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if page.ExtensionsJSON != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<sl-details class=\"pp-details\" id=\"section-extensions\" data-nav-label=\"Extensions\"><span slot=\"summary\" class=\"pp-details-summary\"><h3>Operation Extensions</h3></span> <pp-extensions extensions-json=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<sl-details class=\"pp-details\" id=\"section-extensions\" data-nav-label=\"Extensions\" style=\"display:block;min-height:64px;\"><span slot=\"summary\" class=\"pp-details-summary\"><h3>Operation Extensions</h3></span> <pp-extensions extensions-json=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -655,7 +655,7 @@ func OperationPageTempl(page *ppmodel.OperationPage) templ.Component {
 			}
 		}
 		if page.PathExtensionsJSON != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<sl-details class=\"pp-details\" id=\"section-path-extensions\" data-nav-label=\"Path Extensions\"><span slot=\"summary\" class=\"pp-details-summary\"><h3>Path Extensions</h3></span> <pp-extensions extensions-json=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<sl-details class=\"pp-details\" id=\"section-path-extensions\" data-nav-label=\"Path Extensions\" style=\"display:block;min-height:64px;\"><span slot=\"summary\" class=\"pp-details-summary\"><h3>Path Extensions</h3></span> <pp-extensions extensions-json=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -674,7 +674,7 @@ func OperationPageTempl(page *ppmodel.OperationPage) templ.Component {
 			}
 		}
 		if page.CallbacksJSON != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<sl-details class=\"pp-details\" id=\"section-callbacks\" data-nav-label=\"Callbacks\"><span slot=\"summary\" class=\"pp-details-summary\"><h3>Callbacks</h3></span> <pp-operation-callbacks id=\"pp-operation-callbacks\"></pp-operation-callbacks></sl-details> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<sl-details class=\"pp-details\" id=\"section-callbacks\" data-nav-label=\"Callbacks\" style=\"display:block;min-height:64px;\"><span slot=\"summary\" class=\"pp-details-summary\"><h3>Callbacks</h3></span> <pp-operation-callbacks id=\"pp-operation-callbacks\"></pp-operation-callbacks></sl-details> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

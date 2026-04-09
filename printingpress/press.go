@@ -210,6 +210,7 @@ func (pp *PrintingPress) pressSite() (*Site, error) {
 				if page.CrossRefs != nil && (len(page.CrossRefs.UsedByOperations) > 0 ||
 					len(page.CrossRefs.UsedByModels) > 0 || len(page.CrossRefs.UsesModels) > 0) {
 					page.CrossRefsJSON = render.MustJSON(page.CrossRefs)
+					applyModelCrossRefHints(page)
 				}
 				if pp.currentJob != nil {
 					done := atomicAddInt64(&completedPages, 1)

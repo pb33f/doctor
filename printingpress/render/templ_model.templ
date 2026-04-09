@@ -60,6 +60,24 @@ templ ModelPageTempl(page *ppmodel.ModelPage) {
 			<pp-model-page
 				id="pp-model-page"
 				name={ page.Name }
+				if page.LayoutMode != "" {
+					layout-mode={ page.LayoutMode }
+				}
+				if page.EstimatedBodyHeight > 0 {
+					estimated-body-height={ fmt.Sprintf("%d", page.EstimatedBodyHeight) }
+				}
+				if page.EstimatedSplitHeight > 0 {
+					estimated-split-height={ fmt.Sprintf("%d", page.EstimatedSplitHeight) }
+				}
+				if page.PropertyCount > 0 {
+					property-count={ fmt.Sprintf("%d", page.PropertyCount) }
+				}
+				if page.RequiredCount > 0 {
+					required-count={ fmt.Sprintf("%d", page.RequiredCount) }
+				}
+				if page.HasExamplePayload {
+					has-example
+				}
 				if page.SchemaStartLine > 0 {
 					schema-start-line={ fmt.Sprintf("%d", page.SchemaStartLine) }
 				}
@@ -72,13 +90,20 @@ templ ModelPageTempl(page *ppmodel.ModelPage) {
 			</pp-model-page>
 		}
 		if page.ExtensionsJSON != "" {
-			<sl-details class="pp-details">
-				<span slot="summary" class="pp-details-summary"><h3>Extensions</h3></span>
+			<sl-details class="pp-details" style="display:block;min-height:64px;">
+				<span slot="summary" class="pp-details-summary"><h2>Extensions</h2></span>
 				<pp-extensions extensions-json={ page.ExtensionsJSON }></pp-extensions>
 			</sl-details>
 		}
 		if page.CrossRefsJSON != "" {
-			<pp-cross-refs refs-json={ page.CrossRefsJSON }></pp-cross-refs>
+			<pp-cross-refs
+				refs-json={ page.CrossRefsJSON }
+				if page.EstimatedCrossRefsHeight > 0 {
+					style={ fmt.Sprintf("display:block;min-height:%dpx;", page.EstimatedCrossRefsHeight) }
+				} else {
+					style="display:block;min-height:240px;"
+				}>
+			</pp-cross-refs>
 		}
 		if page.MermaidDiagram != "" || page.GraphJSON != "" {
 			<div class="pp-visualization-section">

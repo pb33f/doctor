@@ -27,11 +27,41 @@ templ Layout(pageTitle string, siteTitle string, baseURL string, activeSlug stri
 				data-pp-viz-diagram={ vizDiagramDataBase }
 			}>
 			<pp-layout data-title={ siteTitle }>
-				<pp-nav id="pp-nav" slot="nav" data-active={ activeSlug }></pp-nav>
+				<div class="pp-layout-fallback-header" aria-hidden="true">{ siteTitle }</div>
+				<pp-nav id="pp-nav" slot="nav" data-active={ activeSlug }>
+					<div class="pp-nav-fallback" aria-hidden="true">
+						<div class="pp-nav-fallback-home">API OVERVIEW</div>
+						<div class="pp-nav-fallback-section">
+							<h4>Operations</h4>
+							<div class="pp-nav-fallback-list">
+								<div class="pp-nav-fallback-row" style="width:100%;"></div>
+								<div class="pp-nav-fallback-row" style="width:92%;"></div>
+								<div class="pp-nav-fallback-row" style="width:84%;"></div>
+								<div class="pp-nav-fallback-row" style="width:78%;"></div>
+								<div class="pp-nav-fallback-row" style="width:88%;"></div>
+								<div class="pp-nav-fallback-row" style="width:74%;"></div>
+							</div>
+						</div>
+						<div class="pp-nav-fallback-section">
+							<h4>Models</h4>
+							<div class="pp-nav-fallback-list">
+								<div class="pp-nav-fallback-row" style="width:96%;"></div>
+								<div class="pp-nav-fallback-row" style="width:86%;"></div>
+								<div class="pp-nav-fallback-row" style="width:82%;"></div>
+								<div class="pp-nav-fallback-row" style="width:90%;"></div>
+								<div class="pp-nav-fallback-row" style="width:76%;"></div>
+								<div class="pp-nav-fallback-row" style="width:88%;"></div>
+								<div class="pp-nav-fallback-row" style="width:80%;"></div>
+								<div class="pp-nav-fallback-row" style="width:72%;"></div>
+							</div>
+						</div>
+					</div>
+				</pp-nav>
 				<main slot="content">
 					@content
 				</main>
 			</pp-layout>
+			@BootstrapHydrationScript(assetMode, sharedDataBase, pageDataBase)
 			<pp-example-drawer></pp-example-drawer>
 		</body>
 	</html>
