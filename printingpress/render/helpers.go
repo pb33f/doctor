@@ -1,6 +1,6 @@
 // Copyright 2024-2026 Princess Beef Heavy Industries, LLC / Dave Shanley
 // https://pb33f.io
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 
 package render
 
