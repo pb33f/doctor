@@ -294,6 +294,7 @@ func TestPrintingPress_PrintJSONArtifacts_BundleAndManifest(t *testing.T) {
 	assert.Equal(t, "root", artifactsByPath["index.json"].Kind)
 	assert.Equal(t, "nav", artifactsByPath["nav.json"].Kind)
 	assert.Equal(t, "manifest", artifactsByPath["manifest.json"].Kind)
+	assert.NotContains(t, artifactsByPath, "AGENTS.md")
 	assert.Equal(t, "operation", artifactsByPath["operations/"+site.Operations[0].Slug+".json"].Kind)
 	assert.Equal(t, "model", artifactsByPath["models/schemas/"+site.Models["schemas"][0].Slug+".json"].Kind)
 }

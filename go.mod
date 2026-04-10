@@ -3,9 +3,11 @@ module github.com/pb33f/doctor
 go 1.25.0
 
 require (
+	charm.land/lipgloss/v2 v2.0.2
 	github.com/a-h/templ v0.3.865
 	github.com/alecthomas/chroma/v2 v2.23.1
 	github.com/cespare/xxhash/v2 v2.3.0
+	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/google/go-github/v72 v72.0.0
 	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0
@@ -16,14 +18,13 @@ require (
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	go.yaml.in/yaml/v4 v4.0.0-rc.4
 	golang.org/x/net v0.49.0
+	golang.org/x/sync v0.20.0
 	golang.org/x/text v0.33.0
 )
 
 require (
-	charm.land/lipgloss/v2 v2.0.2 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
-	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20251205161215-1948445e3318 // indirect
 	github.com/charmbracelet/x/ansi v0.11.6 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
@@ -43,7 +44,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
