@@ -8,6 +8,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -311,12 +312,52 @@ func cleanGeneratedHydrationAssets(outputDir string) error {
 
 func resolveWriterBaseURL(site *ppmodel.Site, baseURL string) string {
 	if baseURL != "" {
-		return baseURL
+		return normalizeBaseURL(baseURL)
 	}
 	if site != nil {
-		return site.BaseURL
+		return normalizeBaseURL(site.BaseURL)
 	}
 	return ""
+}
+
+func normalizeBaseURL(baseURL string) string {
+	if baseURL == "" || baseURL == "/" {
+		return baseURL
+	}
+
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return normalizeBaseURLFallback(baseURL)
+	}
+
+	if parsed.Path == "" {
+		if parsed.Scheme != "" || parsed.Host != "" {
+			parsed.Path = "/"
+		}
+		return parsed.String()
+	}
+
+	if strings.HasSuffix(parsed.Path, "/") {
+		return parsed.String()
+	}
+
+	parsed.Path += "/"
+	return parsed.String()
+}
+
+func normalizeBaseURLFallback(baseURL string) string {
+	suffixIdx := strings.IndexAny(baseURL, "?#")
+	pathPart := baseURL
+	suffix := ""
+	if suffixIdx >= 0 {
+		pathPart = baseURL[:suffixIdx]
+		suffix = baseURL[suffixIdx:]
+	}
+
+	if pathPart == "" || pathPart == "/" || strings.HasSuffix(pathPart, "/") {
+		return pathPart + suffix
+	}
+	return pathPart + "/" + suffix
 }
 
 // pageParams holds the shared parameters for writing a templ page.

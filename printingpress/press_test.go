@@ -484,10 +484,11 @@ func TestPrintingPress_WriteHTMLSite_UsesConfigOutputDirAndBaseURL(t *testing.T)
 		DrDoc:     drDoc,
 		Title:     "Burger Shop",
 		OutputDir: outputDir,
-		BaseURL:   "/docs/",
+		BaseURL:   "/docs",
 	})
 	site, err := pp.pressSite()
 	require.NoError(t, err)
+	require.NotEmpty(t, site.Operations)
 
 	err = WriteHTMLSite(site, "", "")
 	require.NoError(t, err)
@@ -496,6 +497,10 @@ func TestPrintingPress_WriteHTMLSite_UsesConfigOutputDirAndBaseURL(t *testing.T)
 	indexHTML, err := os.ReadFile(outputDir + "/index.html")
 	require.NoError(t, err)
 	assert.Contains(t, string(indexHTML), `<base href="/docs/">`)
+
+	operationHTML, err := os.ReadFile(filepath.Join(outputDir, "operations", site.Operations[0].Slug+".html"))
+	require.NoError(t, err)
+	assert.Contains(t, string(operationHTML), `<base href="/docs/">`)
 }
 
 func TestPrintingPress_WriteHTMLSite_ServedModeWritesJSONAssets(t *testing.T) {
