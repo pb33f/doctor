@@ -48,6 +48,7 @@ func TestCreatePrintingPress_PrintHTMLAndLLM(t *testing.T) {
 	require.NotNil(t, llmStats)
 	assert.Equal(t, jobTypeLLM, llmStats.JobType)
 	assert.Greater(t, llmStats.Pages, 0)
+	assert.FileExists(t, filepath.Join(outputDir, "AGENTS.md"))
 	assert.FileExists(t, filepath.Join(outputDir, "llms.txt"))
 }
 
@@ -201,6 +202,10 @@ func TestCreatePrintingPress_UsesSpecURLForRenderedSourceLinksAndJSON(t *testing
 
 	_, err = pp.PrintLLM()
 	require.NoError(t, err)
+
+	agentsBytes, err := os.ReadFile(filepath.Join(outputDir, "AGENTS.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(agentsBytes), "**Source spec:** [burgershop.openapi.yaml]("+specURL+")")
 
 	indexBytes, err := os.ReadFile(filepath.Join(outputDir, "llms.txt"))
 	require.NoError(t, err)

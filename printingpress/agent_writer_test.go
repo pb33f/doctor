@@ -47,10 +47,21 @@ func TestWriteLLMSite_BurgerShop(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify all top-level files exist
+	assert.FileExists(t, filepath.Join(outputDir, "AGENTS.md"))
 	assert.FileExists(t, filepath.Join(outputDir, "llms.txt"))
 	assert.FileExists(t, filepath.Join(outputDir, "llms-full.txt"))
 	assert.FileExists(t, filepath.Join(outputDir, "llms-operations.txt"))
 	assert.FileExists(t, filepath.Join(outputDir, "llms-models.txt"))
+
+	agentsBytes, err := os.ReadFile(filepath.Join(outputDir, "AGENTS.md"))
+	require.NoError(t, err)
+	agents := string(agentsBytes)
+	assert.Contains(t, agents, "## Start Here")
+	assert.Contains(t, agents, "[llms.txt](llms.txt)")
+	assert.Contains(t, agents, "`operations/*.md`")
+	assert.Contains(t, agents, "`operations/*.json`")
+	assert.Contains(t, agents, "`models/<type>/*.json`")
+	assert.Contains(t, agents, "`bundle.json`, `index.json`, `nav.json`, `manifest.json`")
 
 	// Verify llms-full.txt content
 	fullBytes, err := os.ReadFile(filepath.Join(outputDir, "llms-full.txt"))
@@ -76,10 +87,12 @@ func TestWriteLLMSite_BurgerShop(t *testing.T) {
 	idx := string(indexBytes)
 
 	assert.Contains(t, idx, "# Test API")
+	assert.Contains(t, idx, "AGENTS.md")
 	assert.Contains(t, idx, "llms-full.txt")
 	assert.Contains(t, idx, "## Operations")
 	assert.Contains(t, idx, "## Webhooks")
 	assert.Contains(t, idx, "## Models")
+	assert.Less(t, strings.Index(idx, "AGENTS.md"), strings.Index(idx, "llms-full.txt"))
 
 	// Verify individual operation files
 	for _, op := range site.Operations {
@@ -146,6 +159,7 @@ func TestWriteLLMSite_UsesConfigOutputDir(t *testing.T) {
 	err = WriteLLMSite(site, "")
 	require.NoError(t, err)
 
+	assert.FileExists(t, filepath.Join(outputDir, "AGENTS.md"))
 	assert.FileExists(t, filepath.Join(outputDir, "llms.txt"))
 	assert.FileExists(t, filepath.Join(outputDir, "llms-full.txt"))
 }
@@ -264,7 +278,7 @@ func TestDeterministicOutput(t *testing.T) {
 	require.NoError(t, err)
 
 	// Compare all top-level files
-	for _, name := range []string{"llms.txt", "llms-full.txt", "llms-operations.txt", "llms-models.txt"} {
+	for _, name := range []string{"AGENTS.md", "llms.txt", "llms-full.txt", "llms-operations.txt", "llms-models.txt"} {
 		b1, err := os.ReadFile(filepath.Join(dir1, name))
 		require.NoError(t, err)
 		b2, err := os.ReadFile(filepath.Join(dir2, name))
@@ -815,6 +829,7 @@ func TestWriteLLMIndex_SkipsPathItems(t *testing.T) {
 	require.NoError(t, err)
 	idx := string(indexBytes)
 
+	assert.Contains(t, idx, "[AGENTS.md](AGENTS.md)")
 	assert.Contains(t, idx, "### Schemas")
 	assert.NotContains(t, idx, "### Path Items")
 	assert.NotContains(t, idx, "path-items")
@@ -839,5 +854,6 @@ func TestNavModel_Description(t *testing.T) {
 	require.NoError(t, err)
 	idx := string(indexBytes)
 
+	assert.Contains(t, idx, "[AGENTS.md](AGENTS.md)")
 	assert.Contains(t, idx, "[User](models/schemas/user.md) — A user account")
 }

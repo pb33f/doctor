@@ -73,7 +73,7 @@ func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFu
 
 	written := make([]string, 0)
 	step := 0
-	total := 4 + len(site.Operations) + len(site.Webhooks)
+	total := 5 + len(site.Operations) + len(site.Webhooks)
 	for _, group := range site.NavModelGroups {
 		total += len(site.Models[group.TypeSlug])
 	}
@@ -82,6 +82,14 @@ func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFu
 		return nil, fmt.Errorf("writing llms-full.txt: %w", err)
 	}
 	written = append(written, filepath.Join(resolvedOutputDir, "llms-full.txt"))
+	step++
+	if progress != nil {
+		progress("writing llm files", step, total)
+	}
+	if err := writeLLMAgentsGuide(site, resolvedOutputDir); err != nil {
+		return nil, fmt.Errorf("writing AGENTS.md: %w", err)
+	}
+	written = append(written, filepath.Join(resolvedOutputDir, "AGENTS.md"))
 	step++
 	if progress != nil {
 		progress("writing llm files", step, total)
@@ -132,6 +140,27 @@ func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFu
 	}
 
 	return written, nil
+}
+
+func writeLLMAgentsGuide(site *Site, outputDir string) error {
+	var b strings.Builder
+
+	title := "API Documentation"
+	if site.Root != nil && site.Root.Title != "" {
+		title = site.Root.Title
+	}
+	b.WriteString("# " + title + "\n\n")
+
+	if site.Root != nil && site.Root.Description != "" {
+		b.WriteString("> " + truncateDesc(site.Root.Description, 240) + "\n\n")
+	}
+	if src := renderSiteSourceMetadata(site.Source); src != "" {
+		b.WriteString(src)
+	}
+
+	b.WriteString(renderAgentsGuide(site))
+
+	return os.WriteFile(filepath.Join(outputDir, "AGENTS.md"), []byte(b.String()), 0o644)
 }
 
 // writeLLMFull generates the primary llms-full.txt with complete API documentation.
@@ -200,6 +229,7 @@ func writeLLMIndex(site *Site, outputDir string) error {
 	}
 
 	b.WriteString("## Files\n\n")
+	b.WriteString("- [AGENTS.md](AGENTS.md) — Start-here guide for agents: artifact map and recommended workflow\n")
 	b.WriteString("- [llms-full.txt](llms-full.txt) — Complete API documentation in one file\n")
 	b.WriteString("- [llms-operations.txt](llms-operations.txt) — All operations only\n")
 	b.WriteString("- [llms-models.txt](llms-models.txt) — All models/components only\n\n")
@@ -249,6 +279,44 @@ func writeLLMIndex(site *Site, outputDir string) error {
 	}
 
 	return os.WriteFile(filepath.Join(outputDir, "llms.txt"), []byte(b.String()), 0o644)
+}
+
+func renderAgentsGuide(site *Site) string {
+	var b strings.Builder
+
+	b.WriteString("## Start Here\n\n")
+	b.WriteString("Start with this file to understand the generated artifact set before opening operation or model pages.\n\n")
+	b.WriteString("If a page includes **Source** or **Source spec** links, use those for exact provenance and final verification.\n\n")
+
+	if quickStart := renderQuickStart(site); quickStart != "" {
+		b.WriteString(quickStart)
+	}
+
+	b.WriteString("## Artifact Map\n\n")
+	b.WriteString("- [llms.txt](llms.txt) — Compact discovery index for tags, operations, and model groups.\n")
+	b.WriteString("- [llms-full.txt](llms-full.txt) — Complete API documentation in one file when you need a single retrieval surface.\n")
+	b.WriteString("- [llms-operations.txt](llms-operations.txt) — Operations and webhooks only.\n")
+	b.WriteString("- [llms-models.txt](llms-models.txt) — Models and components only.\n")
+	b.WriteString("- `operations/*.md` — One Markdown page per operation or webhook with parameters, security, request/response details, and related links.\n")
+	b.WriteString("- `operations/*.json` — One machine-readable JSON artifact per operation or webhook for structured traversal and code generation.\n")
+	b.WriteString("- `models/<type>/*.md` — One Markdown page per model or component with schema summaries and cross-links.\n")
+	b.WriteString("- `models/<type>/*.json` — One machine-readable JSON artifact per model or component.\n")
+	b.WriteString("- `bundle.json`, `index.json`, `nav.json`, `manifest.json` — Top-level machine-readable artifacts for structured traversal of the rendered docs set.\n")
+	b.WriteString("- `index.html`, `operations/*.html`, `models/**/*.html` — Optional human-oriented browsing surfaces; use them last for LLM work.\n\n")
+
+	b.WriteString("## Recommended Workflow\n\n")
+	b.WriteString("1. Read [llms.txt](llms.txt) to find the most relevant tag, operation, or model family.\n")
+	b.WriteString("2. Open the matching `operations/<slug>.md` page for concrete endpoint details and usage guidance.\n")
+	b.WriteString("3. Follow links into `models/<type>/<slug>.md` for request and response shapes.\n")
+	b.WriteString("4. Use [llms-full.txt](llms-full.txt) only when you need broad one-file retrieval or cross-cutting summaries.\n")
+	b.WriteString("5. Fall back to source links or optional JSON artifacts when you need exact provenance or structured traversal.\n\n")
+
+	b.WriteString("## Notes\n\n")
+	b.WriteString("- [llms.txt](llms.txt) is an index, not the full documentation corpus.\n")
+	b.WriteString("- Operation and model Markdown files are the preferred detailed reading surface for agents.\n")
+	b.WriteString("- HTML is useful for human browsing, but it carries more layout noise than Markdown or JSON.\n")
+
+	return b.String()
 }
 
 // writeLLMOperationsSlice generates llms-operations.txt with all operations and webhooks.
