@@ -147,29 +147,29 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 						}
 					}
 					break
-					case model.Modified:
-						modifiedObject := ch.NewObject
-						if modifiedObject != nil {
-							if hashable, ok := modifiedObject.(low.Hashable); ok {
-								hash := hashable.Hash()
-								for _, tag = range doc.Tags {
-									if tag.Value.GoLow().Hash() == hash {
-										nCtx := context.WithValue(ctx, v3.Context, tc)
-										tag.Travel(nCtx, t)
-									}
+				case model.Modified:
+					modifiedObject := ch.NewObject
+					if modifiedObject != nil {
+						if hashable, ok := modifiedObject.(low.Hashable); ok {
+							hash := hashable.Hash()
+							for _, tag = range doc.Tags {
+								if tag.Value.GoLow().Hash() == hash {
+									nCtx := context.WithValue(ctx, v3.Context, tc)
+									tag.Travel(nCtx, t)
 								}
-							} else {
-								// iterate through all the tags, check if they have an extension of the same name
-								for _, tag = range doc.Tags {
+							}
+						} else {
+							// iterate through all the tags, check if they have an extension of the same name
+							for _, tag = range doc.Tags {
 								if !tag.Value.Extensions.IsZero() {
-										tagExt := tag.Value.Extensions.GetOrZero(ch.Property)
-										if tagExt != nil {
-											if tagExt == modifiedObject {
-												nCtx := context.WithValue(ctx, v3.Context, tc)
-												tag.Travel(nCtx, t)
-											}
+									tagExt := tag.Value.Extensions.GetOrZero(ch.Property)
+									if tagExt != nil {
+										if tagExt == modifiedObject {
+											nCtx := context.WithValue(ctx, v3.Context, tc)
+											tag.Travel(nCtx, t)
 										}
 									}
+								}
 							}
 						}
 					}
@@ -183,7 +183,7 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 	if docChanges != nil && len(docChanges.SecurityRequirementChanges) > 0 {
 		if len(doc.Security) > 0 {
 			for i := range docChanges.SecurityRequirementChanges {
-				requirement := matchSecurityRequirementChange(doc.Security, docChanges.SecurityRequirementChanges[i])
+				requirement := matchSecurityRequirementChange(doc.Security, docChanges.SecurityRequirementChanges[i], i)
 				if requirement == nil {
 					if i >= len(doc.Security) || doc.Security[i] == nil {
 						continue

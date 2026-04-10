@@ -109,7 +109,7 @@ func (t *Changerator) VisitOperation(ctx context.Context, obj *v3.Operation) {
 		if len(changes.SecurityRequirementChanges) > 0 {
 			if len(obj.Security) > 0 {
 				for i := range changes.SecurityRequirementChanges {
-					requirement := matchSecurityRequirementChange(obj.Security, changes.SecurityRequirementChanges[i])
+					requirement := matchSecurityRequirementChange(obj.Security, changes.SecurityRequirementChanges[i], i)
 					if requirement == nil {
 						if i >= len(obj.Security) || obj.Security[i] == nil {
 							continue
