@@ -1,5 +1,5 @@
 // Copyright 2024 Princess B33f Heavy Industries / Dave Shanley
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 // https://pb33f.io
 
 package model
