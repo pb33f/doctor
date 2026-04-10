@@ -38,6 +38,10 @@ interface BootstrapStore {
   pagePromise?: Promise<HydrationPayload | null>;
 }
 
+interface ApplyHydrationOptions {
+  includeModel?: boolean;
+}
+
 function getBootstrapStore(): BootstrapStore | null {
   return (globalThis as Record<string, unknown>).__PP_BOOTSTRAP__ as BootstrapStore || null;
 }
@@ -104,8 +108,9 @@ function applyChildren(children: Record<string, HydrationChild[]>) {
   }
 }
 
-function applyHydrationPayload(payload: HydrationPayload | null) {
+function applyHydrationPayload(payload: HydrationPayload | null, options: ApplyHydrationOptions = {}) {
   if (!payload) return;
+  const includeModel = options.includeModel ?? true;
   if (payload.schemaRegistry) {
     setSchemaRegistryEntries(payload.schemaRegistry);
   }
@@ -115,7 +120,7 @@ function applyHydrationPayload(payload: HydrationPayload | null) {
   if (payload.children) {
     applyChildren(payload.children);
   }
-  if (payload.model) {
+  if (includeModel && payload.model) {
     applyModelPayload(payload.model);
   }
 }
@@ -160,15 +165,21 @@ export async function hydratePrintingPressPage() {
 
   const pageTask = loadHydrationPayload(pageAssetBase, pageGlobalName, 'page')
     .then((payload) => {
-      applyHydrationPayload(payload);
+      applyHydrationPayload(payload, {includeModel: false});
       return payload;
     });
 
-  const results = await Promise.allSettled([sharedTask, pageTask]);
+  const [sharedResult, pageResult] = await Promise.allSettled([sharedTask, pageTask]);
+  const results = [sharedResult, pageResult];
   for (const result of results) {
     if (result.status === 'rejected') {
       console.error('printing-press hydration failed', result.reason);
     }
   }
+
+  if (pageResult.status === 'fulfilled' && pageResult.value?.model) {
+    applyModelPayload(pageResult.value.model);
+  }
+
   notifyHydrationComplete();
 }

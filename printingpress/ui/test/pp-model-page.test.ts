@@ -54,7 +54,7 @@ describe('pp-model-page', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const heading = el.shadowRoot?.querySelector('h3');
+    const heading = el.shadowRoot?.querySelector('h2');
     expect(heading?.textContent).toBe('Composition');
 
     const schemaProps = el.shadowRoot?.querySelector('pp-schema-properties');
