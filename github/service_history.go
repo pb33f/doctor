@@ -115,11 +115,15 @@ func getFileHistory(ctx context.Context, api historyAPI, session *GitHubSession,
 				return
 			}
 
-			var fileBytes []byte
+			var (
+				fileBytes []byte
+				matched   bool
+			)
 			for _, file := range detail.Files {
 				if file.Filename != path {
 					continue
 				}
+				matched = true
 
 				fileBytes, err = getFileBytes(ctx, api, session, owner, repo, path, c.SHA, settings.maxDownloadSize)
 				if err != nil {
@@ -132,6 +136,10 @@ func getFileHistory(ctx context.Context, api historyAPI, session *GitHubSession,
 				}
 
 				break
+			}
+			if !matched {
+				resultChan <- fileHistoryResult{index: idx, revision: nil}
+				return
 			}
 
 			resultChan <- fileHistoryResult{
@@ -248,7 +256,14 @@ func getFileBytes(ctx context.Context, api historyAPI, session *GitHubSession, o
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("downloading file from %s: HTTP %d", fc.DownloadURL, resp.StatusCode)
 		}
-		return io.ReadAll(io.LimitReader(resp.Body, maxDownloadSize))
+		body, err := io.ReadAll(io.LimitReader(resp.Body, maxDownloadSize+1))
+		if err != nil {
+			return nil, err
+		}
+		if int64(len(body)) > maxDownloadSize {
+			return nil, fmt.Errorf("file %s at %s exceeds max download size of %d bytes", path, sha, maxDownloadSize)
+		}
+		return body, nil
 	}
 	return nil, fmt.Errorf("no content available for %s at %s", path, sha)
 }

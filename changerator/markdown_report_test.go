@@ -596,5 +596,7 @@ tags:
 	assert.Contains(t, report, "### Tags", "Report should show Tags section")
 	assert.Contains(t, report, "Tag: `Stations`", "Report should show Stations tag name")
 	assert.Contains(t, report, "Tag: `Bookings`", "Report should show Bookings tag name")
-	assert.Contains(t, report, "description", "Report should show description changes")
+	assert.Contains(t, report, "`description` changed to", "Report should preserve property-level tag diffs")
+	assert.Contains(t, report, "including real-time updates", "Report should show updated tag description values")
+	assert.NotContains(t, report, "Tag `description` changed", "Report should not collapse tag property edits into whole-tag changes")
 }
