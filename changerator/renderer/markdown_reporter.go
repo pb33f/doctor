@@ -29,12 +29,12 @@ var indentCache = map[int]string{
 // MarkdownReporter generates markdown reports directly from DocumentChanges.
 // This approach avoids duplication by using the already-deduplicated what-changed model.
 type MarkdownReporter struct {
-	docChanges           *model.DocumentChanges
-	doctor               *drModel.DrDocument
-	rightDocContent      []byte
-	sourceFormat         StructuredDataFormat // Format of the source document (YAML or JSON)
-	config               *RenderConfig
-	deduplicatedChanges  []*model.Change
+	docChanges          *model.DocumentChanges
+	doctor              *drModel.DrDocument
+	rightDocContent     []byte
+	sourceFormat        StructuredDataFormat // Format of the source document (YAML or JSON)
+	config              *RenderConfig
+	deduplicatedChanges []*model.Change
 }
 
 // TypeStatistic holds change counts for a type
@@ -917,33 +917,36 @@ func (r *MarkdownReporter) renderTagChanges(report *strings.Builder) {
 		}
 
 		for _, change := range tagChange.GetPropertyChanges() {
-			// Format with "Tag" prefix for icon injection.
-			// Document-level tag properties are tag names (e.g., "jazz") which
-			// the generic renderChange path can't identify as tags.
-			report.WriteString("- Tag `")
-			report.WriteString(change.Property)
-			report.WriteString("`")
-			switch change.ChangeType {
-			case model.PropertyAdded, model.ObjectAdded:
-				report.WriteString(" added")
-			case model.PropertyRemoved, model.ObjectRemoved:
-				report.WriteString(" removed")
-				if change.Breaking {
-					report.WriteString(" " + Breaking)
-				}
-			case model.Modified:
-				report.WriteString(" changed")
-				if change.Breaking {
-					report.WriteString(" " + Breaking)
-				}
-			}
-			report.WriteString("\n")
+			r.renderTagPropertyChange(report, change)
 		}
 
 		// Render tag extensions
 		r.renderNestedExtensions(report, tagChange.ExtensionChanges, false)
 
 		report.WriteString("\n")
+	}
+}
+
+func (r *MarkdownReporter) renderTagPropertyChange(report *strings.Builder, change *model.Change) {
+	if change == nil {
+		return
+	}
+
+	switch change.ChangeType {
+	case model.ObjectAdded:
+		report.WriteString("- Tag `")
+		report.WriteString(change.Property)
+		report.WriteString("` added\n")
+	case model.ObjectRemoved:
+		report.WriteString("- Tag `")
+		report.WriteString(change.Property)
+		report.WriteString("` removed")
+		if change.Breaking {
+			report.WriteString(" " + Breaking)
+		}
+		report.WriteString("\n")
+	default:
+		r.renderChange(report, change)
 	}
 }
 
@@ -1406,7 +1409,7 @@ func (r *MarkdownReporter) renderMediaTypePropertyChanges(
 	// so code blocks should be at (indentLevel+1)*2 + 2 spaces
 	// for indentLevel=1 (request body): 4 + 2 = 6 spaces
 	// for indentLevel=2 (responses): 6 + 2 = 8 spaces
-	codeIndent := (indentLevel + 1) * 2 + 2
+	codeIndent := (indentLevel+1)*2 + 2
 
 	for _, change := range mtChange.GetPropertyChanges() {
 		r.writeIndentedChange(report, change, codeIndent, indent)

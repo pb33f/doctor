@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -269,6 +270,56 @@ func TestGetFileHistory_DeletedFile(t *testing.T) {
 	assert.Equal(t, "aaa111", result[0].Commit.SHA)
 }
 
+func TestGetFileHistory_RenameAwayCommitOmitted(t *testing.T) {
+	now := time.Now()
+	session := dummySession()
+	defer session.Close()
+
+	commits := []Commit{
+		makeTestCommit("bbb222", "rename away", "Bob", "b@t.com", now.Add(-1*time.Hour), nil),
+		makeTestCommit("aaa111", "exists", "Alice", "a@t.com", now.Add(-2*time.Hour), nil),
+	}
+
+	fileContentCalls := 0
+	mock := &mockHistoryAPI{
+		commitList: makeStaticCommitList(commits),
+		commit: func(_ context.Context, _ *GitHubSession, _, _, sha string) (*Commit, error) {
+			switch sha {
+			case "bbb222":
+				return &Commit{
+					SHA:   sha,
+					Files: []CommitFile{{Filename: "renamed/spec.yaml", Status: "renamed"}},
+					Author: CommitAuthor{
+						Date: now.Add(-1 * time.Hour),
+					},
+				}, nil
+			case "aaa111":
+				return &Commit{
+					SHA:   sha,
+					Files: []CommitFile{{Filename: "spec.yaml", Status: "modified"}},
+					Author: CommitAuthor{
+						Date: now.Add(-2 * time.Hour),
+					},
+				}, nil
+			default:
+				return nil, fmt.Errorf("unexpected sha: %s", sha)
+			}
+		},
+		fileContent: func(_ context.Context, _ *GitHubSession, _, _, _, ref string) (*FileContent, error) {
+			fileContentCalls++
+			return &FileContent{Content: base64.StdEncoding.EncodeToString([]byte("spec@" + ref))}, nil
+		},
+	}
+
+	result, err := getFileHistory(context.Background(), mock, session, "owner", "repo", "spec.yaml", nil)
+
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "aaa111", result[0].Commit.SHA)
+	assert.Equal(t, []byte("spec@aaa111"), result[0].FileBytes)
+	assert.Equal(t, 1, fileContentCalls)
+}
+
 func TestGetFileHistory_SizeCutoff(t *testing.T) {
 	now := time.Now()
 	session := dummySession()
@@ -367,6 +418,36 @@ func TestGetFileHistory_DownloadURLFallback(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result, 1)
 	assert.Equal(t, []byte("raw file"), result[0].FileBytes)
+}
+
+func TestGetFileHistory_DownloadURLFallbackExceedsMaxSize(t *testing.T) {
+	session := dummySession()
+	defer session.Close()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(strings.Repeat("x", 9)))
+	}))
+	defer server.Close()
+
+	commits := []Commit{
+		makeTestCommit("aaa111", "first", "Alice", "alice@test.com", time.Now(), nil),
+	}
+
+	mock := &mockHistoryAPI{
+		commitList: makeStaticCommitList(commits),
+		commit:     makeCommitLookup(commits, "spec.yaml"),
+		fileContent: func(_ context.Context, _ *GitHubSession, _, _, _, _ string) (*FileContent, error) {
+			return &FileContent{DownloadURL: server.URL}, nil
+		},
+	}
+
+	result, err := getFileHistory(context.Background(), mock, session, "owner", "repo", "spec.yaml", &FileHistoryOptions{
+		MaxDownloadSize: 8,
+	})
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "exceeds max download size")
 }
 
 func TestGetFileHistory_EmptyCommitList(t *testing.T) {
