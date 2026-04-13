@@ -142,6 +142,92 @@ info:
 
 }
 
+func TestTardis_ServerURLReplacement_AttachesChangesToServersNode(t *testing.T) {
+	left := `openapi: "3.1.0"
+info:
+  title: Test API
+  version: "1.0.0"
+servers:
+  - url: /v1/iam/auth
+paths: {}`
+	right := `openapi: "3.1.0"
+info:
+  title: Test API
+  version: "1.0.0"
+servers:
+  - url: /v1/api/auth
+paths: {}`
+
+	l, _ := libopenapi.NewDocument([]byte(left))
+	leftModel, _ := l.BuildV3Model()
+	leftDoc := model.NewDrDocumentAndGraph(leftModel)
+
+	r, _ := libopenapi.NewDocument([]byte(right))
+	rightModel, _ := r.BuildV3Model()
+	rightDoc := model.NewDrDocumentAndGraph(rightModel)
+
+	cd := NewChangerator(&ChangeratorConfig{
+		LeftDrDoc:  leftDoc.V3Document,
+		RightDrDoc: rightDoc.V3Document,
+		Doctor:     rightDoc,
+	})
+
+	cd.Changerate()
+	rootNode := rightDoc.V3Document.Node
+	cd.BuildNodeChangeTree(rootNode)
+
+	assert.Empty(t, rootNode.GetChanges())
+	assert.Len(t, rootNode.Children, 1)
+	assert.Equal(t, "$.servers", rootNode.Children[0].Id)
+	assert.Equal(t, "Servers", rootNode.Children[0].Label)
+	assert.Len(t, rootNode.Children[0].GetChanges(), 2)
+	assert.Len(t, rootNode.Children[0].GetChanges()[0].GetAllChanges(), 1)
+	assert.Len(t, rootNode.Children[0].GetChanges()[1].GetAllChanges(), 1)
+}
+
+func TestTardis_ServerRemoval_CreatesSyntheticServersNode(t *testing.T) {
+	left := `openapi: "3.1.0"
+info:
+  title: Test API
+  version: "1.0.0"
+servers:
+  - url: /v1/iam/auth
+paths: {}`
+	right := `openapi: "3.1.0"
+info:
+  title: Test API
+  version: "1.0.0"
+paths: {}`
+
+	l, _ := libopenapi.NewDocument([]byte(left))
+	leftModel, _ := l.BuildV3Model()
+	leftDoc := model.NewDrDocumentAndGraph(leftModel)
+
+	r, _ := libopenapi.NewDocument([]byte(right))
+	rightModel, _ := r.BuildV3Model()
+	rightDoc := model.NewDrDocumentAndGraph(rightModel)
+
+	cd := NewChangerator(&ChangeratorConfig{
+		LeftDrDoc:  leftDoc.V3Document,
+		RightDrDoc: rightDoc.V3Document,
+		Doctor:     rightDoc,
+	})
+
+	cd.Changerate()
+	rootNode := rightDoc.V3Document.Node
+	cd.BuildNodeChangeTree(rootNode)
+
+	assert.Empty(t, rootNode.GetChanges())
+	assert.Len(t, rootNode.Children, 1)
+	assert.Equal(t, "$.servers", rootNode.Children[0].Id)
+	assert.Equal(t, "Servers", rootNode.Children[0].Label)
+	assert.Len(t, rootNode.Children[0].GetChanges(), 1)
+	assert.Len(t, rootNode.Children[0].GetChanges()[0].GetAllChanges(), 1)
+	assert.Len(t, cd.ChangedEdges, 1)
+	assert.Equal(t, "root", cd.ChangedEdges[0].Sources[0])
+	assert.Equal(t, "$.servers", cd.ChangedEdges[0].Targets[0])
+}
+
 func TestTardis_Changerate_Changeify_Schemas(t *testing.T) {
 
 	ymlLeft := `openapi: 3.1.0
