@@ -125,3 +125,38 @@ components:
 	assert.Contains(t, output, "username")
 	assert.Contains(t, output, "[M] type: string -> integer {X}")
 }
+
+func TestSemanticTreeRenderer_RendersRemovedRequiredMemberName(t *testing.T) {
+	left := `openapi: 3.0.3
+info:
+  title: Test API
+  version: "1.0"
+paths: {}
+components:
+  schemas:
+    ReminderRequest:
+      type: object
+      required:
+        - result
+      properties:
+        result:
+          type: string
+`
+	right := `openapi: 3.0.3
+info:
+  title: Test API
+  version: "1.0"
+paths: {}
+components:
+  schemas:
+    ReminderRequest:
+      type: object
+      properties:
+        result:
+          type: string
+`
+
+	output := renderSemanticTreeForTest(t, left, right)
+
+	assert.Contains(t, output, "required/result")
+}
