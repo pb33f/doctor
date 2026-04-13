@@ -339,17 +339,26 @@ func semanticPropertyLabel(node *v3.Node, change *wcModel.Change, rawChanges []*
 		if label := firstNonEmpty(change.New, change.Original); label != "" {
 			return label
 		}
-	case node != nil && node.Type == "schema" && change.Property == "properties":
+	case node != nil && node.Type == "schema" && isSchemaValueListProperty(change.Property):
 		if len(rawChanges) > 1 {
-			return "properties"
+			return change.Property
 		}
 		if label := firstNonEmpty(change.New, change.Original); label != "" {
-			return fmt.Sprintf("properties/%s", label)
+			return fmt.Sprintf("%s/%s", change.Property, label)
 		}
 	case isHTTPMethod(change.Property):
 		return strings.ToUpper(change.Property)
 	}
 	return change.Property
+}
+
+func isSchemaValueListProperty(property string) bool {
+	switch property {
+	case "properties", "required":
+		return true
+	default:
+		return false
+	}
 }
 
 func semanticLeafChangeType(representative *wcModel.Change, rawChanges []*wcModel.Change) int {
