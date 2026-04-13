@@ -5,10 +5,91 @@ package changerator
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
+
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/what-changed/model"
 )
+
+func (t *Changerator) ensureDocumentCollectionNode(
+	doc *v3.Document,
+	path,
+	label,
+	nodeType string,
+) *v3.Node {
+	if doc == nil || doc.Node == nil {
+		return nil
+	}
+
+	for _, child := range doc.Node.Children {
+		if child != nil && child.Id == path {
+			return child
+		}
+	}
+
+	sum := md5.Sum([]byte(path))
+	node := &v3.Node{
+		Id:            path,
+		IdHash:        hex.EncodeToString(sum[:]),
+		ParentId:      doc.Node.Id,
+		Type:          nodeType,
+		Label:         label,
+		Width:         170,
+		Height:        v3.HEIGHT,
+		IsArray:       true,
+		ArrayIndex:    -1,
+		RenderChanges: doc.Node.RenderChanges,
+	}
+
+	doc.Node.Children = append(doc.Node.Children, node)
+	if t.Config != nil && t.Config.Doctor != nil {
+		t.Config.Doctor.Nodes = append(t.Config.Doctor.Nodes, node)
+		t.Config.Doctor.Edges = append(t.Config.Doctor.Edges, v3.GenerateEdge([]string{doc.Node.Id}, []string{node.Id}))
+	}
+	return node
+}
+
+func emitDocumentCollectionChanges(
+	ctx context.Context,
+	doc *v3.Document,
+	node *v3.Node,
+	changes *model.ServerChanges,
+	changeType,
+	changePath string,
+) {
+	if doc == nil || node == nil || changes == nil {
+		return
+	}
+
+	for _, cj := range changes.GetPropertyChanges() {
+		cj.Path = changePath
+		cj.Type = changeType
+	}
+
+	aux := &v3.NodeChange{
+		Id:         node.Id,
+		IdHash:     node.IdHash,
+		Type:       node.Type,
+		Label:      node.Label,
+		Path:       changePath,
+		ArrayIndex: node.ArrayIndex,
+	}
+	aux.SetChanges(changes)
+
+	node.Mutex.Lock()
+	node.Changes = append(node.Changes, aux)
+	node.Mutex.Unlock()
+
+	nChan := ctx.Value(NodeChannel)
+	if nChan != nil {
+		nChan.(chan *modelChange) <- &modelChange{
+			model: doc,
+			node:  node,
+		}
+	}
+}
 
 func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 	docChanges := ctx.Value(v3.Context).(*model.DocumentChanges)
@@ -18,83 +99,25 @@ func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
 		doc.Info.Travel(nCtx, t)
 	}
 	if docChanges != nil && len(docChanges.ServerChanges) > 0 {
+		serversNode := t.ensureDocumentCollectionNode(doc, "$.servers", "Servers", "servers")
 		nCtx := context.WithValue(ctx, v3.Context, docChanges.ServerChanges)
 
 		for _, sc := range docChanges.ServerChanges {
+			handled := false
 
-			// iterate through the servers and find the one that matches this server
-			for _, ch := range sc.GetAllChanges() {
-				var server *v3.Server
-
-				visit := func() {
-					modifiedObject := ch.NewObject
-					originalObject := ch.OriginalObject
-					if modifiedObject != nil || originalObject != nil {
-						if sc.Server != nil {
-							hash := sc.Server.Hash()
-							seen := false
-							for _, server = range doc.Servers {
-								if server.Value.GoLow().Hash() == hash {
-									nCtx = context.WithValue(ctx, v3.Context, sc)
-									server.Travel(nCtx, t)
-									seen = true
-								}
-							}
-
-							if !seen {
-								// do the same for the original object
-								if originalObject != nil {
-									hash = sc.Server.Hash()
-									for _, server = range doc.Servers {
-										if server.Value.GoLow().Hash() == hash {
-											nCtx = context.WithValue(ctx, v3.Context, sc)
-											server.Travel(nCtx, t)
-										}
-									}
-								}
-							}
-						} else {
-							nCtx = context.WithValue(ctx, v3.Context, sc)
-							PushChangesWithOverride(nCtx, doc, sc, "server", "$.servers")
-						}
+			if sc.Server != nil {
+				hash := sc.Server.Hash()
+				for _, server := range doc.Servers {
+					if server.Value.GoLow().Hash() == hash {
+						nCtx = context.WithValue(ctx, v3.Context, sc)
+						server.Travel(nCtx, t)
+						handled = true
 					}
 				}
+			}
 
-				switch ch.ChangeType {
-				case model.Modified:
-					visit()
-				case model.PropertyAdded:
-					visit()
-				case model.PropertyRemoved:
-					visit()
-				default:
-
-					docModelNode := doc.Node
-					for _, cj := range sc.GetPropertyChanges() {
-						cj.Path = "$.servers"
-						cj.Type = "server"
-					}
-					aux := &v3.NodeChange{
-						Id:         docModelNode.Id,
-						IdHash:     docModelNode.IdHash,
-						Type:       docModelNode.Type,
-						Label:      docModelNode.Label,
-						Path:       "$.servers",
-						ArrayIndex: -1,
-					}
-					aux.SetChanges(sc)
-					docModelNode.Mutex.Lock()
-					docModelNode.Changes = append(docModelNode.Changes, aux)
-					docModelNode.Mutex.Unlock()
-					nChan := ctx.Value(NodeChannel)
-					if nChan != nil {
-						nChan.(chan *modelChange) <- &modelChange{
-							model: doc,
-							node:  docModelNode,
-						}
-					}
-					break
-				}
+			if !handled {
+				emitDocumentCollectionChanges(ctx, doc, serversNode, sc, "server", "$.servers")
 			}
 		}
 	}

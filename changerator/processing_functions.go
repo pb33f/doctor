@@ -48,6 +48,11 @@ func nodeScopedChanges(ch what_changed.Changed) what_changed.Changed {
 			return &nodePropertyChanges{}
 		}
 		return &nodePropertyChanges{changes: typed.PropertyChanges.GetPropertyChanges()}
+	case *wcModel.DocumentChanges:
+		if typed == nil || typed.PropertyChanges == nil {
+			return &nodePropertyChanges{}
+		}
+		return &nodePropertyChanges{changes: typed.PropertyChanges.GetPropertyChanges()}
 	default:
 		ch.PropertiesOnly()
 		return ch
@@ -63,6 +68,9 @@ func handleChanges[N v3.Foundational](node *v3.Node, ch what_changed.Changed, mo
 		if nodeChanges == nil {
 			return nil
 		}
+		if len(nodeChanges.GetPropertyChanges()) == 0 {
+			return nil
+		}
 		// flesh out the node path and type on the change.
 		for _, c := range nodeChanges.GetPropertyChanges() {
 			if nType != "" {
@@ -76,7 +84,6 @@ func handleChanges[N v3.Foundational](node *v3.Node, ch what_changed.Changed, mo
 				c.Path = mo.GenerateJSONPath()
 			}
 		}
-
 
 		aux = &v3.NodeChange{
 			Id:         node.Id,
@@ -98,7 +105,7 @@ func handleChanges[N v3.Foundational](node *v3.Node, ch what_changed.Changed, mo
 						existing.Type == candidate.Type &&
 						existing.Property == candidate.Property &&
 						existing.ChangeType == candidate.ChangeType {
-					// found a match, so we can skip this change
+						// found a match, so we can skip this change
 						addChange = false
 						break
 					}
