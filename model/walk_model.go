@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -46,6 +47,7 @@ type DrDocument struct {
 	StorageRoot    string
 	index          *index.SpecIndex
 	lineObjects    map[int][]any
+	lineObjectPtrs map[int]map[uintptr]struct{}
 }
 
 // Release nils all fields that can pin YAML node trees, SpecIndex maps, or
@@ -58,6 +60,7 @@ func (d *DrDocument) Release() {
 	}
 	d.index = nil
 	d.lineObjects = nil
+	d.lineObjectPtrs = nil
 	d.BuildErrors = nil
 	d.Schemas = nil
 	d.SkippedSchemas = nil
@@ -372,6 +375,7 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph, useCache, renderChange
 }
 
 func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.Document {
+	const objectCollectorBufferSize = drV3.DefaultWalkWorkQueueSize
 
 	schemaChan := make(chan *drV3.WalkedSchema)
 	skippedSchemaChan := make(chan *drV3.WalkedSchema)
@@ -379,7 +383,7 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 	headerChan := make(chan *drV3.WalkedHeader)
 	mediaTypeChan := make(chan *drV3.WalkedMediaType)
 	buildErrorChan := make(chan *drV3.BuildError)
-	objectChan := make(chan any)
+	objectChan := make(chan any, objectCollectorBufferSize)
 	nodeChan := make(chan *drV3.Node)
 	edgeChan := make(chan *drV3.Edge)
 	var schemaCache sync.Map
@@ -449,6 +453,7 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 	seenHeadersState := make(map[uint64]int, estimatedSchemas/4)
 	seenMediaTypesState := make(map[uint64]int, estimatedSchemas/2)
 	w.lineObjects = make(map[int][]any)
+	w.lineObjectPtrs = make(map[int]map[uintptr]struct{})
 
 	done := make(chan bool)
 	complete := make(chan bool)
@@ -946,38 +951,13 @@ func (w *DrDocument) processObject(obj any, ln []any) {
 			if nm, ko := gl.GoLowUntyped().(low.HasNodes); ko {
 				if nm != nil {
 					no := nm.GetNodes()
-					for k, _ := range no {
+					for k := range no {
 						if ir, hj := gl.GoLowUntyped().(low.IsReferenced); hj {
 							if ir.IsReference() {
 								continue
 							}
 						}
-
-						if w.lineObjects[k] == nil {
-
-							w.lineObjects[k] = []any{obj}
-
-							// Debug code, only use when initialized
-							if ln != nil {
-								ln[k] = w.lineObjects[k]
-							}
-						} else {
-
-							// check if the object is already in the line objects
-							var found bool
-							b := obj.(drV3.Foundational).GenerateJSONPath()
-							lo := w.lineObjects[k]
-							for _, o := range lo {
-								a := o.(drV3.Foundational).GenerateJSONPath()
-								if a == b {
-									found = true
-									break
-								}
-							}
-							if !found {
-								w.lineObjects[k] = append(w.lineObjects[k], obj)
-							}
-						}
+						w.addLineObject(k, obj, ln)
 					}
 				}
 			}
@@ -985,34 +965,76 @@ func (w *DrDocument) processObject(obj any, ln []any) {
 			if fn, ko := obj.(drV3.Foundational); ko {
 				kn := fn.GetKeyNode()
 				if kn != nil {
-
-					if w.lineObjects[kn.Line] == nil {
-						w.lineObjects[kn.Line] = []any{obj}
-
-						// Debug code, only use when initialized
-						if ln != nil {
-							ln[kn.Line] = w.lineObjects[kn.Line]
-						}
-					} else {
-						// check if the object is already in the line objects
-						var found bool
-						b := obj.(drV3.Foundational).GenerateJSONPath()
-						lo := w.lineObjects[kn.Line]
-						for _, o := range lo {
-							a := o.(drV3.Foundational).GenerateJSONPath()
-							if a == b {
-								found = true
-								break
-							}
-						}
-						if !found {
-							w.lineObjects[kn.Line] = append(w.lineObjects[kn.Line], obj)
-						}
-					}
+					w.addLineObject(kn.Line, obj, ln)
 				}
 			}
 		}
 	}
+}
+
+func (w *DrDocument) addLineObject(line int, obj any, ln []any) {
+	if w.lineObjects == nil {
+		w.lineObjects = make(map[int][]any)
+	}
+	if w.lineObjectPtrs == nil {
+		w.lineObjectPtrs = make(map[int]map[uintptr]struct{})
+	}
+
+	ptr := objectIdentity(obj)
+
+	if w.lineObjects[line] == nil {
+		w.lineObjects[line] = []any{obj}
+		if ptr != 0 {
+			w.lineObjectPtrs[line] = map[uintptr]struct{}{ptr: {}}
+		}
+
+		if ln != nil {
+			ln[line] = w.lineObjects[line]
+		}
+		return
+	}
+
+	if ptr != 0 {
+		if w.lineObjectPtrs[line] == nil {
+			w.lineObjectPtrs[line] = make(map[uintptr]struct{}, len(w.lineObjects[line]))
+			for _, existing := range w.lineObjects[line] {
+				existingPtr := objectIdentity(existing)
+				if existingPtr != 0 {
+					w.lineObjectPtrs[line][existingPtr] = struct{}{}
+				}
+			}
+		}
+		if _, exists := w.lineObjectPtrs[line][ptr]; exists {
+			return
+		}
+	}
+
+	path := obj.(drV3.Foundational).GenerateJSONPath()
+	for _, existing := range w.lineObjects[line] {
+		foundational, ok := existing.(drV3.Foundational)
+		if ok && foundational.GenerateJSONPath() == path {
+			if ptr != 0 {
+				w.lineObjectPtrs[line][ptr] = struct{}{}
+			}
+			return
+		}
+	}
+
+	w.lineObjects[line] = append(w.lineObjects[line], obj)
+	if ptr != 0 {
+		w.lineObjectPtrs[line][ptr] = struct{}{}
+	}
+}
+
+func objectIdentity(obj any) uintptr {
+	if obj == nil {
+		return 0
+	}
+	value := reflect.ValueOf(obj)
+	if value.Kind() != reflect.Pointer || value.IsNil() {
+		return 0
+	}
+	return value.Pointer()
 }
 
 func (w *DrDocument) BuildGraphMap() map[int]string {
