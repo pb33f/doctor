@@ -160,3 +160,45 @@ components:
 
 	assert.Contains(t, output, "required/result")
 }
+
+func TestSemanticTreeRenderer_RendersRemovedMediaTypeExample(t *testing.T) {
+	left := `openapi: 3.0.3
+info:
+  title: Test API
+  version: "1.0"
+paths:
+  /burgers:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+              examples:
+                foo:
+                  value:
+                    name: burger
+`
+	right := `openapi: 3.0.3
+info:
+  title: Test API
+  version: "1.0"
+paths:
+  /burgers:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+`
+
+	output := renderSemanticTreeForTest(t, left, right)
+
+	assert.Contains(t, output, "application/json")
+	assert.Contains(t, output, "example")
+}

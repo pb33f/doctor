@@ -9,6 +9,7 @@ import (
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
+	whatChangedModel "github.com/pb33f/libopenapi/what-changed/model"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
@@ -180,6 +181,7 @@ paths: {}`
 	assert.Len(t, rootNode.Children, 1)
 	assert.Equal(t, "$.servers", rootNode.Children[0].Id)
 	assert.Equal(t, "Servers", rootNode.Children[0].Label)
+	assert.Equal(t, v3.HEIGHT*2, rootNode.Children[0].Height)
 	assert.Len(t, rootNode.Children[0].GetChanges(), 2)
 	assert.Len(t, rootNode.Children[0].GetChanges()[0].GetAllChanges(), 1)
 	assert.Len(t, rootNode.Children[0].GetChanges()[1].GetAllChanges(), 1)
@@ -221,11 +223,95 @@ paths: {}`
 	assert.Len(t, rootNode.Children, 1)
 	assert.Equal(t, "$.servers", rootNode.Children[0].Id)
 	assert.Equal(t, "Servers", rootNode.Children[0].Label)
+	assert.Equal(t, v3.HEIGHT*2, rootNode.Children[0].Height)
 	assert.Len(t, rootNode.Children[0].GetChanges(), 1)
 	assert.Len(t, rootNode.Children[0].GetChanges()[0].GetAllChanges(), 1)
 	assert.Len(t, cd.ChangedEdges, 1)
 	assert.Equal(t, "root", cd.ChangedEdges[0].Sources[0])
 	assert.Equal(t, "$.servers", cd.ChangedEdges[0].Targets[0])
+}
+
+func TestTardis_MediaTypeRemovedExample_AttachesChangeToMediaTypeNode(t *testing.T) {
+	left := `openapi: "3.1.0"
+info:
+  title: Test API
+  version: "1.0.0"
+paths:
+  /burgers:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+              examples:
+                foo:
+                  value:
+                    name: burger
+`
+	right := `openapi: "3.1.0"
+info:
+  title: Test API
+  version: "1.0.0"
+paths:
+  /burgers:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+`
+
+	l, _ := libopenapi.NewDocument([]byte(left))
+	leftModel, _ := l.BuildV3Model()
+	leftDoc := model.NewDrDocumentAndGraph(leftModel)
+
+	r, _ := libopenapi.NewDocument([]byte(right))
+	rightModel, _ := r.BuildV3Model()
+	rightDoc := model.NewDrDocumentAndGraph(rightModel)
+
+	cd := NewChangerator(&ChangeratorConfig{
+		LeftDrDoc:  leftDoc.V3Document,
+		RightDrDoc: rightDoc.V3Document,
+		Doctor:     rightDoc,
+	})
+
+	cd.Changerate()
+	rootNode := rightDoc.V3Document.Node
+	cd.BuildNodeChangeTree(rootNode)
+
+	var mediaTypeNode *v3.Node
+	var walk func(node *v3.Node)
+	walk = func(node *v3.Node) {
+		if node == nil || mediaTypeNode != nil {
+			return
+		}
+		if node.Type == "mediaType" && node.Label == "application/json" {
+			mediaTypeNode = node
+			return
+		}
+		for _, child := range node.Children {
+			walk(child)
+		}
+	}
+	walk(rootNode)
+
+	assert.NotNil(t, mediaTypeNode)
+
+	var removedExampleChanges int
+	for _, ch := range mediaTypeNode.GetChanges() {
+		for _, c := range ch.GetPropertyChanges() {
+			if c.Property == "example" && c.ChangeType == whatChangedModel.ObjectRemoved {
+				removedExampleChanges++
+			}
+		}
+	}
+	assert.Equal(t, 1, removedExampleChanges)
 }
 
 func TestTardis_Changerate_Changeify_Schemas(t *testing.T) {

@@ -59,6 +59,27 @@ func nodeScopedChanges(ch what_changed.Changed) what_changed.Changed {
 	}
 }
 
+func nestedRemovalScopedChanges(ch what_changed.Changed) what_changed.Changed {
+	if ch == nil {
+		return nil
+	}
+
+	var removals []*wcModel.Change
+	for _, change := range ch.GetAllChanges() {
+		if change == nil {
+			continue
+		}
+		switch change.ChangeType {
+		case wcModel.PropertyRemoved, wcModel.ObjectRemoved:
+			removals = append(removals, change)
+		}
+	}
+	if len(removals) == 0 {
+		return nil
+	}
+	return &nodePropertyChanges{changes: removals}
+}
+
 func handleChanges[N v3.Foundational](node *v3.Node, ch what_changed.Changed, mo N, nType, nPath string) *v3.NodeChange {
 	var q any
 	q = ch
@@ -69,7 +90,10 @@ func handleChanges[N v3.Foundational](node *v3.Node, ch what_changed.Changed, mo
 			return nil
 		}
 		if len(nodeChanges.GetPropertyChanges()) == 0 {
-			return nil
+			nodeChanges = nestedRemovalScopedChanges(nodeChanges)
+			if nodeChanges == nil {
+				return nil
+			}
 		}
 		// flesh out the node path and type on the change.
 		for _, c := range nodeChanges.GetPropertyChanges() {
