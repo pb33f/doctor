@@ -95,7 +95,12 @@ func emitDocumentCollectionChanges(
 }
 
 func (t *Changerator) VisitDocument(ctx context.Context, doc *v3.Document) {
-	docChanges := ctx.Value(v3.Context).(*model.DocumentChanges)
+	docChanges, ok := ctx.Value(v3.Context).(*model.DocumentChanges)
+	if !ok || docChanges == nil {
+		// Schema/ref traversal can transiently resolve to an external file's wrapper
+		// document while carrying schema-level changes. Ignore those contexts here.
+		return
+	}
 	PushChanges(ctx, doc, &model.DocumentChanges{})
 	if docChanges != nil && docChanges.InfoChanges != nil {
 		nCtx := context.WithValue(ctx, v3.Context, docChanges.InfoChanges)
