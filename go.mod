@@ -11,7 +11,7 @@ require (
 	github.com/google/go-github/v72 v72.0.0
 	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/pb33f/libopenapi v0.36.0
+	github.com/pb33f/libopenapi v0.36.1
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/stretchr/testify v1.11.1
 	github.com/yuin/goldmark v1.8.2

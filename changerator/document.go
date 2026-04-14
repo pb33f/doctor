@@ -79,6 +79,9 @@ func emitDocumentCollectionChanges(
 	aux.SetChanges(changes)
 
 	node.Mutex.Lock()
+	if len(node.Changes) == 0 {
+		node.Height += v3.HEIGHT
+	}
 	node.Changes = append(node.Changes, aux)
 	node.Mutex.Unlock()
 
