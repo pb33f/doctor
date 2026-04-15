@@ -14,6 +14,8 @@ var (
 	ErrNoSourceInput = errors.New("printingpress: exactly one source input is required")
 	// ErrMultipleSourceInputs is returned when more than one source is configured.
 	ErrMultipleSourceInputs = errors.New("printingpress: only one source input may be configured")
+	// ErrInvalidBaseURL is returned when BaseURL is not a supported hosted docs root.
+	ErrInvalidBaseURL = errors.New("printingpress: base URL is invalid")
 	// ErrInvalidBasePath is returned when BasePath cannot be resolved to a valid directory.
 	ErrInvalidBasePath = errors.New("printingpress: base path is invalid")
 	// ErrInvalidOutputDir is returned when OutputDir cannot be resolved.

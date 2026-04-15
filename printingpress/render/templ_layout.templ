@@ -5,26 +5,26 @@ import "context"
 import "io"
 import "strings"
 
-templ Layout(pageTitle string, siteTitle string, baseURL string, activeSlug string, specFormat string, assetMode string, sharedDataBase string, pageDataBase string, vizGraphDataBase string, vizDiagramDataBase string, extraCSS []string, lite bool, content templ.Component) {
+templ Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL string, activeSlug string, specFormat string, assetMode string, sharedDataBase string, pageDataBase string, vizGraphDataBase string, vizDiagramDataBase string, extraCSS []string, lite bool, content templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en" class="sl-theme-dark">
-		@Head(pageTitle, baseURL, extraCSS, lite)
+		@Head(pageTitle, baseURL, assetBaseURL, extraCSS, lite)
 		<body
 			data-spec-format={ specFormat }
 			if assetMode != "" {
 				data-pp-asset-mode={ assetMode }
 			}
 			if sharedDataBase != "" {
-				data-pp-shared={ sharedDataBase }
+				data-pp-shared={ AssetHref(assetBaseURL, sharedDataBase) }
 			}
 			if pageDataBase != "" {
-				data-pp-page={ pageDataBase }
+				data-pp-page={ AssetHref(assetBaseURL, pageDataBase) }
 			}
 			if vizGraphDataBase != "" {
-				data-pp-viz-graph={ vizGraphDataBase }
+				data-pp-viz-graph={ AssetHref(assetBaseURL, vizGraphDataBase) }
 			}
 			if vizDiagramDataBase != "" {
-				data-pp-viz-diagram={ vizDiagramDataBase }
+				data-pp-viz-diagram={ AssetHref(assetBaseURL, vizDiagramDataBase) }
 			}>
 			<pp-layout data-title={ siteTitle }>
 				<div class="pp-layout-fallback-header" aria-hidden="true">{ siteTitle }</div>
@@ -61,7 +61,7 @@ templ Layout(pageTitle string, siteTitle string, baseURL string, activeSlug stri
 					@content
 				</main>
 			</pp-layout>
-			@BootstrapHydrationScript(assetMode, sharedDataBase, pageDataBase)
+			@BootstrapHydrationScript(assetMode, assetBaseURL, sharedDataBase, pageDataBase)
 			<pp-example-drawer></pp-example-drawer>
 		</body>
 	</html>

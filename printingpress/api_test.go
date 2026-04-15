@@ -448,3 +448,16 @@ func TestCreatePrintingPress_ValidationRejectsInvalidAssetMode(t *testing.T) {
 	require.ErrorAs(t, err, &validationErr)
 	assert.Contains(t, validationErr.Error(), "asset mode")
 }
+
+func TestCreatePrintingPress_ValidationRejectsRelativeBaseURL(t *testing.T) {
+	_, err := CreatePrintingPressFromBytes([]byte("openapi: 3.1.0\ninfo:\n  title: x\n  version: 1\npaths: {}\n"), &PrintingPressConfig{
+		BaseURL: "docs",
+	})
+	require.Error(t, err)
+
+	var validationErr *ValidationError
+	require.ErrorAs(t, err, &validationErr)
+	assert.ErrorIs(t, err, ErrInvalidBaseURL)
+	assert.Contains(t, validationErr.Error(), "baseURL")
+	assert.Contains(t, validationErr.Error(), "absolute path starting with '/' or an absolute URL with scheme and host")
+}

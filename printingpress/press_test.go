@@ -345,6 +345,19 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	assert.NotContains(t, string(indexHTML), "data-models=")
 	assert.NotContains(t, string(indexHTML), "data-webhooks=")
 
+	require.NotEmpty(t, site.Operations)
+	opSlug := site.Operations[0].Slug
+	operationHTML, err := os.ReadFile(filepath.Join(outputDir, "operations", opSlug+".html"))
+	require.NoError(t, err)
+	assert.Contains(t, string(operationHTML), `<base href="../">`)
+	assert.Contains(t, string(operationHTML), `href="static/printing-press.css"`)
+	assert.Contains(t, string(operationHTML), `href="static/printing-press-operation.css"`)
+	assert.Contains(t, string(operationHTML), `src="static/printing-press.js"`)
+	assert.Contains(t, string(operationHTML), `data-pp-shared="static/printing-press-shared"`)
+	assert.Contains(t, string(operationHTML), `data-pp-page="static/page-data/operations/`+opSlug+`"`)
+	assert.Contains(t, string(operationHTML), `var sharedBase="static/printing-press-shared";`)
+	assert.Contains(t, string(operationHTML), `var pageBase="static/page-data/operations/`+opSlug+`";`)
+
 	sharedJSON, err := os.ReadFile(filepath.Join(outputDir, "static", "printing-press-shared.js"))
 	require.NoError(t, err)
 	assert.NotContains(t, string(sharedJSON), `"schemaJson"`)
@@ -493,14 +506,30 @@ func TestPrintingPress_WriteHTMLSite_UsesConfigOutputDirAndBaseURL(t *testing.T)
 	err = WriteHTMLSite(site, "", "")
 	require.NoError(t, err)
 
+	require.NotEmpty(t, site.Operations)
+	opSlug := site.Operations[0].Slug
+
 	assert.FileExists(t, outputDir+"/index.html")
 	indexHTML, err := os.ReadFile(outputDir + "/index.html")
 	require.NoError(t, err)
 	assert.Contains(t, string(indexHTML), `<base href="/docs/">`)
+	assert.Contains(t, string(indexHTML), `href="/docs/static/printing-press.css"`)
+	assert.Contains(t, string(indexHTML), `src="/docs/static/printing-press.js"`)
+	assert.Contains(t, string(indexHTML), `data-pp-shared="/docs/static/printing-press-shared"`)
+	assert.Contains(t, string(indexHTML), `var sharedBase="/docs/static/printing-press-shared";`)
+	assert.Contains(t, string(indexHTML), `href="operations/`+opSlug+`.html"`)
 
-	operationHTML, err := os.ReadFile(filepath.Join(outputDir, "operations", site.Operations[0].Slug+".html"))
+	operationHTML, err := os.ReadFile(filepath.Join(outputDir, "operations", opSlug+".html"))
 	require.NoError(t, err)
 	assert.Contains(t, string(operationHTML), `<base href="/docs/">`)
+	assert.Contains(t, string(operationHTML), `href="/docs/static/printing-press.css"`)
+	assert.Contains(t, string(operationHTML), `href="/docs/static/printing-press-operation.css"`)
+	assert.Contains(t, string(operationHTML), `src="/docs/static/printing-press.js"`)
+	assert.Contains(t, string(operationHTML), `data-pp-shared="/docs/static/printing-press-shared"`)
+	assert.Contains(t, string(operationHTML), `data-pp-page="/docs/static/page-data/operations/`+opSlug+`"`)
+	assert.Contains(t, string(operationHTML), `var sharedBase="/docs/static/printing-press-shared";`)
+	assert.Contains(t, string(operationHTML), `var pageBase="/docs/static/page-data/operations/`+opSlug+`";`)
+	assert.Contains(t, string(operationHTML), `href="index.html"`)
 }
 
 func TestPrintingPress_WriteHTMLSite_ServedModeWritesJSONAssets(t *testing.T) {

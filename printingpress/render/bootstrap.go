@@ -9,8 +9,10 @@ import (
 	"github.com/a-h/templ"
 )
 
-func BootstrapHydrationScript(assetMode string, sharedDataBase string, pageDataBase string) templ.Component {
+func BootstrapHydrationScript(assetMode string, assetBaseURL string, sharedDataBase string, pageDataBase string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		sharedAssetBase := AssetHref(assetBaseURL, sharedDataBase)
+		pageAssetBase := AssetHref(assetBaseURL, pageDataBase)
 		script := fmt.Sprintf(`(function(){
 var assetMode=%s;
 var sharedBase=%s;
@@ -91,7 +93,7 @@ if(pageBase){
     return null;
   });
 }
-})();`, strconv.Quote(assetMode), strconv.Quote(sharedDataBase), strconv.Quote(pageDataBase))
+})();`, strconv.Quote(assetMode), strconv.Quote(sharedAssetBase), strconv.Quote(pageAssetBase))
 		_, err := io.WriteString(w, `<script>`+script+`</script>`)
 		return err
 	})
