@@ -1,6 +1,6 @@
 package render
 
-templ Head(title string, baseURL string, extraCSS []string, lite bool) {
+templ Head(title string, baseURL string, assetBaseURL string, extraCSS []string, lite bool) {
 	<head>
 		<meta charset="UTF-8"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -22,23 +22,23 @@ templ Head(title string, baseURL string, extraCSS []string, lite bool) {
 			})();
 		</script>
 		<title>{ title }</title>
-		// All hrefs in templates and Lit components MUST be root-relative (e.g. "operations/foo.html",
-		// "models/schemas/bar.html") — never use "../" prefixes. The <base href> already handles depth.
+		// Document links in templates and Lit components MUST stay page-relative (e.g. "operations/foo.html",
+		// "models/schemas/bar.html"). Static assets use assetBaseURL when a docs root is configured.
 		if baseURL != "" {
 			<base href={ baseURL }/>
 		}
-		<link rel="stylesheet" href="static/pb33f-theme.css"/>
-		<link rel="stylesheet" href="static/cowboy-components.css"/>
-		<link rel="stylesheet" href="static/shoelace-dark.css"/>
-		<link rel="stylesheet" href="static/printing-press.css"/>
-		<link rel="stylesheet" href="static/chroma.css"/>
+		<link rel="stylesheet" href={ AssetHref(assetBaseURL, "static/pb33f-theme.css") }/>
+		<link rel="stylesheet" href={ AssetHref(assetBaseURL, "static/cowboy-components.css") }/>
+		<link rel="stylesheet" href={ AssetHref(assetBaseURL, "static/shoelace-dark.css") }/>
+		<link rel="stylesheet" href={ AssetHref(assetBaseURL, "static/printing-press.css") }/>
+		<link rel="stylesheet" href={ AssetHref(assetBaseURL, "static/chroma.css") }/>
 		for _, css := range extraCSS {
-			<link rel="stylesheet" href={ css }/>
+			<link rel="stylesheet" href={ AssetHref(assetBaseURL, css) }/>
 		}
 		if lite {
-			<script defer src="static/printing-press-lite.js"></script>
+			<script defer src={ AssetHref(assetBaseURL, "static/printing-press-lite.js") }></script>
 		} else {
-			<script defer src="static/printing-press.js"></script>
+			<script defer src={ AssetHref(assetBaseURL, "static/printing-press.js") }></script>
 		}
 	</head>
 }

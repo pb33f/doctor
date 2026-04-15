@@ -56,7 +56,10 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	if err != nil {
 		return nil, err
 	}
-	resolvedBaseURL := resolveWriterBaseURL(site, baseURL)
+	resolvedBaseURL, err := resolveWriterBaseURL(site, baseURL)
+	if err != nil {
+		return nil, err
+	}
 
 	if err := os.MkdirAll(resolvedOutputDir, 0o755); err != nil {
 		return nil, fmt.Errorf("creating output directory: %w", err)
@@ -90,6 +93,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 
 	params := &pageParams{
 		SiteTitle:      title,
+		AssetBaseURL:   resolvedBaseURL,
 		SpecFormat:     site.SpecFormat,
 		AssetMode:      assetMode,
 		SharedDataBase: htmlSharedDataAssetBase,
@@ -310,14 +314,14 @@ func cleanGeneratedHydrationAssets(outputDir string) error {
 	return nil
 }
 
-func resolveWriterBaseURL(site *ppmodel.Site, baseURL string) string {
+func resolveWriterBaseURL(site *ppmodel.Site, baseURL string) (string, error) {
+	raw := ""
 	if baseURL != "" {
-		return normalizeBaseURL(baseURL)
+		raw = baseURL
+	} else if site != nil {
+		raw = site.BaseURL
 	}
-	if site != nil {
-		return normalizeBaseURL(site.BaseURL)
-	}
-	return ""
+	return resolveExplicitBaseURL(raw)
 }
 
 func normalizeBaseURL(baseURL string) string {
@@ -360,10 +364,48 @@ func normalizeBaseURLFallback(baseURL string) string {
 	return pathPart + "/" + suffix
 }
 
+const explicitBaseURLRequirements = "must be an absolute path starting with '/' or an absolute URL with scheme and host"
+
+func resolveExplicitBaseURL(baseURL string) (string, error) {
+	if baseURL == "" {
+		return "", nil
+	}
+	normalized := normalizeBaseURL(baseURL)
+	if err := validateExplicitBaseURL(normalized); err != nil {
+		return "", err
+	}
+	return normalized, nil
+}
+
+func validateExplicitBaseURL(baseURL string) error {
+	if baseURL == "" {
+		return nil
+	}
+
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidBaseURL, err)
+	}
+
+	if parsed.Scheme != "" || parsed.Host != "" {
+		if parsed.Scheme != "" && parsed.Host != "" {
+			return nil
+		}
+		return fmt.Errorf("%w: %s", ErrInvalidBaseURL, explicitBaseURLRequirements)
+	}
+
+	if strings.HasPrefix(parsed.Path, "/") {
+		return nil
+	}
+
+	return fmt.Errorf("%w: %s", ErrInvalidBaseURL, explicitBaseURLRequirements)
+}
+
 // pageParams holds the shared parameters for writing a templ page.
 type pageParams struct {
 	SiteTitle          string
 	BaseURL            string
+	AssetBaseURL       string
 	SpecFormat         string
 	AssetMode          string
 	SharedDataBase     string
@@ -388,6 +430,7 @@ func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content t
 		pageTitle,
 		p.SiteTitle,
 		p.BaseURL,
+		p.AssetBaseURL,
 		activeSlug,
 		p.SpecFormat,
 		p.AssetMode,

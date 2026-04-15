@@ -494,6 +494,19 @@ func validateAndNormalizeConfig(config *PrintingPressConfig, source pressSource)
 		}
 	}
 
+	if normalized.BaseURL != "" {
+		resolvedBaseURL, err := resolveExplicitBaseURL(normalized.BaseURL)
+		if err != nil {
+			issues = append(issues, ValidationIssue{
+				Field:   "baseURL",
+				Err:     ErrInvalidBaseURL,
+				Message: err.Error(),
+			})
+		} else {
+			normalized.BaseURL = resolvedBaseURL
+		}
+	}
+
 	if normalized.BasePath != "" {
 		abs, err := filepath.Abs(normalized.BasePath)
 		if err != nil {

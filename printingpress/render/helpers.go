@@ -5,6 +5,7 @@
 package render
 
 import (
+	"net/url"
 	"strings"
 	"unicode"
 
@@ -38,6 +39,39 @@ func operationBreadcrumb(page *ppmodel.OperationPage) []BreadcrumbItem {
 		items = append(items, item)
 	}
 	return items
+}
+
+// AssetHref resolves a relative asset reference against the configured hosted docs root.
+// When no hosted docs root is configured, the original relative asset path is preserved.
+func AssetHref(assetBaseURL, href string) string {
+	if assetBaseURL == "" || href == "" {
+		return href
+	}
+	if strings.HasPrefix(href, "/") || strings.HasPrefix(href, "#") || strings.HasPrefix(href, "data:") || strings.Contains(href, "://") {
+		return href
+	}
+	base, err := url.Parse(assetBaseURL)
+	if err != nil {
+		return href
+	}
+	ref, refErr := url.Parse(href)
+	if refErr != nil {
+		return href
+	}
+	if !isHostedAssetBase(base) {
+		return href
+	}
+	return base.ResolveReference(ref).String()
+}
+
+func isHostedAssetBase(base *url.URL) bool {
+	if base == nil {
+		return false
+	}
+	if base.Scheme != "" || base.Host != "" {
+		return base.Scheme != "" && base.Host != ""
+	}
+	return strings.HasPrefix(base.Path, "/")
 }
 
 // ModelsIndexBreadcrumb builds the breadcrumb for the models index page.
