@@ -1,6 +1,7 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import navCss from './nav.css.js';
+import {overviewHref} from '../../utils/doc-links.js';
 
 interface NavTag {
   name: string;
@@ -69,7 +70,7 @@ export class PpNav extends LitElement {
 
   render() {
     return html`
-      <a class="nav-home ${!this.activeSlug ? 'active' : ''}" href="index.html">
+      <a class="nav-home ${!this.activeSlug ? 'active' : ''}" href=${overviewHref()}>
         <sl-icon name="chevron-right" class="nav-home-chevron"></sl-icon>
         API OVERVIEW
       </a>

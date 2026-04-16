@@ -1,6 +1,7 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import navTagCss from './nav-tag.css.js';
+import {operationHref} from '../../utils/doc-links.js';
 
 interface NavTag {
     name: string;
@@ -69,7 +70,7 @@ export class PpNavTag extends LitElement {
                                             ${tag.operations.map(
                                                     (op) => html`
                                                         <li>
-                                                            <a href="operations/${op.slug}.html" class="${op.deprecated ? 'deprecated' : ''} ${op.slug === activeSlug ? 'active' : ''}">
+                                                            <a href=${operationHref(op.slug)} class="${op.deprecated ? 'deprecated' : ''} ${op.slug === activeSlug ? 'active' : ''}">
                                                                 <span class="op-title">${op.summary || op.path}</span>
                                                                 <pb33f-http-method mode="nav-naked"
                                                                         method=${op.method}></pb33f-http-method>

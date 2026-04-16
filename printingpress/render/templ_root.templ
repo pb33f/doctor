@@ -5,7 +5,7 @@ import "strings"
 import "github.com/pb33f/doctor/printingpress/curl"
 import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
-templ RootPageTempl(page *ppmodel.RootPage) {
+templ RootPageTempl(page *ppmodel.RootPage, baseURL string) {
 	<div class="pp-root">
 		<div class="pp-hero">
 			<h1>{ page.Title }</h1>
@@ -39,14 +39,14 @@ templ RootPageTempl(page *ppmodel.RootPage) {
 			<div class="pp-operations-overview">
 				<h2>OPERATIONS</h2>
 				for _, tag := range page.TagTree {
-					@RootTagSection(tag, 0)
+					@RootTagSection(tag, 0, baseURL)
 				}
 				if len(page.UntaggedOperations) > 0 {
 					<div class="pp-tag-group">
 						<h3>Other</h3>
 						<ul class="pp-operation-list">
 							for _, op := range page.UntaggedOperations {
-								@RootOperationItem(op)
+								@RootOperationItem(op, baseURL)
 							}
 						</ul>
 					</div>
@@ -58,7 +58,7 @@ templ RootPageTempl(page *ppmodel.RootPage) {
 				<h2>WEBHOOKS</h2>
 				<ul class="pp-operation-list">
 					for _, wh := range page.Webhooks {
-						@RootOperationItem(wh)
+						@RootOperationItem(wh, baseURL)
 					}
 				</ul>
 			</div>
@@ -109,7 +109,7 @@ templ RootPageTempl(page *ppmodel.RootPage) {
 	</div>
 }
 
-templ RootTagSection(tag *ppmodel.NavTag, depth int) {
+templ RootTagSection(tag *ppmodel.NavTag, depth int, baseURL string) {
 	if !tag.IsNavOnly || len(tag.Operations) > 0 || len(tag.Children) > 0 {
 		<div class="pp-tag-group">
 			if depth == 0 {
@@ -120,20 +120,20 @@ templ RootTagSection(tag *ppmodel.NavTag, depth int) {
 			if len(tag.Operations) > 0 {
 				<ul class="pp-operation-list">
 					for _, op := range tag.Operations {
-						@RootOperationItem(op)
+						@RootOperationItem(op, baseURL)
 					}
 				</ul>
 			}
 			for _, child := range tag.Children {
-				@RootTagSection(child, depth+1)
+				@RootTagSection(child, depth+1, baseURL)
 			}
 		</div>
 	}
 }
 
-templ RootOperationItem(op *ppmodel.NavOperation) {
+templ RootOperationItem(op *ppmodel.NavOperation, baseURL string) {
 	<li>
-		<a href={ templ.SafeURL("operations/" + op.Slug + ".html") } class={ opItemClass(op.Deprecated) }>
+		<a href={ templ.SafeURL(DocHref(baseURL, "operations/" + op.Slug + ".html")) } class={ opItemClass(op.Deprecated) }>
 			<pb33f-http-method small method={ strings.ToLower(op.Method) }></pb33f-http-method>
 			<pb33f-render-operation-path path={ op.Path }></pb33f-render-operation-path>
 		</a>

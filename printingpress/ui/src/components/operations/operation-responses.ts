@@ -15,6 +15,7 @@ import {ComponentLinkData, MediaTypeData, ResponseData} from '../../utils/schema
 import {HTTP_STATUS_TEXT, statusColorClass} from '../../utils/http.js';
 import {renderMarkdown} from '../../utils/markdown.js';
 import {renderConstraints, renderComponentRefLink} from '../../utils/render-helpers.js';
+import {modelHref, operationHref} from '../../utils/doc-links.js';
 import '../shared/extensions.js';
 import '../shared/example-selector.js';
 import '../shared/media-type-selector.js';
@@ -132,7 +133,7 @@ export class PpOperationResponses extends LitElement {
                     ${h.ref
                             ? html`
                                 <pp-ref-popover registry-key="${h.ref.componentType}/${h.ref.name}"><a
-                                        class="ref-link header-name" href="models/${h.ref.typeSlug}/${h.ref.slug}.html">\u279c
+                                        class="ref-link header-name" href=${modelHref(h.ref.typeSlug, h.ref.slug)}>\u279c
                                     ${h.name}</a></pp-ref-popover>`
                             : html`<span class="header-name">${h.name}</span>`}
                 </div>
@@ -198,11 +199,11 @@ export class PpOperationResponses extends LitElement {
                 ${links.map(l => html`
                     <div class="link-entry">
                         <span class="link-name">${l.ref
-                            ? html`<pp-ref-popover registry-key="links/${l.ref.name}"><a class="ref-link" href="models/${l.ref.typeSlug}/${l.ref.slug}.html">\u279c ${l.name}</a></pp-ref-popover>`
+                            ? html`<pp-ref-popover registry-key="links/${l.ref.name}"><a class="ref-link" href=${modelHref(l.ref.typeSlug, l.ref.slug)}>\u279c ${l.name}</a></pp-ref-popover>`
                             : l.name}</span>
                         ${l.operationId
                             ? html`<span class="link-target">\u2192 ${l.operationSlug
-                                ? html`<a class="ref-link" href="operations/${l.operationSlug}.html">${l.operationId}</a>`
+                                ? html`<a class="ref-link" href=${operationHref(l.operationSlug)}>${l.operationId}</a>`
                                 : l.operationId}</span>`
                             : nothing}
                         ${l.operationRef ? html`<span class="link-target">\u2192 ${l.operationRef}</span>` : nothing}

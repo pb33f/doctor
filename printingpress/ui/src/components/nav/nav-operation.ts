@@ -1,6 +1,7 @@
 import {LitElement, html} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
 import navOperationCss from './nav-operation.css.js';
+import {operationHref} from '../../utils/doc-links.js';
 
 @customElement('pp-nav-operation')
 export class PpNavOperation extends LitElement {
@@ -14,7 +15,7 @@ export class PpNavOperation extends LitElement {
   render() {
     return html`
       <a
-        href="operations/${this.slug}.html"
+        href=${operationHref(this.slug)}
         class=${this.deprecated ? 'deprecated' : ''}
       >
         <pb33f-http-method method=${this.method}></pb33f-http-method>

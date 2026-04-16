@@ -1,3 +1,5 @@
+import {modelHref} from './doc-links.js';
+
 export interface ComponentLinkData {
   name: string;
   componentType: string;
@@ -69,7 +71,7 @@ export function resolveRefLink(ref: string): RefLink | null {
   const [segment, name] = parts;
   const typeSlug = refSegmentToTypeSlug[segment];
   if (!typeSlug) return null;
-  return {name, href: `models/${typeSlug}/${sanitizeSlug(name)}.html`};
+  return {name, href: modelHref(typeSlug, sanitizeSlug(name))};
 }
 
 export function extractEnumValues(schemaJson: string): string[] | null {

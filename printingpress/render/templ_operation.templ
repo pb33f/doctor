@@ -42,9 +42,9 @@ templ headerConstraints(h *ppmodel.HeaderInfo) {
 	}
 }
 
-templ OperationPageTempl(page *ppmodel.OperationPage) {
+templ OperationPageTempl(page *ppmodel.OperationPage, baseURL string) {
 	<div class="pp-operation">
-		@Breadcrumb(operationBreadcrumb(page))
+		@Breadcrumb(baseURL, operationBreadcrumb(page))
 		<pp-page-nav page-title={ page.OperationID } sections-json={ operationNavSections(page) }></pp-page-nav>
 	    <div class="title-section">
 
@@ -103,7 +103,7 @@ templ OperationPageTempl(page *ppmodel.OperationPage) {
 				for _, sec := range page.Security {
 					<div class="pp-security-scheme">
 						if sec.Ref != nil {
-							<a class="pp-ref-link pp-security-name" href={ templ.SafeURL("models/" + sec.Ref.TypeSlug + "/" + sec.Ref.Slug + ".html") }>
+							<a class="pp-ref-link pp-security-name" href={ templ.SafeURL(DocHref(baseURL, "models/" + sec.Ref.TypeSlug + "/" + sec.Ref.Slug + ".html")) }>
 								&#10140; { sec.Name }
 							</a>
 						} else {
@@ -142,7 +142,7 @@ templ OperationPageTempl(page *ppmodel.OperationPage) {
 			</div>
 		}
 		if page.RequestBody != nil {
-			@RequestBodySection(page.RequestBody)
+			@RequestBodySection(page.RequestBody, baseURL)
 		}
 		if page.ResponsesJSON != "" {
 			<pp-operation-responses id="section-responses" data-nav-label="Responses">
@@ -199,7 +199,7 @@ templ OperationPageTempl(page *ppmodel.OperationPage) {
 	</div>
 }
 
-templ RequestBodySection(rb *ppmodel.RequestBodyInfo) {
+templ RequestBodySection(rb *ppmodel.RequestBodyInfo, baseURL string) {
 	<div class="pp-request-body" id="section-request-body" data-nav-label="Request Body">
 		<h3>Request Body
 		if rb.RawYAML != "" || rb.RawJSON != "" {
@@ -226,7 +226,7 @@ templ RequestBodySection(rb *ppmodel.RequestBodyInfo) {
 		}
 		if rb.Ref != nil {
 			<p>
-				<a class="pp-ref-link" href={ templ.SafeURL("models/" + rb.Ref.TypeSlug + "/" + rb.Ref.Slug + ".html") }>
+				<a class="pp-ref-link" href={ templ.SafeURL(DocHref(baseURL, "models/" + rb.Ref.TypeSlug + "/" + rb.Ref.Slug + ".html")) }>
 					&#10140; { rb.Ref.Name }
 				</a>
 			</p>
@@ -249,12 +249,12 @@ templ InlineExamples(mt *ppmodel.MediaTypeInfo) {
 	}
 }
 
-templ CommonHeadersSection(headers []*ppmodel.HeaderInfo, headersJSON string) {
+templ CommonHeadersSection(headers []*ppmodel.HeaderInfo, headersJSON string, baseURL string) {
 	<div class="pp-common-headers">
 		for _, h := range headers {
 			<div class="pp-common-header-entry" id={ "header-" + h.Name }>
 				if h.Ref != nil {
-					<a class="pp-ref-link pp-common-header-name" href={ templ.SafeURL("models/" + h.Ref.TypeSlug + "/" + h.Ref.Slug + ".html") }>
+					<a class="pp-ref-link pp-common-header-name" href={ templ.SafeURL(DocHref(baseURL, "models/" + h.Ref.TypeSlug + "/" + h.Ref.Slug + ".html")) }>
 						&#10140; { h.Name }
 					</a>
 				} else {

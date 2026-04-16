@@ -59,15 +59,15 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if assetMode != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " data-pp-asset-mode=\"")
+		if baseURL != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " data-pp-base-url=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(assetMode)
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(baseURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 15, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 15, Col: 30}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -78,15 +78,15 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 				return templ_7745c5c3_Err
 			}
 		}
-		if sharedDataBase != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " data-pp-shared=\"")
+		if assetMode != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " data-pp-asset-mode=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, sharedDataBase))
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(assetMode)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 18, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 18, Col: 34}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -97,15 +97,15 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 				return templ_7745c5c3_Err
 			}
 		}
-		if pageDataBase != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " data-pp-page=\"")
+		if sharedDataBase != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " data-pp-shared=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
-			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, pageDataBase))
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, sharedDataBase))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 21, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 21, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -116,15 +116,15 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 				return templ_7745c5c3_Err
 			}
 		}
-		if vizGraphDataBase != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, " data-pp-viz-graph=\"")
+		if pageDataBase != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, " data-pp-page=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, vizGraphDataBase))
+			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, pageDataBase))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 24, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 24, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -135,15 +135,15 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 				return templ_7745c5c3_Err
 			}
 		}
-		if vizDiagramDataBase != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " data-pp-viz-diagram=\"")
+		if vizGraphDataBase != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " data-pp-viz-graph=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
-			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, vizDiagramDataBase))
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, vizGraphDataBase))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 27, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 27, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -154,46 +154,65 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "><pp-layout data-title=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		if vizDiagramDataBase != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " data-pp-viz-diagram=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var8 string
+			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, vizDiagramDataBase))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 30, Col: 69}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
-		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(siteTitle)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 29, Col: 36}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\"><div class=\"pp-layout-fallback-header\" aria-hidden=\"true\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "><pp-layout data-title=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(siteTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 30, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 32, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div><pp-nav id=\"pp-nav\" slot=\"nav\" data-active=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\"><div class=\"pp-layout-fallback-header\" aria-hidden=\"true\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
-		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(activeSlug)
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(siteTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 31, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 33, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\"><div class=\"pp-nav-fallback\" aria-hidden=\"true\"><div class=\"pp-nav-fallback-home\">API OVERVIEW</div><div class=\"pp-nav-fallback-section\"><h4>Operations</h4><div class=\"pp-nav-fallback-list\"><div class=\"pp-nav-fallback-row\" style=\"width:100%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:92%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:84%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:78%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:88%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:74%;\"></div></div></div><div class=\"pp-nav-fallback-section\"><h4>Models</h4><div class=\"pp-nav-fallback-list\"><div class=\"pp-nav-fallback-row\" style=\"width:96%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:86%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:82%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:90%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:76%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:88%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:80%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:72%;\"></div></div></div></div></pp-nav><main slot=\"content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div><pp-nav id=\"pp-nav\" slot=\"nav\" data-active=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var11 string
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(activeSlug)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 34, Col: 59}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\"><div class=\"pp-nav-fallback\" aria-hidden=\"true\"><div class=\"pp-nav-fallback-home\">API OVERVIEW</div><div class=\"pp-nav-fallback-section\"><h4>Operations</h4><div class=\"pp-nav-fallback-list\"><div class=\"pp-nav-fallback-row\" style=\"width:100%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:92%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:84%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:78%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:88%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:74%;\"></div></div></div><div class=\"pp-nav-fallback-section\"><h4>Models</h4><div class=\"pp-nav-fallback-list\"><div class=\"pp-nav-fallback-row\" style=\"width:96%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:86%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:82%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:90%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:76%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:88%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:80%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:72%;\"></div></div></div></div></pp-nav><main slot=\"content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -201,7 +220,7 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</main></pp-layout>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</main></pp-layout>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -209,7 +228,7 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<pp-example-drawer></pp-example-drawer></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<pp-example-drawer></pp-example-drawer></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

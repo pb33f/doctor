@@ -2,9 +2,9 @@ package render
 
 import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
-templ TagIndexTempl(tag *ppmodel.NavTag, breadcrumb []BreadcrumbItem) {
+templ TagIndexTempl(tag *ppmodel.NavTag, breadcrumb []BreadcrumbItem, baseURL string) {
 	<div class="pp-root">
-		@Breadcrumb(breadcrumb)
+		@Breadcrumb(baseURL, breadcrumb)
 		<pp-icon-title icon="operation" heading={ tag.DisplayName() }></pp-icon-title>
 		if tag.DescHTML != "" {
 			<div class="pp-description">
@@ -14,12 +14,12 @@ templ TagIndexTempl(tag *ppmodel.NavTag, breadcrumb []BreadcrumbItem) {
 		if len(tag.Operations) > 0 {
 			<ul class="pp-operation-list">
 				for _, op := range tag.Operations {
-					@RootOperationItem(op)
+					@RootOperationItem(op, baseURL)
 				}
 			</ul>
 		}
 		for _, child := range tag.Children {
-			@RootTagSection(child, 0)
+			@RootTagSection(child, 0, baseURL)
 		}
 	</div>
 }

@@ -10,7 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
-func TagIndexTempl(tag *ppmodel.NavTag, breadcrumb []BreadcrumbItem) templ.Component {
+func TagIndexTempl(tag *ppmodel.NavTag, breadcrumb []BreadcrumbItem, baseURL string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -35,7 +35,7 @@ func TagIndexTempl(tag *ppmodel.NavTag, breadcrumb []BreadcrumbItem) templ.Compo
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Breadcrumb(breadcrumb).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Breadcrumb(baseURL, breadcrumb).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -76,7 +76,7 @@ func TagIndexTempl(tag *ppmodel.NavTag, breadcrumb []BreadcrumbItem) templ.Compo
 				return templ_7745c5c3_Err
 			}
 			for _, op := range tag.Operations {
-				templ_7745c5c3_Err = RootOperationItem(op).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = RootOperationItem(op, baseURL).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -87,7 +87,7 @@ func TagIndexTempl(tag *ppmodel.NavTag, breadcrumb []BreadcrumbItem) templ.Compo
 			}
 		}
 		for _, child := range tag.Children {
-			templ_7745c5c3_Err = RootTagSection(child, 0).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = RootTagSection(child, 0, baseURL).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -182,7 +182,7 @@ func headerConstraints(h *ppmodel.HeaderInfo) templ.Component {
 	})
 }
 
-func OperationPageTempl(page *ppmodel.OperationPage) templ.Component {
+func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -207,7 +207,7 @@ func OperationPageTempl(page *ppmodel.OperationPage) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Breadcrumb(operationBreadcrumb(page)).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Breadcrumb(baseURL, operationBreadcrumb(page)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -458,9 +458,9 @@ func OperationPageTempl(page *ppmodel.OperationPage) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var22 templ.SafeURL
-					templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("models/" + sec.Ref.TypeSlug + "/" + sec.Ref.Slug + ".html"))
+					templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(DocHref(baseURL, "models/"+sec.Ref.TypeSlug+"/"+sec.Ref.Slug+".html")))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 106, Col: 128}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 106, Col: 146}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 					if templ_7745c5c3_Err != nil {
@@ -613,7 +613,7 @@ func OperationPageTempl(page *ppmodel.OperationPage) templ.Component {
 			}
 		}
 		if page.RequestBody != nil {
-			templ_7745c5c3_Err = RequestBodySection(page.RequestBody).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = RequestBodySection(page.RequestBody, baseURL).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -744,7 +744,7 @@ func OperationPageTempl(page *ppmodel.OperationPage) templ.Component {
 	})
 }
 
-func RequestBodySection(rb *ppmodel.RequestBodyInfo) templ.Component {
+func RequestBodySection(rb *ppmodel.RequestBodyInfo, baseURL string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -860,9 +860,9 @@ func RequestBodySection(rb *ppmodel.RequestBodyInfo) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var38 templ.SafeURL
-			templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("models/" + rb.Ref.TypeSlug + "/" + rb.Ref.Slug + ".html"))
+			templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(DocHref(baseURL, "models/"+rb.Ref.TypeSlug+"/"+rb.Ref.Slug+".html")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 229, Col: 106}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 229, Col: 124}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 			if templ_7745c5c3_Err != nil {
@@ -972,7 +972,7 @@ func InlineExamples(mt *ppmodel.MediaTypeInfo) templ.Component {
 	})
 }
 
-func CommonHeadersSection(headers []*ppmodel.HeaderInfo, headersJSON string) templ.Component {
+func CommonHeadersSection(headers []*ppmodel.HeaderInfo, headersJSON string, baseURL string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1021,9 +1021,9 @@ func CommonHeadersSection(headers []*ppmodel.HeaderInfo, headersJSON string) tem
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var45 templ.SafeURL
-				templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("models/" + h.Ref.TypeSlug + "/" + h.Ref.Slug + ".html"))
+				templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(DocHref(baseURL, "models/"+h.Ref.TypeSlug+"/"+h.Ref.Slug+".html")))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 257, Col: 127}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 257, Col: 145}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 				if templ_7745c5c3_Err != nil {

@@ -2,21 +2,21 @@ package render
 
 import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
-templ ModelsIndexTempl(groups []*ppmodel.NavModelGroup, breadcrumb []BreadcrumbItem) {
+templ ModelsIndexTempl(groups []*ppmodel.NavModelGroup, breadcrumb []BreadcrumbItem, baseURL string) {
 	<div class="pp-root">
-		@Breadcrumb(breadcrumb)
+		@Breadcrumb(baseURL, breadcrumb)
 		<pp-icon-title icon="schemas" heading="Models"></pp-icon-title>
 		for _, group := range groups {
 			if len(group.Models) > 0 {
 				<div class="pp-model-category">
 					<h2>
-						<a href={ templ.SafeURL("models/" + group.TypeSlug + "/index.html") } class="pp-category-link">
+						<a href={ templ.SafeURL(DocHref(baseURL, "models/" + group.TypeSlug + "/index.html")) } class="pp-category-link">
 							{ group.Name }
 						</a>
 					</h2>
 					<div class="pp-model-cards" style={ group.CardGridStyle() }>
 						for _, model := range group.Models {
-							<a href={ templ.SafeURL("models/" + model.TypeSlug + "/" + model.Slug + ".html") } class="pp-model-card">
+							<a href={ templ.SafeURL(DocHref(baseURL, "models/" + model.TypeSlug + "/" + model.Slug + ".html")) } class="pp-model-card">
 								<div class="pp-model-card-title">
 									<pb33f-model-icon icon={ model.TypeSlug } size="small"></pb33f-model-icon>
 									<strong>{ model.Name }</strong>
