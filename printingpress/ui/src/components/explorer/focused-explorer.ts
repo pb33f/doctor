@@ -5,6 +5,7 @@ import {ExplorerNodeClicked} from '@pb33f/cowboy-components/events/doctor.js';
 import {createElkLayoutWorker} from '../../elk-layout-worker-inline.js';
 import {createGraphDependentWorker} from '../../graph-dependent-worker-inline.js';
 import {ensureModelGraphVisualization} from '../../utils/model-visualization.js';
+import {docHref} from '../../utils/doc-links.js';
 import styles from './focused-explorer.css.js';
 
 // Set worker factories before any explorer element is created
@@ -38,7 +39,7 @@ export class PpFocusedExplorer extends LitElement {
         if (!nodeId) return;
         const href = this.graphData?.nodes?.find((node: any) => node?.id === nodeId)?.href;
         if (!href) return;
-        window.location.href = new URL(href, document.baseURI).toString();
+        window.location.href = docHref(href);
     };
 
     private hydrateEmbeddedData() {

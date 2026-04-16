@@ -1,6 +1,7 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import navModelGroupCss from './nav-model-group.css.js';
+import {modelHref} from '../../utils/doc-links.js';
 
 interface NavModelGroup {
     name: string;
@@ -72,7 +73,7 @@ export class PpNavModelGroup extends LitElement {
                                     const modelSlug = model.typeSlug + '/' + model.slug;
                                     return html`
                                         <li>
-                                            <a href="models/${model.typeSlug}/${model.slug}.html"
+                                            <a href=${modelHref(model.typeSlug, model.slug)}
                                                class="${modelSlug === activeSlug ? 'active' : ''}">
                                                 <span class="model-name">${model.name}</span>
                                             </a>

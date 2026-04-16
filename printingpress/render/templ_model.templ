@@ -3,12 +3,12 @@ package render
 import "fmt"
 import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
-templ Breadcrumb(items []BreadcrumbItem) {
+templ Breadcrumb(baseURL string, items []BreadcrumbItem) {
 	<sl-breadcrumb class="pp-breadcrumb">
 		<sl-icon name="chevron-right" slot="separator"></sl-icon>
 		for _, item := range items {
 			if item.Href != "" {
-				<sl-breadcrumb-item href={ templ.SafeURL(item.Href) }>{ item.Label }</sl-breadcrumb-item>
+				<sl-breadcrumb-item href={ templ.SafeURL(DocHref(baseURL, item.Href)) }>{ item.Label }</sl-breadcrumb-item>
 			} else {
 				<sl-breadcrumb-item>{ item.Label }</sl-breadcrumb-item>
 			}
@@ -16,9 +16,9 @@ templ Breadcrumb(items []BreadcrumbItem) {
 	</sl-breadcrumb>
 }
 
-templ ModelPageTempl(page *ppmodel.ModelPage) {
+templ ModelPageTempl(page *ppmodel.ModelPage, baseURL string) {
 	<div class="pp-model">
-		@Breadcrumb(modelBreadcrumb(page))
+		@Breadcrumb(baseURL, modelBreadcrumb(page))
 		<div class="pp-model-header">
 			<pp-icon-title icon={ page.ComponentType } heading={ page.Name }></pp-icon-title>
 			if page.RawYAML != "" || page.SchemaJSON != "" {

@@ -1,9 +1,10 @@
 import {html, nothing, TemplateResult} from 'lit';
 import {collectConstraints, resolveRefLink, deriveSchemaType, type RefLink} from './schema.js';
 import type {ComponentLinkData} from './schema.js';
+import {modelHref} from './doc-links.js';
 
 export function renderComponentRefLink(ref: ComponentLinkData, withPopover = false): TemplateResult {
-    const anchor = html`<a class="ref-link" href="models/${ref.typeSlug}/${ref.slug}.html">\u279c ${ref.name}</a>`;
+    const anchor = html`<a class="ref-link" href=${modelHref(ref.typeSlug, ref.slug)}>\u279c ${ref.name}</a>`;
     if (!withPopover) return anchor;
     return html`<pp-ref-popover registry-key="${ref.componentType}/${ref.name}">${anchor}</pp-ref-popover>`;
 }

@@ -22,8 +22,8 @@ templ Head(title string, baseURL string, assetBaseURL string, extraCSS []string,
 			})();
 		</script>
 		<title>{ title }</title>
-		// Document links in templates and Lit components MUST stay page-relative (e.g. "operations/foo.html",
-		// "models/schemas/bar.html"). Static assets use assetBaseURL when a docs root is configured.
+		// The base tag remains as a compatibility fallback, but both document links and static assets
+		// are resolved explicitly so nested pages do not depend on browser-specific base-tag behavior.
 		if baseURL != "" {
 			<base href={ baseURL }/>
 		}

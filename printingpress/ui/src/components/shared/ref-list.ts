@@ -1,6 +1,7 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import refListCss from './ref-list.css.js';
+import {modelHref, operationHref} from '../../utils/doc-links.js';
 import '@shoelace-style/shoelace/dist/components/input/input.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
@@ -148,7 +149,7 @@ export class PpRefList extends LitElement {
                    @mouseleave=${(e: Event) => (e.target as HTMLElement).style.setProperty('--op-path-text-decoration', 'none')}
                    @focus=${(e: Event) => (e.target as HTMLElement).style.setProperty('--op-path-text-decoration', 'underline')}
                    @blur=${(e: Event) => (e.target as HTMLElement).style.setProperty('--op-path-text-decoration', 'none')}
-                   href="operations/${op.slug}.html">
+                   href=${operationHref(op.slug)}>
                     <pb33f-render-operation-path path=${op.path} nowrap></pb33f-render-operation-path>
                 </a>
             </div>
@@ -162,7 +163,7 @@ export class PpRefList extends LitElement {
                 <a style="color:var(--terminal-text);text-decoration:none;font-family:var(--font-stack),monospace"
                    @mouseenter=${(e: Event) => (e.target as HTMLElement).style.textDecoration = 'underline'}
                    @mouseleave=${(e: Event) => (e.target as HTMLElement).style.textDecoration = 'none'}
-                   href="models/${comp.typeSlug}/${comp.slug}.html"><span aria-hidden="true">\u279c</span> ${comp.name}</a>
+                   href=${modelHref(comp.typeSlug, comp.slug)}><span aria-hidden="true">\u279c</span> ${comp.name}</a>
             </div>
         `;
     }

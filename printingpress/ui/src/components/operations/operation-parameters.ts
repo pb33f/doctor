@@ -5,6 +5,7 @@ import constraintsCss from '../../styles/constraints.css.js';
 import markdownCss from '../../styles/markdown.css.js';
 import refLinkCss from '../../styles/ref-link.css.js';
 import operationParametersCss from './operation-parameters.css.js';
+import {modelHref} from '../../utils/doc-links.js';
 import {ComponentLinkData, deriveSchemaType} from '../../utils/schema.js';
 import {renderMarkdown} from '../../utils/markdown.js';
 import {renderConstraints} from '../../utils/render-helpers.js';
@@ -77,7 +78,7 @@ export class PpOperationParameters extends LitElement {
               ${p.ref
                   ? html`
                     <pp-ref-popover registry-key="${p.ref.componentType}/${p.ref.name}"><a
-                        class="ref-link param-name" href="models/${p.ref.typeSlug}/${p.ref.slug}.html">\u279c
+                        class="ref-link param-name" href=${modelHref(p.ref.typeSlug, p.ref.slug)}>\u279c
                       ${p.name}</a></pp-ref-popover>`
                   : html`<span class="param-name">${p.name}</span>`}
 

@@ -13,7 +13,7 @@ import "strings"
 import "github.com/pb33f/doctor/printingpress/curl"
 import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
-func RootPageTempl(page *ppmodel.RootPage) templ.Component {
+func RootPageTempl(page *ppmodel.RootPage, baseURL string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -155,7 +155,7 @@ func RootPageTempl(page *ppmodel.RootPage) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			for _, tag := range page.TagTree {
-				templ_7745c5c3_Err = RootTagSection(tag, 0).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = RootTagSection(tag, 0, baseURL).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -166,7 +166,7 @@ func RootPageTempl(page *ppmodel.RootPage) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				for _, op := range page.UntaggedOperations {
-					templ_7745c5c3_Err = RootOperationItem(op).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = RootOperationItem(op, baseURL).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -187,7 +187,7 @@ func RootPageTempl(page *ppmodel.RootPage) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			for _, wh := range page.Webhooks {
-				templ_7745c5c3_Err = RootOperationItem(wh).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = RootOperationItem(wh, baseURL).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -423,7 +423,7 @@ func RootPageTempl(page *ppmodel.RootPage) templ.Component {
 	})
 }
 
-func RootTagSection(tag *ppmodel.NavTag, depth int) templ.Component {
+func RootTagSection(tag *ppmodel.NavTag, depth int, baseURL string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -492,7 +492,7 @@ func RootTagSection(tag *ppmodel.NavTag, depth int) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				for _, op := range tag.Operations {
-					templ_7745c5c3_Err = RootOperationItem(op).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = RootOperationItem(op, baseURL).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -503,7 +503,7 @@ func RootTagSection(tag *ppmodel.NavTag, depth int) templ.Component {
 				}
 			}
 			for _, child := range tag.Children {
-				templ_7745c5c3_Err = RootTagSection(child, depth+1).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = RootTagSection(child, depth+1, baseURL).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -517,7 +517,7 @@ func RootTagSection(tag *ppmodel.NavTag, depth int) templ.Component {
 	})
 }
 
-func RootOperationItem(op *ppmodel.NavOperation) templ.Component {
+func RootOperationItem(op *ppmodel.NavOperation, baseURL string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -552,9 +552,9 @@ func RootOperationItem(op *ppmodel.NavOperation) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var23 templ.SafeURL
-		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("operations/" + op.Slug + ".html"))
+		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(DocHref(baseURL, "operations/"+op.Slug+".html")))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_root.templ`, Line: 136, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_root.templ`, Line: 136, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {

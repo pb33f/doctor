@@ -44,24 +44,50 @@ func operationBreadcrumb(page *ppmodel.OperationPage) []BreadcrumbItem {
 // AssetHref resolves a relative asset reference against the configured hosted docs root.
 // When no hosted docs root is configured, the original relative asset path is preserved.
 func AssetHref(assetBaseURL, href string) string {
-	if assetBaseURL == "" || href == "" {
+	return resolveDocHref(assetBaseURL, href, false)
+}
+
+// DocHref resolves a document link against the configured page base URL.
+// Hosted pages use an absolute docs root, while portable pages use a depth-relative base.
+func DocHref(baseURL, href string) string {
+	return resolveDocHref(baseURL, href, true)
+}
+
+func resolveDocHref(baseURL, href string, allowPortableBase bool) string {
+	if baseURL == "" || href == "" || isLiteralHref(href) {
 		return href
 	}
-	if strings.HasPrefix(href, "/") || strings.HasPrefix(href, "#") || strings.HasPrefix(href, "data:") || strings.Contains(href, "://") {
+	base, ref, ok := resolveHrefParts(baseURL, href)
+	if !ok {
 		return href
 	}
-	base, err := url.Parse(assetBaseURL)
+	if isHostedAssetBase(base) {
+		return base.ResolveReference(ref).String()
+	}
+	if allowPortableBase {
+		return baseURL + href
+	}
+	return href
+}
+
+func resolveHrefParts(baseURL, href string) (*url.URL, *url.URL, bool) {
+	base, err := url.Parse(baseURL)
 	if err != nil {
-		return href
+		return nil, nil, false
 	}
 	ref, refErr := url.Parse(href)
 	if refErr != nil {
-		return href
+		return nil, nil, false
 	}
-	if !isHostedAssetBase(base) {
-		return href
+	return base, ref, true
+}
+
+func isLiteralHref(href string) bool {
+	if href == "" || strings.HasPrefix(href, "/") || strings.HasPrefix(href, "#") || strings.HasPrefix(href, "data:") {
+		return true
 	}
-	return base.ResolveReference(ref).String()
+	ref, err := url.Parse(href)
+	return err == nil && ref.Scheme != ""
 }
 
 func isHostedAssetBase(base *url.URL) bool {

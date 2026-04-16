@@ -11,6 +11,9 @@ templ Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL st
 		@Head(pageTitle, baseURL, assetBaseURL, extraCSS, lite)
 		<body
 			data-spec-format={ specFormat }
+			if baseURL != "" {
+				data-pp-base-url={ baseURL }
+			}
 			if assetMode != "" {
 				data-pp-asset-mode={ assetMode }
 			}

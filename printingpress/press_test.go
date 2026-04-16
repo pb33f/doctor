@@ -6,6 +6,7 @@ package printingpress
 
 import (
 	"encoding/json"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -334,6 +335,7 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	assert.Contains(t, string(indexHTML), "Burger Shop")
 	assert.Contains(t, string(indexHTML), "pp-layout")
 	assert.Contains(t, string(indexHTML), `data-pp-asset-mode="portable"`)
+	assert.NotContains(t, string(indexHTML), `data-pp-base-url=`)
 	assert.Contains(t, string(indexHTML), `data-pp-shared="static/printing-press-shared"`)
 	assert.Contains(t, string(indexHTML), `<script defer src="static/printing-press.js"></script>`)
 	assert.Contains(t, string(indexHTML), `__PP_BOOTSTRAP__`)
@@ -350,9 +352,11 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	operationHTML, err := os.ReadFile(filepath.Join(outputDir, "operations", opSlug+".html"))
 	require.NoError(t, err)
 	assert.Contains(t, string(operationHTML), `<base href="../">`)
+	assert.Contains(t, string(operationHTML), `data-pp-base-url="../"`)
 	assert.Contains(t, string(operationHTML), `href="static/printing-press.css"`)
 	assert.Contains(t, string(operationHTML), `href="static/printing-press-operation.css"`)
 	assert.Contains(t, string(operationHTML), `src="static/printing-press.js"`)
+	assert.Contains(t, string(operationHTML), `href="../index.html"`)
 	assert.Contains(t, string(operationHTML), `data-pp-shared="static/printing-press-shared"`)
 	assert.Contains(t, string(operationHTML), `data-pp-page="static/page-data/operations/`+opSlug+`"`)
 	assert.Contains(t, string(operationHTML), `var sharedBase="static/printing-press-shared";`)
@@ -513,15 +517,17 @@ func TestPrintingPress_WriteHTMLSite_UsesConfigOutputDirAndBaseURL(t *testing.T)
 	indexHTML, err := os.ReadFile(outputDir + "/index.html")
 	require.NoError(t, err)
 	assert.Contains(t, string(indexHTML), `<base href="/docs/">`)
+	assert.Contains(t, string(indexHTML), `data-pp-base-url="/docs/"`)
 	assert.Contains(t, string(indexHTML), `href="/docs/static/printing-press.css"`)
 	assert.Contains(t, string(indexHTML), `src="/docs/static/printing-press.js"`)
 	assert.Contains(t, string(indexHTML), `data-pp-shared="/docs/static/printing-press-shared"`)
 	assert.Contains(t, string(indexHTML), `var sharedBase="/docs/static/printing-press-shared";`)
-	assert.Contains(t, string(indexHTML), `href="operations/`+opSlug+`.html"`)
+	assert.Contains(t, string(indexHTML), `href="/docs/operations/`+opSlug+`.html"`)
 
 	operationHTML, err := os.ReadFile(filepath.Join(outputDir, "operations", opSlug+".html"))
 	require.NoError(t, err)
 	assert.Contains(t, string(operationHTML), `<base href="/docs/">`)
+	assert.Contains(t, string(operationHTML), `data-pp-base-url="/docs/"`)
 	assert.Contains(t, string(operationHTML), `href="/docs/static/printing-press.css"`)
 	assert.Contains(t, string(operationHTML), `href="/docs/static/printing-press-operation.css"`)
 	assert.Contains(t, string(operationHTML), `src="/docs/static/printing-press.js"`)
@@ -529,7 +535,7 @@ func TestPrintingPress_WriteHTMLSite_UsesConfigOutputDirAndBaseURL(t *testing.T)
 	assert.Contains(t, string(operationHTML), `data-pp-page="/docs/static/page-data/operations/`+opSlug+`"`)
 	assert.Contains(t, string(operationHTML), `var sharedBase="/docs/static/printing-press-shared";`)
 	assert.Contains(t, string(operationHTML), `var pageBase="/docs/static/page-data/operations/`+opSlug+`";`)
-	assert.Contains(t, string(operationHTML), `href="index.html"`)
+	assert.Contains(t, string(operationHTML), `href="/docs/index.html"`)
 }
 
 func TestPrintingPress_WriteHTMLSite_ServedModeWritesJSONAssets(t *testing.T) {
@@ -652,6 +658,17 @@ func TestPrintingPress_PrintJSONArtifacts_UsesConfigOutputDir(t *testing.T) {
 }
 
 func TestHTMLLinkReachability(t *testing.T) {
+	t.Run("portable", func(t *testing.T) {
+		assertHTMLLinkReachability(t, "")
+	})
+	t.Run("hosted", func(t *testing.T) {
+		assertHTMLLinkReachability(t, "/docs")
+	})
+}
+
+func assertHTMLLinkReachability(t *testing.T, baseURL string) {
+	t.Helper()
+
 	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
 	require.NoError(t, err)
 
@@ -663,7 +680,7 @@ func TestHTMLLinkReachability(t *testing.T) {
 
 	drDoc := model.NewDrDocument(v3Model)
 
-	pp := newPressEngine(&pressEngineConfig{DrDoc: drDoc, Title: "Burger Shop"})
+	pp := newPressEngine(&pressEngineConfig{DrDoc: drDoc, Title: "Burger Shop", BaseURL: baseURL})
 	site, err := pp.pressSite()
 	require.NoError(t, err)
 
@@ -676,7 +693,6 @@ func TestHTMLLinkReachability(t *testing.T) {
 	skipSchemes := []string{"mailto:", "http://", "https://", "javascript:"}
 
 	var allBroken []string
-	var dotDotHrefs []string
 
 	err = filepath.Walk(outputDir, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil || info.IsDir() || !strings.HasSuffix(path, ".html") {
@@ -690,6 +706,7 @@ func TestHTMLLinkReachability(t *testing.T) {
 
 		content := string(data)
 
+		pageBaseHref := ""
 		// Collect base href values to exclude from link checks
 		baseHrefs := make(map[string]bool)
 		for _, bm := range baseHrefRe.FindAllStringSubmatch(content, -1) {
@@ -698,6 +715,7 @@ func TestHTMLLinkReachability(t *testing.T) {
 				inner := hrefRe.FindStringSubmatch(bm[0])
 				if len(inner) > 1 {
 					baseHrefs[inner[1]] = true
+					pageBaseHref = inner[1]
 				}
 			}
 		}
@@ -729,15 +747,24 @@ func TestHTMLLinkReachability(t *testing.T) {
 			// Strip query and fragment
 			clean := strings.SplitN(href, "?", 2)[0]
 			clean = strings.SplitN(clean, "#", 2)[0]
-
-			// All hrefs must be root-relative (no ../ prefix with <base href>)
-			if strings.HasPrefix(clean, "../") {
-				rel, _ := filepath.Rel(outputDir, path)
-				dotDotHrefs = append(dotDotHrefs, rel+": "+href)
+			if strings.HasPrefix(clean, "static/") || strings.Contains(clean, "/static/") {
+				continue
 			}
 
-			// Resolve relative to site root
-			target := filepath.Join(outputDir, filepath.FromSlash(clean))
+			target := ""
+			if strings.HasPrefix(clean, "/") {
+				docRoot := strings.TrimSuffix(pageBaseHref, "/")
+				if strings.HasPrefix(docRoot, "http://") || strings.HasPrefix(docRoot, "https://") {
+					if parsed, parseErr := url.Parse(docRoot); parseErr == nil {
+						docRoot = strings.TrimSuffix(parsed.Path, "/")
+					}
+				}
+				trimmed := strings.TrimPrefix(clean, docRoot)
+				trimmed = strings.TrimPrefix(trimmed, "/")
+				target = filepath.Join(outputDir, filepath.FromSlash(trimmed))
+			} else {
+				target = filepath.Clean(filepath.Join(filepath.Dir(path), filepath.FromSlash(clean)))
+			}
 			if _, statErr := os.Stat(target); os.IsNotExist(statErr) {
 				rel, _ := filepath.Rel(outputDir, path)
 				allBroken = append(allBroken, rel+" -> "+href)
@@ -747,8 +774,6 @@ func TestHTMLLinkReachability(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Empty(t, dotDotHrefs, "hrefs must be root-relative (no ../ prefix):\n%s",
-		strings.Join(dotDotHrefs, "\n"))
 	assert.Empty(t, allBroken, "broken links found:\n%s",
 		strings.Join(allBroken, "\n"))
 }

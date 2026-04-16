@@ -2,6 +2,7 @@ import {LitElement, html} from 'lit';
 import {customElement, state} from 'lit/decorators.js';
 import layoutCss from './layout.css.js';
 import sharedCss from "../../styles/shared.css";
+import {overviewHref} from '../../utils/doc-links.js';
 
 const SPLIT_POS_KEY = 'pp-split-position';
 const DEFAULT_POS = 20;
@@ -32,7 +33,7 @@ export class PpLayout extends LitElement {
 
   render() {
     return html`
-      <pb33f-header name=${this.title} url="index.html" fluid>
+      <pb33f-header name=${this.title} url=${overviewHref()} fluid>
         <div class="theme-controls">
             <pb33f-theme-switcher></pb33f-theme-switcher>
         </div>

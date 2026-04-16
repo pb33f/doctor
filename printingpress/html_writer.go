@@ -107,7 +107,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p := *params
 		p.BaseURL = resolvedBaseURL
 		p.ExtraCSS = []string{"static/printing-press-index.css"}
-		rootContent := render.RootPageTempl(site.Root)
+		rootContent := render.RootPageTempl(site.Root, p.BaseURL)
 		jobs = append(jobs, htmlWriteJob{
 			path:      filepath.Join(resolvedOutputDir, "index.html"),
 			pageTitle: title,
@@ -127,7 +127,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			return nil, fmt.Errorf("writing operation hydration assets for %s: %w", op.Slug, err)
 		}
 		staticPaths = append(staticPaths, opAssetPaths...)
-		opContent := render.OperationPageTempl(op)
+		opContent := render.OperationPageTempl(op, p.BaseURL)
 		pageTitle := fmt.Sprintf("%s %s - %s", op.Method, op.Path, title)
 		path := filepath.Join(resolvedOutputDir, "operations", op.Slug+".html")
 		jobs = append(jobs, htmlWriteJob{
@@ -176,7 +176,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 				}
 				staticPaths = append(staticPaths, graphAssetPaths...)
 			}
-			modelContent := render.ModelPageTempl(page)
+			modelContent := render.ModelPageTempl(page, p.BaseURL)
 			pageTitle := fmt.Sprintf("%s - %s", page.Name, title)
 			path := filepath.Join(resolvedOutputDir, "models", typeSlug, page.Slug+".html")
 			activeModelSlug := page.TypeSlug + "/" + page.Slug
@@ -195,7 +195,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{"static/printing-press-index.css"}
-		indexContent := render.ModelsIndexTempl(site.NavModelGroups, render.ModelsIndexBreadcrumb())
+		indexContent := render.ModelsIndexTempl(site.NavModelGroups, render.ModelsIndexBreadcrumb(), p.BaseURL)
 		jobs = append(jobs, htmlWriteJob{
 			path:      filepath.Join(resolvedOutputDir, "models", "index.html"),
 			pageTitle: "Models - " + title,
@@ -210,7 +210,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p.BaseURL = resolveBase(resolvedBaseURL, 2)
 		p.ExtraCSS = []string{"static/printing-press-index.css"}
 		bc := render.ModelTypeIndexBreadcrumb(group.Name)
-		content := render.ModelTypeIndexTempl(group, bc)
+		content := render.ModelTypeIndexTempl(group, bc, p.BaseURL)
 		pageTitle := fmt.Sprintf("%s - %s", group.Name, title)
 		path := filepath.Join(resolvedOutputDir, "models", group.TypeSlug, "index.html")
 		jobs = append(jobs, htmlWriteJob{
@@ -233,7 +233,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			p.BaseURL = resolveBase(resolvedBaseURL, 1)
 			p.ExtraCSS = []string{"static/printing-press-index.css"}
 			bc := render.TagIndexBreadcrumb(tag, tagParentMap)
-			content := render.TagIndexTempl(tag, bc)
+			content := render.TagIndexTempl(tag, bc, p.BaseURL)
 			pageTitle := fmt.Sprintf("%s - %s", tag.DisplayName(), title)
 			path := filepath.Join(resolvedOutputDir, "tags", tag.Slug+".html")
 			jobs = append(jobs, htmlWriteJob{
@@ -258,7 +258,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			return nil, fmt.Errorf("writing webhook hydration assets for %s: %w", wh.Slug, err)
 		}
 		staticPaths = append(staticPaths, whAssetPaths...)
-		whContent := render.OperationPageTempl(wh)
+		whContent := render.OperationPageTempl(wh, p.BaseURL)
 		pageTitle := fmt.Sprintf("Webhook: %s %s - %s", wh.Method, wh.Path, title)
 		path := filepath.Join(resolvedOutputDir, "operations", wh.Slug+".html")
 		jobs = append(jobs, htmlWriteJob{
