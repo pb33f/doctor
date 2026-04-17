@@ -10,6 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "fmt"
 import "github.com/pb33f/doctor/printingpress/curl"
+import "github.com/pb33f/doctor/printingpress/internal/pppaths"
 import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
 func headerConstraints(h *ppmodel.HeaderInfo) templ.Component {
@@ -46,7 +47,7 @@ func headerConstraints(h *ppmodel.HeaderInfo) templ.Component {
 				var templ_7745c5c3_Var2 string
 				templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(h.Example)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 12, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 13, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 				if templ_7745c5c3_Err != nil {
@@ -65,7 +66,7 @@ func headerConstraints(h *ppmodel.HeaderInfo) templ.Component {
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(h.Default)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 16, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 17, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
@@ -84,7 +85,7 @@ func headerConstraints(h *ppmodel.HeaderInfo) templ.Component {
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%g", *h.Minimum))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 20, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 21, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -103,7 +104,7 @@ func headerConstraints(h *ppmodel.HeaderInfo) templ.Component {
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%g", *h.Maximum))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 24, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 25, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -122,7 +123,7 @@ func headerConstraints(h *ppmodel.HeaderInfo) templ.Component {
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(h.Pattern)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 28, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 29, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -143,7 +144,7 @@ func headerConstraints(h *ppmodel.HeaderInfo) templ.Component {
 						var templ_7745c5c3_Var7 string
 						templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(", ")
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 35, Col: 13}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 36, Col: 13}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 						if templ_7745c5c3_Err != nil {
@@ -157,7 +158,7 @@ func headerConstraints(h *ppmodel.HeaderInfo) templ.Component {
 					var templ_7745c5c3_Var8 string
 					templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(v)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 37, Col: 37}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 38, Col: 37}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 					if templ_7745c5c3_Err != nil {
@@ -218,7 +219,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(page.OperationID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 48, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 49, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -231,7 +232,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(operationNavSections(page))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 48, Col: 89}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 49, Col: 89}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -249,7 +250,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(page.Method + " " + page.Path)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 56, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 57, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -262,7 +263,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(page.Method)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 57, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 58, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -275,7 +276,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(page.Path)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 58, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 59, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
@@ -293,7 +294,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 				var templ_7745c5c3_Var15 string
 				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", page.SourceLine))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 60, Col: 77}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 61, Col: 77}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 				if templ_7745c5c3_Err != nil {
@@ -312,7 +313,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(page.Location)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 63, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 64, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -336,7 +337,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(page.Summary)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 69, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 70, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
@@ -354,7 +355,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(page.Path)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 71, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 72, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
@@ -372,7 +373,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(page.Method)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 74, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 75, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -385,7 +386,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(page.Path)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 75, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 76, Col: 64}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 		if templ_7745c5c3_Err != nil {
@@ -403,7 +404,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(page.OperationID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 81, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 82, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
@@ -457,7 +458,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var22 templ.SafeURL = templ.SafeURL(DocHref(baseURL, "models/"+sec.Ref.TypeSlug+"/"+sec.Ref.Slug+".html"))
+					var templ_7745c5c3_Var22 templ.SafeURL = templ.SafeURL(DocHref(baseURL, pppaths.ModelHTML(sec.Ref.TypeSlug, sec.Ref.Slug)))
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var22)))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -469,7 +470,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 					var templ_7745c5c3_Var23 string
 					templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(sec.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 107, Col: 27}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 108, Col: 27}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 					if templ_7745c5c3_Err != nil {
@@ -487,7 +488,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 					var templ_7745c5c3_Var24 string
 					templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(sec.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 110, Col: 48}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 111, Col: 48}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 					if templ_7745c5c3_Err != nil {
@@ -521,7 +522,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 						var templ_7745c5c3_Var25 string
 						templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(scope)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 119, Col: 49}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 120, Col: 49}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 						if templ_7745c5c3_Err != nil {
@@ -561,7 +562,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 					var templ_7745c5c3_Var26 string
 					templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(srv.Description)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 135, Col: 25}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 136, Col: 25}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 					if templ_7745c5c3_Err != nil {
@@ -588,7 +589,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(srv.URL)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 139, Col: 122}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 140, Col: 122}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
@@ -636,7 +637,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 			var templ_7745c5c3_Var29 string
 			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(page.ExtensionsJSON)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 166, Col: 68}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 167, Col: 68}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 			if templ_7745c5c3_Err != nil {
@@ -655,7 +656,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 			var templ_7745c5c3_Var30 string
 			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(page.PathExtensionsJSON)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 172, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 173, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 			if templ_7745c5c3_Err != nil {
@@ -681,7 +682,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 				var templ_7745c5c3_Var31 string
 				templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(page.ExternalDoc.Description)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 187, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 188, Col: 37}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 				if templ_7745c5c3_Err != nil {
@@ -713,7 +714,7 @@ func OperationPageTempl(page *ppmodel.OperationPage, baseURL string) templ.Compo
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(page.ExternalDoc.URL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 194, Col: 28}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 195, Col: 28}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
@@ -770,7 +771,7 @@ func RequestBodySection(rb *ppmodel.RequestBodyInfo, baseURL string) templ.Compo
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", rb.SourceLine))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 211, Col: 50}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 212, Col: 50}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
@@ -789,7 +790,7 @@ func RequestBodySection(rb *ppmodel.RequestBodyInfo, baseURL string) templ.Compo
 				var templ_7745c5c3_Var36 string
 				templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(rb.Location)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 214, Col: 27}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 215, Col: 27}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 				if templ_7745c5c3_Err != nil {
@@ -831,7 +832,7 @@ func RequestBodySection(rb *ppmodel.RequestBodyInfo, baseURL string) templ.Compo
 			var templ_7745c5c3_Var37 string
 			templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(rb.ExtensionsJSON)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 225, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 226, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 			if templ_7745c5c3_Err != nil {
@@ -847,7 +848,7 @@ func RequestBodySection(rb *ppmodel.RequestBodyInfo, baseURL string) templ.Compo
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var38 templ.SafeURL = templ.SafeURL(DocHref(baseURL, "models/"+rb.Ref.TypeSlug+"/"+rb.Ref.Slug+".html"))
+			var templ_7745c5c3_Var38 templ.SafeURL = templ.SafeURL(DocHref(baseURL, pppaths.ModelHTML(rb.Ref.TypeSlug, rb.Ref.Slug)))
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var38)))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -859,7 +860,7 @@ func RequestBodySection(rb *ppmodel.RequestBodyInfo, baseURL string) templ.Compo
 			var templ_7745c5c3_Var39 string
 			templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(rb.Ref.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 230, Col: 27}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 231, Col: 27}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 			if templ_7745c5c3_Err != nil {
@@ -917,7 +918,7 @@ func InlineExamples(mt *ppmodel.MediaTypeInfo) templ.Component {
 				var templ_7745c5c3_Var41 string
 				templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(MustJSON(mt.Examples))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 243, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 244, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 				if templ_7745c5c3_Err != nil {
@@ -936,7 +937,7 @@ func InlineExamples(mt *ppmodel.MediaTypeInfo) templ.Component {
 				var templ_7745c5c3_Var42 string
 				templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(mt.MockJSON)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 246, Col: 27}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 247, Col: 27}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 				if templ_7745c5c3_Err != nil {
@@ -989,7 +990,7 @@ func CommonHeadersSection(headers []*ppmodel.HeaderInfo, headersJSON string, bas
 			var templ_7745c5c3_Var44 string
 			templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs("header-" + h.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 255, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 256, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 			if templ_7745c5c3_Err != nil {
@@ -1004,7 +1005,7 @@ func CommonHeadersSection(headers []*ppmodel.HeaderInfo, headersJSON string, bas
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var45 templ.SafeURL = templ.SafeURL(DocHref(baseURL, "models/"+h.Ref.TypeSlug+"/"+h.Ref.Slug+".html"))
+				var templ_7745c5c3_Var45 templ.SafeURL = templ.SafeURL(DocHref(baseURL, pppaths.ModelHTML(h.Ref.TypeSlug, h.Ref.Slug)))
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var45)))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -1016,7 +1017,7 @@ func CommonHeadersSection(headers []*ppmodel.HeaderInfo, headersJSON string, bas
 				var templ_7745c5c3_Var46 string
 				templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(h.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 258, Col: 23}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 259, Col: 23}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 				if templ_7745c5c3_Err != nil {
@@ -1034,7 +1035,7 @@ func CommonHeadersSection(headers []*ppmodel.HeaderInfo, headersJSON string, bas
 				var templ_7745c5c3_Var47 string
 				templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(h.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 261, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 262, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 				if templ_7745c5c3_Err != nil {
@@ -1053,7 +1054,7 @@ func CommonHeadersSection(headers []*ppmodel.HeaderInfo, headersJSON string, bas
 				var templ_7745c5c3_Var48 string
 				templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(h.SchemaType)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 264, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 265, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 				if templ_7745c5c3_Err != nil {
@@ -1072,7 +1073,7 @@ func CommonHeadersSection(headers []*ppmodel.HeaderInfo, headersJSON string, bas
 				var templ_7745c5c3_Var49 string
 				templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(h.Description)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 267, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 268, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 				if templ_7745c5c3_Err != nil {
@@ -1162,7 +1163,7 @@ func SecuritySchemeTypeBadge(sec *ppmodel.SecurityRequirement) templ.Component {
 				var templ_7745c5c3_Var51 string
 				templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(sec.Scheme)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 297, Col: 59}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 298, Col: 59}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 				if templ_7745c5c3_Err != nil {
@@ -1191,7 +1192,7 @@ func SecuritySchemeTypeBadge(sec *ppmodel.SecurityRequirement) templ.Component {
 			var templ_7745c5c3_Var52 string
 			templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(sec.SchemeType)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 307, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 308, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 			if templ_7745c5c3_Err != nil {

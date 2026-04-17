@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/a-h/templ"
+	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/doctor/printingpress/render"
 	"golang.org/x/sync/errgroup"
@@ -68,8 +69,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		return nil, fmt.Errorf("cleaning generated hydration assets: %w", err)
 	}
 
-	dirs := []string{"static", "static/fonts", "static/shoelace/assets/icons"}
-	for _, dir := range dirs {
+	for _, dir := range pppaths.StaticDirs() {
 		if err := os.MkdirAll(filepath.Join(resolvedOutputDir, dir), 0o755); err != nil {
 			return nil, fmt.Errorf("creating directory %s: %w", dir, err)
 		}
@@ -113,10 +113,10 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	if site.Root != nil {
 		p := *params
 		p.BaseURL = resolvedBaseURL
-		p.ExtraCSS = []string{"static/printing-press-index.css"}
+		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
 		rootContent := render.RootPageTempl(site.Root, p.BaseURL)
 		jobs = append(jobs, htmlWriteJob{
-			path:      filepath.Join(resolvedOutputDir, "index.html"),
+			path:      filepath.Join(resolvedOutputDir, pppaths.FileIndexHTML),
 			pageTitle: title,
 			params:    p,
 			content:   rootContent,
@@ -127,8 +127,8 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	for _, op := range site.Operations {
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
-		p.ExtraCSS = []string{"static/printing-press-operation.css"}
-		p.PageDataBase = filepath.ToSlash(filepath.Join(htmlPageDataAssetDir, "operations", op.Slug))
+		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressOperationCSS)}
+		p.PageDataBase = pppaths.OperationPageDataBase(op.Slug)
 		opAssetPaths, err := writeHydrationAsset(resolvedOutputDir, p.PageDataBase, pageHydrationGlobal, assetMode, buildOperationHydrationPayload(op))
 		if err != nil {
 			return nil, fmt.Errorf("writing operation hydration assets for %s: %w", op.Slug, err)
@@ -136,7 +136,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		staticPaths = append(staticPaths, opAssetPaths...)
 		opContent := render.OperationPageTempl(op, p.BaseURL)
 		pageTitle := fmt.Sprintf("%s %s - %s", op.Method, op.Path, title)
-		path := filepath.Join(resolvedOutputDir, "operations", op.Slug+".html")
+		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.OperationHTML(op.Slug)))
 		jobs = append(jobs, htmlWriteJob{
 			path:       path,
 			pageTitle:  pageTitle,
@@ -156,15 +156,15 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		for _, page := range pages {
 			p := *params
 			p.BaseURL = resolveBase(resolvedBaseURL, 2)
-			p.ExtraCSS = []string{"static/printing-press-model.css"}
-			p.PageDataBase = filepath.ToSlash(filepath.Join(htmlPageDataAssetDir, "models", typeSlug, page.Slug))
+			p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressModelCSS)}
+			p.PageDataBase = pppaths.ModelPageDataBase(typeSlug, page.Slug)
 			modelAssetPaths, err := writeHydrationAsset(resolvedOutputDir, p.PageDataBase, pageHydrationGlobal, assetMode, buildModelHydrationPayload(page))
 			if err != nil {
 				return nil, fmt.Errorf("writing model hydration assets for %s/%s: %w", typeSlug, page.Slug, err)
 			}
 			staticPaths = append(staticPaths, modelAssetPaths...)
 			if diagramPayload := buildModelDiagramVisualizationPayload(page); diagramPayload != nil {
-				p.VizDiagramDataBase = filepath.ToSlash(filepath.Join(htmlVizDataAssetDir, "models", typeSlug, page.Slug+"-diagram"))
+				p.VizDiagramDataBase = pppaths.ModelDiagramVizBase(typeSlug, page.Slug)
 				diagramAssetPaths, err := writeHydrationAsset(
 					resolvedOutputDir, p.VizDiagramDataBase, diagramHydrationGlobal, assetMode, diagramPayload,
 				)
@@ -174,7 +174,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 				staticPaths = append(staticPaths, diagramAssetPaths...)
 			}
 			if graphPayload := buildModelGraphVisualizationPayload(page); graphPayload != nil {
-				p.VizGraphDataBase = filepath.ToSlash(filepath.Join(htmlVizDataAssetDir, "models", typeSlug, page.Slug+"-graph"))
+				p.VizGraphDataBase = pppaths.ModelGraphVizBase(typeSlug, page.Slug)
 				graphAssetPaths, err := writeHydrationAsset(
 					resolvedOutputDir, p.VizGraphDataBase, graphHydrationGlobal, assetMode, graphPayload,
 				)
@@ -185,7 +185,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			}
 			modelContent := render.ModelPageTempl(page, p.BaseURL)
 			pageTitle := fmt.Sprintf("%s - %s", page.Name, title)
-			path := filepath.Join(resolvedOutputDir, "models", typeSlug, page.Slug+".html")
+			path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.ModelHTML(typeSlug, page.Slug)))
 			activeModelSlug := page.TypeSlug + "/" + page.Slug
 			jobs = append(jobs, htmlWriteJob{
 				path:       path,
@@ -201,10 +201,10 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	{
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
-		p.ExtraCSS = []string{"static/printing-press-index.css"}
+		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
 		indexContent := render.ModelsIndexTempl(site.NavModelGroups, render.ModelsIndexBreadcrumb(), p.BaseURL)
 		jobs = append(jobs, htmlWriteJob{
-			path:      filepath.Join(resolvedOutputDir, "models", "index.html"),
+			path:      filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.ModelsIndexHTML())),
 			pageTitle: "Models - " + title,
 			params:    p,
 			content:   indexContent,
@@ -215,11 +215,11 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	for _, group := range site.NavModelGroups {
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 2)
-		p.ExtraCSS = []string{"static/printing-press-index.css"}
+		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
 		bc := render.ModelTypeIndexBreadcrumb(group.Name)
 		content := render.ModelTypeIndexTempl(group, bc, p.BaseURL)
 		pageTitle := fmt.Sprintf("%s - %s", group.Name, title)
-		path := filepath.Join(resolvedOutputDir, "models", group.TypeSlug, "index.html")
+		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.ModelTypeIndexHTML(group.TypeSlug)))
 		jobs = append(jobs, htmlWriteJob{
 			path:      path,
 			pageTitle: pageTitle,
@@ -238,11 +238,11 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			}
 			p := *params
 			p.BaseURL = resolveBase(resolvedBaseURL, 1)
-			p.ExtraCSS = []string{"static/printing-press-index.css"}
+			p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
 			bc := render.TagIndexBreadcrumb(tag, tagParentMap)
 			content := render.TagIndexTempl(tag, bc, p.BaseURL)
 			pageTitle := fmt.Sprintf("%s - %s", tag.DisplayName(), title)
-			path := filepath.Join(resolvedOutputDir, "tags", tag.Slug+".html")
+			path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.TagHTML(tag.Slug)))
 			jobs = append(jobs, htmlWriteJob{
 				path:      path,
 				pageTitle: pageTitle,
@@ -258,8 +258,8 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	for _, wh := range site.Webhooks {
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
-		p.ExtraCSS = []string{"static/printing-press-operation.css"}
-		p.PageDataBase = filepath.ToSlash(filepath.Join(htmlPageDataAssetDir, "operations", wh.Slug))
+		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressOperationCSS)}
+		p.PageDataBase = pppaths.OperationPageDataBase(wh.Slug)
 		whAssetPaths, err := writeHydrationAsset(resolvedOutputDir, p.PageDataBase, pageHydrationGlobal, assetMode, buildOperationHydrationPayload(wh))
 		if err != nil {
 			return nil, fmt.Errorf("writing webhook hydration assets for %s: %w", wh.Slug, err)
@@ -267,7 +267,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		staticPaths = append(staticPaths, whAssetPaths...)
 		whContent := render.OperationPageTempl(wh, p.BaseURL)
 		pageTitle := fmt.Sprintf("Webhook: %s %s - %s", wh.Method, wh.Path, title)
-		path := filepath.Join(resolvedOutputDir, "operations", wh.Slug+".html")
+		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.OperationHTML(wh.Slug)))
 		jobs = append(jobs, htmlWriteJob{
 			path:       path,
 			pageTitle:  pageTitle,
@@ -476,7 +476,7 @@ func resolveBase(baseURL string, depth int) string {
 }
 
 func copyEmbeddedStatic(outputDir string) ([]string, error) {
-	return copyEmbeddedDir("static", filepath.Join(outputDir, "static"))
+	return copyEmbeddedDir(pppaths.DirStatic, filepath.Join(outputDir, pppaths.DirStatic))
 }
 
 func copyEmbeddedDir(embedPath, destDir string) ([]string, error) {

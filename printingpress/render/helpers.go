@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 )
 
@@ -20,16 +21,16 @@ type BreadcrumbItem struct {
 
 func modelBreadcrumb(page *ppmodel.ModelPage) []BreadcrumbItem {
 	return []BreadcrumbItem{
-		{Label: "HOME", Href: "index.html"},
-		{Label: "MODELS", Href: "models/index.html"},
-		{Label: strings.ToUpper(slugToTitle(page.TypeSlug)), Href: "models/" + page.TypeSlug + "/index.html"},
+		{Label: "HOME", Href: pppaths.FileIndexHTML},
+		{Label: "MODELS", Href: pppaths.ModelsIndexHTML()},
+		{Label: strings.ToUpper(slugToTitle(page.TypeSlug)), Href: pppaths.ModelTypeIndexHTML(page.TypeSlug)},
 	}
 }
 
 func operationBreadcrumb(page *ppmodel.OperationPage) []BreadcrumbItem {
 	items := []BreadcrumbItem{
-		{Label: "HOME", Href: "index.html"},
-		{Label: "OPERATIONS", Href: "index.html"},
+		{Label: "HOME", Href: pppaths.FileIndexHTML},
+		{Label: "OPERATIONS", Href: pppaths.FileIndexHTML},
 	}
 	for i, tag := range page.TagPath {
 		item := BreadcrumbItem{Label: tag}
@@ -101,7 +102,7 @@ func isHostedAssetBase(base *url.URL) bool {
 // ModelsIndexBreadcrumb builds the breadcrumb for the models index page.
 func ModelsIndexBreadcrumb() []BreadcrumbItem {
 	return []BreadcrumbItem{
-		{Label: "HOME", Href: "index.html"},
+		{Label: "HOME", Href: pppaths.FileIndexHTML},
 		{Label: "MODELS"},
 	}
 }
@@ -109,8 +110,8 @@ func ModelsIndexBreadcrumb() []BreadcrumbItem {
 // ModelTypeIndexBreadcrumb builds the breadcrumb for a model type index page.
 func ModelTypeIndexBreadcrumb(typeName string) []BreadcrumbItem {
 	return []BreadcrumbItem{
-		{Label: "HOME", Href: "index.html"},
-		{Label: "MODELS", Href: "models/index.html"},
+		{Label: "HOME", Href: pppaths.FileIndexHTML},
+		{Label: "MODELS", Href: pppaths.ModelsIndexHTML()},
 		{Label: strings.ToUpper(typeName)},
 	}
 }
@@ -118,8 +119,8 @@ func ModelTypeIndexBreadcrumb(typeName string) []BreadcrumbItem {
 // TagIndexBreadcrumb builds the breadcrumb for a tag index page using a pre-computed parent map.
 func TagIndexBreadcrumb(tag *ppmodel.NavTag, tagParentMap map[string]*ppmodel.NavTag) []BreadcrumbItem {
 	items := []BreadcrumbItem{
-		{Label: "HOME", Href: "index.html"},
-		{Label: "OPERATIONS", Href: "index.html"},
+		{Label: "HOME", Href: pppaths.FileIndexHTML},
+		{Label: "OPERATIONS", Href: pppaths.FileIndexHTML},
 	}
 	var path []*ppmodel.NavTag
 	for cur := tagParentMap[tag.Name]; cur != nil; cur = tagParentMap[cur.Name] {
@@ -129,7 +130,7 @@ func TagIndexBreadcrumb(tag *ppmodel.NavTag, tagParentMap map[string]*ppmodel.Na
 		path[i], path[j] = path[j], path[i]
 	}
 	for _, ancestor := range path {
-		items = append(items, BreadcrumbItem{Label: ancestor.DisplayName(), Href: "tags/" + ancestor.Slug + ".html"})
+		items = append(items, BreadcrumbItem{Label: ancestor.DisplayName(), Href: pppaths.TagHTML(ancestor.Slug)})
 	}
 	items = append(items, BreadcrumbItem{Label: tag.DisplayName()})
 	return items

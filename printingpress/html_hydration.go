@@ -8,15 +8,18 @@ import (
 	"strings"
 
 	"github.com/cespare/xxhash/v2"
+	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/doctor/printingpress/render"
 )
 
-const (
-	htmlSharedDataAssetBase = "static/printing-press-shared"
-	htmlPageDataAssetDir    = "static/page-data"
-	htmlVizDataAssetDir     = "static/page-viz"
+var (
+	htmlSharedDataAssetBase = pppaths.SharedHydrationAssetBase()
+	htmlPageDataAssetDir    = pppaths.PageDataAssetDir()
+	htmlVizDataAssetDir     = pppaths.PageVizAssetDir()
+)
 
+const (
 	sharedHydrationGlobal  = "__PP_SHARED_DATA__"
 	pageHydrationGlobal    = "__PP_PAGE_DATA__"
 	graphHydrationGlobal   = "__PP_VIZ_GRAPH_DATA__"
@@ -109,8 +112,8 @@ func buildSharedHydrationPayload(site *ppmodel.Site) *htmlHydrationPayload {
 				Description:   page.Description,
 				TypeSlug:      typeSlug,
 				Slug:          page.Slug,
-				Href:          filepath.ToSlash(filepath.Join("models", typeSlug, page.Slug+".html")),
-				PageDataBase:  filepath.ToSlash(filepath.Join(htmlPageDataAssetDir, "models", typeSlug, page.Slug)),
+				Href:          pppaths.ModelHTML(typeSlug, page.Slug),
+				PageDataBase:  pppaths.ModelPageDataBase(typeSlug, page.Slug),
 				HasExample:    page.MockJSON != "",
 			}
 		}

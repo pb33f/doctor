@@ -7,6 +7,7 @@ package printingpress
 import (
 	"sort"
 
+	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 )
 
@@ -258,7 +259,7 @@ func buildOperationArtifactEntries(operations []*ppmodel.OperationPage, kind str
 		}
 		result = append(result, JSONArtifactEntry{
 			Kind: kind,
-			Path: "operations/" + operation.Slug + ".json",
+			Path: pppaths.OperationJSON(operation.Slug),
 			Name: operation.Method + " " + operation.Path,
 			Slug: operation.Slug,
 		})
@@ -287,7 +288,7 @@ func buildModelArtifactEntries(models map[string][]*ppmodel.ModelPage) map[strin
 			}
 			entries = append(entries, JSONArtifactEntry{
 				Kind:     "model",
-				Path:     "models/" + typeSlug + "/" + page.Slug + ".json",
+				Path:     pppaths.ModelJSON(typeSlug, page.Slug),
 				Name:     page.Name,
 				Slug:     page.Slug,
 				TypeSlug: typeSlug,
@@ -300,15 +301,15 @@ func buildModelArtifactEntries(models map[string][]*ppmodel.ModelPage) map[strin
 
 func buildArtifactManifest(site *ppmodel.Site) *ArtifactManifest {
 	artifacts := []JSONArtifactEntry{
-		{Kind: "bundle", Path: "bundle.json", Name: "JSON bundle"},
+		{Kind: "bundle", Path: pppaths.FileBundleJSON, Name: "JSON bundle"},
 	}
 	if site != nil && site.Root != nil {
-		artifacts = append(artifacts, JSONArtifactEntry{Kind: "root", Path: "index.json", Name: "Root page"})
+		artifacts = append(artifacts, JSONArtifactEntry{Kind: "root", Path: pppaths.FileIndexJSON, Name: "Root page"})
 	}
 	if site != nil && site.NavTags != nil {
-		artifacts = append(artifacts, JSONArtifactEntry{Kind: "nav", Path: "nav.json", Name: "Navigation"})
+		artifacts = append(artifacts, JSONArtifactEntry{Kind: "nav", Path: pppaths.FileNavJSON, Name: "Navigation"})
 	}
-	artifacts = append(artifacts, JSONArtifactEntry{Kind: "manifest", Path: "manifest.json", Name: "JSON artifact manifest"})
+	artifacts = append(artifacts, JSONArtifactEntry{Kind: "manifest", Path: pppaths.FileManifestJSON, Name: "JSON artifact manifest"})
 	artifacts = append(artifacts, buildOperationArtifactEntries(site.Operations, "operation")...)
 	artifacts = append(artifacts, buildOperationArtifactEntries(site.Webhooks, "webhook")...)
 

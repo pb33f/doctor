@@ -3,6 +3,7 @@ package render
 import "fmt"
 import "strings"
 import "github.com/pb33f/doctor/printingpress/curl"
+import "github.com/pb33f/doctor/printingpress/internal/pppaths"
 import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
 templ RootPageTempl(page *ppmodel.RootPage, baseURL string) {
@@ -133,7 +134,7 @@ templ RootTagSection(tag *ppmodel.NavTag, depth int, baseURL string) {
 
 templ RootOperationItem(op *ppmodel.NavOperation, baseURL string) {
 	<li>
-		<a href={ templ.SafeURL(DocHref(baseURL, "operations/" + op.Slug + ".html")) } class={ opItemClass(op.Deprecated) }>
+		<a href={ templ.SafeURL(DocHref(baseURL, pppaths.OperationHTML(op.Slug))) } class={ opItemClass(op.Deprecated) }>
 			<pb33f-http-method small method={ strings.ToLower(op.Method) }></pb33f-http-method>
 			<pb33f-render-operation-path path={ op.Path }></pb33f-render-operation-path>
 		</a>

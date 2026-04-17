@@ -15,6 +15,7 @@ import (
 
 	doctormodel "github.com/pb33f/doctor/model"
 	curlpkg "github.com/pb33f/doctor/printingpress/curl"
+	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	. "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/doctor/printingpress/render"
 	slugpkg "github.com/pb33f/doctor/printingpress/slug"
@@ -260,7 +261,7 @@ func (pp *PrintingPress) pressSite() (*Site, error) {
 			if page == nil {
 				continue
 			}
-			schemaNodeHrefs[SchemaNodeID("schemas", page.Name)] = "models/" + page.TypeSlug + "/" + page.Slug + ".html"
+			schemaNodeHrefs[SchemaNodeID("schemas", page.Name)] = pppaths.ModelHTML(page.TypeSlug, page.Slug)
 		}
 		graphIndex := newFocusedGraphIndex(pp.engineConfig.DrDoc.Nodes, pp.engineConfig.DrDoc.Edges, schemaNodeHrefs)
 		if len(schemaPages) > 0 {

@@ -11,6 +11,7 @@ import (
 
 	drModel "github.com/pb33f/doctor/model"
 	v3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	. "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 )
@@ -662,7 +663,7 @@ func buildSyntheticOperationConsumerNode(op *OperationRef) (json.RawMessage, err
 	}
 	nodeBytes, err = injectNodeAttrs(nodeBytes, map[string]any{
 		"dependency": true,
-		"href":       fmt.Sprintf("operations/%s.html", op.Slug),
+		"href":       pppaths.OperationHTML(op.Slug),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("injecting dependency flag into synthetic operation consumer node: %w", err)
