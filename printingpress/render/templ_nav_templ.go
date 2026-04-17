@@ -8,6 +8,7 @@ package render
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "github.com/pb33f/doctor/printingpress/internal/pppaths"
 import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
 func NavTempl(tags []*ppmodel.NavTag, models map[string][]*ppmodel.ModelPage, baseURL string) templ.Component {
@@ -35,7 +36,7 @@ func NavTempl(tags []*ppmodel.NavTag, models map[string][]*ppmodel.ModelPage, ba
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var2 templ.SafeURL = templ.SafeURL(DocHref(baseURL, "index.html"))
+		var templ_7745c5c3_Var2 templ.SafeURL = templ.SafeURL(DocHref(baseURL, pppaths.FileIndexHTML))
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var2)))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -74,7 +75,7 @@ func NavTempl(tags []*ppmodel.NavTag, models map[string][]*ppmodel.ModelPage, ba
 					var templ_7745c5c3_Var3 string
 					templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(typeSlug)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_nav.templ`, Line: 24, Col: 26}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_nav.templ`, Line: 25, Col: 26}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 					if templ_7745c5c3_Err != nil {
@@ -89,7 +90,7 @@ func NavTempl(tags []*ppmodel.NavTag, models map[string][]*ppmodel.ModelPage, ba
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						var templ_7745c5c3_Var4 templ.SafeURL = templ.SafeURL(DocHref(baseURL, "models/"+typeSlug+"/"+page.Slug+".html"))
+						var templ_7745c5c3_Var4 templ.SafeURL = templ.SafeURL(DocHref(baseURL, pppaths.ModelHTML(typeSlug, page.Slug)))
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var4)))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
@@ -101,7 +102,7 @@ func NavTempl(tags []*ppmodel.NavTag, models map[string][]*ppmodel.ModelPage, ba
 						var templ_7745c5c3_Var5 string
 						templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(page.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_nav.templ`, Line: 29, Col: 22}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_nav.templ`, Line: 30, Col: 22}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 						if templ_7745c5c3_Err != nil {
@@ -159,7 +160,7 @@ func NavTagItem(tag *ppmodel.NavTag, baseURL string) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(tag.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_nav.templ`, Line: 44, Col: 21}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_nav.templ`, Line: 45, Col: 21}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -179,7 +180,7 @@ func NavTagItem(tag *ppmodel.NavTag, baseURL string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var8 templ.SafeURL = templ.SafeURL(DocHref(baseURL, "operations/"+op.Slug+".html"))
+				var templ_7745c5c3_Var8 templ.SafeURL = templ.SafeURL(DocHref(baseURL, pppaths.OperationHTML(op.Slug)))
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var8)))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -191,7 +192,7 @@ func NavTagItem(tag *ppmodel.NavTag, baseURL string) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(op.Path)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_nav.templ`, Line: 50, Col: 42}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_nav.templ`, Line: 51, Col: 42}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -204,7 +205,7 @@ func NavTagItem(tag *ppmodel.NavTag, baseURL string) templ.Component {
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(op.Method)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_nav.templ`, Line: 51, Col: 61}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_nav.templ`, Line: 52, Col: 61}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {

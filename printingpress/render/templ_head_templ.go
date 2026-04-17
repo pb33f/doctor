@@ -8,6 +8,8 @@ package render
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "github.com/pb33f/doctor/printingpress/internal/pppaths"
+
 func Head(title string, baseURL string, assetBaseURL string, extraCSS []string, lite bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -36,7 +38,7 @@ func Head(title string, baseURL string, assetBaseURL string, extraCSS []string, 
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 24, Col: 16}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 26, Col: 16}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -54,7 +56,7 @@ func Head(title string, baseURL string, assetBaseURL string, extraCSS []string, 
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(baseURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 28, Col: 23}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 30, Col: 23}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -70,9 +72,9 @@ func Head(title string, baseURL string, assetBaseURL string, extraCSS []string, 
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, "static/pb33f-theme.css"))
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FilePB33FThemeCSS)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 30, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 32, Col: 103}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -83,9 +85,9 @@ func Head(title string, baseURL string, assetBaseURL string, extraCSS []string, 
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, "static/cowboy-components.css"))
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FileCowboyComponentsCSS)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 31, Col: 87}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 33, Col: 109}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -96,9 +98,9 @@ func Head(title string, baseURL string, assetBaseURL string, extraCSS []string, 
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
-		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, "static/shoelace-dark.css"))
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FileShoelaceDarkCSS)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 32, Col: 83}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 34, Col: 105}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -109,9 +111,9 @@ func Head(title string, baseURL string, assetBaseURL string, extraCSS []string, 
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, "static/printing-press.css"))
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressCSS)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 33, Col: 84}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 35, Col: 106}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -122,9 +124,9 @@ func Head(title string, baseURL string, assetBaseURL string, extraCSS []string, 
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, "static/chroma.css"))
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FileChromaCSS)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 34, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 36, Col: 99}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -142,7 +144,7 @@ func Head(title string, baseURL string, assetBaseURL string, extraCSS []string, 
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, css))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 36, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 38, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
@@ -159,9 +161,9 @@ func Head(title string, baseURL string, assetBaseURL string, extraCSS []string, 
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var10 string
-			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, "static/printing-press-lite.js"))
+			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressLiteJS)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 39, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 41, Col: 100}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -177,9 +179,9 @@ func Head(title string, baseURL string, assetBaseURL string, extraCSS []string, 
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var11 string
-			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, "static/printing-press.js"))
+			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressJS)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 41, Col: 74}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 43, Col: 96}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {

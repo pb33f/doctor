@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	. "github.com/pb33f/doctor/printingpress/model"
 )
 
@@ -25,8 +26,8 @@ type llmRenderContext struct {
 func rootLLMRenderContext(site *Site) llmRenderContext {
 	return llmRenderContext{
 		site:                site,
-		operationLinkPrefix: "operations/",
-		modelLinkPrefix:     "models/",
+		operationLinkPrefix: pppaths.DirOperations + "/",
+		modelLinkPrefix:     pppaths.DirModels + "/",
 	}
 }
 
@@ -34,15 +35,15 @@ func operationFileRenderContext(site *Site) llmRenderContext {
 	return llmRenderContext{
 		site:                site,
 		operationLinkPrefix: "",
-		modelLinkPrefix:     "../models/",
+		modelLinkPrefix:     "../" + pppaths.DirModels + "/",
 	}
 }
 
 func modelFileRenderContext(site *Site) llmRenderContext {
 	return llmRenderContext{
 		site:                site,
-		operationLinkPrefix: "../../operations/",
-		modelLinkPrefix:     "../../models/",
+		operationLinkPrefix: "../../" + pppaths.DirOperations + "/",
+		modelLinkPrefix:     "../../" + pppaths.DirModels + "/",
 	}
 }
 
@@ -81,7 +82,7 @@ func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFu
 	if err := writeLLMFull(site, resolvedOutputDir); err != nil {
 		return nil, fmt.Errorf("writing llms-full.txt: %w", err)
 	}
-	written = append(written, filepath.Join(resolvedOutputDir, "llms-full.txt"))
+	written = append(written, filepath.Join(resolvedOutputDir, pppaths.FileLLMFull))
 	step++
 	if progress != nil {
 		progress("writing llm files", step, total)
@@ -89,7 +90,7 @@ func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFu
 	if err := writeLLMAgentsGuide(site, resolvedOutputDir); err != nil {
 		return nil, fmt.Errorf("writing AGENTS.md: %w", err)
 	}
-	written = append(written, filepath.Join(resolvedOutputDir, "AGENTS.md"))
+	written = append(written, filepath.Join(resolvedOutputDir, pppaths.FileAgentsGuide))
 	step++
 	if progress != nil {
 		progress("writing llm files", step, total)
@@ -97,7 +98,7 @@ func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFu
 	if err := writeLLMIndex(site, resolvedOutputDir); err != nil {
 		return nil, fmt.Errorf("writing llms.txt: %w", err)
 	}
-	written = append(written, filepath.Join(resolvedOutputDir, "llms.txt"))
+	written = append(written, filepath.Join(resolvedOutputDir, pppaths.FileLLMIndex))
 	step++
 	if progress != nil {
 		progress("writing llm files", step, total)
@@ -105,7 +106,7 @@ func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFu
 	if err := writeLLMOperationsSlice(site, resolvedOutputDir); err != nil {
 		return nil, fmt.Errorf("writing llms-operations.txt: %w", err)
 	}
-	written = append(written, filepath.Join(resolvedOutputDir, "llms-operations.txt"))
+	written = append(written, filepath.Join(resolvedOutputDir, pppaths.FileLLMOperations))
 	step++
 	if progress != nil {
 		progress("writing llm files", step, total)
@@ -113,7 +114,7 @@ func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFu
 	if err := writeLLMModelsSlice(site, resolvedOutputDir); err != nil {
 		return nil, fmt.Errorf("writing llms-models.txt: %w", err)
 	}
-	written = append(written, filepath.Join(resolvedOutputDir, "llms-models.txt"))
+	written = append(written, filepath.Join(resolvedOutputDir, pppaths.FileLLMModels))
 	step++
 	if progress != nil {
 		progress("writing llm files", step, total)
@@ -160,7 +161,7 @@ func writeLLMAgentsGuide(site *Site, outputDir string) error {
 
 	b.WriteString(renderAgentsGuide(site))
 
-	return os.WriteFile(filepath.Join(outputDir, "AGENTS.md"), []byte(b.String()), 0o644)
+	return os.WriteFile(filepath.Join(outputDir, pppaths.FileAgentsGuide), []byte(b.String()), 0o644)
 }
 
 // writeLLMFull generates the primary llms-full.txt with complete API documentation.
@@ -208,7 +209,7 @@ func writeLLMFull(site *Site, outputDir string) error {
 		b.WriteString(modelsContent)
 	}
 
-	return os.WriteFile(filepath.Join(outputDir, "llms-full.txt"), []byte(b.String()), 0o644)
+	return os.WriteFile(filepath.Join(outputDir, pppaths.FileLLMFull), []byte(b.String()), 0o644)
 }
 
 // writeLLMIndex generates the llms.txt discovery index.
@@ -278,7 +279,7 @@ func writeLLMIndex(site *Site, outputDir string) error {
 		}
 	}
 
-	return os.WriteFile(filepath.Join(outputDir, "llms.txt"), []byte(b.String()), 0o644)
+	return os.WriteFile(filepath.Join(outputDir, pppaths.FileLLMIndex), []byte(b.String()), 0o644)
 }
 
 func renderAgentsGuide(site *Site) string {
@@ -338,7 +339,7 @@ func writeLLMOperationsSlice(site *Site, outputDir string) error {
 		b.WriteString("# Operations\n\nNo operations defined.\n")
 	}
 
-	return os.WriteFile(filepath.Join(outputDir, "llms-operations.txt"), []byte(b.String()), 0o644)
+	return os.WriteFile(filepath.Join(outputDir, pppaths.FileLLMOperations), []byte(b.String()), 0o644)
 }
 
 // writeLLMModelsSlice generates llms-models.txt with all model/component sections.
@@ -355,7 +356,7 @@ func writeLLMModelsSlice(site *Site, outputDir string) error {
 		b.WriteString("# Models\n\nNo models defined.\n")
 	}
 
-	return os.WriteFile(filepath.Join(outputDir, "llms-models.txt"), []byte(b.String()), 0o644)
+	return os.WriteFile(filepath.Join(outputDir, pppaths.FileLLMModels), []byte(b.String()), 0o644)
 }
 
 // writeLLMOperationFiles writes individual .md files for each operation and webhook.
@@ -364,7 +365,7 @@ func writeLLMOperationFiles(site *Site, outputDir string) ([]string, error) {
 	ctx := operationFileRenderContext(site)
 	for _, op := range site.Operations {
 		content := renderOperationMD(ctx, op)
-		path := filepath.Join(outputDir, "operations", op.Slug+".md")
+		path := filepath.Join(outputDir, filepath.FromSlash(pppaths.OperationMarkdown(op.Slug)))
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			return nil, err
 		}
@@ -375,7 +376,7 @@ func writeLLMOperationFiles(site *Site, outputDir string) ([]string, error) {
 	}
 	for _, wh := range site.Webhooks {
 		content := renderOperationMD(ctx, wh)
-		path := filepath.Join(outputDir, "operations", wh.Slug+".md")
+		path := filepath.Join(outputDir, filepath.FromSlash(pppaths.OperationMarkdown(wh.Slug)))
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			return nil, err
 		}
@@ -395,7 +396,7 @@ func writeLLMModelFiles(site *Site, outputDir string) ([]string, error) {
 		pages := site.Models[group.TypeSlug]
 		for _, page := range pages {
 			content := renderModelMD(ctx, page)
-			path := filepath.Join(outputDir, "models", group.TypeSlug, page.Slug+".md")
+			path := filepath.Join(outputDir, filepath.FromSlash(pppaths.ModelMarkdown(group.TypeSlug, page.Slug)))
 			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 				return nil, err
 			}

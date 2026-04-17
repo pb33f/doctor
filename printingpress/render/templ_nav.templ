@@ -1,11 +1,12 @@
 package render
 
+import "github.com/pb33f/doctor/printingpress/internal/pppaths"
 import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
 templ NavTempl(tags []*ppmodel.NavTag, models map[string][]*ppmodel.ModelPage, baseURL string) {
 	<nav class="pp-nav">
 		<div class="pp-nav-section">
-			<a href={ templ.SafeURL(DocHref(baseURL, "index.html")) } class="pp-nav-home">Overview</a>
+			<a href={ templ.SafeURL(DocHref(baseURL, pppaths.FileIndexHTML)) } class="pp-nav-home">Overview</a>
 		</div>
 		if len(tags) > 0 {
 			<div class="pp-nav-section">
@@ -25,7 +26,7 @@ templ NavTempl(tags []*ppmodel.NavTag, models map[string][]*ppmodel.ModelPage, b
 							<ul>
 								for _, page := range pages {
 									<li>
-										<a href={ templ.SafeURL(DocHref(baseURL, "models/" + typeSlug + "/" + page.Slug + ".html")) }>
+										<a href={ templ.SafeURL(DocHref(baseURL, pppaths.ModelHTML(typeSlug, page.Slug))) }>
 											{ page.Name }
 										</a>
 									</li>
@@ -46,7 +47,7 @@ templ NavTagItem(tag *ppmodel.NavTag, baseURL string) {
 			<ul class="pp-nav-operations">
 				for _, op := range tag.Operations {
 					<li>
-						<a href={ templ.SafeURL(DocHref(baseURL, "operations/" + op.Slug + ".html")) }>
+						<a href={ templ.SafeURL(DocHref(baseURL, pppaths.OperationHTML(op.Slug))) }>
 							<span class="pp-nav-path">{ op.Path }</span>
 							<pb33f-http-method mode="nav-naked" method={ op.Method }></pb33f-http-method>
 						</a>

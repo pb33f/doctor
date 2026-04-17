@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 )
 
@@ -110,6 +111,7 @@ func (ap *AggregatePrintingPress) PrintSelectedOutputs(options AggregateRenderOp
 	ap.mu.Lock()
 	defer ap.mu.Unlock()
 
+	totalStart := time.Now()
 	selection := aggregateOutputSelection{
 		html: options.HTML,
 		llm:  options.LLM,
@@ -124,14 +126,14 @@ func (ap *AggregatePrintingPress) PrintSelectedOutputs(options AggregateRenderOp
 		return nil, err
 	}
 
-	start := time.Now()
+	generationStart := time.Now()
 	if err := os.MkdirAll(ap.config.OutputDir, 0o755); err != nil {
 		return nil, fmt.Errorf("printingpress: creating aggregate output dir: %w", err)
 	}
 
 	var written []string
 	if selection.html {
-		for _, dir := range []string{"static", "static/fonts", "static/shoelace/assets/icons"} {
+		for _, dir := range pppaths.StaticDirs() {
 			if err := os.MkdirAll(filepath.Join(ap.config.OutputDir, dir), 0o755); err != nil {
 				return nil, err
 			}
@@ -162,6 +164,9 @@ func (ap *AggregatePrintingPress) PrintSelectedOutputs(options AggregateRenderOp
 			return nil, err
 		}
 	}
+	if err := ap.pruneObsoleteAggregateArtifacts(plan, selection); err != nil {
+		return nil, err
+	}
 
 	if selection.html {
 		aggregatePages, err := ap.writeCatalogHTML(plan.catalog)
@@ -189,7 +194,7 @@ func (ap *AggregatePrintingPress) PrintSelectedOutputs(options AggregateRenderOp
 		return nil, err
 	}
 
-	stats := ap.buildAggregateStatistics(plan, written, plan.duration, time.Since(start), time.Since(start))
+	stats := ap.buildAggregateStatistics(plan, written, plan.duration, time.Since(generationStart), time.Since(totalStart))
 	stats.PoolsUsed = len(pools)
 	stats.WorkersPerPool = ap.config.WorkersPerPool
 	stats.AvailableCores = max(1, runtime.GOMAXPROCS(0))
@@ -386,7 +391,7 @@ func removeAggregateEntryArtifacts(entryOutput string, rootFiles []string, exten
 			return err
 		}
 	}
-	for _, dir := range []string{"operations", "models"} {
+	for _, dir := range []string{pppaths.DirOperations, pppaths.DirModels} {
 		if err := removeFilesWithExtension(filepath.Join(entryOutput, dir), extension); err != nil {
 			return err
 		}
@@ -419,11 +424,22 @@ func removeFilesWithExtension(root, extension string) error {
 }
 
 func llmEntryRootFiles() []string {
-	return []string{"AGENTS.md", "llms.txt", "llms-full.txt", "llms-operations.txt", "llms-models.txt"}
+	return []string{
+		pppaths.FileAgentsGuide,
+		pppaths.FileLLMIndex,
+		pppaths.FileLLMFull,
+		pppaths.FileLLMOperations,
+		pppaths.FileLLMModels,
+	}
 }
 
 func jsonEntryRootFiles() []string {
-	return []string{"bundle.json", "index.json", "nav.json", "manifest.json"}
+	return []string{
+		pppaths.FileBundleJSON,
+		pppaths.FileIndexJSON,
+		pppaths.FileNavJSON,
+		pppaths.FileManifestJSON,
+	}
 }
 
 func (ap *AggregatePrintingPress) resolvePoolCount(specCount int) int {

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
+	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 )
 
@@ -115,6 +116,154 @@ func (ap *AggregatePrintingPress) pruneObsoleteOutputs(plan *aggregateBuildPlan,
 			if err := removeSubdir(record.OutputSubdir); err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+func (ap *AggregatePrintingPress) pruneObsoleteAggregateArtifacts(plan *aggregateBuildPlan, selection aggregateOutputSelection) error {
+	previous := aggregateTopologyFromState(plan.existing)
+	current := aggregateTopologyFromCatalog(plan.catalog)
+
+	for serviceSlug, previousVersions := range previous {
+		currentVersions, serviceStillVisible := current[serviceSlug]
+		if !serviceStillVisible {
+			if err := ap.removeAggregateServiceArtifacts(serviceSlug, previousVersions, selection); err != nil {
+				return err
+			}
+			continue
+		}
+		for versionSlug := range previousVersions {
+			if _, ok := currentVersions[versionSlug]; ok {
+				continue
+			}
+			if err := ap.removeAggregateVersionArtifacts(serviceSlug, versionSlug, selection); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func aggregateTopologyFromState(records map[string]*SpecStateRecord) map[string]map[string]struct{} {
+	topology := make(map[string]map[string]struct{})
+	for _, record := range records {
+		serviceSlug, versionSlug, ok := aggregateTopologyKeys(record.OutputSubdir)
+		if !ok {
+			continue
+		}
+		if _, ok := topology[serviceSlug]; !ok {
+			topology[serviceSlug] = make(map[string]struct{})
+		}
+		topology[serviceSlug][versionSlug] = struct{}{}
+	}
+	return topology
+}
+
+func aggregateTopologyFromCatalog(catalog *ppmodel.CatalogSite) map[string]map[string]struct{} {
+	topology := make(map[string]map[string]struct{})
+	if catalog == nil {
+		return topology
+	}
+	for _, service := range catalog.Services {
+		visibleVersions := visibleCatalogVersions(service)
+		if len(visibleVersions) == 0 {
+			continue
+		}
+		if _, ok := topology[service.Slug]; !ok {
+			topology[service.Slug] = make(map[string]struct{})
+		}
+		for _, version := range visibleVersions {
+			topology[service.Slug][version.Slug] = struct{}{}
+		}
+	}
+	return topology
+}
+
+func aggregateTopologyKeys(outputSubdir string) (string, string, bool) {
+	parts := strings.Split(strings.Trim(filepath.ToSlash(outputSubdir), "/"), "/")
+	if len(parts) < 6 {
+		return "", "", false
+	}
+	if parts[0] != pppaths.DirServices || parts[2] != pppaths.DirVersions || parts[4] != pppaths.DirSpecs {
+		return "", "", false
+	}
+	return parts[1], parts[3], true
+}
+
+func (ap *AggregatePrintingPress) removeAggregateServiceArtifacts(serviceSlug string, versions map[string]struct{}, selection aggregateOutputSelection) error {
+	if selection.html {
+		if err := ap.removeAggregateFile(pppaths.AggregateServiceIndexHTML(serviceSlug)); err != nil {
+			return err
+		}
+		if err := ap.removeAggregateFile(pppaths.AggregateServiceVersionsIndexHTML(serviceSlug)); err != nil {
+			return err
+		}
+	}
+	if selection.json {
+		if err := ap.removeAggregateFile(pppaths.AggregateServiceIndexJSON(serviceSlug)); err != nil {
+			return err
+		}
+		if err := ap.removeAggregateFile(pppaths.AggregateServiceVersionsIndexJSON(serviceSlug)); err != nil {
+			return err
+		}
+	}
+	if selection.llm {
+		if err := ap.removeAggregateFile(pppaths.AggregateServiceLLM(serviceSlug)); err != nil {
+			return err
+		}
+	}
+	for versionSlug := range versions {
+		if err := ap.removeAggregateVersionArtifacts(serviceSlug, versionSlug, selection); err != nil {
+			return err
+		}
+	}
+	return ap.removeAggregateDirIfEmpty(pppaths.AggregateServiceVersionsDir(serviceSlug), pppaths.AggregateServiceDir(serviceSlug))
+}
+
+func (ap *AggregatePrintingPress) removeAggregateVersionArtifacts(serviceSlug, versionSlug string, selection aggregateOutputSelection) error {
+	versionRoot := pppaths.AggregateVersionDir(serviceSlug, versionSlug)
+	if selection.html {
+		if err := ap.removeAggregateFile(pppaths.AggregateVersionIndexHTML(serviceSlug, versionSlug)); err != nil {
+			return err
+		}
+	}
+	if selection.json {
+		if err := ap.removeAggregateFile(pppaths.AggregateVersionIndexJSON(serviceSlug, versionSlug)); err != nil {
+			return err
+		}
+	}
+	if selection.llm {
+		if err := ap.removeAggregateFile(pppaths.AggregateVersionLLM(serviceSlug, versionSlug)); err != nil {
+			return err
+		}
+	}
+	return ap.removeAggregateDirIfEmpty(versionRoot)
+}
+
+func (ap *AggregatePrintingPress) removeAggregateFile(relPath string) error {
+	err := os.Remove(filepath.Join(ap.config.OutputDir, filepath.FromSlash(relPath)))
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+func (ap *AggregatePrintingPress) removeAggregateDirIfEmpty(relPaths ...string) error {
+	for _, relPath := range relPaths {
+		absPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(relPath))
+		entries, err := os.ReadDir(absPath)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if len(entries) > 0 {
+			continue
+		}
+		if err := os.Remove(absPath); err != nil && !os.IsNotExist(err) {
+			return err
 		}
 	}
 	return nil
@@ -261,8 +410,8 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 	if err := ap.removeObsoleteCatalogHTML(catalog); err != nil {
 		return nil, err
 	}
-	rootPath := filepath.Join(ap.config.OutputDir, "index.html")
-	if err := writeCatalogPage(rootPath, ap.catalogPageData("index.html", catalog.Title, catalog.Description, nil, false, catalogRootContent(catalog, ap.config.DisableSkippedRendering))); err != nil {
+	rootPath := filepath.Join(ap.config.OutputDir, pppaths.FileIndexHTML)
+	if err := writeCatalogPage(rootPath, ap.catalogPageData(pppaths.FileIndexHTML, catalog.Title, catalog.Description, nil, false, catalogRootContent(catalog, ap.config.DisableSkippedRendering))); err != nil {
 		return nil, err
 	}
 	written = append(written, rootPath)
@@ -333,13 +482,13 @@ func (ap *AggregatePrintingPress) writeCatalogJSON(catalog *ppmodel.CatalogSite)
 		Catalog:  catalog,
 		Services: len(catalog.Services),
 	}
-	rootBundlePath := filepath.Join(ap.config.OutputDir, "bundle.json")
+	rootBundlePath := filepath.Join(ap.config.OutputDir, pppaths.FileBundleJSON)
 	if err := writeJSONFile(rootBundlePath, rootBundle); err != nil {
 		return nil, err
 	}
 	written = append(written, rootBundlePath)
 
-	rootIndexPath := filepath.Join(ap.config.OutputDir, "index.json")
+	rootIndexPath := filepath.Join(ap.config.OutputDir, pppaths.FileIndexJSON)
 	if err := writeJSONFile(rootIndexPath, catalog); err != nil {
 		return nil, err
 	}
@@ -355,10 +504,10 @@ func (ap *AggregatePrintingPress) writeCatalogJSON(catalog *ppmodel.CatalogSite)
 	}{
 		Format: "printingpress.catalog.artifacts",
 	}
-	manifest.Artifacts = append(manifest.Artifacts, manifestEntry{Kind: "catalog", Path: "index.json"})
+	manifest.Artifacts = append(manifest.Artifacts, manifestEntry{Kind: "catalog", Path: pppaths.FileIndexJSON})
 
 	for _, service := range catalog.Services {
-		serviceJSONPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(strings.TrimSuffix(service.OverviewHref, ".html")+".json"))
+		serviceJSONPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(strings.TrimSuffix(service.OverviewHref, pppaths.ExtHTML)+pppaths.ExtJSON))
 		if err := writeJSONFile(serviceJSONPath, service); err != nil {
 			return nil, err
 		}
@@ -366,7 +515,7 @@ func (ap *AggregatePrintingPress) writeCatalogJSON(catalog *ppmodel.CatalogSite)
 		relServiceJSON, _ := filepath.Rel(ap.config.OutputDir, serviceJSONPath)
 		manifest.Artifacts = append(manifest.Artifacts, manifestEntry{Kind: "service", Path: filepath.ToSlash(relServiceJSON)})
 
-		versionsJSONPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(strings.TrimSuffix(service.VersionsHref, ".html")+".json"))
+		versionsJSONPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(strings.TrimSuffix(service.VersionsHref, pppaths.ExtHTML)+pppaths.ExtJSON))
 		if err := writeJSONFile(versionsJSONPath, service.Versions); err != nil {
 			return nil, err
 		}
@@ -375,7 +524,7 @@ func (ap *AggregatePrintingPress) writeCatalogJSON(catalog *ppmodel.CatalogSite)
 		manifest.Artifacts = append(manifest.Artifacts, manifestEntry{Kind: "versions", Path: filepath.ToSlash(relVersionsJSON)})
 
 		for _, version := range service.Versions {
-			versionJSONPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(strings.TrimSuffix(version.OverviewHref, ".html")+".json"))
+			versionJSONPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(strings.TrimSuffix(version.OverviewHref, pppaths.ExtHTML)+pppaths.ExtJSON))
 			if err := writeJSONFile(versionJSONPath, version); err != nil {
 				return nil, err
 			}
@@ -384,7 +533,7 @@ func (ap *AggregatePrintingPress) writeCatalogJSON(catalog *ppmodel.CatalogSite)
 			manifest.Artifacts = append(manifest.Artifacts, manifestEntry{Kind: "version", Path: filepath.ToSlash(relVersionJSON)})
 		}
 	}
-	manifestPath := filepath.Join(ap.config.OutputDir, "manifest.json")
+	manifestPath := filepath.Join(ap.config.OutputDir, pppaths.FileManifestJSON)
 	if err := writeJSONFile(manifestPath, manifest); err != nil {
 		return nil, err
 	}
@@ -394,14 +543,14 @@ func (ap *AggregatePrintingPress) writeCatalogJSON(catalog *ppmodel.CatalogSite)
 
 func (ap *AggregatePrintingPress) writeCatalogLLM(catalog *ppmodel.CatalogSite) ([]string, error) {
 	var written []string
-	rootPath := filepath.Join(ap.config.OutputDir, "llms.txt")
+	rootPath := filepath.Join(ap.config.OutputDir, pppaths.FileLLMIndex)
 	if err := os.WriteFile(rootPath, []byte(buildCatalogLLMIndex(catalog)), 0o644); err != nil {
 		return nil, err
 	}
 	written = append(written, rootPath)
 
 	for _, service := range catalog.Services {
-		servicePath := filepath.Join(ap.config.OutputDir, "services", service.Slug, "llms.txt")
+		servicePath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceLLM(service.Slug)))
 		if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
 			return nil, err
 		}
@@ -411,7 +560,7 @@ func (ap *AggregatePrintingPress) writeCatalogLLM(catalog *ppmodel.CatalogSite) 
 		written = append(written, servicePath)
 
 		for _, version := range service.Versions {
-			versionPath := filepath.Join(ap.config.OutputDir, "services", service.Slug, "versions", version.Slug, "llms.txt")
+			versionPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionLLM(service.Slug, version.Slug)))
 			if err := os.MkdirAll(filepath.Dir(versionPath), 0o755); err != nil {
 				return nil, err
 			}
@@ -480,13 +629,13 @@ func writeCatalogPage(filePath string, page catalogPageData) error {
 
 func writeCatalogHead(w io.Writer, title, assetBase string) error {
 	assets := []string{
-		catalogAssetHref(assetBase, "static/pb33f-theme.css"),
-		catalogAssetHref(assetBase, "static/cowboy-components.css"),
-		catalogAssetHref(assetBase, "static/shoelace-dark.css"),
-		catalogAssetHref(assetBase, "static/printing-press.css"),
-		catalogAssetHref(assetBase, "static/chroma.css"),
-		catalogAssetHref(assetBase, "static/printing-press-index.css"),
-		catalogAssetHref(assetBase, "static/printing-press-catalog.css"),
+		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePB33FThemeCSS)),
+		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FileCowboyComponentsCSS)),
+		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FileShoelaceDarkCSS)),
+		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePrintingPressCSS)),
+		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FileChromaCSS)),
+		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)),
+		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePrintingPressCatalogCSS)),
 	}
 	if _, err := io.WriteString(w, `<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><script>
 			(function() {
@@ -512,7 +661,7 @@ func writeCatalogHead(w io.Writer, title, assetBase string) error {
 			return err
 		}
 	}
-	if _, err := io.WriteString(w, `<script defer src="`+templ.EscapeString(catalogAssetHref(assetBase, "static/printing-press.js"))+`"></script></head>`); err != nil {
+	if _, err := io.WriteString(w, `<script defer src="`+templ.EscapeString(catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePrintingPressJS)))+`"></script></head>`); err != nil {
 		return err
 	}
 	return nil
@@ -533,7 +682,7 @@ func catalogShell(page catalogPageData) templ.Component {
 		if err := writeCatalogHead(w, page.Title, page.AssetBase); err != nil {
 			return err
 		}
-		if _, err := io.WriteString(w, `<body class="pp-catalog-body"><pb33f-header name="`+templ.EscapeString(page.HeaderTitle)+`" url="`+templ.EscapeString(relativeCatalogHref(path.Dir(page.RelPath), "index.html"))+`" fluid><div class="header-tools">`); err != nil {
+		if _, err := io.WriteString(w, `<body class="pp-catalog-body"><pb33f-header name="`+templ.EscapeString(page.HeaderTitle)+`" url="`+templ.EscapeString(relativeCatalogHref(path.Dir(page.RelPath), pppaths.FileIndexHTML))+`" fluid><div class="header-tools">`); err != nil {
 			return err
 		}
 		if hasCatalogVersionSwitcher(page.Service) {

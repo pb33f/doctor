@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 )
 
@@ -232,7 +233,7 @@ func validateAndNormalizeAggregateConfig(scanRoot string, config *AggregatePrint
 	if store == nil {
 		sqlitePath := normalized.StateSQLitePath
 		if sqlitePath == "" {
-			sqlitePath = filepath.Join(normalized.OutputDir, ".printingpress-state.db")
+			sqlitePath = filepath.Join(normalized.OutputDir, pppaths.FileStateSQLite)
 		}
 		absSQLite, absErr := filepath.Abs(sqlitePath)
 		if absErr != nil {

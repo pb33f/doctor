@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash/v2"
+	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	slugpkg "github.com/pb33f/doctor/printingpress/slug"
 	"go.yaml.in/yaml/v4"
@@ -279,8 +280,8 @@ func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscovered
 			group.latest.latest = true
 		}
 
-		serviceOverview := path.Join("services", group.slug, "index.html")
-		versionsIndex := path.Join("services", group.slug, "versions", "index.html")
+		serviceOverview := pppaths.AggregateServiceIndexHTML(group.slug)
+		versionsIndex := pppaths.AggregateServiceVersionsIndexHTML(group.slug)
 		serviceModel := &ppmodel.CatalogService{
 			Key:          group.key,
 			Slug:         group.slug,
@@ -291,7 +292,7 @@ func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscovered
 		}
 		entryRegistry := slugpkg.NewSlugRegistry()
 		for _, versionGroup := range group.versions {
-			versionOverview := path.Join("services", group.slug, "versions", versionGroup.slug, "index.html")
+			versionOverview := pppaths.AggregateVersionIndexHTML(group.slug, versionGroup.slug)
 			versionModel := &ppmodel.CatalogVersion{
 				Label:        versionGroup.label,
 				Slug:         versionGroup.slug,
@@ -307,7 +308,7 @@ func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscovered
 			for _, spec := range versionGroup.entries {
 				preferred := slugpkg.Sanitize(fallbackValue(spec.Title, strings.TrimSuffix(path.Base(spec.RelativePath), path.Ext(spec.RelativePath))))
 				spec.EntrySlug = entryRegistry.Register(group.slug+"/"+versionGroup.slug, preferred)
-				spec.OutputSubdir = path.Join("services", group.slug, "versions", versionGroup.slug, "specs", spec.EntrySlug)
+				spec.OutputSubdir = pppaths.AggregateSpecDir(group.slug, versionGroup.slug, spec.EntrySlug)
 				spec.Source.Href = spec.RelativePath
 				versionModel.Entries = append(versionModel.Entries, &ppmodel.CatalogSpecEntry{
 					ID:           spec.RelativePath,
@@ -321,7 +322,7 @@ func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscovered
 					Format:       spec.Format,
 					RelativePath: spec.RelativePath,
 					OutputSubdir: spec.OutputSubdir,
-					OverviewHref: path.Join(spec.OutputSubdir, "index.html"),
+					OverviewHref: pppaths.AggregateSpecIndexHTML(group.slug, versionGroup.slug, spec.EntrySlug),
 					Warnings:     append([]string(nil), spec.Warnings...),
 					Source:       spec.Source,
 				})
@@ -404,7 +405,7 @@ func (ap *AggregatePrintingPress) populateHeaderContexts(catalog *ppmodel.Catalo
 					continue
 				}
 				entry.HeaderContext = &ppmodel.SiteHeaderContext{
-					CatalogHref:    relativeCatalogHref(entry.OutputSubdir, "index.html"),
+					CatalogHref:    relativeCatalogHref(entry.OutputSubdir, pppaths.FileIndexHTML),
 					OverviewHref:   relativeCatalogHref(entry.OutputSubdir, catalogVersionPrimaryHref(version)),
 					ServiceName:    service.DisplayName,
 					CurrentVersion: version.Label,

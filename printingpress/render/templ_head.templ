@@ -1,5 +1,7 @@
 package render
 
+import "github.com/pb33f/doctor/printingpress/internal/pppaths"
+
 templ Head(title string, baseURL string, assetBaseURL string, extraCSS []string, lite bool) {
 	<head>
 		<meta charset="UTF-8"/>
@@ -27,18 +29,18 @@ templ Head(title string, baseURL string, assetBaseURL string, extraCSS []string,
 		if baseURL != "" {
 			<base href={ baseURL }/>
 		}
-		<link rel="stylesheet" href={ AssetHref(assetBaseURL, "static/pb33f-theme.css") }/>
-		<link rel="stylesheet" href={ AssetHref(assetBaseURL, "static/cowboy-components.css") }/>
-		<link rel="stylesheet" href={ AssetHref(assetBaseURL, "static/shoelace-dark.css") }/>
-		<link rel="stylesheet" href={ AssetHref(assetBaseURL, "static/printing-press.css") }/>
-		<link rel="stylesheet" href={ AssetHref(assetBaseURL, "static/chroma.css") }/>
+		<link rel="stylesheet" href={ AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FilePB33FThemeCSS)) }/>
+		<link rel="stylesheet" href={ AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FileCowboyComponentsCSS)) }/>
+		<link rel="stylesheet" href={ AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FileShoelaceDarkCSS)) }/>
+		<link rel="stylesheet" href={ AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressCSS)) }/>
+		<link rel="stylesheet" href={ AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FileChromaCSS)) }/>
 		for _, css := range extraCSS {
 			<link rel="stylesheet" href={ AssetHref(assetBaseURL, css) }/>
 		}
 		if lite {
-			<script defer src={ AssetHref(assetBaseURL, "static/printing-press-lite.js") }></script>
+			<script defer src={ AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressLiteJS)) }></script>
 		} else {
-			<script defer src={ AssetHref(assetBaseURL, "static/printing-press.js") }></script>
+			<script defer src={ AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressJS)) }></script>
 		}
 	</head>
 }

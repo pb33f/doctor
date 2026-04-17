@@ -8,6 +8,7 @@ package render
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "github.com/pb33f/doctor/printingpress/internal/pppaths"
 import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
 func ModelsIndexTempl(groups []*ppmodel.NavModelGroup, breadcrumb []BreadcrumbItem, baseURL string) templ.Component {
@@ -49,7 +50,7 @@ func ModelsIndexTempl(groups []*ppmodel.NavModelGroup, breadcrumb []BreadcrumbIt
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var2 templ.SafeURL = templ.SafeURL(DocHref(baseURL, "models/"+group.TypeSlug+"/index.html"))
+				var templ_7745c5c3_Var2 templ.SafeURL = templ.SafeURL(DocHref(baseURL, pppaths.ModelTypeIndexHTML(group.TypeSlug)))
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var2)))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -61,7 +62,7 @@ func ModelsIndexTempl(groups []*ppmodel.NavModelGroup, breadcrumb []BreadcrumbIt
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(group.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_models_index.templ`, Line: 14, Col: 19}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_models_index.templ`, Line: 15, Col: 19}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
@@ -74,7 +75,7 @@ func ModelsIndexTempl(groups []*ppmodel.NavModelGroup, breadcrumb []BreadcrumbIt
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(group.CardGridStyle())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_models_index.templ`, Line: 17, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_models_index.templ`, Line: 18, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -89,7 +90,7 @@ func ModelsIndexTempl(groups []*ppmodel.NavModelGroup, breadcrumb []BreadcrumbIt
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var5 templ.SafeURL = templ.SafeURL(DocHref(baseURL, "models/"+model.TypeSlug+"/"+model.Slug+".html"))
+					var templ_7745c5c3_Var5 templ.SafeURL = templ.SafeURL(DocHref(baseURL, pppaths.ModelHTML(model.TypeSlug, model.Slug)))
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var5)))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -101,7 +102,7 @@ func ModelsIndexTempl(groups []*ppmodel.NavModelGroup, breadcrumb []BreadcrumbIt
 					var templ_7745c5c3_Var6 string
 					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(model.TypeSlug)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_models_index.templ`, Line: 21, Col: 48}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_models_index.templ`, Line: 22, Col: 48}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 					if templ_7745c5c3_Err != nil {
@@ -114,7 +115,7 @@ func ModelsIndexTempl(groups []*ppmodel.NavModelGroup, breadcrumb []BreadcrumbIt
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(model.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_models_index.templ`, Line: 22, Col: 29}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_models_index.templ`, Line: 23, Col: 29}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 					if templ_7745c5c3_Err != nil {
@@ -132,7 +133,7 @@ func ModelsIndexTempl(groups []*ppmodel.NavModelGroup, breadcrumb []BreadcrumbIt
 						var templ_7745c5c3_Var8 string
 						templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(truncateDesc(model.Description, 120))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_models_index.templ`, Line: 25, Col: 50}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_models_index.templ`, Line: 26, Col: 50}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 						if templ_7745c5c3_Err != nil {

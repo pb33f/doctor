@@ -1,5 +1,6 @@
 package render
 
+import "github.com/pb33f/doctor/printingpress/internal/pppaths"
 import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
 templ ModelTypeIndexTempl(group *ppmodel.NavModelGroup, breadcrumb []BreadcrumbItem, baseURL string) {
@@ -9,7 +10,7 @@ templ ModelTypeIndexTempl(group *ppmodel.NavModelGroup, breadcrumb []BreadcrumbI
 		<div class="pp-model-category">
 			<div class="pp-model-cards" style={ group.CardGridStyle() }>
 				for _, model := range group.Models {
-					<a href={ templ.SafeURL(DocHref(baseURL, "models/" + model.TypeSlug + "/" + model.Slug + ".html")) } class="pp-model-card">
+					<a href={ templ.SafeURL(DocHref(baseURL, pppaths.ModelHTML(model.TypeSlug, model.Slug))) } class="pp-model-card">
 						<div class="pp-model-card-title">
 							<pb33f-model-icon icon={ model.TypeSlug } size="small"></pb33f-model-icon>
 							<strong>{ model.Name }</strong>

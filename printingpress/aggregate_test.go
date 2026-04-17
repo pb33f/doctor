@@ -342,6 +342,85 @@ func TestAggregatePrintingPress_FastMode_RebuildsOnlyChangedSpecsAndRemovesStale
 	require.NoFileExists(t, newIndex)
 }
 
+func TestAggregatePrintingPress_FastMode_RemovesStaleAggregateServiceAndVersionArtifacts(t *testing.T) {
+	root := t.TempDir()
+	specA := writeAggregateSpec(t, root, "services/users/src/specs/users-a.yaml", "Users API", "v1")
+	specB := writeAggregateSpec(t, root, "services/users/src/specs/users-b.yaml", "Users API", "v1")
+	outputDir := filepath.Join(root, "site")
+	store := NewMemorySpecStateStore()
+
+	full, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+
+	stats, err := full.PrintSelectedOutputs(AggregateRenderOptions{HTML: true, JSON: true, LLM: true})
+	require.NoError(t, err)
+	assert.Equal(t, 1, stats.Services)
+	assert.Equal(t, 1, stats.Versions)
+	assert.Equal(t, 2, stats.Specs)
+
+	versionOverview := filepath.Join(outputDir, "services", "users", "versions", "v1", "index.html")
+	serviceJSON := filepath.Join(outputDir, "services", "users", "index.json")
+	serviceLLM := filepath.Join(outputDir, "services", "users", "llms.txt")
+	versionJSON := filepath.Join(outputDir, "services", "users", "versions", "v1", "index.json")
+	versionLLM := filepath.Join(outputDir, "services", "users", "versions", "v1", "llms.txt")
+	entryBDir := filepath.Join(outputDir, "services", "users", "versions", "v1", "specs", "users-api-2")
+
+	require.FileExists(t, versionOverview)
+	require.FileExists(t, serviceJSON)
+	require.FileExists(t, serviceLLM)
+	require.FileExists(t, versionJSON)
+	require.FileExists(t, versionLLM)
+	require.FileExists(t, filepath.Join(entryBDir, "index.html"))
+
+	require.NoError(t, os.Remove(specB))
+
+	fastOneLeft, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+
+	stats, err = fastOneLeft.PrintSelectedOutputs(AggregateRenderOptions{HTML: true, JSON: true, LLM: true})
+	require.NoError(t, err)
+	assert.Equal(t, 1, stats.Services)
+	assert.Equal(t, 1, stats.Versions)
+	assert.Equal(t, 1, stats.Specs)
+	require.NoFileExists(t, versionOverview)
+	require.NoFileExists(t, entryBDir)
+	require.FileExists(t, serviceJSON)
+	require.FileExists(t, serviceLLM)
+	require.FileExists(t, versionJSON)
+	require.FileExists(t, versionLLM)
+
+	require.NoError(t, os.Remove(specA))
+
+	fastRemoved, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+
+	stats, err = fastRemoved.PrintSelectedOutputs(AggregateRenderOptions{HTML: true, JSON: true, LLM: true})
+	require.NoError(t, err)
+	assert.Equal(t, 0, stats.Services)
+	assert.Equal(t, 0, stats.Versions)
+	assert.Equal(t, 0, stats.Specs)
+	require.NoFileExists(t, serviceJSON)
+	require.NoFileExists(t, serviceLLM)
+	require.NoFileExists(t, versionJSON)
+	require.NoFileExists(t, versionLLM)
+
+	rootHTML, err := os.ReadFile(filepath.Join(outputDir, "index.html"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(rootHTML), "Users API")
+}
+
 func TestAggregatePrintingPress_FastMode_RebuildsWhenAggregateConfigChanges(t *testing.T) {
 	root := t.TempDir()
 	writeAggregateSpec(t, root, "services/users/src/specs/users.yaml", "Users API", "v1")
@@ -677,6 +756,8 @@ func TestAggregatePrintingPress_PrintSelectedOutputs_RendersEndToEnd(t *testing.
 	assert.Equal(t, 2, stats.Specs)
 	assert.Equal(t, 2, stats.ChangedSpecs)
 	assert.Equal(t, 2, stats.PoolsUsed)
+	assert.GreaterOrEqual(t, stats.TotalDuration, stats.DiscoveryDuration)
+	assert.GreaterOrEqual(t, stats.TotalDuration, stats.GenerationDuration)
 	require.FileExists(t, filepath.Join(outputDir, "index.html"))
 	require.FileExists(t, filepath.Join(outputDir, "llms.txt"))
 	require.FileExists(t, filepath.Join(outputDir, "bundle.json"))
