@@ -543,13 +543,19 @@ func (ap *AggregatePrintingPress) writeCatalogJSON(catalog *ppmodel.CatalogSite)
 
 func (ap *AggregatePrintingPress) writeCatalogLLM(catalog *ppmodel.CatalogSite) ([]string, error) {
 	var written []string
+	rootAgentsPath := filepath.Join(ap.config.OutputDir, pppaths.FileAgentsGuide)
+	if err := os.WriteFile(rootAgentsPath, []byte(buildCatalogAgentsGuide(catalog)), 0o644); err != nil {
+		return nil, err
+	}
+	written = append(written, rootAgentsPath)
+
 	rootPath := filepath.Join(ap.config.OutputDir, pppaths.FileLLMIndex)
 	if err := os.WriteFile(rootPath, []byte(buildCatalogLLMIndex(catalog)), 0o644); err != nil {
 		return nil, err
 	}
 	written = append(written, rootPath)
 
-	for _, service := range catalog.Services {
+	for _, service := range visibleCatalogServices(catalog) {
 		servicePath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceLLM(service.Slug)))
 		if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
 			return nil, err
@@ -559,7 +565,7 @@ func (ap *AggregatePrintingPress) writeCatalogLLM(catalog *ppmodel.CatalogSite) 
 		}
 		written = append(written, servicePath)
 
-		for _, version := range service.Versions {
+		for _, version := range visibleCatalogVersions(service) {
 			versionPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionLLM(service.Slug, version.Slug)))
 			if err := os.MkdirAll(filepath.Dir(versionPath), 0o755); err != nil {
 				return nil, err
@@ -1035,21 +1041,112 @@ func catalogWarningText(warning *ppmodel.BuildWarning) string {
 	return warning.Message + " (" + warning.Context + ")"
 }
 
+func buildCatalogAgentsGuide(catalog *ppmodel.CatalogSite) string {
+	var builder strings.Builder
+	builder.WriteString("# ")
+	builder.WriteString(catalogLLMTitle(catalog))
+	builder.WriteString("\n\n")
+
+	if summary := strings.TrimSpace(catalogLLMSummary(catalog)); summary != "" {
+		builder.WriteString("> ")
+		builder.WriteString(summary)
+		builder.WriteString("\n\n")
+	}
+
+	builder.WriteString("## Files\n\n")
+	builder.WriteString("- [llms.txt](llms.txt) — Aggregate discovery index for all visible services, versions, and spec entry indexes.\n\n")
+	builder.WriteString("## Services\n\n")
+	for _, service := range visibleCatalogServices(catalog) {
+		serviceLLM := pppaths.AggregateServiceLLM(service.Slug)
+		builder.WriteString("- [")
+		builder.WriteString(service.DisplayName)
+		builder.WriteString("](")
+		builder.WriteString(serviceLLM)
+		builder.WriteString(")")
+		if latest := catalogVisibleLatestVersion(service); latest != nil {
+			builder.WriteString(" — latest ")
+			builder.WriteString(latest.Label)
+		}
+		builder.WriteString("\n")
+		for _, version := range visibleCatalogVersions(service) {
+			versionLLM := pppaths.AggregateVersionLLM(service.Slug, version.Slug)
+			builder.WriteString("  - [")
+			builder.WriteString(version.Label)
+			builder.WriteString("](")
+			builder.WriteString(versionLLM)
+			builder.WriteString(")")
+			if version.IsLatest {
+				builder.WriteString(" (latest)")
+			}
+			builder.WriteString("\n")
+			for _, entry := range visibleCatalogEntries(version) {
+				builder.WriteString("    - [")
+				builder.WriteString(catalogEntryTitle(entry))
+				builder.WriteString(" llms.txt](")
+				builder.WriteString(catalogEntryLLMPath(entry))
+				builder.WriteString(")")
+				builder.WriteString(" | [AGENTS.md](")
+				builder.WriteString(catalogEntryAgentsPath(entry))
+				builder.WriteString(")")
+				if strings.TrimSpace(entry.RelativePath) != "" {
+					builder.WriteString(" — ")
+					builder.WriteString(entry.RelativePath)
+				}
+				builder.WriteString("\n")
+			}
+		}
+	}
+	return builder.String()
+}
+
 func buildCatalogLLMIndex(catalog *ppmodel.CatalogSite) string {
 	var builder strings.Builder
 	builder.WriteString("# ")
-	builder.WriteString(catalog.Title)
+	builder.WriteString(catalogLLMTitle(catalog))
 	builder.WriteString("\n\n")
-	for _, service := range catalog.Services {
-		if !hasVisibleCatalogVersions(service) {
-			continue
-		}
-		builder.WriteString("- ")
+	if summary := strings.TrimSpace(catalogLLMSummary(catalog)); summary != "" {
+		builder.WriteString("> ")
+		builder.WriteString(summary)
+		builder.WriteString("\n\n")
+	}
+	builder.WriteString("## Files\n\n")
+	builder.WriteString("- [AGENTS.md](AGENTS.md) — Start-here guide for traversing the aggregate catalog and spec entry indexes\n\n")
+	builder.WriteString("## Services\n\n")
+	for _, service := range visibleCatalogServices(catalog) {
+		serviceLLM := pppaths.AggregateServiceLLM(service.Slug)
+		builder.WriteString("- [")
 		builder.WriteString(service.DisplayName)
+		builder.WriteString("](")
+		builder.WriteString(serviceLLM)
+		builder.WriteString(")")
 		if latest := catalogVisibleLatestVersion(service); latest != nil {
-			builder.WriteString(" (latest ")
+			builder.WriteString(" — latest ")
 			builder.WriteString(latest.Label)
-			builder.WriteString(")")
+			builder.WriteString("\n")
+			for _, version := range visibleCatalogVersions(service) {
+				builder.WriteString("  - [")
+				builder.WriteString(version.Label)
+				builder.WriteString("](")
+				builder.WriteString(pppaths.AggregateVersionLLM(service.Slug, version.Slug))
+				builder.WriteString(")")
+				if version.IsLatest {
+					builder.WriteString(" (latest)")
+				}
+				builder.WriteString("\n")
+				for _, entry := range visibleCatalogEntries(version) {
+					builder.WriteString("    - [")
+					builder.WriteString(catalogEntryTitle(entry))
+					builder.WriteString("](")
+					builder.WriteString(catalogEntryLLMPath(entry))
+					builder.WriteString(")")
+					if strings.TrimSpace(entry.RelativePath) != "" {
+						builder.WriteString(" — ")
+						builder.WriteString(entry.RelativePath)
+					}
+					builder.WriteString("\n")
+				}
+			}
+			continue
 		}
 		builder.WriteString("\n")
 	}
@@ -1058,34 +1155,167 @@ func buildCatalogLLMIndex(catalog *ppmodel.CatalogSite) string {
 
 func buildServiceLLMIndex(service *ppmodel.CatalogService) string {
 	var builder strings.Builder
+	current := pppaths.AggregateServiceLLM(service.Slug)
 	builder.WriteString("# ")
 	builder.WriteString(service.DisplayName)
 	builder.WriteString("\n\n")
+	if summary := strings.TrimSpace(catalogServiceSummary(service)); summary != "" {
+		builder.WriteString("> ")
+		builder.WriteString(summary)
+		builder.WriteString("\n\n")
+	}
+	builder.WriteString("## Files\n\n")
+	builder.WriteString("- [Catalog AGENTS.md](")
+	builder.WriteString(relativeMarkdownLink(current, pppaths.FileAgentsGuide))
+	builder.WriteString(")\n")
+	builder.WriteString("- [Catalog llms.txt](")
+	builder.WriteString(relativeMarkdownLink(current, pppaths.FileLLMIndex))
+	builder.WriteString(")\n\n")
+	builder.WriteString("## Versions\n\n")
 	for _, version := range visibleCatalogVersions(service) {
-		builder.WriteString("- ")
+		versionLLM := pppaths.AggregateVersionLLM(service.Slug, version.Slug)
+		builder.WriteString("- [")
 		builder.WriteString(version.Label)
-		builder.WriteString(": ")
-		builder.WriteString(fmt.Sprintf("%d specs", version.SpecCount))
+		builder.WriteString("](")
+		builder.WriteString(relativeMarkdownLink(current, versionLLM))
+		builder.WriteString(")")
+		if version.IsLatest {
+			builder.WriteString(" (latest)")
+		}
+		builder.WriteString(" — ")
+		builder.WriteString(fmt.Sprintf("%d specs", len(visibleCatalogEntries(version))))
 		builder.WriteString("\n")
+		for _, entry := range visibleCatalogEntries(version) {
+			builder.WriteString("  - [")
+			builder.WriteString(catalogEntryTitle(entry))
+			builder.WriteString("](")
+			builder.WriteString(relativeMarkdownLink(current, catalogEntryLLMPath(entry)))
+			builder.WriteString(")")
+			if strings.TrimSpace(entry.RelativePath) != "" {
+				builder.WriteString(" — ")
+				builder.WriteString(entry.RelativePath)
+			}
+			builder.WriteString("\n")
+		}
 	}
 	return builder.String()
 }
 
 func buildVersionLLMIndex(service *ppmodel.CatalogService, version *ppmodel.CatalogVersion) string {
 	var builder strings.Builder
+	current := pppaths.AggregateVersionLLM(service.Slug, version.Slug)
 	builder.WriteString("# ")
 	builder.WriteString(service.DisplayName)
 	builder.WriteString(" ")
 	builder.WriteString(version.Label)
 	builder.WriteString("\n\n")
+	if summary := strings.TrimSpace(version.Summary); summary != "" {
+		builder.WriteString("> ")
+		builder.WriteString(summary)
+		builder.WriteString("\n\n")
+	}
+	builder.WriteString("## Files\n\n")
+	builder.WriteString("- [Catalog AGENTS.md](")
+	builder.WriteString(relativeMarkdownLink(current, pppaths.FileAgentsGuide))
+	builder.WriteString(")\n")
+	builder.WriteString("- [Catalog llms.txt](")
+	builder.WriteString(relativeMarkdownLink(current, pppaths.FileLLMIndex))
+	builder.WriteString(")\n")
+	builder.WriteString("- [")
+	builder.WriteString(service.DisplayName)
+	builder.WriteString(" llms.txt](")
+	builder.WriteString(relativeMarkdownLink(current, pppaths.AggregateServiceLLM(service.Slug)))
+	builder.WriteString(")\n\n")
+	builder.WriteString("## Spec Entries\n\n")
 	for _, entry := range visibleCatalogEntries(version) {
-		builder.WriteString("- ")
-		builder.WriteString(entry.Title)
-		builder.WriteString(": ")
-		builder.WriteString(entry.RelativePath)
+		builder.WriteString("- [")
+		builder.WriteString(catalogEntryTitle(entry))
+		builder.WriteString("](")
+		builder.WriteString(relativeMarkdownLink(current, catalogEntryLLMPath(entry)))
+		builder.WriteString(")")
+		builder.WriteString(" | [AGENTS.md](")
+		builder.WriteString(relativeMarkdownLink(current, catalogEntryAgentsPath(entry)))
+		builder.WriteString(")")
+		if strings.TrimSpace(entry.RelativePath) != "" {
+			builder.WriteString(" — ")
+			builder.WriteString(entry.RelativePath)
+		}
 		builder.WriteString("\n")
 	}
 	return builder.String()
+}
+
+func catalogLLMTitle(catalog *ppmodel.CatalogSite) string {
+	if catalog == nil || strings.TrimSpace(catalog.Title) == "" {
+		return "API Catalog"
+	}
+	return catalog.Title
+}
+
+func catalogLLMSummary(catalog *ppmodel.CatalogSite) string {
+	if catalog == nil {
+		return ""
+	}
+	return strings.TrimSpace(catalog.Description)
+}
+
+func visibleCatalogServices(catalog *ppmodel.CatalogSite) []*ppmodel.CatalogService {
+	if catalog == nil {
+		return nil
+	}
+	services := make([]*ppmodel.CatalogService, 0, len(catalog.Services))
+	for _, service := range catalog.Services {
+		if service == nil || !hasVisibleCatalogVersions(service) {
+			continue
+		}
+		services = append(services, service)
+	}
+	return services
+}
+
+func catalogEntryTitle(entry *ppmodel.CatalogSpecEntry) string {
+	if entry == nil {
+		return ""
+	}
+	if strings.TrimSpace(entry.Title) != "" {
+		return entry.Title
+	}
+	if strings.TrimSpace(entry.Slug) != "" {
+		return entry.Slug
+	}
+	return entry.RelativePath
+}
+
+func catalogEntryLLMPath(entry *ppmodel.CatalogSpecEntry) string {
+	if entry == nil {
+		return ""
+	}
+	if entry.ServiceSlug != "" && entry.VersionSlug != "" && entry.Slug != "" {
+		return pppaths.AggregateSpecLLM(entry.ServiceSlug, entry.VersionSlug, entry.Slug)
+	}
+	return path.Join(entry.OutputSubdir, pppaths.FileLLMIndex)
+}
+
+func catalogEntryAgentsPath(entry *ppmodel.CatalogSpecEntry) string {
+	if entry == nil {
+		return ""
+	}
+	if entry.ServiceSlug != "" && entry.VersionSlug != "" && entry.Slug != "" {
+		return pppaths.AggregateSpecAgentsGuide(entry.ServiceSlug, entry.VersionSlug, entry.Slug)
+	}
+	return path.Join(entry.OutputSubdir, pppaths.FileAgentsGuide)
+}
+
+func relativeMarkdownLink(fromPath, toPath string) string {
+	fromDir := path.Dir(strings.TrimSpace(fromPath))
+	if fromDir == "." {
+		fromDir = ""
+	}
+	rel, err := filepath.Rel(filepath.FromSlash(fromDir), filepath.FromSlash(strings.TrimSpace(toPath)))
+	if err != nil || rel == "" {
+		return toPath
+	}
+	return filepath.ToSlash(rel)
 }
 
 var managedHeaderContextAttrs = []string{
