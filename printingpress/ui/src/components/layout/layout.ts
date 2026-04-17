@@ -2,10 +2,20 @@ import {LitElement, html} from 'lit';
 import {customElement, state} from 'lit/decorators.js';
 import layoutCss from './layout.css.js';
 import sharedCss from "../../styles/shared.css";
-import {overviewHref} from '../../utils/doc-links.js';
+import {docHref, headerTitleHref} from '../../utils/doc-links.js';
+import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
+import '@shoelace-style/shoelace/dist/components/menu/menu.js';
+import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
+import '@shoelace-style/shoelace/dist/components/button/button.js';
 
 const SPLIT_POS_KEY = 'pp-split-position';
 const DEFAULT_POS = 20;
+
+type HeaderVersionLink = {
+  label: string;
+  href: string;
+  active?: boolean;
+};
 
 @customElement('pp-layout')
 export class PpLayout extends LitElement {
@@ -13,10 +23,14 @@ export class PpLayout extends LitElement {
 
   @state() title = '';
   @state() private splitPos = DEFAULT_POS;
+  @state() private currentVersion = '';
+  @state() private versions: HeaderVersionLink[] = [];
 
   connectedCallback() {
     super.connectedCallback();
     this.title = this.getAttribute('data-title') || document.title || 'API Documentation';
+    this.currentVersion = document.body?.dataset.ppCurrentVersion || '';
+    this.versions = this.parseVersions(document.body?.dataset.ppVersions);
     const saved = sessionStorage.getItem(SPLIT_POS_KEY);
     if (saved) {
       this.splitPos = parseFloat(saved);
@@ -31,11 +45,68 @@ export class PpLayout extends LitElement {
     }
   }
 
+  private parseVersions(raw?: string): HeaderVersionLink[] {
+    if (!raw) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return parsed.filter((entry): entry is HeaderVersionLink =>
+        !!entry && typeof entry.label === 'string' && typeof entry.href === 'string',
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  private onVersionChange(event: Event) {
+    const detail = (event as CustomEvent).detail;
+    const item = detail?.item as { value?: string } | undefined;
+    if (!item?.value) {
+      return;
+    }
+    window.location.href = item.value;
+  }
+
+  private currentVersionLabel(): string {
+    const active = this.versions.find((version) => version.active || version.label === this.currentVersion);
+    return active?.label || this.currentVersion || this.versions[0]?.label || 'Version';
+  }
+
+  private currentVersionTriggerLabel(): string {
+    return `Version: ${this.currentVersionLabel()}`;
+  }
+
   render() {
     return html`
-      <pb33f-header name=${this.title} url=${overviewHref()} fluid>
-        <div class="theme-controls">
+      <pb33f-header name=${this.title} url=${headerTitleHref()} fluid>
+        <div class="header-tools">
+          ${this.versions.length
+            ? html`
+                <div class="header-context">
+                  <div class="version-picker">
+                    <sl-dropdown skidding="5" distance="5">
+                      <sl-button slot="trigger" caret>${this.currentVersionTriggerLabel()}</sl-button>
+                      <sl-menu @sl-select=${this.onVersionChange}>
+                        ${this.versions.map(
+                          (version) => html`
+                            <sl-menu-item value=${docHref(version.href)}>
+                              ${version.label}
+                            </sl-menu-item>
+                          `,
+                        )}
+                      </sl-menu>
+                    </sl-dropdown>
+                  </div>
+                </div>
+              `
+            : null}
+          <div class="theme-controls">
             <pb33f-theme-switcher></pb33f-theme-switcher>
+          </div>
         </div>
       </pb33f-header>
       <sl-split-panel position=${this.splitPos} @sl-reposition=${this.onReposition}>

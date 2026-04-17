@@ -43,6 +43,36 @@ export class PpNav extends LitElement {
   @state() private tags: NavTag[] = [];
   @state() private modelGroups: NavModelGroup[] = [];
   @state() private webhooks: NavOperation[] = [];
+  private loggedEmptyState = false;
+  private loggedContentState = false;
+
+  private logPerf(stage: string, detail?: unknown) {
+    const logger = (globalThis as Record<string, unknown>).__PP_LOG as ((stage: string, detail?: unknown) => void) | undefined;
+    if (typeof logger === 'function') {
+      logger(stage, detail);
+      return;
+    }
+    if (typeof detail === 'undefined') {
+      console.log(`[pp-perf] ${stage}`);
+      return;
+    }
+    console.log(`[pp-perf] ${stage}`, detail);
+  }
+
+  private previewHoldEnabled(): boolean {
+    return this.getAttribute('data-pp-preview-hold') === 'true';
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    const preview = this.querySelector('.pp-nav-preview');
+    this.logPerf('nav:connected', {
+      activeSlug: this.activeSlug,
+      cached: this.hasAttribute('data-pp-nav-cached'),
+      preview: !!preview,
+      previewHold: this.previewHoldEnabled(),
+    });
+  }
 
   willUpdate(changed: Map<string, unknown>) {
     if (changed.has('navJson')) {
@@ -68,7 +98,35 @@ export class PpNav extends LitElement {
     }
   }
 
+  updated() {
+    const hasContent = this.tags.length > 0 || this.modelGroups.length > 0 || this.webhooks.length > 0;
+    if (!hasContent && !this.loggedEmptyState) {
+      this.loggedEmptyState = true;
+      this.logPerf('nav:empty-render');
+    }
+    if (hasContent && !this.loggedContentState) {
+      this.loggedContentState = true;
+      this.logPerf('nav:content-render', {
+        tags: this.tags.length,
+        modelGroups: this.modelGroups.length,
+        webhooks: this.webhooks.length,
+      });
+      if (this.previewHoldEnabled()) {
+        this.logPerf('nav-preview:hold-active', {source: 'shadow-nav'});
+        return;
+      }
+      const preview = this.querySelector('.pp-nav-preview');
+      if (preview) {
+        preview.remove();
+        this.logPerf('nav-preview:removed', {source: 'shadow-nav'});
+      }
+    }
+  }
+
   render() {
+    if (this.previewHoldEnabled()) {
+      return html`<slot></slot>`;
+    }
     return html`
       <a class="nav-home ${!this.activeSlug ? 'active' : ''}" href=${overviewHref()}>
         <sl-icon name="chevron-right" class="nav-home-chevron"></sl-icon>

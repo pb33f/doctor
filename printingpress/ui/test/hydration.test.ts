@@ -1,23 +1,59 @@
 import {beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const assetLoaderState = vi.hoisted(() => {
+  const bodyData = new Map<string, string>();
   const responses = new Map<string, unknown>();
   const loadAsset = vi.fn((assetBase: string) => Promise.resolve(responses.get(assetBase) ?? null));
   return {
+    bodyData,
     responses,
     loadAsset,
   };
 });
 
+const saddlebagState = vi.hoisted(() => {
+  const bags = new Map<string, Map<string, unknown>>();
+
+  function ensureBag(id: string) {
+    let bag = bags.get(id);
+    if (!bag) {
+      bag = new Map<string, unknown>();
+      bags.set(id, bag);
+    }
+    return bag;
+  }
+
+  const bagManager = {
+    loadStatefulBags: vi.fn(() => Promise.resolve({db: undefined})),
+    getBag: vi.fn((id: string) => {
+      const bag = ensureBag(id);
+      return {
+        get: (key: string) => bag.get(key),
+        set: (key: string, value: unknown) => bag.set(key, structuredClone(value)),
+        reset: () => bag.clear(),
+      };
+    }),
+  };
+
+  return {
+    bags,
+    bagManager,
+    ensureBag,
+  };
+});
+
 vi.mock('../src/utils/asset-loader.js', () => ({
   getBodyData: (key: string) => {
-    if (key === 'ppShared') return 'shared-asset';
-    if (key === 'ppPage') return 'page-asset';
-    return '';
+    return assetLoaderState.bodyData.get(key) ?? '';
   },
   loadAsset: (assetBase: string) => assetLoaderState.loadAsset(assetBase),
 }));
 
+vi.mock('@pb33f/saddlebag', () => ({
+  CreateBagManager: () => saddlebagState.bagManager,
+}));
+
+import '../src/components/nav/nav.js';
 import '../src/components/models/model-page.js';
 import type {PpModelPage} from '../src/components/models/model-page.js';
 import {hydratePrintingPressPage} from '../src/utils/hydration.js';
@@ -33,6 +69,40 @@ class IntersectionObserverStub {
   observe() {}
   unobserve() {}
   disconnect() {}
+}
+
+function createIndexedDBStub() {
+  return {
+    open: () => {
+      const request: {
+        result?: { objectStoreNames: { contains: (name: string) => boolean }; close: () => void };
+        onsuccess?: () => void;
+        onerror?: () => void;
+        onupgradeneeded?: () => void;
+      } = {};
+      queueMicrotask(() => {
+        request.result = {
+          objectStoreNames: {
+            contains: (name: string) => name === 'bags',
+          },
+          close: () => {},
+        };
+        request.onsuccess?.();
+      });
+      return request;
+    },
+    deleteDatabase: () => {
+      const request: {
+        onsuccess?: () => void;
+        onerror?: () => void;
+        onblocked?: () => void;
+      } = {};
+      queueMicrotask(() => {
+        request.onsuccess?.();
+      });
+      return request;
+    },
+  };
 }
 
 function deferred<T>() {
@@ -51,6 +121,10 @@ async function flushPromises() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+function sharedBagID(): string {
+  return `printing-press:shared:${new URL('shared-asset', document.baseURI).href}`;
+}
+
 describe('printing-press hydration', () => {
   beforeAll(() => {
     if (!('ResizeObserver' in globalThis)) {
@@ -59,12 +133,20 @@ describe('printing-press hydration', () => {
     if (!('IntersectionObserver' in globalThis)) {
       (globalThis as typeof globalThis & {IntersectionObserver: typeof IntersectionObserverStub}).IntersectionObserver = IntersectionObserverStub;
     }
+    (globalThis as typeof globalThis & {indexedDB: ReturnType<typeof createIndexedDBStub>}).indexedDB = createIndexedDBStub();
   });
 
   beforeEach(() => {
-    document.body.innerHTML = '<pp-model-page id="pp-model-page"></pp-model-page>';
+    document.body.innerHTML = '<pp-nav id="pp-nav"></pp-nav><pp-model-page id="pp-model-page"></pp-model-page>';
+    delete (globalThis as typeof globalThis & {__PP_BOOTSTRAP__?: unknown}).__PP_BOOTSTRAP__;
+    assetLoaderState.bodyData.clear();
+    assetLoaderState.bodyData.set('ppShared', 'shared-asset');
+    assetLoaderState.bodyData.set('ppPage', 'page-asset');
     assetLoaderState.responses.clear();
     assetLoaderState.loadAsset.mockClear();
+    saddlebagState.bags.clear();
+    saddlebagState.bagManager.getBag.mockClear();
+    saddlebagState.bagManager.loadStatefulBags.mockClear();
     resetRegistry();
   });
 
@@ -144,5 +226,80 @@ describe('printing-press hydration', () => {
     expect(modelPage.getAttribute('model-json')).toBeTruthy();
     expect(assetLoaderState.loadAsset).toHaveBeenCalledWith('base-model');
     expect(propertyNames).toContain('id');
+  });
+
+  it('hydrates shared payload from the saddlebag cache before loading the shared asset', async () => {
+    assetLoaderState.bodyData.set('ppSharedHash', 'hash-1');
+    saddlebagState.ensureBag(sharedBagID()).set('shared-payload', {
+      hash: 'hash-1',
+      payload: {
+        attributes: {
+          'pp-nav': {
+            'data-nav': JSON.stringify([{
+              Name: 'Users',
+              Summary: 'Users',
+              Children: null,
+              Operations: [],
+              IsNavOnly: false,
+            }]),
+          },
+        },
+      },
+    });
+
+    await hydratePrintingPressPage();
+
+    const nav = document.getElementById('pp-nav');
+    expect(nav?.getAttribute('data-nav')).toContain('Users');
+    expect(assetLoaderState.loadAsset.mock.calls.map((call) => call[0])).not.toContain('shared-asset');
+  });
+
+  it('invalidates a stale cached shared payload when the build hash changes', async () => {
+    assetLoaderState.bodyData.set('ppSharedHash', 'hash-2');
+    saddlebagState.ensureBag(sharedBagID()).set('shared-payload', {
+      hash: 'hash-1',
+      payload: {
+        attributes: {
+          'pp-nav': {
+            'data-nav': JSON.stringify([{Name: 'Stale'}]),
+          },
+        },
+      },
+    });
+    assetLoaderState.responses.set('shared-asset', {
+      attributes: {
+        'pp-nav': {
+          'data-nav': JSON.stringify([{
+            Name: 'Fresh',
+            Summary: 'Fresh',
+            Children: null,
+            Operations: [],
+            IsNavOnly: false,
+          }]),
+        },
+      },
+    });
+
+    await hydratePrintingPressPage();
+
+    const nav = document.getElementById('pp-nav');
+    expect(nav?.getAttribute('data-nav')).toContain('Fresh');
+    expect(assetLoaderState.loadAsset.mock.calls.map((call) => call[0])).toContain('shared-asset');
+    expect(saddlebagState.ensureBag(sharedBagID()).get('shared-payload')).toEqual({
+      hash: 'hash-2',
+      payload: {
+        attributes: {
+          'pp-nav': {
+            'data-nav': JSON.stringify([{
+              Name: 'Fresh',
+              Summary: 'Fresh',
+              Children: null,
+              Operations: [],
+              IsNavOnly: false,
+            }]),
+          },
+        },
+      },
+    });
   });
 });

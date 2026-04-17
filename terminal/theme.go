@@ -7,6 +7,8 @@ import (
 	"image/color"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 
 	lipgloss "charm.land/lipgloss/v2"
 	"github.com/charmbracelet/colorprofile"
@@ -73,7 +75,83 @@ func DetectStdoutProfile() colorprofile.Profile {
 }
 
 func DetectDarkBackground() bool {
-	return lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
+	if dark, ok := detectDarkBackgroundFromEnv(os.Environ()); ok {
+		return dark
+	}
+	return detectTerminalDarkBackground()
+}
+
+func DetectDarkBackgroundFromEnv(env []string) bool {
+	if dark, ok := detectDarkBackgroundFromEnv(env); ok {
+		return dark
+	}
+	return true
+}
+
+var detectTerminalDarkBackground = func() bool {
+	return lipgloss.HasDarkBackground(os.Stdin, os.Stderr)
+}
+
+func detectDarkBackgroundFromEnv(env []string) (bool, bool) {
+	if dark, ok := lookupDarkBackgroundOverride(env); ok {
+		return dark, true
+	}
+	if dark, ok := lookupColorFGBGDarkBackground(env); ok {
+		return dark, true
+	}
+	return false, false
+}
+
+func lookupDarkBackgroundOverride(env []string) (bool, bool) {
+	raw, ok := lookupEnv(env, "PB33F_DARK_BACKGROUND")
+	if !ok {
+		return false, false
+	}
+
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "true", "yes", "on", "dark":
+		return true, true
+	case "0", "false", "no", "off", "light":
+		return false, true
+	default:
+		return false, false
+	}
+}
+
+func lookupColorFGBGDarkBackground(env []string) (bool, bool) {
+	raw, ok := lookupEnv(env, "COLORFGBG")
+	if !ok {
+		return false, false
+	}
+
+	parts := strings.Split(raw, ";")
+	for i := len(parts) - 1; i >= 0; i-- {
+		code, err := strconv.Atoi(strings.TrimSpace(parts[i]))
+		if err != nil {
+			continue
+		}
+
+		switch code {
+		case 0, 1, 2, 3, 4, 5, 6, 8:
+			return true, true
+		case 7, 9, 10, 11, 12, 13, 14, 15:
+			return false, true
+		default:
+			return false, false
+		}
+	}
+
+	return false, false
+}
+
+func lookupEnv(env []string, key string) (string, bool) {
+	prefix := key + "="
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			return strings.TrimPrefix(entry, prefix), true
+		}
+	}
+	return "", false
 }
 
 func PaletteForTheme(theme ThemeName) Palette {

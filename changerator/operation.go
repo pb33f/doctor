@@ -84,9 +84,14 @@ func (t *Changerator) VisitOperation(ctx context.Context, obj *v3.Operation) {
 
 		if len(changes.ParameterChanges) > 0 {
 			if len(obj.Parameters) > 0 {
+				usedParameters := make([]bool, len(obj.Parameters))
 				for i := range changes.ParameterChanges {
+					parameter := matchOperationParameterChange(obj.Parameters, changes.ParameterChanges[i], usedParameters, i)
+					if parameter == nil {
+						continue
+					}
 					nCtx = context.WithValue(ctx, v3.Context, changes.ParameterChanges[i])
-					obj.Parameters[i].Travel(nCtx, t)
+					parameter.Travel(nCtx, t)
 				}
 			} else {
 				nCtx = context.WithValue(ctx, v3.Context, changes.ParameterChanges)
@@ -155,4 +160,110 @@ func (t *Changerator) VisitOperation(ctx context.Context, obj *v3.Operation) {
 			HandleExtensions(ctx, obj, changes.ExtensionChanges)
 		}
 	}
+}
+
+func matchOperationParameterChange(
+	parameters []*v3.Parameter,
+	change *model.ParameterChanges,
+	used []bool,
+	preferredIndex int,
+) *v3.Parameter {
+	if len(parameters) == 0 {
+		return nil
+	}
+
+	changeName := parameterChangeName(change)
+	changeIn := parameterChangeIn(change)
+
+	if changeName != "" && changeIn != "" {
+		if idx := findUnmatchedParameterIndex(parameters, used, func(parameter *v3.Parameter) bool {
+			return parameterName(parameter) == changeName && parameterIn(parameter) == changeIn
+		}); idx >= 0 {
+			used[idx] = true
+			return parameters[idx]
+		}
+	}
+
+	if changeName != "" {
+		if idx := findUnmatchedParameterIndex(parameters, used, func(parameter *v3.Parameter) bool {
+			return parameterName(parameter) == changeName
+		}); idx >= 0 {
+			used[idx] = true
+			return parameters[idx]
+		}
+	}
+
+	if changeIn != "" {
+		if idx := findUnmatchedParameterIndex(parameters, used, func(parameter *v3.Parameter) bool {
+			return parameterIn(parameter) == changeIn
+		}); idx >= 0 {
+			used[idx] = true
+			return parameters[idx]
+		}
+	}
+
+	if preferredIndex >= 0 && preferredIndex < len(parameters) && !used[preferredIndex] && parameters[preferredIndex] != nil {
+		used[preferredIndex] = true
+		return parameters[preferredIndex]
+	}
+
+	if idx := findUnmatchedParameterIndex(parameters, used, func(parameter *v3.Parameter) bool {
+		return parameter != nil
+	}); idx >= 0 {
+		used[idx] = true
+		return parameters[idx]
+	}
+
+	return nil
+}
+
+func findUnmatchedParameterIndex(parameters []*v3.Parameter, used []bool, match func(*v3.Parameter) bool) int {
+	for i := range parameters {
+		if used[i] || parameters[i] == nil {
+			continue
+		}
+		if match(parameters[i]) {
+			return i
+		}
+	}
+	return -1
+}
+
+func parameterChangeName(change *model.ParameterChanges) string {
+	if change == nil {
+		return ""
+	}
+	return change.Name
+}
+
+func parameterChangeIn(change *model.ParameterChanges) string {
+	if change == nil || change.PropertyChanges == nil {
+		return ""
+	}
+	for _, propertyChange := range change.GetPropertyChanges() {
+		if propertyChange == nil || propertyChange.Property != "in" {
+			continue
+		}
+		if propertyChange.New != "" {
+			return propertyChange.New
+		}
+		if propertyChange.Original != "" {
+			return propertyChange.Original
+		}
+	}
+	return ""
+}
+
+func parameterName(parameter *v3.Parameter) string {
+	if parameter == nil || parameter.Value == nil {
+		return ""
+	}
+	return parameter.Value.Name
+}
+
+func parameterIn(parameter *v3.Parameter) string {
+	if parameter == nil || parameter.Value == nil {
+		return ""
+	}
+	return parameter.Value.In
 }

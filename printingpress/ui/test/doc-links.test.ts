@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, it} from 'vitest';
-import {docHref, modelHref, operationHref, overviewHref} from '../src/utils/doc-links.js';
+import {docHref, headerTitleHref, modelHref, operationHref, overviewHref} from '../src/utils/doc-links.js';
 
 describe('doc-links', () => {
   beforeEach(() => {
@@ -32,6 +32,24 @@ describe('doc-links', () => {
     expect(overviewHref()).toBe('http://localhost:3000/index.html');
     expect(operationHref('get-health')).toBe('http://localhost:3000/operations/get-health.html');
     expect(modelHref('schemas', 'finding')).toBe('http://localhost:3000/models/schemas/finding.html');
+  });
+
+  it('prefers the configured overview href when present', () => {
+    window.history.replaceState({}, '', 'http://localhost:3000/services/users/versions/v2/specs/users/operations/list-health.html');
+    document.body.dataset.ppBaseUrl = '../';
+    document.body.dataset.ppOverviewHref = '../../../../index.html';
+
+    expect(overviewHref()).toBe('http://localhost:3000/services/users/index.html');
+  });
+
+  it('prefers the configured catalog href for the header title when present', () => {
+    window.history.replaceState({}, '', 'http://localhost:3000/services/users/versions/v2/specs/users/operations/list-health.html');
+    document.body.dataset.ppBaseUrl = '../';
+    document.body.dataset.ppCatalogHref = '../../../../../../index.html';
+    document.body.dataset.ppOverviewHref = '../../../../index.html';
+
+    expect(headerTitleHref()).toBe('http://localhost:3000/index.html');
+    expect(overviewHref()).toBe('http://localhost:3000/services/users/index.html');
   });
 
   it('preserves literal hrefs', () => {

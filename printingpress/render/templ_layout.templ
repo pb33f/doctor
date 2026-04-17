@@ -30,7 +30,7 @@ templ Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL st
 				data-pp-viz-diagram={ AssetHref(assetBaseURL, vizDiagramDataBase) }
 			}>
 			<pp-layout data-title={ siteTitle }>
-				<div class="pp-layout-fallback-header" aria-hidden="true">{ siteTitle }</div>
+				<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">{ siteTitle }</span></div>
 				<pp-nav id="pp-nav" slot="nav" data-active={ activeSlug }>
 					<div class="pp-nav-fallback" aria-hidden="true">
 						<div class="pp-nav-fallback-home">API OVERVIEW</div>

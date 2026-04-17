@@ -74,25 +74,6 @@ export function resolveRefLink(ref: string): RefLink | null {
   return {name, href: modelHref(typeSlug, sanitizeSlug(name))};
 }
 
-export function extractEnumValues(schemaJson: string): string[] | null {
-  if (!schemaJson) return null;
-  try {
-    const s = JSON.parse(schemaJson);
-    return Array.isArray(s.enum) ? s.enum : null;
-  } catch {
-    return null;
-  }
-}
-
-export function deriveSchemaTypeFromJson(schemaJson: string): string {
-  if (!schemaJson) return '';
-  try {
-    return deriveSchemaType(JSON.parse(schemaJson));
-  } catch {
-    return '';
-  }
-}
-
 export interface ConstraintPart {
   label: string;
   value: any;

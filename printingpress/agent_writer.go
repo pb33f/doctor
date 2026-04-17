@@ -1991,19 +1991,6 @@ func sourceLabel(source *SourceRef) string {
 	return label
 }
 
-func renderSourceMetadata(location string, line int) string {
-	if location == "" && line <= 0 {
-		return ""
-	}
-	if location != "" && line > 0 {
-		return "**Source:** `" + location + ":" + fmt.Sprintf("%d", line) + "`\n\n"
-	}
-	if location != "" {
-		return "**Source:** `" + location + "`\n\n"
-	}
-	return "**Source line:** `" + fmt.Sprintf("%d", line) + "`\n\n"
-}
-
 func operationLink(ctx llmRenderContext, slug, label string) string {
 	if slug == "" {
 		return "`" + label + "`"

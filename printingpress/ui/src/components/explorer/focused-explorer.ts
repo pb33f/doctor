@@ -21,7 +21,6 @@ export class PpFocusedExplorer extends LitElement {
     @query('pb33f-explorer') private explorer!: ExplorerComponent;
     @query('.explorer-container') private explorerContainer!: HTMLDivElement;
     @state() private graphData: any = null;
-    @state() private initialized = false;
     @state() private explorerHidden = localStorage.getItem('pp-explorer-hidden') === 'true';
 
     private _readyPoll = 0;
@@ -257,7 +256,6 @@ export class PpFocusedExplorer extends LitElement {
         if (!graphData) return;
         this.explorer.updateGraphResponse(graphData);
         this._initializedExplorer = this.explorer;
-        this.initialized = true;
 
         if (this.nodeId) {
             clearInterval(this._readyPoll);

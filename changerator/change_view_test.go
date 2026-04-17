@@ -397,7 +397,60 @@ func TestSubtreeTotals_MatchDeduplicatedHeadline(t *testing.T) {
 		"subtree total should match deduplicated count, not raw count")
 }
 
+func TestBuildNodeChangeTree_PetstoreRegression_PreservesOwnedLeafNodes(t *testing.T) {
+	root, _ := buildPetstoreChangeTrees(t)
+
+	standardNodes := make(map[string]*v3.Node)
+	collectNodeMap(root, standardNodes)
+
+	for _, target := range petstoreOwnedLeafTargets() {
+		standardNode := standardNodes[target]
+		require.NotNil(t, standardNode, "standard changed tree should contain %s", target)
+		require.Greater(t, len(nodeOwnChanges(standardNode)), 0, "standard node should keep own changes for %s", target)
+	}
+
+	require.NotNil(t, standardNodes["$.components.schemas['User'].properties['email']"])
+	require.Greater(t, len(nodeOwnChanges(standardNodes["$.components.schemas['User'].properties['email']"])), 0)
+}
+
 func TestPrepareChangeViewGraph_PetstoreRegression_PreservesOwnedLeafNodes(t *testing.T) {
+	root, changeRoot := buildPetstoreChangeTrees(t)
+
+	standardNodes := make(map[string]*v3.Node)
+	collectNodeMap(root, standardNodes)
+
+	changeNodes := make(map[string]*v3.Node)
+	collectNodeMap(changeRoot, changeNodes)
+
+	for _, target := range petstoreOwnedLeafTargets() {
+		standardNode := standardNodes[target]
+		require.NotNil(t, standardNode, "standard changed tree should contain %s", target)
+		require.Greater(t, len(nodeOwnChanges(standardNode)), 0, "standard node should keep own changes for %s", target)
+
+		changeNode := changeNodes[target]
+		require.NotNil(t, changeNode, "change-view graph should contain %s", target)
+		require.Greater(t, len(nodeOwnChanges(changeNode)), 0, "change-view node should keep own changes for %s", target)
+	}
+
+	components := changeNodes["$.components"]
+	require.NotNil(t, components)
+	for _, change := range nodeOwnChanges(components) {
+		assert.NotEqual(t, "$.components.schemas['User'].properties['email']", change.Path)
+		assert.NotEqual(t, "$.components.schemas['Pet']", change.Path)
+		assert.NotEqual(t, "$.components.schemas['Pet'].properties['status']", change.Path)
+	}
+
+	operation := changeNodes["$.paths['/user/login'].get"]
+	require.NotNil(t, operation)
+	for _, change := range nodeOwnChanges(operation) {
+		assert.NotEqual(t, "$.paths['/user/login'].get.parameters[1]", change.Path)
+		assert.NotEqual(t, "$.paths['/user/login'].get.parameters[0].schema", change.Path)
+	}
+}
+
+func buildPetstoreChangeTrees(t *testing.T) (*v3.Node, *v3.Node) {
+	t.Helper()
+
 	leftBytes, err := os.ReadFile("../test_specs/petstorev3-original.json")
 	require.NoError(t, err)
 	rightBytes, err := os.ReadFile("../test_specs/petstorev3-openapi-changes.json")
@@ -428,50 +481,19 @@ func TestPrepareChangeViewGraph_PetstoreRegression_PreservesOwnedLeafNodes(t *te
 	cr.BuildNodeChangeTree(root)
 	require.NotNil(t, root)
 
-	standardNodes := make(map[string]*v3.Node)
-	collectNodeMap(root, standardNodes)
-
 	changeRoot := cloneNodeTreeForTest(root)
 	cr.PrepareChangeViewGraph(changeRoot)
+	return root, changeRoot
+}
 
-	changeNodes := make(map[string]*v3.Node)
-	collectNodeMap(changeRoot, changeNodes)
-
-	targets := []string{
+func petstoreOwnedLeafTargets() []string {
+	return []string{
 		"$.components.schemas['Pet']",
 		"$.components.schemas['Pet'].properties['status']",
 		"$.components.schemas['User'].properties['email']",
 		"$.paths['/user/login'].get.parameters[1]",
 		"$.paths['/user/login'].get.parameters[0].schema",
 	}
-
-	for _, target := range targets {
-		standardNode := standardNodes[target]
-		require.NotNil(t, standardNode, "standard changed tree should contain %s", target)
-		require.Greater(t, len(nodeOwnChanges(standardNode)), 0, "standard node should keep own changes for %s", target)
-
-		changeNode := changeNodes[target]
-		require.NotNil(t, changeNode, "change-view graph should contain %s", target)
-		require.Greater(t, len(nodeOwnChanges(changeNode)), 0, "change-view node should keep own changes for %s", target)
-	}
-
-	components := changeNodes["$.components"]
-	require.NotNil(t, components)
-	for _, change := range nodeOwnChanges(components) {
-		assert.NotEqual(t, "$.components.schemas['User'].properties['email']", change.Path)
-		assert.NotEqual(t, "$.components.schemas['Pet']", change.Path)
-		assert.NotEqual(t, "$.components.schemas['Pet'].properties['status']", change.Path)
-	}
-
-	operation := changeNodes["$.paths['/user/login'].get"]
-	require.NotNil(t, operation)
-	for _, change := range nodeOwnChanges(operation) {
-		assert.NotEqual(t, "$.paths['/user/login'].get.parameters[1]", change.Path)
-		assert.NotEqual(t, "$.paths['/user/login'].get.parameters[0].schema", change.Path)
-	}
-
-	require.NotNil(t, standardNodes["$.components.schemas['User'].properties['email']"])
-	require.Greater(t, len(nodeOwnChanges(standardNodes["$.components.schemas['User'].properties['email']"])), 0)
 }
 
 func intPtr(v int) *int {

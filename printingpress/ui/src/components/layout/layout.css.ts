@@ -1,6 +1,7 @@
 import {css} from "lit";
+import dropdownCss from '../../styles/dropdown.css.js';
 
-export default css`
+export default [dropdownCss, css`
     :host {
         display: flex;
         flex-direction: column;
@@ -14,14 +15,50 @@ export default css`
         z-index: 10;
     }
 
+    .header-tools {
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-end;
+        gap: 12px;
+        width: 100%;
+        height: 55px;
+        box-sizing: border-box;
+        padding: 0 8px 0 0;
+    }
+
+    .header-context {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        flex: 0 0 auto;
+    }
+
+    .version-picker {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        margin-left: 0;
+        margin-top: 8px;
+    }
+
+    .version-picker sl-dropdown {
+        margin-top: 0;
+    }
+
+    .version-picker sl-button::part(base) {
+        min-width: 120px;
+        max-width: 220px;
+    }
+
     pb33f-theme-switcher {
-        margin-left: auto;
     }
 
     .theme-controls {
-        float: right;
-        margin-top: 8px;
-        margin-right: 8px;
+        flex: 0 0 auto;
+        margin-top: var(--global-padding-half);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
     }
 
     sl-split-panel {
@@ -86,4 +123,30 @@ export default css`
 
     .content-panel {
     }
-`
+
+    @media (max-width: 900px) {
+        .header-tools {
+            height: auto;
+            flex-wrap: wrap;
+            padding-right: 0;
+        }
+
+        .header-context {
+            width: 100%;
+        }
+
+        .version-picker {
+            width: 100%;
+        }
+
+        .version-picker sl-dropdown,
+        .version-picker sl-button::part(base) {
+            width: 100%;
+        }
+
+        .theme-controls {
+            width: 100%;
+            justify-content: flex-end;
+        }
+    }
+`]

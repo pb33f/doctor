@@ -22,8 +22,8 @@ templ Head(title string, baseURL string, assetBaseURL string, extraCSS []string,
 			})();
 		</script>
 		<title>{ title }</title>
-		// The base tag remains as a compatibility fallback, but both document links and static assets
-		// are resolved explicitly so nested pages do not depend on browser-specific base-tag behavior.
+		// Hosted docs resolve links explicitly, but portable nested pages still rely on the
+		// relative base tag so file:// navigation stays within the generated site.
 		if baseURL != "" {
 			<base href={ baseURL }/>
 		}
