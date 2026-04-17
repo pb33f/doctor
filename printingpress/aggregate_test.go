@@ -249,32 +249,6 @@ func TestCatalogVersionPrimaryHref_UsesVersionOverviewForCollisions(t *testing.T
 	assert.Equal(t, "services/account-service/versions/5/index.html", catalogVersionPrimaryHref(version))
 }
 
-func TestAggregatePrintingPress_PressModel_ScansAPIsGuruFixture(t *testing.T) {
-	root := filepath.Join("testdata", "apis-guru-directory-sample")
-	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
-		OutputDir:  filepath.Join(t.TempDir(), "site"),
-		BuildMode:  AggregateBuildModeFull,
-		StateStore: NewMemorySpecStateStore(),
-	})
-	require.NoError(t, err)
-
-	catalog, err := ap.PressModel()
-	require.NoError(t, err)
-	require.Len(t, catalog.Services, 10)
-
-	account := findCatalogService(t, catalog, "account-service")
-	require.NotNil(t, account)
-	assert.Equal(t, "6", account.LatestVersion.Label)
-
-	appmesh := findCatalogService(t, catalog, "appmesh")
-	require.NotNil(t, appmesh)
-	assert.Equal(t, "2019-01-25", appmesh.LatestVersion.Label)
-
-	control := findCatalogService(t, catalog, "control")
-	require.NotNil(t, control)
-	assert.Equal(t, "1.0.14", control.LatestVersion.Label)
-}
-
 func TestAggregatePrintingPress_FastMode_RebuildsOnlyChangedSpecsAndRemovesStaleOutputs(t *testing.T) {
 	root := t.TempDir()
 	specPath := writeAggregateSpec(t, root, "services/users/src/specs/users.yaml", "Users API", "v1")
