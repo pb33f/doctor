@@ -38,8 +38,17 @@ func TestDetectDarkBackgroundFromEnv_InvalidOverrideFallsBack(t *testing.T) {
 	assert.False(t, DetectDarkBackgroundFromEnv(env))
 }
 
-func TestDetectDarkBackgroundFromEnv_IgnoresUnknownColorFGBGBackground(t *testing.T) {
-	assert.True(t, DetectDarkBackgroundFromEnv([]string{"COLORFGBG=0;244"}))
+func TestDetectDarkBackgroundFromEnv_UsesColorFGBGXtermGrayscaleLightBackground(t *testing.T) {
+	assert.False(t, DetectDarkBackgroundFromEnv([]string{"COLORFGBG=0;255"}))
+}
+
+func TestDetectDarkBackgroundFromEnv_UsesColorFGBGXtermGrayscaleDarkBackground(t *testing.T) {
+	assert.True(t, DetectDarkBackgroundFromEnv([]string{"COLORFGBG=15;232"}))
+}
+
+func TestDetectDarkBackgroundFromEnv_UsesColorFGBGXtermCubeLuminance(t *testing.T) {
+	assert.True(t, DetectDarkBackgroundFromEnv([]string{"COLORFGBG=15;17"}))
+	assert.False(t, DetectDarkBackgroundFromEnv([]string{"COLORFGBG=15;231"}))
 }
 
 func TestDetectDarkBackground_UsesTerminalFallbackWhenEnvHintsMissing(t *testing.T) {

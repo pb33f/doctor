@@ -137,11 +137,48 @@ func lookupColorFGBGDarkBackground(env []string) (bool, bool) {
 		case 7, 9, 10, 11, 12, 13, 14, 15:
 			return false, true
 		default:
+			if rgb, ok := xtermColorIndexRGB(code); ok {
+				return rgbLuminance(rgb) < 128, true
+			}
 			return false, false
 		}
 	}
 
 	return false, false
+}
+
+func xtermColorIndexRGB(code int) (color.RGBA, bool) {
+	if code < 0 || code > 255 {
+		return color.RGBA{}, false
+	}
+	if code >= 16 && code <= 231 {
+		offset := code - 16
+		r := offset / 36
+		g := (offset / 6) % 6
+		b := offset % 6
+		return color.RGBA{
+			R: xtermCubeComponent(r),
+			G: xtermCubeComponent(g),
+			B: xtermCubeComponent(b),
+			A: 255,
+		}, true
+	}
+	if code >= 232 && code <= 255 {
+		value := uint8(8 + (code-232)*10)
+		return color.RGBA{R: value, G: value, B: value, A: 255}, true
+	}
+	return color.RGBA{}, false
+}
+
+func xtermCubeComponent(step int) uint8 {
+	if step <= 0 {
+		return 0
+	}
+	return uint8(55 + step*40)
+}
+
+func rgbLuminance(value color.RGBA) uint8 {
+	return uint8((299*uint32(value.R) + 587*uint32(value.G) + 114*uint32(value.B)) / 1000)
 }
 
 func lookupEnv(env []string, key string) (string, bool) {
