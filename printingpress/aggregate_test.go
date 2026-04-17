@@ -598,6 +598,9 @@ func TestAggregatePrintingPress_PrintHTML_SkipsUnsupportedSpecsAndContinues(t *t
 	rootHTML, err := os.ReadFile(filepath.Join(outputDir, "index.html"))
 	require.NoError(t, err)
 	assert.NotContains(t, string(rootHTML), "Legacy Payments API")
+	assert.Equal(t, 1, stats.Services)
+	assert.Equal(t, 1, stats.Versions)
+	assert.Equal(t, 1, stats.Specs)
 }
 
 func TestAggregatePrintingPress_PrintHTML_HidesSkippedVersionsFromHeaderSwitchers(t *testing.T) {

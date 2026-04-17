@@ -167,9 +167,15 @@ func (ap *AggregatePrintingPress) buildAggregateStatistics(plan *aggregateBuildP
 		Warnings:           append([]*ppmodel.BuildWarning(nil), plan.catalog.Warnings...),
 	}
 	for _, service := range plan.catalog.Services {
+		visibleVersions := visibleCatalogVersions(service)
+		if len(visibleVersions) == 0 {
+			continue
+		}
 		stats.Services++
-		stats.Versions += len(service.Versions)
-		stats.Specs += service.SpecCount
+		stats.Versions += len(visibleVersions)
+		for _, version := range visibleVersions {
+			stats.Specs += len(visibleCatalogEntries(version))
+		}
 	}
 	for _, writtenPath := range written {
 		info, err := os.Stat(writtenPath)
