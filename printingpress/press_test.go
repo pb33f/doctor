@@ -341,6 +341,7 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	assert.Contains(t, string(indexHTML), `__PP_BOOTSTRAP__`)
 	assert.Contains(t, string(indexHTML), `pp-layout-fallback-header`)
 	assert.Contains(t, string(indexHTML), `pp-nav-fallback`)
+	assert.Contains(t, string(indexHTML), `nav-preview:rendered`)
 	assert.Contains(t, string(indexHTML), `localStorage.getItem('pb33f-theme')`)
 	assert.NotContains(t, string(indexHTML), "pp-schema-registry")
 	assert.NotContains(t, string(indexHTML), "data-nav=")
@@ -356,7 +357,8 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	assert.Contains(t, string(operationHTML), `href="static/printing-press.css"`)
 	assert.Contains(t, string(operationHTML), `href="static/printing-press-operation.css"`)
 	assert.Contains(t, string(operationHTML), `src="static/printing-press.js"`)
-	assert.Contains(t, string(operationHTML), `href="../index.html"`)
+	assert.Contains(t, string(operationHTML), `href="index.html"`)
+	assert.NotContains(t, string(operationHTML), `href="../index.html"`)
 	assert.Contains(t, string(operationHTML), `data-pp-shared="static/printing-press-shared"`)
 	assert.Contains(t, string(operationHTML), `data-pp-page="static/page-data/operations/`+opSlug+`"`)
 	assert.Contains(t, string(operationHTML), `var sharedBase="static/printing-press-shared";`)
@@ -367,6 +369,10 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	assert.NotContains(t, string(sharedJSON), `"schemaJson"`)
 	assert.NotContains(t, string(sharedJSON), `"mockJson"`)
 	assert.Contains(t, string(sharedJSON), `"pageDataBase"`)
+	expectedSharedHash, err := hashHydrationPayload(buildSharedHydrationPayload(site))
+	require.NoError(t, err)
+	assert.Contains(t, string(indexHTML), `data-pp-shared-hash="`+expectedSharedHash+`"`)
+	assert.Contains(t, string(operationHTML), `data-pp-shared-hash="`+expectedSharedHash+`"`)
 
 	for _, op := range site.Operations {
 		assert.FileExists(t, outputDir+"/operations/"+op.Slug+".html")
@@ -691,6 +697,22 @@ func assertHTMLLinkReachability(t *testing.T, baseURL string) {
 	hrefRe := regexp.MustCompile(`href="([^"]+)"`)
 	baseHrefRe := regexp.MustCompile(`<base\s+href="[^"]*"`)
 	skipSchemes := []string{"mailto:", "http://", "https://", "javascript:"}
+	hostedBasePath := func(baseHref string) string {
+		if baseHref == "" {
+			return ""
+		}
+		if strings.HasPrefix(baseHref, "http://") || strings.HasPrefix(baseHref, "https://") {
+			parsed, parseErr := url.Parse(baseHref)
+			if parseErr != nil {
+				return ""
+			}
+			return strings.TrimSuffix(parsed.Path, "/")
+		}
+		if strings.HasPrefix(baseHref, "/") {
+			return strings.TrimSuffix(baseHref, "/")
+		}
+		return ""
+	}
 
 	var allBroken []string
 
@@ -707,6 +729,7 @@ func assertHTMLLinkReachability(t *testing.T, baseURL string) {
 		content := string(data)
 
 		pageBaseHref := ""
+		pageBaseDir := filepath.Dir(path)
 		// Collect base href values to exclude from link checks
 		baseHrefs := make(map[string]bool)
 		for _, bm := range baseHrefRe.FindAllStringSubmatch(content, -1) {
@@ -718,6 +741,9 @@ func assertHTMLLinkReachability(t *testing.T, baseURL string) {
 					pageBaseHref = inner[1]
 				}
 			}
+		}
+		if pageBaseHref != "" && hostedBasePath(pageBaseHref) == "" {
+			pageBaseDir = filepath.Clean(filepath.Join(filepath.Dir(path), filepath.FromSlash(pageBaseHref)))
 		}
 
 		matches := hrefRe.FindAllStringSubmatch(content, -1)
@@ -753,17 +779,12 @@ func assertHTMLLinkReachability(t *testing.T, baseURL string) {
 
 			target := ""
 			if strings.HasPrefix(clean, "/") {
-				docRoot := strings.TrimSuffix(pageBaseHref, "/")
-				if strings.HasPrefix(docRoot, "http://") || strings.HasPrefix(docRoot, "https://") {
-					if parsed, parseErr := url.Parse(docRoot); parseErr == nil {
-						docRoot = strings.TrimSuffix(parsed.Path, "/")
-					}
-				}
+				docRoot := hostedBasePath(pageBaseHref)
 				trimmed := strings.TrimPrefix(clean, docRoot)
 				trimmed = strings.TrimPrefix(trimmed, "/")
 				target = filepath.Join(outputDir, filepath.FromSlash(trimmed))
 			} else {
-				target = filepath.Clean(filepath.Join(filepath.Dir(path), filepath.FromSlash(clean)))
+				target = filepath.Clean(filepath.Join(pageBaseDir, filepath.FromSlash(clean)))
 			}
 			if _, statErr := os.Stat(target); os.IsNotExist(statErr) {
 				rel, _ := filepath.Rel(outputDir, path)

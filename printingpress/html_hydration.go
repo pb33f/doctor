@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/cespare/xxhash/v2"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/doctor/printingpress/render"
 )
@@ -221,12 +222,31 @@ func buildOperationHydrationPayload(page *ppmodel.OperationPage) *htmlHydrationP
 	return payload
 }
 
+func marshalHydrationPayload(payload *htmlHydrationPayload) ([]byte, error) {
+	if payload == nil {
+		return nil, nil
+	}
+	jsonBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return jsonBytes, nil
+}
+
+func hashHydrationPayload(payload *htmlHydrationPayload) (string, error) {
+	jsonBytes, err := marshalHydrationPayload(payload)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", xxhash.Sum64(jsonBytes)), nil
+}
+
 func writeHydrationAsset(outputDir, assetBase, globalName, assetMode string, payload *htmlHydrationPayload) ([]string, error) {
 	if payload == nil {
 		return nil, nil
 	}
 
-	jsonBytes, err := json.Marshal(payload)
+	jsonBytes, err := marshalHydrationPayload(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshalling hydration asset %s: %w", assetBase, err)
 	}

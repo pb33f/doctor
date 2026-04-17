@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@pb33f/saddlebag": "^0.2.3",
     "@pb33f/cowboy-components": "^0.13.0",
     "@shoelace-style/shoelace": "^2.20.1",
     "@types/prismjs": "^1.26.6",

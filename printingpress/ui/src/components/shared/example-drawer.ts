@@ -1,4 +1,4 @@
-import {LitElement, html, nothing} from 'lit';
+import {LitElement, html} from 'lit';
 import {customElement, state, query} from 'lit/decorators.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';

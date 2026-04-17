@@ -7,7 +7,7 @@ import '@shoelace-style/shoelace/dist/components/button/button.js';
 import sharedCss from '../../styles/shared.css.js';
 import refLinkCss from '../../styles/ref-link.css.js';
 import mediaTypeSelectorCss from './media-type-selector.css.js';
-import {ComponentLinkData, MediaTypeData} from '../../utils/schema.js';
+import {MediaTypeData} from '../../utils/schema.js';
 import {renderComponentRefLink} from '../../utils/render-helpers.js';
 import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';

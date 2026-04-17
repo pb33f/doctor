@@ -80,7 +80,12 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		return nil, fmt.Errorf("copying static assets: %w", err)
 	}
 	assetMode := resolveHTMLAssetMode(site)
-	sharedAssetPaths, err := writeHydrationAsset(resolvedOutputDir, htmlSharedDataAssetBase, sharedHydrationGlobal, assetMode, buildSharedHydrationPayload(site))
+	sharedPayload := buildSharedHydrationPayload(site)
+	sharedDataHash, err := hashHydrationPayload(sharedPayload)
+	if err != nil {
+		return nil, fmt.Errorf("hashing shared hydration assets: %w", err)
+	}
+	sharedAssetPaths, err := writeHydrationAsset(resolvedOutputDir, htmlSharedDataAssetBase, sharedHydrationGlobal, assetMode, sharedPayload)
 	if err != nil {
 		return nil, fmt.Errorf("writing shared hydration assets: %w", err)
 	}
@@ -97,7 +102,9 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		SpecFormat:     site.SpecFormat,
 		AssetMode:      assetMode,
 		SharedDataBase: htmlSharedDataAssetBase,
+		SharedDataHash: sharedDataHash,
 		Lite:           site.Lite,
+		HeaderContext:  site.HeaderContext,
 	}
 
 	var jobs []htmlWriteJob
@@ -409,11 +416,13 @@ type pageParams struct {
 	SpecFormat         string
 	AssetMode          string
 	SharedDataBase     string
+	SharedDataHash     string
 	PageDataBase       string
 	VizGraphDataBase   string
 	VizDiagramDataBase string
 	ExtraCSS           []string
 	Lite               bool
+	HeaderContext      *ppmodel.SiteHeaderContext
 }
 
 func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content templ.Component) error {
@@ -426,22 +435,23 @@ func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content t
 	}
 	defer f.Close()
 
-	layout := render.Layout(
-		pageTitle,
-		p.SiteTitle,
-		p.BaseURL,
-		p.AssetBaseURL,
-		activeSlug,
-		p.SpecFormat,
-		p.AssetMode,
-		p.SharedDataBase,
-		p.PageDataBase,
-		p.VizGraphDataBase,
-		p.VizDiagramDataBase,
-		p.ExtraCSS,
-		p.Lite,
-		content,
-	)
+	layout := render.LayoutPage(render.LayoutPageParams{
+		PageTitle:          pageTitle,
+		SiteTitle:          p.SiteTitle,
+		BaseURL:            p.BaseURL,
+		AssetBaseURL:       p.AssetBaseURL,
+		ActiveSlug:         activeSlug,
+		SpecFormat:         p.SpecFormat,
+		AssetMode:          p.AssetMode,
+		SharedDataBase:     p.SharedDataBase,
+		SharedDataHash:     p.SharedDataHash,
+		PageDataBase:       p.PageDataBase,
+		VizGraphDataBase:   p.VizGraphDataBase,
+		VizDiagramDataBase: p.VizDiagramDataBase,
+		ExtraCSS:           p.ExtraCSS,
+		Lite:               p.Lite,
+		HeaderContext:      p.HeaderContext,
+	}, content)
 	return layout.Render(context.Background(), f)
 }
 

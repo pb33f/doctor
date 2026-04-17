@@ -30,6 +30,7 @@ type Site struct {
 	BaseURL        string                          `json:"-"` // default HTML base URL from config
 	AssetMode      string                          `json:"-"` // html hydration asset mode: portable or served
 	Source         *SourceRef                      `json:"source,omitempty"`
+	HeaderContext  *SiteHeaderContext              `json:"headerContext,omitempty"`
 }
 
 // SchemaRegistryEntry holds the data needed for hover popovers on $ref links.

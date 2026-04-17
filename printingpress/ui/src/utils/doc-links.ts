@@ -32,7 +32,19 @@ export function docHref(href: string): string {
 }
 
 export function overviewHref(): string {
+    const configuredOverview = document.body?.dataset.ppOverviewHref;
+    if (configuredOverview) {
+        return docHref(configuredOverview);
+    }
     return docHref('index.html');
+}
+
+export function headerTitleHref(): string {
+    const configuredCatalog = document.body?.dataset.ppCatalogHref;
+    if (configuredCatalog) {
+        return docHref(configuredCatalog);
+    }
+    return overviewHref();
 }
 
 export function operationHref(slug: string): string {

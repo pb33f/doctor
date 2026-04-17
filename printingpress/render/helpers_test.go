@@ -88,16 +88,16 @@ func TestDocHref(t *testing.T) {
 			want:    "index.html",
 		},
 		{
-			name:    "portable base prefixes href",
+			name:    "portable base preserves href",
 			baseURL: "../",
 			href:    "index.html",
-			want:    "../index.html",
+			want:    "index.html",
 		},
 		{
-			name:    "portable nested base prefixes model href",
+			name:    "portable nested base preserves model href",
 			baseURL: "../../",
 			href:    "models/schemas/finding.html",
-			want:    "../../models/schemas/finding.html",
+			want:    "models/schemas/finding.html",
 		},
 		{
 			name:    "absolute path base resolves from docs root",

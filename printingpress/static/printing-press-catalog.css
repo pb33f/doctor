@@ -1,0 +1,224 @@
+.pp-catalog-body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--background-color);
+    color: var(--font-color);
+}
+
+pb33f-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: block;
+}
+
+.header-tools {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: nowrap;
+    width: 100%;
+    min-height: 55px;
+    box-sizing: border-box;
+    padding: 0 16px 0 0;
+}
+
+.theme-controls {
+    flex: 1 1 auto;
+    margin-left: auto;
+    margin-top: var(--global-padding-half);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.version-picker {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    margin-top: var(--global-padding-half);
+}
+
+.version-picker--catalog {
+    margin-left: var(--global-padding-double);
+    gap: 10px;
+    white-space: nowrap;
+}
+
+.version-picker--catalog span {
+    flex: 0 0 auto;
+    color: var(--font-color-sub1);
+    font-family: var(--font-stack), monospace;
+    font-size: 0.8rem;
+    letter-spacing: var(--label-spacing);
+    text-transform: uppercase;
+}
+
+.version-picker--card {
+    margin-top: auto;
+    min-width: 0;
+    width: 100%;
+}
+
+.version-picker sl-dropdown {
+    margin-top: 0;
+}
+
+.version-picker sl-button::part(base) {
+    border: 1px solid var(--primary-color);
+    border-radius: 0;
+    font-family: var(--font-stack), monospace;
+    background-color: var(--background-color);
+    color: var(--primary-color);
+    min-height: 40px;
+    width: 100%;
+}
+
+.version-picker sl-button::part(label) {
+    overflow-x: hidden;
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
+}
+
+.version-picker sl-menu {
+    border: 1px solid var(--primary-color);
+    border-radius: 0;
+}
+
+.version-picker sl-menu-item::part(base) {
+    color: var(--primary-color);
+    font-family: var(--font-stack), monospace;
+    --sl-color-neutral-100: var(--secondary-color-lowalpha);
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
+}
+
+.version-picker sl-menu-item::part(checked-icon) {
+    color: var(--primary-color);
+}
+
+.pp-catalog-shell {
+    max-width: 1380px;
+    margin: 0 auto;
+    padding: 32px 40px 72px;
+}
+
+.pp-catalog-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 28px;
+}
+
+.pp-catalog-title {
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.pp-catalog-subtitle {
+    margin: 0;
+    max-width: 78ch;
+    color: var(--font-color-sub1);
+}
+
+.pp-catalog-section + .pp-catalog-section {
+    margin-top: 28px;
+}
+
+.pp-catalog-section .pp-model-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-bottom: 0;
+}
+
+.pp-catalog-card,
+.pp-catalog-entry {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 14px;
+    min-height: 190px;
+}
+
+.pp-catalog-card-summary {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: flex-start;
+}
+
+.pp-catalog-summary {
+    margin: 0;
+    line-height: 1.55;
+}
+
+.pp-catalog-card-title {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 1.15rem;
+    line-height: 1.25;
+}
+
+.pp-catalog-warning {
+    display: block;
+    margin-bottom: 20px;
+}
+
+.pp-catalog-warning p {
+    margin: 0;
+}
+
+.pp-catalog-warning-list {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.pp-catalog-warning-list li + li {
+    margin-top: 0.35rem;
+}
+
+@media (max-width: 900px) {
+    .pp-catalog-shell {
+        padding: 24px 20px 56px;
+    }
+
+    .header-tools {
+        align-items: stretch;
+        flex-wrap: wrap;
+    }
+
+    .theme-controls {
+        margin-left: 0;
+    }
+
+    .version-picker {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .version-picker--catalog {
+        flex-direction: column;
+        align-items: stretch;
+        margin-left: 0;
+        white-space: normal;
+    }
+
+    .pp-catalog-section .pp-model-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .pp-catalog-card,
+    .pp-catalog-entry {
+        min-height: 0;
+    }
+
+    .pp-catalog-summary {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 1280px) and (min-width: 901px) {
+    .pp-catalog-section .pp-model-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

@@ -44,16 +44,17 @@ func operationBreadcrumb(page *ppmodel.OperationPage) []BreadcrumbItem {
 // AssetHref resolves a relative asset reference against the configured hosted docs root.
 // When no hosted docs root is configured, the original relative asset path is preserved.
 func AssetHref(assetBaseURL, href string) string {
-	return resolveDocHref(assetBaseURL, href, false)
+	return resolveDocHref(assetBaseURL, href)
 }
 
-// DocHref resolves a document link against the configured page base URL.
-// Hosted pages use an absolute docs root, while portable pages use a depth-relative base.
+// DocHref resolves a document link against the configured hosted docs root.
+// Portable pages preserve the original relative href so the page's <base href>
+// continues to handle nested file:// navigation correctly.
 func DocHref(baseURL, href string) string {
-	return resolveDocHref(baseURL, href, true)
+	return resolveDocHref(baseURL, href)
 }
 
-func resolveDocHref(baseURL, href string, allowPortableBase bool) string {
+func resolveDocHref(baseURL, href string) string {
 	if baseURL == "" || href == "" || isLiteralHref(href) {
 		return href
 	}
@@ -63,9 +64,6 @@ func resolveDocHref(baseURL, href string, allowPortableBase bool) string {
 	}
 	if isHostedAssetBase(base) {
 		return base.ResolveReference(ref).String()
-	}
-	if allowPortableBase {
-		return baseURL + href
 	}
 	return href
 }
