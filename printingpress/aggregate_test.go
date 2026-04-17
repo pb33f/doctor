@@ -496,9 +496,58 @@ func TestAggregatePrintingPress_PrintJSONArtifactsAndLLM(t *testing.T) {
 	llmStats, err := ap.PrintLLM()
 	require.NoError(t, err)
 	assert.Equal(t, 1, llmStats.Specs)
+	require.FileExists(t, filepath.Join(outputDir, "AGENTS.md"))
 	require.FileExists(t, filepath.Join(outputDir, "llms.txt"))
 	require.FileExists(t, filepath.Join(outputDir, "services", "users", "llms.txt"))
 	require.FileExists(t, filepath.Join(outputDir, "services", "users", "versions", "v1", "llms.txt"))
+}
+
+func TestAggregatePrintingPress_PrintLLM_WritesLinkedCatalogIndexes(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateSpec(t, root, "services/users/src/specs/usersv1.yaml", "Users API", "v1")
+	writeAggregateSpec(t, root, "services/users/src/specs/usersv2.yaml", "Users API", "v2")
+	outputDir := filepath.Join(root, "site")
+
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: NewMemorySpecStateStore(),
+		Title:      "Platform Catalog",
+	})
+	require.NoError(t, err)
+
+	_, err = ap.PrintLLM()
+	require.NoError(t, err)
+
+	rootAgents, err := os.ReadFile(filepath.Join(outputDir, "AGENTS.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(rootAgents), "[llms.txt](llms.txt)")
+	assert.Contains(t, string(rootAgents), "[Users API](services/users/llms.txt)")
+	assert.Contains(t, string(rootAgents), "[v2](services/users/versions/v2/llms.txt)")
+	assert.Contains(t, string(rootAgents), "(services/users/versions/v2/specs/users-api/llms.txt)")
+	assert.Contains(t, string(rootAgents), "(services/users/versions/v2/specs/users-api/AGENTS.md)")
+
+	rootIndex, err := os.ReadFile(filepath.Join(outputDir, "llms.txt"))
+	require.NoError(t, err)
+	assert.Contains(t, string(rootIndex), "[AGENTS.md](AGENTS.md)")
+	assert.Contains(t, string(rootIndex), "[Users API](services/users/llms.txt)")
+	assert.Contains(t, string(rootIndex), "[v2](services/users/versions/v2/llms.txt)")
+	assert.Contains(t, string(rootIndex), "(services/users/versions/v2/specs/users-api/llms.txt)")
+
+	serviceIndex, err := os.ReadFile(filepath.Join(outputDir, "services", "users", "llms.txt"))
+	require.NoError(t, err)
+	assert.Contains(t, string(serviceIndex), "[Catalog AGENTS.md](../../AGENTS.md)")
+	assert.Contains(t, string(serviceIndex), "[Catalog llms.txt](../../llms.txt)")
+	assert.Contains(t, string(serviceIndex), "[v2](versions/v2/llms.txt)")
+	assert.Contains(t, string(serviceIndex), "(versions/v2/specs/users-api/llms.txt)")
+
+	versionIndex, err := os.ReadFile(filepath.Join(outputDir, "services", "users", "versions", "v2", "llms.txt"))
+	require.NoError(t, err)
+	assert.Contains(t, string(versionIndex), "[Catalog AGENTS.md](../../../../AGENTS.md)")
+	assert.Contains(t, string(versionIndex), "[Catalog llms.txt](../../../../llms.txt)")
+	assert.Contains(t, string(versionIndex), "[Users API llms.txt](../../llms.txt)")
+	assert.Contains(t, string(versionIndex), "(specs/users-api/llms.txt)")
+	assert.Contains(t, string(versionIndex), "(specs/users-api/AGENTS.md)")
 }
 
 func TestAggregatePrintingPress_DefaultOutputsPreserveHTMLEntrySites(t *testing.T) {

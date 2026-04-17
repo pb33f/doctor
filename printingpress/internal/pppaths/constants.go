@@ -183,3 +183,11 @@ func AggregateSpecDir(serviceSlug, versionSlug, entrySlug string) string {
 func AggregateSpecIndexHTML(serviceSlug, versionSlug, entrySlug string) string {
 	return path.Join(AggregateSpecDir(serviceSlug, versionSlug, entrySlug), FileIndexHTML)
 }
+
+func AggregateSpecLLM(serviceSlug, versionSlug, entrySlug string) string {
+	return path.Join(AggregateSpecDir(serviceSlug, versionSlug, entrySlug), FileLLMIndex)
+}
+
+func AggregateSpecAgentsGuide(serviceSlug, versionSlug, entrySlug string) string {
+	return path.Join(AggregateSpecDir(serviceSlug, versionSlug, entrySlug), FileAgentsGuide)
+}
