@@ -696,7 +696,10 @@ func catalogShell(page catalogPageData) templ.Component {
 				return err
 			}
 		}
-		if _, err := io.WriteString(w, `<div class="theme-controls"><pb33f-theme-switcher></pb33f-theme-switcher></div></div></pb33f-header><main class="pp-catalog-shell">`); err != nil {
+		if _, err := io.WriteString(w, `<div class="theme-controls"><pb33f-theme-switcher></pb33f-theme-switcher></div></div></pb33f-header>`); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w, `<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">`+templ.EscapeString(page.HeaderTitle)+`</span></div><main class="pp-catalog-shell">`); err != nil {
 			return err
 		}
 		if page.ShowHeroTitle || strings.TrimSpace(page.Subtitle) != "" {

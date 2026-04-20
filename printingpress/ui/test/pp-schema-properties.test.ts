@@ -273,6 +273,20 @@ describe('pp-schema-properties allOf', () => {
         expect(parseInt(compactWidth, 10)).toBeGreaterThan(300);
     });
 
+    it('reserves enough compact width for required badge slots and long property names', async () => {
+        const el = create(JSON.stringify({
+            type: 'object',
+            properties: {
+                very_long_property_name_for_compact_width: {type: 'string'},
+            },
+            required: ['very_long_property_name_for_compact_width'],
+        }), true);
+        await el.updateComplete;
+
+        const compactWidth = el.style.getPropertyValue('--compact-name-width');
+        expect(parseInt(compactWidth, 10)).toBeGreaterThan(240);
+    });
+
     it('merges sibling properties at same level as allOf', async () => {
         const schema = {
             allOf: [

@@ -7,6 +7,7 @@ import '../shared/inline-code.js';
 import '../shared/code-viewer.js';
 import '../shared/schema-properties.js';
 import '../shared/example-selector.js';
+import '../shared/media-type-selector.js';
 
 import {collectConstraints} from '../../utils/schema.js';
 
@@ -237,6 +238,11 @@ export class PpModelPage extends LitElement {
     `;
   }
 
+  private renderContent(data: any) {
+    if (!Array.isArray(data.content) || !data.content.length) return nothing;
+    return html`<pp-media-type-selector content-json=${JSON.stringify(data.content)}></pp-media-type-selector>`;
+  }
+
   private renderSchema(schema: any) {
     const isComplex = schema.properties || schema.allOf || schema.oneOf || schema.anyOf;
 
@@ -355,6 +361,9 @@ export class PpModelPage extends LitElement {
 
     // Header: has "schema" but no "in" and no "properties"
     if (data.schema && !data.properties && !data.in) return this.renderHeader(data);
+
+    // Content-bearing components like responses and request bodies.
+    if (data.content?.length) return this.renderContent(data);
 
     // Schema (default)
     return this.renderSchema(data);

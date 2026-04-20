@@ -132,6 +132,8 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogAndEntrySites(t *testing
 	require.NoError(t, err)
 	assert.Contains(t, string(rootHTML), "Platform Catalog")
 	assert.Contains(t, string(rootHTML), `<pb33f-header name="Platform Catalog"`)
+	assert.Contains(t, string(rootHTML), `<div class="pp-layout-fallback-header" aria-hidden="true">`)
+	assert.Contains(t, string(rootHTML), `<span class="pp-layout-fallback-name">Platform Catalog</span>`)
 	assert.Contains(t, string(rootHTML), "pb33f-theme-switcher")
 	assert.Contains(t, string(rootHTML), `href="services/users/versions/v2/specs/users-api/index.html"`)
 	assert.Contains(t, string(rootHTML), "static/printing-press.css")
