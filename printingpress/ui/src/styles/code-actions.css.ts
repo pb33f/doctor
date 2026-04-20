@@ -7,8 +7,8 @@ export default css`
 
     .floating-actions {
         position: absolute;
-        top: 0;
-        right: var(--global-padding);
+        top: var(--global-padding-half);
+        right: 0px;
         z-index: 1;
         display: flex;
         gap: var(--global-padding-half);
