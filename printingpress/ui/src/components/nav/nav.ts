@@ -50,13 +50,7 @@ export class PpNav extends LitElement {
     const logger = (globalThis as Record<string, unknown>).__PP_LOG as ((stage: string, detail?: unknown) => void) | undefined;
     if (typeof logger === 'function') {
       logger(stage, detail);
-      return;
     }
-    if (typeof detail === 'undefined') {
-      console.log(`[pp-perf] ${stage}`);
-      return;
-    }
-    console.log(`[pp-perf] ${stage}`, detail);
   }
 
   private previewHoldEnabled(): boolean {

@@ -54,6 +54,11 @@ export class PpSchemaProperties extends LitElement {
         }
     }
 
+    private resolveRenderableTarget(target: any, visited = new Set<string>()): any {
+        if (!target?.$ref) return target;
+        return this.parseRegistrySchema(target.$ref, visited) ?? target;
+    }
+
     private collectRenderedNameMetrics(schema: any, visited = new Set<string>()): {maxLen: number; hasRequired: boolean} {
         if (!schema || typeof schema !== 'object') {
             return {maxLen: 0, hasRequired: false};
@@ -317,10 +322,11 @@ export class PpSchemaProperties extends LitElement {
 
     render() {
         if (!this.schema) return nothing;
-        const target = this.schema.type === 'array'
+        const rootTarget = this.schema.type === 'array'
             && (this.schema.items?.properties || this.schema.items?.allOf || this.schema.items?.oneOf || this.schema.items?.anyOf)
             ? this.schema.items
             : this.schema;
+        const target = this.resolveRenderableTarget(rootTarget);
 
         if (target.allOf && Array.isArray(target.allOf)) {
             return this.renderComposition(target);

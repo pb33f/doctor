@@ -29,8 +29,33 @@ export default [dropdownCss, css`
     .header-context {
         display: flex;
         align-items: center;
+        gap: 12px;
         min-width: 0;
         flex: 0 0 auto;
+    }
+
+    .catalog-backlink {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 34px;
+        margin-top: 8px;
+        color: var(--primary-color);
+        font-family: var(--font-stack-bold), monospace;
+        font-size: 0.95rem;
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: var(--label-spacing);
+        white-space: nowrap;
+    }
+
+    .catalog-backlink sl-icon {
+        font-size: 0.95rem;
+        flex: 0 0 auto;
+    }
+
+    .catalog-backlink:hover {
+        text-decoration: underline;
     }
 
     .version-picker {
@@ -133,10 +158,17 @@ export default [dropdownCss, css`
 
         .header-context {
             width: 100%;
+            flex-wrap: wrap;
+        }
+
+        .catalog-backlink {
+            width: 100%;
+            margin-top: 0;
         }
 
         .version-picker {
             width: 100%;
+            margin-top: 0;
         }
 
         .version-picker sl-dropdown,

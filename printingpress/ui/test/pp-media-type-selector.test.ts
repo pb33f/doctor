@@ -44,6 +44,18 @@ describe('pp-media-type-selector', () => {
 
         const schemaProps = el.shadowRoot?.querySelector('pp-schema-properties');
         expect(schemaProps).toBeTruthy();
+
+        const refLink = el.shadowRoot?.querySelector('.ref-link');
+        expect(refLink?.textContent).toContain('Pet');
+    });
+
+    it('should suppress inline schema ref links when hide-ref-links is set', async () => {
+        const el = create(JSON.stringify([jsonMT]));
+        el.setAttribute('hide-ref-links', '');
+        await el.updateComplete;
+
+        const refLink = el.shadowRoot?.querySelector('.ref-link');
+        expect(refLink).toBeNull();
     });
 
     it('should render dropdown for multiple media types', async () => {

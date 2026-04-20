@@ -19,6 +19,7 @@ export class PpMediaTypeSelector extends LitElement {
     static styles = [sharedCss, refLinkCss, mediaTypeSelectorCss];
 
     @property({attribute: 'content-json'}) contentJson = '';
+    @property({attribute: 'hide-ref-links', type: Boolean}) hideRefLinks = false;
     @state() private mediaTypes: MediaTypeData[] = [];
     @state() private selectedIndex = 0;
     @state() private schemasIdentical = false;
@@ -199,14 +200,16 @@ export class PpMediaTypeSelector extends LitElement {
             return html`
                 <div class="media-type-ref">
                     <span class="media-type-label">${mt.mediaType}</span>
-                    <span class="array-type">Array&lt;${renderComponentRefLink(mt.itemsRef)}&gt;</span>
+                    ${this.hideRefLinks
+                        ? html`<span class="array-type">Array</span>`
+                        : html`<span class="array-type">Array&lt;${renderComponentRefLink(mt.itemsRef)}&gt;</span>`}
                 </div>`;
         }
         if (mt.schemaRef) {
             return html`
                 <div class="media-type-ref">
                     <span class="media-type-label">${mt.mediaType}</span>
-                    ${renderComponentRefLink(mt.schemaRef)}
+                    ${this.hideRefLinks ? nothing : renderComponentRefLink(mt.schemaRef)}
                 </div>`;
         }
         if (!mt.schemaJson) return nothing;
@@ -247,6 +250,7 @@ export class PpMediaTypeSelector extends LitElement {
     }
 
     private renderRefInfo(mt: MediaTypeData) {
+        if (this.hideRefLinks) return nothing;
         if (mt.isArray && mt.itemsRef) {
             return html`<span class="array-type">Array&lt;${renderComponentRefLink(mt.itemsRef)}&gt;</span>`;
         }

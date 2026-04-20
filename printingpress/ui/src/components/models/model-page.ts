@@ -11,6 +11,19 @@ import '../shared/media-type-selector.js';
 
 import {collectConstraints} from '../../utils/schema.js';
 
+const refSegmentToTypeSlug: Record<string, string> = {
+  schemas: 'schemas',
+  responses: 'responses',
+  parameters: 'parameters',
+  requestBodies: 'request-bodies',
+  headers: 'headers',
+  securitySchemes: 'security',
+  examples: 'examples',
+  links: 'links',
+  callbacks: 'callbacks',
+  pathItems: 'path-items',
+};
+
 @customElement('pp-model-page')
 export class PpModelPage extends LitElement {
   static styles = [sharedCss, constraintsCss, modelPageCss];
@@ -239,8 +252,113 @@ export class PpModelPage extends LitElement {
   }
 
   private renderContent(data: any) {
-    if (!Array.isArray(data.content) || !data.content.length) return nothing;
-    return html`<pp-media-type-selector content-json=${JSON.stringify(data.content)}></pp-media-type-selector>`;
+    const mediaTypes = Array.isArray(data.content)
+      ? data.content
+      : this.normalizeRawContent(data.content);
+    if (!mediaTypes.length) return nothing;
+    return html`<pp-media-type-selector content-json=${JSON.stringify(mediaTypes)} hide-ref-links></pp-media-type-selector>`;
+  }
+
+  private normalizeRawContent(content: unknown) {
+    if (!content || typeof content !== 'object' || Array.isArray(content)) return [];
+    return Object.entries(content as Record<string, any>).map(([mediaType, definition]) => {
+      const schema = definition?.schema ?? {};
+      const examples = this.normalizeRawExamples(definition);
+      const normalized: Record<string, unknown> = {
+        mediaType,
+        schemaJson: schema ? JSON.stringify(schema) : '',
+      };
+
+      if (schema?.$ref) {
+        const link = this.resolveComponentLink(schema.$ref);
+        if (link) normalized.schemaRef = link;
+      }
+
+      if (schema?.type === 'array' && schema.items) {
+        normalized.isArray = true;
+        normalized.itemsSchemaJson = JSON.stringify(schema.items);
+        if (schema.items.$ref) {
+          const link = this.resolveComponentLink(schema.items.$ref);
+          if (link) normalized.itemsRef = link;
+        }
+      }
+
+      if (Object.keys(examples).length) {
+        normalized.examples = examples;
+      }
+
+      return normalized;
+    }).filter((entry) => {
+      return Boolean(
+        entry.schemaJson ||
+        entry.schemaRef ||
+        entry.itemsRef ||
+        (entry.examples && Object.keys(entry.examples as Record<string, string>).length),
+      );
+    });
+  }
+
+  private normalizeRawExamples(definition: any) {
+    const examples: Record<string, string> = {};
+    if (definition?.examples && typeof definition.examples === 'object' && !Array.isArray(definition.examples)) {
+      for (const [name, example] of Object.entries(definition.examples as Record<string, any>)) {
+        if (example?.value !== undefined) {
+          examples[name] = JSON.stringify(example.value, null, 2);
+        }
+      }
+    }
+    if (!Object.keys(examples).length && definition?.example !== undefined) {
+      examples.Example = JSON.stringify(definition.example, null, 2);
+    }
+    return examples;
+  }
+
+  private resolveComponentLink(ref: string) {
+    if (!ref || !ref.startsWith('#/components/')) return null;
+    const parts = ref.replace('#/components/', '').split('/');
+    if (parts.length !== 2) return null;
+    const [segment, name] = parts;
+    const typeSlug = refSegmentToTypeSlug[segment];
+    if (!typeSlug) return null;
+    return {
+      name,
+      componentType: segment,
+      typeSlug,
+      slug: this.slugify(name),
+    };
+  }
+
+  private slugify(value: string) {
+    let slug = value.replace(/([a-z0-9])([A-Z])/g, '$1-$2');
+    slug = slug.toLowerCase();
+    slug = slug.replace(/[/]/g, '-').replace(/[{}_.]/g, '-').replace(/ /g, '-');
+    slug = slug.replace(/[^a-z0-9-]/g, '');
+    slug = slug.replace(/-{2,}/g, '-');
+    slug = slug.replace(/^-|-$/g, '');
+    return slug || 'unnamed';
+  }
+
+  private renderExampleModel(data: any) {
+    const entries: Array<{label: string; value: unknown; isCode?: boolean}> = [];
+    if (data.summary) entries.push({label: 'summary', value: data.summary});
+    if (data.externalValue) {
+      entries.push({
+        label: 'externalValue',
+        value: html`
+          <span class="example-external">
+            <a href=${data.externalValue} target="_blank" rel="noreferrer">${data.externalValue}</a>
+          </span>
+        `,
+      });
+    }
+    const inlineExample = data.value !== undefined
+      ? html`<pp-example-selector mode="inline" mock-json=${JSON.stringify(data.value, null, 2)}></pp-example-selector>`
+      : nothing;
+
+    return html`
+      ${inlineExample}
+      ${this.renderPropertyGrid(entries)}
+    `;
   }
 
   private renderSchema(schema: any) {
@@ -362,8 +480,11 @@ export class PpModelPage extends LitElement {
     // Header: has "schema" but no "in" and no "properties"
     if (data.schema && !data.properties && !data.in) return this.renderHeader(data);
 
+    // Example component: raw OpenAPI example object with value / externalValue.
+    if (data.value !== undefined || data.externalValue !== undefined) return this.renderExampleModel(data);
+
     // Content-bearing components like responses and request bodies.
-    if (data.content?.length) return this.renderContent(data);
+    if (data.content) return this.renderContent(data);
 
     // Schema (default)
     return this.renderSchema(data);

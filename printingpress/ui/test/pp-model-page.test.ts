@@ -104,4 +104,63 @@ describe('pp-model-page', () => {
     const properties = schemaProps.shadowRoot?.querySelectorAll('.property');
     expect(properties?.length).toBe(1);
   });
+
+  it('should render raw response component content maps with the media type selector', async () => {
+    const el = document.createElement('pp-model-page');
+    el.setAttribute('model-json', JSON.stringify({
+      description: 'Bad request response',
+      content: {
+        'application/json': {
+          schema: {
+            $ref: '#/components/schemas/Error',
+            type: 'object',
+            properties: {
+              code: { type: 'string' },
+            },
+          },
+        },
+      },
+    }));
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const mediaTypeSelector = el.shadowRoot?.querySelector('pp-media-type-selector') as HTMLElement & {
+      updateComplete?: Promise<unknown>;
+    };
+    expect(mediaTypeSelector).toBeTruthy();
+    await mediaTypeSelector.updateComplete;
+
+    const schemaProps = mediaTypeSelector.shadowRoot?.querySelector('pp-schema-properties') as HTMLElement & {
+      updateComplete?: Promise<unknown>;
+    };
+    expect(schemaProps).toBeTruthy();
+    await schemaProps.updateComplete;
+
+    const properties = schemaProps.shadowRoot?.querySelectorAll('.property');
+    expect(properties?.length).toBe(1);
+
+    const refLink = mediaTypeSelector.shadowRoot?.querySelector('.ref-link');
+    expect(refLink).toBeNull();
+  });
+
+  it('should render example components with the shared example selector', async () => {
+    const el = document.createElement('pp-model-page');
+    el.setAttribute('model-json', JSON.stringify({
+      summary: 'Finding example',
+      value: {
+        id: 'finding-1',
+        status: 'open',
+      },
+    }));
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const exampleSelector = el.shadowRoot?.querySelector('pp-example-selector') as HTMLElement & {
+      updateComplete?: Promise<unknown>;
+    };
+    expect(exampleSelector).toBeTruthy();
+    await exampleSelector.updateComplete;
+
+    expect(exampleSelector.getAttribute('mock-json')).toContain('finding-1');
+  });
 });
