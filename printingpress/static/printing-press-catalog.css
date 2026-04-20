@@ -5,6 +5,54 @@
     color: var(--font-color);
 }
 
+.pp-layout-fallback-header {
+    display: none;
+}
+
+pb33f-header:not(:defined) {
+    display: none;
+}
+
+pb33f-header:not(:defined) + .pp-layout-fallback-header {
+    display: flex;
+    align-items: center;
+    gap: 0.2em;
+    height: var(--pp-header-height);
+    box-sizing: border-box;
+    padding: 6px 0 10px 10px;
+    border-bottom: 1px dashed var(--secondary-color);
+    background: var(--background-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+pb33f-header:not(:defined) + .pp-layout-fallback-header .pp-layout-fallback-caret {
+    font-size: 1.6em;
+    display: inline-block;
+    margin-right: 3px;
+    color: var(--secondary-color);
+    flex: 0 0 auto;
+}
+
+pb33f-header:not(:defined) + .pp-layout-fallback-header .pp-layout-fallback-name {
+    font-family: var(--font-stack-bold), sans-serif;
+    font-size: 1.7em;
+    line-height: 1;
+    color: var(--primary-color);
+    text-shadow: 0 0 10px var(--primary-color-text-shadow), 0 0 10px var(--primary-color-text-shadow);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+html[theme="light"] pb33f-header:not(:defined) + .pp-layout-fallback-header {
+    text-shadow: none;
+}
+
+html[theme="light"] pb33f-header:not(:defined) + .pp-layout-fallback-header .pp-layout-fallback-name {
+    text-shadow: none;
+}
+
 pb33f-header {
     position: sticky;
     top: 0;
@@ -157,6 +205,7 @@ pb33f-header {
     border: 0;
     font-size: 1.15rem;
     line-height: 1.25;
+    word-spacing: normal;
 }
 
 .pp-catalog-warning {

@@ -21,7 +21,10 @@ export default [dropdownCss, css`
     }
     
     .prop-name-col {
-        text-align: right;
+        display: grid;
+        grid-template-columns: 3.25rem minmax(0, 1fr);
+        align-items: center;
+        gap: var(--global-padding);
         white-space: nowrap;
     }
 
@@ -37,6 +40,8 @@ export default [dropdownCss, css`
     .prop-name {
         font-family: var(--font-stack-bold), monospace;
         color: var(--font-color);
+        justify-self: end;
+        text-align: right;
     }
     .prop-name.required {
         color: var(--error-color);
@@ -58,9 +63,14 @@ export default [dropdownCss, css`
         background-color: var(--error-color-verylowalpha);
         padding: 0 var(--global-padding);
         font-family: var(--font-stack-bold), monospace;
-        margin-left: var(--global-padding);
+        box-sizing: border-box;
+        justify-self: start;
         text-transform: uppercase;
         letter-spacing: var(--label-spacing);
+    }
+
+    .required-badge-placeholder {
+        visibility: hidden;
     }
 
     a.ref-type-link,

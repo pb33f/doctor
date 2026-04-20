@@ -249,7 +249,7 @@ export default css`
     .model-skeleton-split {
         margin-top: var(--global-padding-double);
         border: 1px dotted var(--hrcolor);
-        background: var(--secondary-color-lowalpha);
+        background: transparent;
         padding: var(--global-padding);
     }
 
@@ -267,13 +267,14 @@ export default css`
     .model-skeleton-divider {
         background: var(--hrcolor);
         min-height: 100%;
+        opacity: 0.65;
     }
 
     .skeleton-heading,
     .skeleton-row,
     .skeleton-example-header,
     .skeleton-example-block {
-        background: var(--secondary-color-lowalpha);
+        background: var(--card-background-color);
         border: 1px dotted var(--hrcolor);
     }
 

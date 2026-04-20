@@ -114,10 +114,15 @@ export class PpSchemaProperties extends LitElement {
 
     private computeNameColumnWidth() {
         if (!this.schema) return;
-        const {maxLen, hasRequired} = this.collectRenderedNameMetrics(this.schema);
-        // ~8.5px per char in monospace + gap. Add 60px for REQ badge if any property is required.
-        const badgeWidth = hasRequired ? 70 : 0;
-        const width = Math.max(150, maxLen * 8.5 + badgeWidth + 16);
+        const {maxLen} = this.collectRenderedNameMetrics(this.schema);
+        // Compact rows always reserve a fixed badge slot now, even when a property is not required,
+        // so the width budget needs to include that slot plus a more conservative bold monospace
+        // character width for right-aligned names.
+        const badgeSlotWidth = 52; // 3.25rem at the 16px base font size
+        const badgeGap = 10; // matches --global-padding
+        const trailingPadding = 20;
+        const estimatedNameWidth = maxLen * 10.5;
+        const width = Math.max(180, badgeSlotWidth + badgeGap + estimatedNameWidth + trailingPadding);
         this.style.setProperty('--compact-name-width', `${Math.round(width)}px`);
     }
 
@@ -132,11 +137,12 @@ export class PpSchemaProperties extends LitElement {
     }
 
     private renderPropertyRow(name: string, prop: any, required: Set<string>) {
+        const isRequired = required.has(name);
         return html`
             <div class="property">
                 <div class="prop-name-col">
-                    ${required.has(name) ? html`<span class="required-badge">req</span>` : nothing}
-                    <span class="prop-name ${required.has(name) ? 'required' : ''}">${name}</span>
+                    <span class="required-badge ${isRequired ? '' : 'required-badge-placeholder'}" aria-hidden=${isRequired ? 'false' : 'true'}>${isRequired ? 'req' : 'req'}</span>
+                    <span class="prop-name ${isRequired ? 'required' : ''}">${name}</span>
                 </div>
                 <div class="prop-type-col">
                     ${this.renderType(prop)}
