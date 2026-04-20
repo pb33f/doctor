@@ -95,7 +95,7 @@ func LayoutPage(params LayoutPageParams, content templ.Component) templ.Componen
 				}
 			}
 		}
-		if _, err := io.WriteString(w, `><script>(function(){var root=window;var perf=root.__PP_PERF__||(root.__PP_PERF__={start:performance.now(),seq:0});root.__PP_LOG=root.__PP_LOG||function(stage,detail){try{perf.seq=(perf.seq||0)+1;var delta=(performance.now()-perf.start).toFixed(1);if(typeof detail==='undefined'){console.log('[pp-perf #'+perf.seq+' +'+delta+'ms] '+stage);}else{console.log('[pp-perf #'+perf.seq+' +'+delta+'ms] '+stage,detail);}}catch(_){}};root.__PP_LOG('body:start',{path:location.pathname});})();</script><pp-layout data-title="`+templ.EscapeString(params.SiteTitle)+`">`); err != nil {
+		if _, err := io.WriteString(w, `><pp-layout data-title="`+templ.EscapeString(params.SiteTitle)+`">`); err != nil {
 			return err
 		}
 		if _, err := io.WriteString(w, `<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">`+templ.EscapeString(params.SiteTitle)+`</span></div>`); err != nil {

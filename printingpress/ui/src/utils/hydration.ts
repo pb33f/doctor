@@ -59,13 +59,7 @@ function logPerf(stage: string, detail?: unknown) {
   const logger = (globalThis as Record<string, unknown>).__PP_LOG as ((stage: string, detail?: unknown) => void) | undefined;
   if (typeof logger === 'function') {
     logger(stage, detail);
-    return;
   }
-  if (typeof detail === 'undefined') {
-    console.log(`[pp-perf] ${stage}`);
-    return;
-  }
-  console.log(`[pp-perf] ${stage}`, detail);
 }
 
 function getBootstrapStore(): BootstrapStore | null {
@@ -384,7 +378,12 @@ export async function hydratePrintingPressPage() {
     });
 
   const pageTask = loadHydrationPayload(pageAssetBase, pageGlobalName, 'page')
-    .then((payload) => {
+    .then(async (payload) => {
+      try {
+        await sharedTask;
+      } catch {
+        // Let page-specific hydration proceed even if the shared payload failed.
+      }
       applyHydrationPayload(payload, {includeModel: false});
       logPerf('page-payload:applied', {hasPayload: !!payload});
       return payload;

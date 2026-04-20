@@ -39,6 +39,7 @@ const registryEntries = {
     'schemas/BankSource': registryEntry('schemas/BankSource', 'Bank payment source'),
     'schemas/LinksBooking': registryEntry('schemas/LinksBooking', 'Booking links'),
     'schemas/WideOption': registryEntry('schemas/WideOption', 'Wide option payload'),
+    'schemas/Error': registryEntry('schemas/Error', 'Error payload'),
 };
 
 // Fixed model fixture — seed before tests so ref lookups work
@@ -123,6 +124,21 @@ const modelFixture = {
                 very_long_property_name_for_compact_width: {type: 'string'},
             },
             required: ['very_long_property_name_for_compact_width'],
+        }),
+    },
+    'schemas/Error': {
+        name: 'Error',
+        componentType: 'schemas',
+        description: 'Error payload',
+        typeSlug: 'schemas',
+        slug: 'error',
+        schemaJson: JSON.stringify({
+            type: 'object',
+            properties: {
+                title: {type: 'string'},
+                detail: {type: 'string'},
+            },
+            required: ['title'],
         }),
     },
 } as const;
@@ -420,5 +436,20 @@ describe('pp-schema-properties allOf', () => {
         const properties = el.shadowRoot?.querySelectorAll('.property');
         expect(refs).toBeNull();
         expect(properties?.length ?? 0).toBe(0);
+    });
+
+    it('resolves a top-level $ref into the referenced schema properties', async () => {
+        const el = create(JSON.stringify({
+            $ref: '#/components/schemas/Error',
+        }));
+        await el.updateComplete;
+
+        const propNames = Array.from(el.shadowRoot?.querySelectorAll('.prop-name') ?? [])
+            .map((node) => node.textContent?.trim());
+        expect(propNames).toContain('title');
+        expect(propNames).toContain('detail');
+
+        const scalarType = el.shadowRoot?.querySelector('.property.scalar .prop-type');
+        expect(scalarType).toBeNull();
     });
 });
