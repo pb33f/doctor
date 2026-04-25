@@ -81,6 +81,45 @@ func TestWalker_CompositionHeavyRefsCompletesWithGraph(t *testing.T) {
 	assert.Greater(t, refEdges, 0, "expected graph walk to preserve reference edges for reused schemas")
 }
 
+func TestWalker_SchemaCachePreservesReferenceUsagePaths(t *testing.T) {
+	docModel := buildSchemaCacheUsagePathDocument(t)
+
+	for _, tc := range []struct {
+		name   string
+		config *DrConfig
+	}{
+		{
+			name:   "model",
+			config: &DrConfig{UseSchemaCache: true},
+		},
+		{
+			name: "render changes",
+			config: &DrConfig{
+				BuildGraph:     true,
+				RenderChanges:  true,
+				UseSchemaCache: true,
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			noCacheConfig := *tc.config
+			noCacheConfig.UseSchemaCache = false
+			noCache := NewDrDocumentWithConfig(docModel, &noCacheConfig)
+			require.NotNil(t, noCache)
+
+			withCache := NewDrDocumentWithConfig(docModel, tc.config)
+			require.NotNil(t, withCache)
+
+			for _, path := range []string{"/one", "/two"} {
+				assert.Equal(t,
+					nestedResponseFieldPath(t, noCache, path),
+					nestedResponseFieldPath(t, withCache, path),
+					"schema cache should preserve usage-site JSONPath for %s", path)
+			}
+		})
+	}
+}
+
 func BenchmarkWalker_CompositionHeavyRefs(b *testing.B) {
 	docModel := buildCompositionHeavyV3Document(b, 144, 32, 144)
 	b.ReportAllocs()
@@ -172,6 +211,80 @@ func buildCompositionHeavyV3Document(tb testing.TB, composites, variants, paths 
 	model, errs := document.BuildV3Model()
 	require.Empty(tb, errs)
 	return model
+}
+
+func buildSchemaCacheUsagePathDocument(tb testing.TB) *libopenapi.DocumentModel[v3.Document] {
+	tb.Helper()
+
+	const spec = `openapi: 3.1.0
+info:
+  title: Schema Cache Usage Path Fixture
+  version: 1.0.0
+paths:
+  /one:
+    get:
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wrapper'
+  /two:
+    get:
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wrapper'
+components:
+  schemas:
+    Leaf:
+      type: object
+      properties:
+        field:
+          type: string
+    Wrapper:
+      type: object
+      properties:
+        leaf:
+          $ref: '#/components/schemas/Leaf'
+`
+
+	document, err := libopenapi.NewDocument([]byte(spec))
+	require.NoError(tb, err)
+
+	model, errs := document.BuildV3Model()
+	require.Empty(tb, errs)
+	return model
+}
+
+func nestedResponseFieldPath(t *testing.T, walker *DrDocument, path string) string {
+	t.Helper()
+
+	pathItem := walker.V3Document.Paths.PathItems.GetOrZero(path)
+	require.NotNil(t, pathItem)
+	require.NotNil(t, pathItem.Get)
+
+	response := pathItem.Get.Responses.Codes.GetOrZero("200")
+	require.NotNil(t, response)
+
+	mediaType := response.Content.GetOrZero("application/json")
+	require.NotNil(t, mediaType)
+	require.NotNil(t, mediaType.SchemaProxy)
+	require.NotNil(t, mediaType.SchemaProxy.Schema)
+
+	leaf := mediaType.SchemaProxy.Schema.Properties.GetOrZero("leaf")
+	require.NotNil(t, leaf)
+	require.NotNil(t, leaf.Schema)
+
+	field := leaf.Schema.Properties.GetOrZero("field")
+	require.NotNil(t, field)
+	require.NotNil(t, field.Schema)
+
+	return field.Schema.GenerateJSONPath()
 }
 
 func countLineObjects(walker *DrDocument) int {

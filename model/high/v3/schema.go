@@ -40,6 +40,7 @@ type Schema struct {
 	XML                   *XML
 	ExternalDocs          *ExternalDoc
 	Walked                bool
+	CacheCloneReady       bool
 	mu                    sync.RWMutex
 	Foundation
 }
@@ -92,10 +93,16 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 	if drCtx.UseSchemaCache {
 		cacheKey = schema.GoLow().RootNode
 
-		if _, ok := sm.Load(cacheKey); ok {
+		if cached, ok := sm.Load(cacheKey); ok {
 			// cached! we don't need to re-walk this.
-			s.Value = schema
-			if s.Walked {
+			if cachedSchema, ok := cached.(*Schema); ok &&
+				cachedSchema.isWalked() &&
+				!s.isComponentSchemaOccurrence() &&
+				cachedSchema.readyForCacheClone() {
+				s.Value = schema
+				s.hydrateFromCache(cachedSchema, drCtx)
+				s.setWalked()
+
 				// Preserve NodeParent before BuildNodesAndEdges to prevent corruption
 				// when s.Name is empty (which triggers NodeParent reassignment in foundation.go)
 				originalNodeParent := s.NodeParent
@@ -538,13 +545,11 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	// Store schema in cache AFTER all properties are populated
 	// This prevents race condition where cache hit returns incomplete schema
+	s.setWalked()
 	if drCtx.UseSchemaCache && cacheKey != nil {
-		sm.Store(cacheKey, true)
+		sm.LoadOrStore(cacheKey, s)
 	}
-
 	drCtx.ObjectChan <- s
-
-	s.Walked = true
 }
 
 func (s *Schema) GetValue() any {
