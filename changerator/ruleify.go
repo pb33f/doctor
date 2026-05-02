@@ -16,58 +16,8 @@ import (
 //
 // The function modifies the ChangedNodes in-place.
 func (t *Changerator) Ruleify(left *model.DrDocument) {
-	if left == nil || len(left.Nodes) == 0 {
+	if t == nil || left == nil {
 		return
 	}
-
-	if len(t.ChangedNodes) == 0 {
-		return
-	}
-
-	leftNodeMap := make(map[string]*v3.Node, len(left.Nodes))
-	for _, node := range left.Nodes {
-		if node != nil && node.Id != "" {
-			leftNodeMap[node.Id] = node
-		}
-	}
-
-	for _, changedNode := range t.ChangedNodes {
-		if changedNode == nil || changedNode.Id == "" {
-			continue
-		}
-
-		leftNode, exists := leftNodeMap[changedNode.Id]
-		if !exists || leftNode == nil {
-			continue
-		}
-
-		if leftNode.DrInstance == nil {
-			continue
-		}
-
-		leftFoundation, ok := leftNode.DrInstance.(v3.AcceptsRuleResults)
-		if !ok {
-			continue
-		}
-
-		ruleResults := leftFoundation.GetRuleFunctionResults()
-		if len(ruleResults) == 0 {
-			continue
-		}
-
-		if changedNode.DrInstance == nil {
-			continue
-		}
-
-		changedFoundation, ok := changedNode.DrInstance.(v3.AcceptsRuleResults)
-		if !ok {
-			continue
-		}
-
-		for _, result := range ruleResults {
-			if result != nil {
-				changedFoundation.AddRuleFunctionResult(result)
-			}
-		}
-	}
+	v3.CopyRuleResultsByNodeID(left.Nodes, t.ChangedNodes)
 }

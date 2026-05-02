@@ -5,6 +5,7 @@ import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import type {MermaidRenderer} from '@pb33f/cowboy-components/components/mermaid/mermaid-renderer.js';
 import {ensureModelDiagramVisualization} from '../../utils/model-visualization.js';
+import '../shared/code-viewer.js';
 import styles from './class-diagram.css.js';
 
 @customElement('pp-class-diagram')
@@ -277,7 +278,7 @@ export class PpClassDiagram extends LitElement {
     }
 
     renderCode() {
-        return html`<pre><code>${this.diagram}</code></pre>`;
+        return html`<pp-code-viewer .code=${this.diagram} language="mermaid" embedded></pp-code-viewer>`;
     }
 
     renderWide() {

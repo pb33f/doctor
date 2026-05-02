@@ -19,6 +19,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
+	"github.com/pb33f/doctor/printingpress/render"
 )
 
 // PrintHTML renders the aggregate catalog and all changed spec sub-sites.
@@ -69,6 +70,7 @@ func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, 
 		SpecPath:  spec.AbsolutePath,
 		OutputDir: entryOutput,
 		AssetMode: ap.config.AssetMode,
+		Footer:    cloneFooterConfig(ap.config.Footer),
 	}
 	if ap.config.BaseURL != "" {
 		if joined, err := joinBaseURLPath(ap.config.BaseURL, spec.OutputSubdir); err == nil {
@@ -588,6 +590,7 @@ type catalogPageData struct {
 	Content       templ.Component
 	AssetBase     string
 	ShowHeroTitle bool
+	Footer        *ppmodel.FooterConfig
 }
 
 func (ap *AggregatePrintingPress) catalogPageData(relPath, title, subtitle string, service *ppmodel.CatalogService, showHeroTitle bool, content templ.Component) catalogPageData {
@@ -604,6 +607,7 @@ func (ap *AggregatePrintingPress) catalogPageData(relPath, title, subtitle strin
 		Content:       content,
 		AssetBase:     ap.catalogAssetBase(relPath),
 		ShowHeroTitle: showHeroTitle,
+		Footer:        cloneFooterConfig(ap.config.Footer),
 	}
 }
 
@@ -721,6 +725,9 @@ func catalogShell(page catalogPageData) templ.Component {
 			}
 		}
 		if err := page.Content.Render(ctx, w); err != nil {
+			return err
+		}
+		if err := render.WriteFooter(w, page.Footer); err != nil {
 			return err
 		}
 		_, err := io.WriteString(w, `</main><script>

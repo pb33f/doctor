@@ -2,17 +2,20 @@ import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import navModelGroupCss from './nav-model-group.css.js';
 import {modelHref} from '../../utils/doc-links.js';
+import {renderViolationBadges, type ViolationCounts} from '../../utils/violations.js';
 
 interface NavModelGroup {
     name: string;
     typeSlug: string;
     models: NavModel[] | null;
+    counts?: ViolationCounts;
 }
 
 interface NavModel {
     name: string;
     slug: string;
     typeSlug: string;
+    counts?: ViolationCounts;
 }
 
 function groupContainsSlug(group: NavModelGroup, slug: string): boolean {
@@ -56,13 +59,19 @@ export class PpNavModelGroup extends LitElement {
         this.open = !this.open;
     }
 
+    private developerMode(): boolean {
+        return document.body?.dataset.ppDeveloperMode === 'true';
+    }
+
     render() {
         const {group, activeSlug, open} = this;
         const containsActive = groupContainsSlug(group, activeSlug);
+        const dev = this.developerMode();
         return html`
-            <div class="group-header ${containsActive ? 'active' : ''}" @click=${this.toggle}>
+            <div class="group-header ${containsActive ? 'active' : ''} ${dev ? 'developer' : ''}" @click=${this.toggle}>
                 <sl-icon name=${open ? 'chevron-down' : 'chevron-right'} class="chevron"></sl-icon>
                 <span>${group.name}</span>
+                ${dev ? renderViolationBadges(group.counts) : nothing}
             </div>
             ${open && group.models?.length
                 ? html`
@@ -74,8 +83,9 @@ export class PpNavModelGroup extends LitElement {
                                     return html`
                                         <li>
                                             <a href=${modelHref(model.typeSlug, model.slug)}
-                                               class="${modelSlug === activeSlug ? 'active' : ''}">
+                                               class="${modelSlug === activeSlug ? 'active' : ''} ${dev ? 'developer' : ''}">
                                                 <span class="model-name">${model.name}</span>
+                                                ${dev ? renderViolationBadges(model.counts) : nothing}
                                             </a>
                                         </li>
                                     `;

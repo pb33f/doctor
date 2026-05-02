@@ -29,6 +29,10 @@ type AcceptsRuleResults interface {
 	GetRuleFunctionResults() []*RuleFunctionResult
 }
 
+type internalRuleResultReceiver interface {
+	addRuleFunctionResult(result *RuleFunctionResult, reparent bool)
+}
+
 // Foundational is the base interface for all models in the doctor. It provides a way to navigate the model
 type Foundational interface {
 	GetParent() Foundational
@@ -361,23 +365,63 @@ func (f *Foundation) BuildNodesAndEdges(ctx context.Context, label, nodeType str
 }
 
 func (f *Foundation) AddRuleFunctionResult(result *RuleFunctionResult) {
-	result.ParentObject = f
+	f.addRuleFunctionResult(result, true)
+}
+
+func (f *Foundation) addRuleFunctionResult(result *RuleFunctionResult, reparent bool) {
+	if result == nil {
+		return
+	}
+	if reparent && !ruleResultParentMatchesReceiver(result, f) {
+		result.ParentObject = f.ruleResultReceiver()
+	}
 	f.Mutex.Lock()
 	if f.RuleResults == nil {
 		f.RuleResults = []*RuleFunctionResult{result}
-		if f.Parent != nil {
-			root := f.GetRoot()
-			root.(AcceptsRuleResults).AddRuleFunctionResult(result)
-		}
 		f.Mutex.Unlock()
+		f.forwardRuleFunctionResultToRoot(result)
 		return
 	}
 	f.RuleResults = append(f.RuleResults, result)
 	f.Mutex.Unlock()
-	if f.Parent != nil {
-		f.Mutex.Lock()
-		f.GetRoot().(AcceptsRuleResults).AddRuleFunctionResult(result)
-		f.Mutex.Unlock()
+	f.forwardRuleFunctionResultToRoot(result)
+}
+
+func ruleResultParentMatchesReceiver(result *RuleFunctionResult, receiver *Foundation) bool {
+	if result == nil || result.ParentObject == nil || receiver == nil {
+		return false
+	}
+	return result.ParentObject == receiver.ruleResultReceiver()
+}
+
+func (f *Foundation) ruleResultReceiver() any {
+	if f == nil || f.Node == nil || f.Node.DrInstance == nil {
+		return f
+	}
+	receiver, ok := f.Node.DrInstance.(Foundational)
+	if !ok || receiver == nil {
+		return f
+	}
+	return receiver
+}
+
+func (f *Foundation) forwardRuleFunctionResultToRoot(result *RuleFunctionResult) {
+	if f == nil || f.Parent == nil || result == nil {
+		return
+	}
+	root := f.GetRoot()
+	if root == nil || root == f {
+		return
+	}
+	if receiver, ok := f.ruleResultReceiver().(Foundational); ok && root == receiver {
+		return
+	}
+	if acceptsRoot, ok := root.(internalRuleResultReceiver); ok {
+		acceptsRoot.addRuleFunctionResult(result, false)
+		return
+	}
+	if acceptsRoot, ok := root.(AcceptsRuleResults); ok {
+		acceptsRoot.AddRuleFunctionResult(result)
 	}
 }
 

@@ -11,6 +11,7 @@ export default [dropdownCss, css`
     .property {
         display: grid;
         grid-template-columns: 200px minmax(300px, auto) 1fr;
+        align-items: start;
         gap: 0 1rem;
         padding: 15px var(--global-padding);
         border-bottom: 1px dotted var(--hrcolor);
@@ -23,16 +24,19 @@ export default [dropdownCss, css`
     .prop-name-col {
         display: grid;
         grid-template-columns: 3.25rem minmax(0, 1fr);
-        align-items: center;
+        align-items: start;
+        align-self: start;
         gap: var(--global-padding);
         white-space: nowrap;
     }
 
     .prop-type-col {
+        align-self: start;
         white-space: nowrap;
     }
 
     .prop-desc-col {
+        align-self: start;
         padding-left: var(--global-padding);
         color: var(--font-color-sub1)
     }
@@ -86,7 +90,7 @@ export default [dropdownCss, css`
     }
 
     :host([compact]) .property {
-        grid-template-columns: var(--compact-name-width) minmax(0, 1fr);
+        grid-template-columns: minmax(11rem, var(--compact-name-width)) minmax(8rem, 1fr);
         padding: 8px 0.5rem;
     }
 
@@ -95,22 +99,26 @@ export default [dropdownCss, css`
     }
 
     :host([compact]) .prop-type-col {
-        min-width: 0;
-        overflow: hidden;
+        min-width: 8rem;
+        overflow-x: auto;
+        overflow-y: hidden;
     }
 
     :host([compact]) .prop-type {
-        display: block;
-        white-space: normal;
-        overflow-wrap: anywhere;
+        display: inline-block;
+        white-space: nowrap;
+        overflow-wrap: normal;
+        word-break: normal;
     }
 
     :host([compact]) a.ref-type-link {
-        overflow-wrap: anywhere;
+        white-space: nowrap;
+        overflow-wrap: normal;
+        word-break: normal;
     }
 
     :host([compact]) .composition-ref-entry {
-        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-columns: auto minmax(8rem, 1fr);
     }
 
     .property.scalar {
@@ -212,6 +220,7 @@ export default [dropdownCss, css`
         flex: 1;
         display: flex;
         flex-direction: column;
+        min-width: 0;
     }
 
     .oneof-prop-desc {
@@ -236,6 +245,7 @@ export default [dropdownCss, css`
         --track-color: transparent;
         --sl-transition-x-fast: 0s;
         flex: 1;
+        min-width: 0;
     }
 
     .oneof-tabs::part(base) {
@@ -261,8 +271,14 @@ export default [dropdownCss, css`
         min-width: 170px;
     }
 
+    :host([compact]) .oneof-tabs::part(tabs) {
+        width: 13rem;
+        min-width: 13rem;
+    }
+
     .oneof-tabs::part(body) {
         overflow: auto;
+        min-width: 13rem;
     }
 
     .oneof-tabs sl-tab {

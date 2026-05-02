@@ -437,6 +437,7 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 		ServiceOverrides     []AggregatePathOverride `json:"serviceOverrides,omitempty"`
 		DisplayNameOverrides []AggregatePathOverride `json:"displayNameOverrides,omitempty"`
 		VersionOverrides     []AggregatePathOverride `json:"versionOverrides,omitempty"`
+		Footer               *ppmodel.FooterConfig   `json:"footer,omitempty"`
 	}{
 		BaseURL:              config.BaseURL,
 		AssetMode:            config.AssetMode,
@@ -444,6 +445,7 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 		ServiceOverrides:     append([]AggregatePathOverride(nil), config.ServiceOverrides...),
 		DisplayNameOverrides: append([]AggregatePathOverride(nil), config.DisplayNameOverrides...),
 		VersionOverrides:     append([]AggregatePathOverride(nil), config.VersionOverrides...),
+		Footer:               cloneFooterConfig(config.Footer),
 	}
 	b, err := json.Marshal(payload)
 	if err != nil {

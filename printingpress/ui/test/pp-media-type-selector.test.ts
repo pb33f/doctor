@@ -104,4 +104,30 @@ describe('pp-media-type-selector', () => {
         expect(schemaProps).toBeNull();
         expect(dropdown).toBeNull();
     });
+
+    it('should collapse and restore split examples', async () => {
+        const el = create(JSON.stringify([jsonMT]));
+        await el.updateComplete;
+
+        (el as any).wide = true;
+        await el.updateComplete;
+
+        const exampleSelector = el.shadowRoot?.querySelector('pp-example-selector') as HTMLElement;
+        expect(exampleSelector).toBeTruthy();
+        expect(exampleSelector.hasAttribute('show-visibility-toggle')).toBe(true);
+
+        exampleSelector.dispatchEvent(new CustomEvent('pp-hide-example'));
+        await el.updateComplete;
+
+        let split = el.shadowRoot?.querySelector('.schema-split');
+        expect(split?.classList.contains('example-hidden')).toBe(true);
+
+        const restore = el.shadowRoot?.querySelector('.example-restore') as HTMLElement;
+        expect(restore).toBeTruthy();
+        restore.click();
+        await el.updateComplete;
+
+        split = el.shadowRoot?.querySelector('.schema-split');
+        expect(split?.classList.contains('example-hidden')).toBe(false);
+    });
 });

@@ -44,9 +44,14 @@ export default [dropdownCss, css`
     .schema-split {
         --divider-width: 2px;
         --divider-hit-area: 12px;
+        --min: min(44rem, 58%);
+        --max: calc(100% - min(28rem, 40%));
         margin-top: var(--global-padding);
         overflow: hidden;
         grid-template-rows: 1fr;
+    }
+    .schema-split.example-hidden {
+        --max: calc(100% - 2.75rem);
     }
     .schema-split::part(divider) {
         background-color: var(--secondary-color);
@@ -63,6 +68,7 @@ export default [dropdownCss, css`
     }
     .split-pane {
         height: 100%;
+        min-width: 0;
         overflow: auto;
         scrollbar-width: thin;
         scrollbar-color: var(--secondary-color-dimmer) transparent;
@@ -79,5 +85,35 @@ export default [dropdownCss, css`
         --code-border-color: var(--primary-color-lowalpha);
         --example-margin: 0;
         --code-viewer-margin-top: 0;
+    }
+    .example-hidden .schema-example-pane {
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        min-width: 2.5rem;
+        padding: 0;
+        overflow: hidden;
+    }
+    .example-restore-tooltip {
+        --sl-tooltip-background-color: var(--background-color);
+        --sl-tooltip-color: var(--font-color);
+        --sl-tooltip-border-radius: 0;
+        --sl-tooltip-font-family: var(--font-stack), monospace;
+        --sl-tooltip-font-size: inherit;
+        --sl-tooltip-padding: var(--global-padding);
+        --sl-tooltip-arrow-size: 6px;
+    }
+    .example-restore-tooltip::part(body) {
+        border: 1px dashed var(--secondary-color);
+        text-transform: uppercase;
+        letter-spacing: var(--label-spacing);
+    }
+    .example-restore::part(base) {
+        color: var(--font-color-sub1);
+        font-size: 1rem;
+        padding: var(--global-padding-half);
+    }
+    .example-restore::part(base):hover {
+        color: var(--primary-color);
     }
 `]

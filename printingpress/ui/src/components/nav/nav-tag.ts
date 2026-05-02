@@ -2,6 +2,7 @@ import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import navTagCss from './nav-tag.css.js';
 import {operationHref} from '../../utils/doc-links.js';
+import {renderViolationBadges, type ViolationCounts} from '../../utils/violations.js';
 
 interface NavTag {
     name: string;
@@ -9,6 +10,7 @@ interface NavTag {
     children: NavTag[] | null;
     operations: NavOperation[] | null;
     isNavOnly: boolean;
+    counts?: ViolationCounts;
 }
 
 interface NavOperation {
@@ -17,6 +19,7 @@ interface NavOperation {
     slug: string;
     summary: string;
     deprecated: boolean;
+    counts?: ViolationCounts;
 }
 
 function tagContainsSlug(tag: NavTag, slug: string): boolean {
@@ -53,13 +56,19 @@ export class PpNavTag extends LitElement {
         this.open = !this.open;
     }
 
+    private developerMode(): boolean {
+        return document.body?.dataset.ppDeveloperMode === 'true';
+    }
+
     render() {
         const {tag, activeSlug, open} = this;
         const containsActive = tagContainsSlug(tag, activeSlug);
+        const dev = this.developerMode();
         return html`
-            <div class="tag-header ${containsActive ? 'active' : ''}" @click=${this.toggle}>
+            <div class="tag-header ${containsActive ? 'active' : ''} ${dev ? 'developer' : ''}" @click=${this.toggle}>
                 <sl-icon name=${open ? 'chevron-down' : 'chevron-right'} class="chevron"></sl-icon>
                 <span class="tag-name">${tag.summary || tag.name}</span>
+                ${dev ? renderViolationBadges(tag.counts) : nothing}
             </div>
             ${open
                     ? html`
@@ -70,10 +79,11 @@ export class PpNavTag extends LitElement {
                                             ${tag.operations.map(
                                                     (op) => html`
                                                         <li>
-                                                            <a href=${operationHref(op.slug)} class="${op.deprecated ? 'deprecated' : ''} ${op.slug === activeSlug ? 'active' : ''}">
+                                                            <a href=${operationHref(op.slug)} class="${op.deprecated ? 'deprecated' : ''} ${op.slug === activeSlug ? 'active' : ''} ${dev ? 'developer' : ''}">
                                                                 <span class="op-title">${op.summary || op.path}</span>
                                                                 <pb33f-http-method mode="nav-naked"
                                                                         method=${op.method}></pb33f-http-method>
+                                                                ${dev ? renderViolationBadges(op.counts) : nothing}
                                                             </a>
                                                         </li>
                                                     `

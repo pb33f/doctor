@@ -75,7 +75,7 @@ func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPa
 	// Build model slug lookup (exclude path-items — no HTML pages to link to)
 	modelSlugLookup := make(map[string]*ModelPage)
 	for typeSlug, pages := range pp.site.Models {
-		if typeSlug == "path-items" {
+		if typeSlug == typeSlugPathItems {
 			continue
 		}
 		for _, page := range pages {
@@ -87,7 +87,7 @@ func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPa
 	// Build model→model refs by scanning each model's SchemaJSON for $ref patterns.
 	// Skip path-items — they have no HTML pages so cross-ref links would be broken.
 	for typeSlug, pages := range pp.site.Models {
-		if typeSlug == "path-items" {
+		if typeSlug == typeSlugPathItems {
 			continue
 		}
 		for _, srcPage := range pages {

@@ -17,54 +17,8 @@ import (
 //
 // The function modifies the right document in-place.
 func Ruleify(left, right *DrDocument) {
-	if left == nil || right == nil || len(left.Nodes) == 0 || len(right.Nodes) == 0 {
+	if left == nil || right == nil {
 		return
 	}
-
-	leftNodeMap := make(map[string]*v3.Node, len(left.Nodes))
-	for _, node := range left.Nodes {
-		if node != nil && node.Id != "" {
-			leftNodeMap[node.Id] = node
-		}
-	}
-
-	for _, rightNode := range right.Nodes {
-		if rightNode == nil || rightNode.Id == "" {
-			continue
-		}
-
-		leftNode, exists := leftNodeMap[rightNode.Id]
-		if !exists || leftNode == nil {
-			continue
-		}
-
-		if leftNode.DrInstance == nil {
-			continue
-		}
-
-		leftFoundation, ok := leftNode.DrInstance.(v3.AcceptsRuleResults)
-		if !ok {
-			continue
-		}
-
-		ruleResults := leftFoundation.GetRuleFunctionResults()
-		if len(ruleResults) == 0 {
-			continue
-		}
-
-		if rightNode.DrInstance == nil {
-			continue
-		}
-
-		rightFoundation, ok := rightNode.DrInstance.(v3.AcceptsRuleResults)
-		if !ok {
-			continue
-		}
-
-		for _, result := range ruleResults {
-			if result != nil {
-				rightFoundation.AddRuleFunctionResult(result)
-			}
-		}
-	}
+	v3.CopyRuleResultsByNodeID(left.Nodes, right.Nodes)
 }

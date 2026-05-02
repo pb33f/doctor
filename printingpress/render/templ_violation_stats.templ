@@ -1,0 +1,9 @@
+package render
+
+templ ViolationStats(scopeLabel string) {
+	<pp-violation-stats
+		if scopeLabel != "" {
+			data-scope-label={ scopeLabel }
+		}>
+	</pp-violation-stats>
+}

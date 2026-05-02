@@ -95,3 +95,67 @@ func TestFoundation_GetSize_NodeChangesOnly_NoPropertyChanges(t *testing.T) {
 	h, _ := f.GetSize()
 	assert.Equal(t, HEIGHT*2, h, "should add HEIGHT when Node has changes even without property changes")
 }
+
+func TestFoundation_AddRuleFunctionResult_ReparentsCopiedResult(t *testing.T) {
+	source := &Foundation{}
+	receiver := &Foundation{}
+	result := &RuleFunctionResult{ParentObject: source}
+
+	receiver.AddRuleFunctionResult(result)
+
+	assert.Same(t, receiver, result.ParentObject)
+	assert.Len(t, receiver.RuleResults, 1)
+	assert.Same(t, result, receiver.RuleResults[0])
+}
+
+func TestFoundation_AddRuleFunctionResult_ReparentsSameDocumentDifferentReceiver(t *testing.T) {
+	root := &Foundation{}
+	root.SetPathSegment("$")
+	source := &Foundation{Parent: root}
+	source.SetPathSegment("source")
+	receiver := &Foundation{Parent: root}
+	receiver.SetPathSegment("receiver")
+	result := &RuleFunctionResult{ParentObject: source}
+
+	receiver.AddRuleFunctionResult(result)
+
+	assert.Same(t, receiver, result.ParentObject)
+	assert.Len(t, receiver.RuleResults, 1)
+	assert.Same(t, result, receiver.RuleResults[0])
+}
+
+func TestFoundation_AddRuleFunctionResult_ReparentsCopiedResultWithSamePath(t *testing.T) {
+	sourceRoot := &Foundation{}
+	sourceRoot.SetPathSegment("$")
+	source := &Foundation{Parent: sourceRoot}
+	source.SetPathSegment("same")
+
+	receiverRoot := &Foundation{}
+	receiverRoot.SetPathSegment("$")
+	receiver := &Foundation{Parent: receiverRoot}
+	receiver.SetPathSegment("same")
+
+	assert.Equal(t, source.GenerateJSONPath(), receiver.GenerateJSONPath())
+	result := &RuleFunctionResult{ParentObject: source}
+
+	receiver.AddRuleFunctionResult(result)
+
+	assert.Same(t, receiver, result.ParentObject)
+	assert.Len(t, receiver.RuleResults, 1)
+	assert.Same(t, result, receiver.RuleResults[0])
+}
+
+func TestFoundation_AddRuleFunctionResult_RootAggregationKeepsChildParent(t *testing.T) {
+	root := &Foundation{}
+	child := &Foundation{Parent: root}
+	result := &RuleFunctionResult{}
+
+	child.AddRuleFunctionResult(result)
+
+	assert.Same(t, child, result.ParentObject)
+	assert.Len(t, child.RuleResults, 1)
+	assert.Len(t, root.RuleResults, 1)
+	assert.Same(t, result, child.RuleResults[0])
+	assert.Same(t, result, root.RuleResults[0])
+	assert.NotSame(t, root, result.ParentObject)
+}

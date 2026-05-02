@@ -4,6 +4,8 @@ import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
+import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
+import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import sharedCss from '../../styles/shared.css.js';
 import refLinkCss from '../../styles/ref-link.css.js';
 import mediaTypeSelectorCss from './media-type-selector.css.js';
@@ -24,6 +26,7 @@ export class PpMediaTypeSelector extends LitElement {
     @state() private selectedIndex = 0;
     @state() private schemasIdentical = false;
     @state() private wide = false;
+    @state() private exampleHidden = false;
 
     @query('.schema-split') splitPanel!: HTMLElement;
     @query('.schema-props-pane') propsPane!: HTMLElement;
@@ -33,6 +36,8 @@ export class PpMediaTypeSelector extends LitElement {
     private paneResizeObserver: ResizeObserver | null = null;
     private _sizePending = false;
     private _rafId = 0;
+    private _splitRepositioning = false;
+    private _splitRepositionTimer = 0;
     private observedPropsPane: HTMLElement | null = null;
     private observedExamplePane: HTMLElement | null = null;
     private observedPropsContent: Element | null = null;
@@ -58,6 +63,7 @@ export class PpMediaTypeSelector extends LitElement {
     disconnectedCallback() {
         super.disconnectedCallback();
         cancelAnimationFrame(this._rafId);
+        window.clearTimeout(this._splitRepositionTimer);
         this.resizeObserver?.disconnect();
         this.resizeObserver = null;
         this.paneResizeObserver?.disconnect();
@@ -69,31 +75,49 @@ export class PpMediaTypeSelector extends LitElement {
     }
 
     updated(changed: Map<string, unknown>) {
-        if (changed.has('wide') || changed.has('selectedIndex') || changed.has('mediaTypes')) {
+        if (changed.has('wide') || changed.has('selectedIndex') || changed.has('mediaTypes') || changed.has('exampleHidden')) {
             this.sizeSplitPanel();
         }
         this.syncPaneObservers();
     }
 
     private sizeSplitPanel() {
-        if (!this.splitPanel || !this.propsPane || !this.examplePane || this._sizePending) return;
+        if (!this.splitPanel || !this.propsPane || !this.examplePane || this._sizePending || this._splitRepositioning) return;
         this._sizePending = true;
         this._rafId = requestAnimationFrame(() => {
             this._sizePending = false;
-            if (!this.splitPanel || !this.propsPane || !this.examplePane) return;
+            if (!this.splitPanel || !this.propsPane || !this.examplePane || this._splitRepositioning) return;
             const propsHeight = this.measurePaneContentHeight(this.propsPane);
-            const exampleHeight = this.measurePaneContentHeight(this.examplePane);
+            const exampleHeight = this.exampleHidden ? 0 : this.measurePaneContentHeight(this.examplePane);
             const vh = document.documentElement.clientHeight || 800;
             const mt = this.mediaTypes[this.selectedIndex];
             const propCount = this.getPropCount(mt);
-            const preferredHeight = Math.max(propsHeight, exampleHeight);
+            const preferredHeight = this.exampleHidden ? propsHeight : Math.max(propsHeight, exampleHeight);
             const minHeight = propCount >= 6 ? 300 : 220;
             const maxHeight = vh * 0.75;
             const h = Math.max(minHeight, Math.min(preferredHeight, maxHeight));
             const splitStyle = getComputedStyle(this.splitPanel);
             const splitPadding = parseFloat(splitStyle.paddingTop) + parseFloat(splitStyle.paddingBottom);
-            this.splitPanel.style.height = `${h + splitPadding}px`;
+            const nextHeight = Math.round(h + splitPadding);
+            const currentHeight = parseFloat(this.splitPanel.style.height);
+            if (!Number.isFinite(currentHeight) || Math.abs(currentHeight - nextHeight) >= 1) {
+                this.splitPanel.style.height = `${nextHeight}px`;
+            }
         });
+    }
+
+    private handleSplitReposition() {
+        this._splitRepositioning = true;
+        if (this._rafId) {
+            cancelAnimationFrame(this._rafId);
+            this._rafId = 0;
+            this._sizePending = false;
+        }
+        window.clearTimeout(this._splitRepositionTimer);
+        this._splitRepositionTimer = window.setTimeout(() => {
+            this._splitRepositioning = false;
+            this.sizeSplitPanel();
+        }, 120);
     }
 
     private measurePaneContentHeight(pane: HTMLElement): number {
@@ -288,20 +312,44 @@ export class PpMediaTypeSelector extends LitElement {
         const {mock, language} = this.getMockAndLanguage(mt);
         const hasExamples = mt.examples && Object.keys(mt.examples).length > 0;
         const title = mt.mediaType || 'Example';
+        const splitClass = this.exampleHidden ? 'schema-split example-hidden' : 'schema-split';
+        const position = this.exampleHidden ? '100' : '60';
         return html`
-            <sl-split-panel class="schema-split" position="60">
+            <sl-split-panel class=${splitClass} position=${position} @sl-reposition=${this.handleSplitReposition}>
                 <div slot="start" class="split-pane schema-props-pane">
                     <pp-schema-properties schema-json=${schemaJson || ''} compact></pp-schema-properties>
                 </div>
                 <sl-icon slot="divider" name="grip-vertical"></sl-icon>
                 <div slot="end" class="split-pane schema-example-pane">
-                    <pp-example-selector mode="inline" code-language=${language}
-                        mock-json=${mock}
-                        examples-json=${hasExamples ? JSON.stringify(mt.examples) : ''}
-                        hide-label show-expand
-                        example-title=${title}></pp-example-selector>
+                    ${this.exampleHidden ? this.renderExampleRestore() : html`
+                        <pp-example-selector mode="inline" code-language=${language}
+                            mock-json=${mock}
+                            examples-json=${hasExamples ? JSON.stringify(mt.examples) : ''}
+                            hide-label show-expand
+                            show-visibility-toggle
+                            example-title=${title}
+                            @pp-hide-example=${this.hideExamplePane}></pp-example-selector>
+                    `}
                 </div>
             </sl-split-panel>
+        `;
+    }
+
+    private hideExamplePane() {
+        this.exampleHidden = true;
+    }
+
+    private showExamplePane() {
+        this.exampleHidden = false;
+    }
+
+    private renderExampleRestore() {
+        return html`
+            <sl-tooltip class="example-restore-tooltip" content="show example">
+                <sl-icon-button name="eye" label="Show example"
+                    class="example-restore"
+                    @click=${this.showExamplePane}></sl-icon-button>
+            </sl-tooltip>
         `;
     }
 

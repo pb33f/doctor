@@ -1,0 +1,25 @@
+package render
+
+import "fmt"
+import ppmodel "github.com/pb33f/doctor/printingpress/model"
+
+templ DiagnosticsPageTempl(page *ppmodel.DiagnosticsPage) {
+	<div class="pp-root pp-diagnostics">
+		<div class="pp-hero">
+			<h1>Diagnostics</h1>
+
+
+			<span class="pp-version">{ fmt.Sprintf("%d problems", page.SiteCounts.Total()) }</span>
+		</div>
+		<p>
+            Problems were found with the OpenAPI Contract. There are three different levels of problem:
+        </p>
+        <ul>
+            <li>An <strong>error</strong> is something to really consider fixing now.</li>
+            <li>An <strong>warning</strong> is something to consider reviewing soon.</li>
+            <li>An <strong>inform</strong> is something to be aware of.</li>
+        </ul>
+        <hr/>
+		<pp-diagnostics-list></pp-diagnostics-list>
+	</div>
+}
