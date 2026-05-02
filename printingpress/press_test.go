@@ -227,6 +227,17 @@ func assertNoDirExists(t *testing.T, path string) {
 	assert.Nil(t, info)
 }
 
+func TestPrintingPressStylesheet_InsetsBlockquoteChildren(t *testing.T) {
+	stylesheet, err := os.ReadFile(filepath.Join("static", "printing-press.css"))
+	require.NoError(t, err)
+
+	css := string(stylesheet)
+	assert.Contains(t, css, `.pp-description blockquote`)
+	assert.Contains(t, css, `padding: 0 0 0 var(--global-padding-double);`)
+	assert.Contains(t, css, `.pp-description blockquote p`)
+	assert.Contains(t, css, `padding-left: 0;`)
+}
+
 func TestPrintingPress_PrintJSONArtifacts_BundleAndManifest(t *testing.T) {
 	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
 	require.NoError(t, err)
