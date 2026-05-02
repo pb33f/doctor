@@ -65,6 +65,7 @@ type CatalogSpecEntry struct {
 	Slug          string             `json:"slug"`
 	Title         string             `json:"title,omitempty"`
 	Summary       string             `json:"summary,omitempty"`
+	Contact       *ContactInfo       `json:"contact,omitempty"`
 	ServiceKey    string             `json:"serviceKey,omitempty"`
 	ServiceSlug   string             `json:"serviceSlug,omitempty"`
 	Version       string             `json:"version,omitempty"`

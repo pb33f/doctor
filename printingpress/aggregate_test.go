@@ -94,7 +94,7 @@ func TestAggregatePrintingPress_PressModel_GroupsAPIsGuruStyleVersionFolders(t *
 func TestAggregatePrintingPress_PrintHTML_RendersCatalogAndEntrySites(t *testing.T) {
 	root := t.TempDir()
 	writeAggregateSpec(t, root, "services/users/src/specs/usersv1.yaml", "Users API", "v1")
-	writeAggregateSpecWithDetails(t, root, "services/users/src/specs/usersv2.yaml", "Users API", "Current account lifecycle endpoints.", "", "v2")
+	writeAggregateSpecWithContact(t, root, "services/users/src/specs/usersv2.yaml", "Users API", "Current account lifecycle endpoints.", "", "v2", "API Support", "support@example.com")
 
 	outputDir := filepath.Join(root, "site")
 	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
@@ -119,6 +119,9 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogAndEntrySites(t *testing
 
 	require.Len(t, users.LatestVersion.Entries, 1)
 	entry := users.LatestVersion.Entries[0]
+	require.NotNil(t, entry.Contact)
+	assert.Equal(t, "API Support", entry.Contact.Name)
+	assert.Equal(t, "support@example.com", entry.Contact.Email)
 	entryIndex := filepath.Join(outputDir, filepath.FromSlash(entry.OverviewHref))
 	require.FileExists(t, entryIndex)
 	_, err = os.Stat(filepath.Join(outputDir, filepath.FromSlash(users.OverviewHref)))
@@ -138,6 +141,9 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogAndEntrySites(t *testing
 	assert.Contains(t, string(rootHTML), `href="services/users/versions/v2/specs/users-api/index.html"`)
 	assert.Contains(t, string(rootHTML), "static/printing-press.css")
 	assert.Contains(t, string(rootHTML), "pp-catalog-card-summary")
+	assert.Contains(t, string(rootHTML), "pp-catalog-contact-grid")
+	assert.Contains(t, string(rootHTML), `<dt>Name</dt><dd>API Support</dd>`)
+	assert.Contains(t, string(rootHTML), `<dt>Email</dt><dd><a href="mailto:support@example.com">support@example.com</a></dd>`)
 	assert.Contains(t, string(rootHTML), "pp-model-card")
 	assert.Contains(t, string(rootHTML), "Current account lifecycle endpoints.")
 	assert.Contains(t, string(rootHTML), `v2 (latest)`)
@@ -838,17 +844,20 @@ func TestSQLiteSpecStateStore_RoundTripsRecords(t *testing.T) {
 	defer store.Close()
 
 	record := &SpecStateRecord{
-		RelativePath: "services/users/spec.yaml",
-		Hash:         "abc123",
-		ConfigHash:   "cfg-123",
-		Title:        "Users API",
-		Summary:      "Core account resources.",
-		ServiceKey:   "users",
-		DisplayName:  "Users API",
-		Version:      "v1",
-		Format:       "yaml",
-		OutputSubdir: "services/users/versions/v1/specs/users-api",
-		UpdatedAt:    time.Now().UTC().Round(time.Second),
+		RelativePath:    "services/users/spec.yaml",
+		Hash:            "abc123",
+		ConfigHash:      "cfg-123",
+		MetadataVersion: aggregateMetadataVersion,
+		Title:           "Users API",
+		Summary:         "Core account resources.",
+		ContactName:     "API Support",
+		ContactEmail:    "support@example.com",
+		ServiceKey:      "users",
+		DisplayName:     "Users API",
+		Version:         "v1",
+		Format:          "yaml",
+		OutputSubdir:    "services/users/versions/v1/specs/users-api",
+		UpdatedAt:       time.Now().UTC().Round(time.Second),
 	}
 	require.NoError(t, store.Upsert("test", []*SpecStateRecord{record}))
 
@@ -857,7 +866,10 @@ func TestSQLiteSpecStateStore_RoundTripsRecords(t *testing.T) {
 	require.Contains(t, loaded, record.RelativePath)
 	assert.Equal(t, record.Hash, loaded[record.RelativePath].Hash)
 	assert.Equal(t, record.ConfigHash, loaded[record.RelativePath].ConfigHash)
+	assert.Equal(t, record.MetadataVersion, loaded[record.RelativePath].MetadataVersion)
 	assert.Equal(t, record.Summary, loaded[record.RelativePath].Summary)
+	assert.Equal(t, record.ContactName, loaded[record.RelativePath].ContactName)
+	assert.Equal(t, record.ContactEmail, loaded[record.RelativePath].ContactEmail)
 	assert.Equal(t, record.OutputSubdir, loaded[record.RelativePath].OutputSubdir)
 
 	require.NoError(t, store.Delete("test", []string{record.RelativePath}))
@@ -903,7 +915,10 @@ func TestSQLiteSpecStateStore_LoadsLegacyRowsWithNullSummary(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, loaded, "services/users/spec.yaml")
 	assert.Equal(t, "", loaded["services/users/spec.yaml"].ConfigHash)
+	assert.Equal(t, 0, loaded["services/users/spec.yaml"].MetadataVersion)
 	assert.Equal(t, "", loaded["services/users/spec.yaml"].Summary)
+	assert.Equal(t, "", loaded["services/users/spec.yaml"].ContactName)
+	assert.Equal(t, "", loaded["services/users/spec.yaml"].ContactEmail)
 }
 
 func TestCatalogStylesheet_UsesSharedBackgroundSurface(t *testing.T) {
@@ -912,6 +927,8 @@ func TestCatalogStylesheet_UsesSharedBackgroundSurface(t *testing.T) {
 
 	css := string(stylesheet)
 	assert.Contains(t, css, `background: var(--background-color);`)
+	assert.Contains(t, css, `.pp-catalog-shell pb33f-footer`)
+	assert.Contains(t, css, `margin-top: calc(var(--global-padding-double) * 2);`)
 	assert.NotContains(t, css, `radial-gradient(`)
 	assert.NotContains(t, css, `var(--terminal-background)`)
 }
@@ -929,6 +946,10 @@ func writeAggregateSpecDocument(t *testing.T, root, relPath, document string) st
 }
 
 func writeAggregateSpecWithDetails(t *testing.T, root, relPath, title, summary, description, version string) string {
+	return writeAggregateSpecWithContact(t, root, relPath, title, summary, description, version, "", "")
+}
+
+func writeAggregateSpecWithContact(t *testing.T, root, relPath, title, summary, description, version, contactName, contactEmail string) string {
 	t.Helper()
 	absPath := filepath.Join(root, filepath.FromSlash(relPath))
 	require.NoError(t, os.MkdirAll(filepath.Dir(absPath), 0o755))
@@ -942,6 +963,15 @@ func writeAggregateSpecWithDetails(t *testing.T, root, relPath, title, summary, 
 		info.WriteString("  description: |\n")
 		for _, line := range strings.Split(description, "\n") {
 			info.WriteString("    " + line + "\n")
+		}
+	}
+	if contactName != "" || contactEmail != "" {
+		info.WriteString("  contact:\n")
+		if contactName != "" {
+			info.WriteString("    name: " + strconv.Quote(contactName) + "\n")
+		}
+		if contactEmail != "" {
+			info.WriteString("    email: " + strconv.Quote(contactEmail) + "\n")
 		}
 	}
 	info.WriteString("  version: " + strconv.Quote(version) + "\n")
