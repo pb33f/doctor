@@ -143,9 +143,9 @@ type SourceRef struct {
 
 // ContactInfo holds API contact metadata.
 type ContactInfo struct {
-	Name  string
-	URL   string
-	Email string
+	Name  string `json:"name,omitempty"`
+	URL   string `json:"url,omitempty"`
+	Email string `json:"email,omitempty"`
 }
 
 // LicenseInfo holds API license metadata.

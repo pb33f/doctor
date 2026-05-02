@@ -83,17 +83,20 @@ type SpecStateStore interface {
 
 // SpecStateRecord stores one discovered root spec fingerprint and metadata.
 type SpecStateRecord struct {
-	RelativePath string
-	Hash         string
-	ConfigHash   string
-	Title        string
-	Summary      string
-	ServiceKey   string
-	DisplayName  string
-	Version      string
-	Format       string
-	OutputSubdir string
-	UpdatedAt    time.Time
+	RelativePath    string
+	Hash            string
+	ConfigHash      string
+	MetadataVersion int
+	Title           string
+	Summary         string
+	ContactName     string
+	ContactEmail    string
+	ServiceKey      string
+	DisplayName     string
+	Version         string
+	Format          string
+	OutputSubdir    string
+	UpdatedAt       time.Time
 }
 
 // AggregatePrintingPress discovers and renders a multi-spec documentation catalog.

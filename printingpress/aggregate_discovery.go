@@ -41,6 +41,7 @@ type aggregateDiscoveredSpec struct {
 	ConfigHash    string
 	Title         string
 	Summary       string
+	Contact       *ppmodel.ContactInfo
 	DisplayName   string
 	ServiceKey    string
 	ServiceSlug   string
@@ -59,6 +60,7 @@ type aggregateDiscoveredSpec struct {
 type aggregateSpecMetadata struct {
 	Title   string
 	Summary string
+	Contact *ppmodel.ContactInfo
 	Version string
 	Valid   bool
 }
@@ -80,6 +82,8 @@ type aggregateVersionGroup struct {
 	entries []*aggregateDiscoveredSpec
 	latest  bool
 }
+
+const aggregateMetadataVersion = 2
 
 var (
 	versionDateRE         = regexp.MustCompile(`\b(20\d{2})[-_.]?(\d{2})[-_.]?(\d{2})\b`)
@@ -164,7 +168,7 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 		hash := hashSpecBytes(content)
 		record := existing[relPath]
 		metadata := aggregateSpecMetadata{}
-		if record == nil || record.Hash != hash || record.Summary == "" || ap.config.BuildMode == AggregateBuildModeFull {
+		if record == nil || record.Hash != hash || record.Summary == "" || record.MetadataVersion < aggregateMetadataVersion || ap.config.BuildMode == AggregateBuildModeFull {
 			metadata, err = parseAggregateSpecMetadata(content)
 			if err != nil {
 				ap.config.Logger.Warn("printingpress: skipping candidate that failed metadata parse", "path", relPath, "error", err)
@@ -174,6 +178,7 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 			metadata = aggregateSpecMetadata{
 				Title:   record.Title,
 				Summary: record.Summary,
+				Contact: catalogContactFromFields(record.ContactName, record.ContactEmail),
 				Version: record.Version,
 				Valid:   true,
 			}
@@ -193,6 +198,7 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 			ConfigHash:   configHash,
 			Title:        fallbackValue(metadata.Title, strings.TrimSuffix(filepath.Base(relPath), filepath.Ext(relPath))),
 			Summary:      metadata.Summary,
+			Contact:      cloneCatalogContact(metadata.Contact),
 			DisplayName:  displayName,
 			ServiceKey:   serviceKey,
 			ServiceSlug:  slugpkg.Sanitize(serviceKey),
@@ -315,6 +321,7 @@ func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscovered
 					Slug:         spec.EntrySlug,
 					Title:        spec.Title,
 					Summary:      spec.Summary,
+					Contact:      cloneCatalogContact(spec.Contact),
 					ServiceKey:   spec.ServiceKey,
 					ServiceSlug:  spec.ServiceSlug,
 					Version:      spec.Version,
@@ -496,6 +503,10 @@ func parseAggregateSpecMetadata(content []byte) (aggregateSpecMetadata, error) {
 			Summary     string `yaml:"summary"`
 			Description string `yaml:"description"`
 			Version     string `yaml:"version"`
+			Contact     struct {
+				Name  string `yaml:"name"`
+				Email string `yaml:"email"`
+			} `yaml:"contact"`
 		} `yaml:"info"`
 	}
 	if err := yaml.Unmarshal(content, &parsed); err != nil {
@@ -507,9 +518,29 @@ func parseAggregateSpecMetadata(content []byte) (aggregateSpecMetadata, error) {
 	return aggregateSpecMetadata{
 		Title:   strings.TrimSpace(parsed.Info.Title),
 		Summary: chooseCatalogSummary(parsed.Info.Summary, parsed.Info.Description),
+		Contact: catalogContactFromFields(parsed.Info.Contact.Name, parsed.Info.Contact.Email),
 		Version: strings.TrimSpace(parsed.Info.Version),
 		Valid:   true,
 	}, nil
+}
+
+func catalogContactFromFields(name, email string) *ppmodel.ContactInfo {
+	contact := &ppmodel.ContactInfo{
+		Name:  strings.TrimSpace(name),
+		Email: strings.TrimSpace(email),
+	}
+	if contact.Name == "" && contact.Email == "" {
+		return nil
+	}
+	return contact
+}
+
+func cloneCatalogContact(contact *ppmodel.ContactInfo) *ppmodel.ContactInfo {
+	if contact == nil {
+		return nil
+	}
+	copy := *contact
+	return &copy
 }
 
 func chooseCatalogSummary(summary, description string) string {

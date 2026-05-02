@@ -47,8 +47,11 @@ func (s *sqliteSpecStateStore) init() error {
 			relative_path TEXT NOT NULL,
 			hash TEXT NOT NULL,
 			config_hash TEXT,
+			metadata_version INTEGER,
 			title TEXT,
 			summary TEXT,
+			contact_name TEXT,
+			contact_email TEXT,
 			service_key TEXT,
 			display_name TEXT,
 			version TEXT,
@@ -69,10 +72,28 @@ func (s *sqliteSpecStateStore) init() error {
 	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN config_hash TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
 	}
+	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN metadata_version INTEGER`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN contact_name TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN contact_email TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
+	}
 	if _, err := s.db.Exec(`UPDATE spec_state SET summary = '' WHERE summary IS NULL`); err != nil {
 		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
 	}
 	if _, err := s.db.Exec(`UPDATE spec_state SET config_hash = '' WHERE config_hash IS NULL`); err != nil {
+		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`UPDATE spec_state SET metadata_version = 0 WHERE metadata_version IS NULL`); err != nil {
+		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`UPDATE spec_state SET contact_name = '' WHERE contact_name IS NULL`); err != nil {
+		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`UPDATE spec_state SET contact_email = '' WHERE contact_email IS NULL`); err != nil {
 		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
 	}
 	return nil
@@ -80,7 +101,7 @@ func (s *sqliteSpecStateStore) init() error {
 
 func (s *sqliteSpecStateStore) Load(namespace string) (map[string]*SpecStateRecord, error) {
 	rows, err := s.db.Query(
-		`SELECT relative_path, hash, config_hash, title, summary, service_key, display_name, version, format, output_subdir, updated_at
+		`SELECT relative_path, hash, config_hash, metadata_version, title, summary, contact_name, contact_email, service_key, display_name, version, format, output_subdir, updated_at
 		   FROM spec_state WHERE namespace = ?`,
 		namespace,
 	)
@@ -94,8 +115,11 @@ func (s *sqliteSpecStateStore) Load(namespace string) (map[string]*SpecStateReco
 		var record SpecStateRecord
 		var updatedAt string
 		var configHash sql.NullString
+		var metadataVersion sql.NullInt64
 		var title sql.NullString
 		var summary sql.NullString
+		var contactName sql.NullString
+		var contactEmail sql.NullString
 		var serviceKey sql.NullString
 		var displayName sql.NullString
 		var version sql.NullString
@@ -105,8 +129,11 @@ func (s *sqliteSpecStateStore) Load(namespace string) (map[string]*SpecStateReco
 			&record.RelativePath,
 			&record.Hash,
 			&configHash,
+			&metadataVersion,
 			&title,
 			&summary,
+			&contactName,
+			&contactEmail,
 			&serviceKey,
 			&displayName,
 			&version,
@@ -117,8 +144,11 @@ func (s *sqliteSpecStateStore) Load(namespace string) (map[string]*SpecStateReco
 			return nil, fmt.Errorf("printingpress: scanning sqlite state: %w", err)
 		}
 		record.ConfigHash = configHash.String
+		record.MetadataVersion = int(metadataVersion.Int64)
 		record.Title = title.String
 		record.Summary = summary.String
+		record.ContactName = contactName.String
+		record.ContactEmail = contactEmail.String
 		record.ServiceKey = serviceKey.String
 		record.DisplayName = displayName.String
 		record.Version = version.String
@@ -149,13 +179,16 @@ func (s *sqliteSpecStateStore) Upsert(namespace string, records []*SpecStateReco
 
 	statement, err := tx.Prepare(`
 		INSERT INTO spec_state (
-			namespace, relative_path, hash, config_hash, title, summary, service_key, display_name, version, format, output_subdir, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			namespace, relative_path, hash, config_hash, metadata_version, title, summary, contact_name, contact_email, service_key, display_name, version, format, output_subdir, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(namespace, relative_path) DO UPDATE SET
 			hash=excluded.hash,
 			config_hash=excluded.config_hash,
+			metadata_version=excluded.metadata_version,
 			title=excluded.title,
 			summary=excluded.summary,
+			contact_name=excluded.contact_name,
+			contact_email=excluded.contact_email,
 			service_key=excluded.service_key,
 			display_name=excluded.display_name,
 			version=excluded.version,
@@ -180,8 +213,11 @@ func (s *sqliteSpecStateStore) Upsert(namespace string, records []*SpecStateReco
 			record.RelativePath,
 			record.Hash,
 			record.ConfigHash,
+			record.MetadataVersion,
 			record.Title,
 			record.Summary,
+			record.ContactName,
+			record.ContactEmail,
 			record.ServiceKey,
 			record.DisplayName,
 			record.Version,

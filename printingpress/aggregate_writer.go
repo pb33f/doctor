@@ -280,17 +280,20 @@ func (ap *AggregatePrintingPress) persistState(plan *aggregateBuildPlan) error {
 			continue
 		}
 		records = append(records, &SpecStateRecord{
-			RelativePath: spec.RelativePath,
-			Hash:         spec.Hash,
-			ConfigHash:   spec.ConfigHash,
-			Title:        spec.Title,
-			Summary:      spec.Summary,
-			ServiceKey:   spec.ServiceKey,
-			DisplayName:  spec.DisplayName,
-			Version:      spec.Version,
-			Format:       spec.Format,
-			OutputSubdir: spec.OutputSubdir,
-			UpdatedAt:    time.Now().UTC(),
+			RelativePath:    spec.RelativePath,
+			Hash:            spec.Hash,
+			ConfigHash:      spec.ConfigHash,
+			MetadataVersion: aggregateMetadataVersion,
+			Title:           spec.Title,
+			Summary:         spec.Summary,
+			ContactName:     catalogContactName(spec.Contact),
+			ContactEmail:    catalogContactEmail(spec.Contact),
+			ServiceKey:      spec.ServiceKey,
+			DisplayName:     spec.DisplayName,
+			Version:         spec.Version,
+			Format:          spec.Format,
+			OutputSubdir:    spec.OutputSubdir,
+			UpdatedAt:       time.Now().UTC(),
 		})
 	}
 	if err := ap.stateStore.Upsert(ap.config.StateNamespace, records); err != nil {
@@ -769,6 +772,9 @@ func catalogRootContent(catalog *ppmodel.CatalogSite, disableSkippedRendering bo
 			if _, err := io.WriteString(w, catalogSummaryHTML(catalogServiceSummary(service))); err != nil {
 				return err
 			}
+			if _, err := io.WriteString(w, catalogContactHTML(catalogServiceContact(service))); err != nil {
+				return err
+			}
 			if hasCatalogVersionSwitcher(service) {
 				if _, err := io.WriteString(w, catalogVersionPickerHTML(".", "", service, "version-picker version-picker--card", "pp-catalog-select", false)); err != nil {
 					return err
@@ -827,6 +833,9 @@ func catalogVersionEntriesContent(service *ppmodel.CatalogService, version *ppmo
 				return err
 			}
 			if _, err := io.WriteString(w, catalogSummaryHTML(entry.Summary)); err != nil {
+				return err
+			}
+			if _, err := io.WriteString(w, catalogContactHTML(entry.Contact)); err != nil {
 				return err
 			}
 			if _, err := io.WriteString(w, `</article>`); err != nil {
@@ -996,16 +1005,68 @@ func catalogServiceSummary(service *ppmodel.CatalogService) string {
 	return service.Summary
 }
 
+func catalogServiceContact(service *ppmodel.CatalogService) *ppmodel.ContactInfo {
+	latest := catalogVisibleLatestVersion(service)
+	if latest == nil {
+		return nil
+	}
+	entries := visibleCatalogEntries(latest)
+	if len(entries) != 1 {
+		return nil
+	}
+	return entries[0].Contact
+}
+
 func catalogSummaryHTML(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
 	var builder strings.Builder
 	builder.WriteString(`<div class="pp-catalog-card-summary">`)
-	if strings.TrimSpace(value) != "" {
-		builder.WriteString(`<p class="pp-catalog-summary">`)
-		builder.WriteString(templ.EscapeString(value))
-		builder.WriteString(`</p>`)
-	}
+	builder.WriteString(`<p class="pp-catalog-summary">`)
+	builder.WriteString(templ.EscapeString(value))
+	builder.WriteString(`</p>`)
 	builder.WriteString(`</div>`)
 	return builder.String()
+}
+
+func catalogContactHTML(contact *ppmodel.ContactInfo) string {
+	name := catalogContactName(contact)
+	email := catalogContactEmail(contact)
+	if name == "" && email == "" {
+		return ""
+	}
+	var builder strings.Builder
+	builder.WriteString(`<dl class="pp-catalog-contact-grid">`)
+	if name != "" {
+		builder.WriteString(`<dt>Name</dt><dd>`)
+		builder.WriteString(templ.EscapeString(name))
+		builder.WriteString(`</dd>`)
+	}
+	if email != "" {
+		builder.WriteString(`<dt>Email</dt><dd><a href="mailto:`)
+		builder.WriteString(templ.EscapeString(email))
+		builder.WriteString(`">`)
+		builder.WriteString(templ.EscapeString(email))
+		builder.WriteString(`</a></dd>`)
+	}
+	builder.WriteString(`</dl>`)
+	return builder.String()
+}
+
+func catalogContactName(contact *ppmodel.ContactInfo) string {
+	if contact == nil {
+		return ""
+	}
+	return strings.TrimSpace(contact.Name)
+}
+
+func catalogContactEmail(contact *ppmodel.ContactInfo) string {
+	if contact == nil {
+		return ""
+	}
+	return strings.TrimSpace(contact.Email)
 }
 
 func renderCatalogWarnings(w io.Writer, warnings []*ppmodel.BuildWarning) error {

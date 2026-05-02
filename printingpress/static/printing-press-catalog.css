@@ -174,6 +174,11 @@ pb33f-header {
     margin-top: 28px;
 }
 
+.pp-catalog-shell pb33f-footer {
+    display: block;
+    margin-top: calc(var(--global-padding-double) * 2);
+}
+
 .pp-catalog-section .pp-model-cards {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     margin-bottom: 0;
@@ -189,14 +194,47 @@ pb33f-header {
 }
 
 .pp-catalog-card-summary {
-    flex: 1 1 auto;
-    display: flex;
-    align-items: flex-start;
+    flex: 0 0 auto;
+    display: grid;
+    align-content: flex-start;
+    gap: 10px;
 }
 
 .pp-catalog-summary {
     margin: 0;
     line-height: 1.55;
+}
+
+.pp-catalog-contact-grid {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 6px 12px;
+    margin: 0;
+    font-family: var(--font-stack), monospace;
+    font-size: 0.85rem;
+    line-height: 1.35;
+}
+
+.pp-catalog-contact-grid dt {
+    color: var(--font-color-sub1);
+    letter-spacing: var(--label-spacing);
+    text-transform: uppercase;
+}
+
+.pp-catalog-contact-grid dd {
+    min-width: 0;
+    margin: 0;
+    color: var(--font-color);
+    overflow-wrap: anywhere;
+}
+
+.pp-catalog-contact-grid a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.pp-catalog-contact-grid a:hover {
+    text-decoration: underline;
 }
 
 .pp-catalog-card-title {
