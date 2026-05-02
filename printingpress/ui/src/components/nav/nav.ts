@@ -1,7 +1,8 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import navCss from './nav.css.js';
-import {overviewHref} from '../../utils/doc-links.js';
+import {docHref, overviewHref} from '../../utils/doc-links.js';
+import type {ViolationCounts} from '../../utils/violations.js';
 
 interface NavTag {
   name: string;
@@ -9,6 +10,7 @@ interface NavTag {
   children: NavTag[] | null;
   operations: NavOperation[] | null;
   isNavOnly: boolean;
+  counts?: ViolationCounts;
 }
 
 interface NavOperation {
@@ -18,18 +20,21 @@ interface NavOperation {
   summary: string;
   slug: string;
   deprecated: boolean;
+  counts?: ViolationCounts;
 }
 
 interface NavModelGroup {
   name: string;
   typeSlug: string;
   models: NavModel[] | null;
+  counts?: ViolationCounts;
 }
 
 interface NavModel {
   name: string;
   slug: string;
   typeSlug: string;
+  counts?: ViolationCounts;
 }
 
 @customElement('pp-nav')
@@ -55,6 +60,10 @@ export class PpNav extends LitElement {
 
   private previewHoldEnabled(): boolean {
     return this.getAttribute('data-pp-preview-hold') === 'true';
+  }
+
+  private developerMode(): boolean {
+    return document.body?.dataset.ppDeveloperMode === 'true';
   }
 
   connectedCallback() {
@@ -126,6 +135,14 @@ export class PpNav extends LitElement {
         <sl-icon name="chevron-right" class="nav-home-chevron"></sl-icon>
         API OVERVIEW
       </a>
+      ${this.developerMode()
+        ? html`
+          <a class="nav-home diagnostics ${this.activeSlug === 'diagnostics' ? 'active' : ''}" href=${docHref('diagnostics.html')}>
+            <sl-icon name="chevron-right" class="nav-home-chevron"></sl-icon>
+            DIAGNOSTICS
+          </a>
+        `
+        : nothing}
       ${this.tags.length
         ? html`
             <div class="nav-section nav-operations-section">

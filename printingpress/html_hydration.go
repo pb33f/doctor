@@ -31,6 +31,7 @@ type htmlHydrationPayload struct {
 	Children       map[string][]htmlHydrationChild `json:"children,omitempty"`
 	SchemaRegistry map[string]htmlRegistryEntry    `json:"schemaRegistry,omitempty"`
 	Model          *htmlModelAssetData             `json:"model,omitempty"`
+	Developer      *htmlDeveloperPayload           `json:"developer,omitempty"`
 }
 
 type htmlHydrationChild struct {
@@ -64,6 +65,26 @@ type htmlModelAssetData struct {
 	RawYAML       string `json:"rawYaml,omitempty"`
 	SchemaRawYAML string `json:"schemaRawYaml,omitempty"`
 	SchemaRawJSON string `json:"schemaRawJson,omitempty"`
+}
+
+type htmlDeveloperPayload struct {
+	Counts      ppmodel.ViolationCounts        `json:"counts"`
+	SiteCounts  ppmodel.ViolationCounts        `json:"siteCounts,omitempty"`
+	Problems    []*ppmodel.PageProblem         `json:"problems,omitempty"`
+	Slices      map[string]*ppmodel.YamlSlice  `json:"slices,omitempty"`
+	Metadata    map[string]htmlProblemMetadata `json:"metadata,omitempty"`
+	OrphanCount int                            `json:"orphanCount,omitempty"`
+}
+
+type htmlProblemMetadata struct {
+	SliceKey      string `json:"sliceKey,omitempty"`
+	PageHref      string `json:"pageHref,omitempty"`
+	PageTitle     string `json:"pageTitle,omitempty"`
+	PageKind      string `json:"pageKind,omitempty"`
+	PageMethod    string `json:"pageMethod,omitempty"`
+	PagePath      string `json:"pagePath,omitempty"`
+	PageOperation string `json:"pageOperationId,omitempty"`
+	PageComponent string `json:"pageComponent,omitempty"`
 }
 
 func buildModelDiagramVisualizationPayload(page *ppmodel.ModelPage) *htmlHydrationPayload {
@@ -157,6 +178,7 @@ func buildModelHydrationPayload(page *ppmodel.ModelPage) *htmlHydrationPayload {
 			SchemaRawJSON: page.SchemaRawJSON,
 		}
 	}
+	payload.Developer = buildDeveloperHydrationPayload(page.Counts, page.Problems, page.Slices, ppmodel.ViolationCounts{}, 0)
 
 	if len(payload.Attributes) == 0 {
 		payload.Attributes = nil
@@ -218,11 +240,154 @@ func buildOperationHydrationPayload(page *ppmodel.OperationPage) *htmlHydrationP
 			"callbacks-json": page.CallbacksJSON,
 		}
 	}
+	payload.Developer = buildDeveloperHydrationPayload(page.Counts, page.Problems, page.Slices, ppmodel.ViolationCounts{}, 0)
 
 	if len(payload.Attributes) == 0 {
 		payload.Attributes = nil
 	}
 	return payload
+}
+
+func buildRootHydrationPayload(page *ppmodel.RootPage) *htmlHydrationPayload {
+	if page == nil {
+		return nil
+	}
+	return &htmlHydrationPayload{
+		Developer: buildDeveloperHydrationPayload(page.Counts, page.Problems, page.Slices, ppmodel.ViolationCounts{}, 0),
+	}
+}
+
+func buildDiagnosticsHydrationPayload(page *ppmodel.DiagnosticsPage) *htmlHydrationPayload {
+	if page == nil {
+		return nil
+	}
+	developer := buildDeveloperHydrationPayload(page.SiteCounts, page.Problems, nil, page.SiteCounts, page.OrphanCount)
+	if developer == nil {
+		developer = &htmlDeveloperPayload{
+			Counts:      page.SiteCounts,
+			SiteCounts:  page.SiteCounts,
+			Problems:    page.Problems,
+			OrphanCount: page.OrphanCount,
+		}
+	}
+	return &htmlHydrationPayload{
+		Developer: developer,
+	}
+}
+
+func buildDeveloperHydrationPayload(
+	counts ppmodel.ViolationCounts,
+	problems []*ppmodel.PageProblem,
+	slices map[string]*ppmodel.YamlSlice,
+	siteCounts ppmodel.ViolationCounts,
+	orphanCount int,
+) *htmlDeveloperPayload {
+	if counts.Total() == 0 && len(problems) == 0 && len(slices) == 0 && siteCounts.Total() == 0 && orphanCount == 0 {
+		return nil
+	}
+	metadata := make(map[string]htmlProblemMetadata)
+	for _, problem := range problems {
+		if problem == nil || problem.ID == "" {
+			continue
+		}
+		metadata[problem.ID] = htmlProblemMetadata{
+			SliceKey:      problem.SliceKey,
+			PageHref:      problem.PageHref,
+			PageTitle:     problem.PageTitle,
+			PageKind:      problem.PageKind,
+			PageMethod:    problem.PageMethod,
+			PagePath:      problem.PagePath,
+			PageOperation: problem.PageOperationID,
+			PageComponent: problem.PageComponent,
+		}
+	}
+	if len(metadata) == 0 {
+		metadata = nil
+	}
+	return &htmlDeveloperPayload{
+		Counts:      counts,
+		SiteCounts:  siteCounts,
+		Problems:    problems,
+		Slices:      hydrateYamlSlices(slices),
+		Metadata:    metadata,
+		OrphanCount: orphanCount,
+	}
+}
+
+func hydrateYamlSlices(slices map[string]*ppmodel.YamlSlice) map[string]*ppmodel.YamlSlice {
+	if len(slices) == 0 {
+		return nil
+	}
+	hydrated := make(map[string]*ppmodel.YamlSlice, len(slices))
+	for key, slice := range slices {
+		if slice == nil {
+			continue
+		}
+		cp := *slice
+		if cp.Source == "" {
+			cp.Source = readYamlSliceSource(&cp)
+		}
+		hydrated[key] = &cp
+	}
+	if len(hydrated) == 0 {
+		return nil
+	}
+	return hydrated
+}
+
+func readYamlSliceSource(slice *ppmodel.YamlSlice) string {
+	if slice == nil || slice.FirstLine <= 0 || slice.LastLine < slice.FirstLine {
+		return ""
+	}
+	file := strings.TrimSpace(slice.ResolvedFile)
+	if file == "" {
+		file = strings.TrimSpace(slice.File)
+	}
+	if file == "" || strings.Contains(file, "://") {
+		return ""
+	}
+	source, err := os.ReadFile(file)
+	if err != nil {
+		return ""
+	}
+	return sourceLineRange(source, slice.FirstLine, slice.LastLine)
+}
+
+func sourceLineRange(source []byte, firstLine, lastLine int) string {
+	if len(source) == 0 || firstLine <= 0 || lastLine < firstLine {
+		return ""
+	}
+	line := 1
+	start := -1
+	for i, b := range source {
+		if line == firstLine && start == -1 {
+			start = i
+		}
+		if b != '\n' {
+			continue
+		}
+		if line == firstLine && start == -1 {
+			start = i
+		}
+		if line == lastLine {
+			if start == -1 {
+				start = i
+			}
+			return string(source[start:i])
+		}
+		line++
+		if line == firstLine {
+			start = i + 1
+		}
+	}
+	if start == -1 {
+		if line == firstLine {
+			start = len(source)
+		} else {
+			return ""
+		}
+	}
+	return string(source[start:])
 }
 
 func marshalHydrationPayload(payload *htmlHydrationPayload) ([]byte, error) {

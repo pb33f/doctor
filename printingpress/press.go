@@ -14,6 +14,7 @@ import (
 	"time"
 
 	doctormodel "github.com/pb33f/doctor/model"
+	v3 "github.com/pb33f/doctor/model/high/v3"
 	curlpkg "github.com/pb33f/doctor/printingpress/curl"
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	. "github.com/pb33f/doctor/printingpress/model"
@@ -41,6 +42,10 @@ type pressEngineConfig struct {
 	NoExplorer    bool   // skip dependency explorer on model pages
 	BuildWarnings []*BuildWarning
 	BuildErrors   []error // errors from libopenapi model building (surfaced as warnings on index page)
+	DeveloperMode bool
+	LintResults   []*v3.RuleFunctionResult
+	OrphanResults []*v3.RuleFunctionResult
+	Footer        *FooterConfig
 	// SyntheticTagFallback reuses untagged path grouping when operation tags are too coarse.
 	SyntheticTagFallback *SyntheticTagFallbackConfig
 }
@@ -73,6 +78,9 @@ type PrintingPress struct {
 	schemaArtifacts    *schemaArtifactCache
 	warnings           []*BuildWarning
 	modelIndex         map[string]*ModelPage // keyed by "typeSlug/name" for O(1) ref resolution
+	devOperationPages  []*developerOperationPage
+	devModelPages      []*developerModelPage
+	devPageIndex       *developerPageIndex
 	syntheticTags      resolvedSyntheticTagFallbackConfig
 	modelBuilt         bool
 	modelBuildDuration time.Duration
@@ -115,8 +123,11 @@ func (pp *PrintingPress) initEngine(config *pressEngineConfig) {
 	pp.rawArtifacts = newRawArtifactCache()
 	pp.schemaArtifacts = newSchemaArtifactCache()
 	pp.site = &Site{
-		Models: make(map[string][]*ModelPage),
+		Models:        make(map[string][]*ModelPage),
+		DeveloperMode: config.DeveloperMode,
 	}
+	pp.devOperationPages = nil
+	pp.devModelPages = nil
 	if source := buildRootSourceRef(config); source != nil {
 		pp.site.Source = source
 	}
@@ -320,6 +331,9 @@ func (pp *PrintingPress) pressSite() (*Site, error) {
 	pp.site.OutputDir = pp.engineConfig.OutputDir
 	pp.site.BaseURL = pp.engineConfig.BaseURL
 	pp.site.AssetMode = pp.engineConfig.AssetMode
+	pp.site.Footer = cloneFooterConfig(pp.engineConfig.Footer)
+	pp.site.DeveloperMode = pp.engineConfig.DeveloperMode
+	pp.site.OrphanResults = pp.engineConfig.OrphanResults
 	pp.site.SpecFormat = pp.engineConfig.SpecFormat
 	if pp.site.SpecFormat == "" {
 		pp.site.SpecFormat = "yaml"

@@ -29,6 +29,21 @@ describe('pp-code-viewer', () => {
         expect(lineNumbers?.length).toBe(0);
     });
 
+    it('should render highlighted mermaid source', async () => {
+        const el = create();
+        el.code = 'classDiagram\nclass Card {\n  +string name\n}';
+        el.language = 'mermaid';
+        await el.updateComplete;
+
+        const pre = el.shadowRoot?.querySelector('pre.language-mermaid');
+        expect(pre).toBeTruthy();
+        const tokens = el.shadowRoot?.querySelectorAll('.token');
+        expect(tokens?.length).toBeGreaterThan(0);
+        expect(el.shadowRoot?.querySelector('.token.class-name')?.textContent).toBe('Card');
+        expect(el.shadowRoot?.querySelector('.token.builtin')?.textContent).toBe('string');
+        expect(el.shadowRoot?.querySelector('.token.property')?.textContent).toBe('name');
+    });
+
     it('should render line numbers when line-numbers attribute is set', async () => {
         const el = create();
         el.code = '{"a": 1}\n{"b": 2}';
@@ -306,6 +321,19 @@ describe('pp-code-viewer', () => {
         expect(lineNums?.[0].textContent).toBe('42');
         expect(lineNums?.[1].textContent).toBe('43');
         expect(lineNums?.[2].textContent).toBe('44');
+    });
+
+    it('should tag rendered rows with absolute line numbers', async () => {
+        const el = create();
+        el.code = 'a: 1\nb: 2\nc: 3';
+        el.language = 'yaml';
+        el.lineNumbers = true;
+        el.startLine = 42;
+        await el.updateComplete;
+
+        const row = el.shadowRoot?.querySelector('[data-line="43"]');
+        expect(row?.textContent).toContain('43');
+        expect(row?.textContent).toContain('b');
     });
 
     it('should default to start-line 1 when not set', async () => {

@@ -6,14 +6,48 @@ Prism.manual = true;
 import 'prismjs/components/prism-json.js';
 import 'prismjs/components/prism-yaml.js';
 import 'prismjs/components/prism-markup.js';
+import 'prismjs/components/prism-mermaid.js';
 import codeViewerCss from './code-viewer.css.js';
+
+if (Prism.languages.mermaid && !Prism.languages.mermaid['class-declaration']) {
+    Prism.languages.insertBefore('mermaid', 'keyword', {
+        'class-declaration': {
+            pattern: /(^[ \t]*)class[ \t]+[\w$-]+/m,
+            lookbehind: true,
+            inside: {
+                keyword: /^class/,
+                'class-name': /[\w$-]+$/,
+            },
+        },
+    });
+    Prism.languages.insertBefore('mermaid', 'punctuation', {
+        'class-member': {
+            pattern: /^[ \t]*[+\-#~][\w$-]+\??(?:[ \t]+[\w$-]+)?/m,
+            inside: {
+                builtin: {
+                    pattern: /(^[ \t]*[+\-#~])[\w$-]+\??/,
+                    lookbehind: true,
+                },
+                property: {
+                    pattern: /(\s)[\w$-]+$/,
+                    lookbehind: true,
+                },
+                operator: /^[ \t]*[+\-#~]/,
+            },
+        },
+        annotation: {
+            pattern: /<<[^>\r\n]+>>/,
+            alias: 'comment',
+        },
+    });
+}
 
 @customElement('pp-code-viewer')
 export class PpCodeViewer extends LitElement {
     static styles = [codeViewerCss];
 
     @property() code = '';
-    @property() language: 'json' | 'yaml' | 'xml' = 'json';
+    @property() language: 'json' | 'yaml' | 'xml' | 'mermaid' = 'json';
     @property({type: Boolean}) pretty = false;
     @property({attribute: 'line-numbers', type: Boolean}) lineNumbers = false;
     @property({attribute: 'highlight-lines'}) highlightLines = '';
@@ -126,6 +160,11 @@ export class PpCodeViewer extends LitElement {
         return this.parsedHighlights.size > 0;
     }
 
+    scrollToLine(line: number) {
+        const row = this.renderRoot.querySelector(`[data-line="${line}"]`) as HTMLElement | null;
+        row?.scrollIntoView({block: 'center', behavior: 'auto'});
+    }
+
     private handleLineClick(lineNum: number, e: MouseEvent) {
         if (this.isLocked) return;
         const newSet = new Set<number>();
@@ -178,7 +217,7 @@ export class PpCodeViewer extends LitElement {
             <pre class="language-${this.language}"><code>${segments.map((lineHtml, i) => {
               const num = offset + i;
               const hl = highlights.has(num);
-              return html`<span class="line${hl ? ' highlighted' : ''}"
+              return html`<span class="line${hl ? ' highlighted' : ''}" data-line=${num}
                 ><span class="line-number"
                        @click=${(e: MouseEvent) => this.handleLineClick(num, e)}
                 >${num}</span><span class="line-content">${unsafeHTML(lineHtml || ' ')}</span>

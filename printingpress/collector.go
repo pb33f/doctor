@@ -29,6 +29,8 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
+const typeSlugPathItems = "path-items"
+
 // refSegmentToTypeSlug maps OpenAPI $ref component segments to URL type slugs.
 var refSegmentToTypeSlug = map[string]string{
 	"schemas":         "schemas",
@@ -40,7 +42,7 @@ var refSegmentToTypeSlug = map[string]string{
 	"examples":        "examples",
 	"links":           "links",
 	"callbacks":       "callbacks",
-	"pathItems":       "path-items",
+	"pathItems":       typeSlugPathItems,
 }
 
 // resolveComponentLink parses a $ref string and looks up the model page.
@@ -260,6 +262,7 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 
 	// Resolve response link operationId → slug after all operations/webhooks are collected
 	pp.resolveOperationLinks()
+	pp.collectDeveloperDiagnostics()
 }
 
 // buildTagTree creates a hierarchical NavTag tree from flat tag list using Parent/Kind fields.
@@ -473,6 +476,7 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 	page.Source = pp.buildSourceRef(page.Location, pp.sourceTargetForLocation(page.Location, piOrigin), page.SourceLine)
 
 	pp.site.Operations = append(pp.site.Operations, page)
+	pp.registerDeveloperOperationPage(page, pi, op)
 }
 
 func (pp *PrintingPress) collectParameters(params []*v3.Parameter, piOrigin *bundler.ComponentOrigin, piBundledLine int) []*ParameterInfo {
@@ -876,7 +880,7 @@ func (pp *PrintingPress) collectComponents(comp *v3.Components) {
 		collectRenderable(pp, comp.Callbacks, "callbacks", "callbacks", descNone[*v3.Callback], nil, nil)
 	}
 	if comp.PathItems != nil {
-		collectRenderable(pp, comp.PathItems, "pathItems", "path-items", descPathItem, nil, nil)
+		collectRenderable(pp, comp.PathItems, "pathItems", typeSlugPathItems, descPathItem, nil, nil)
 	}
 }
 
@@ -951,6 +955,7 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 		}
 
 		pp.site.Models["schemas"] = append(pp.site.Models["schemas"], page)
+		pp.registerDeveloperModelPage(page, sp)
 	}
 }
 
@@ -1216,6 +1221,9 @@ func collectRenderable[V interface{ GetValue() any }](
 		}
 
 		pp.site.Models[typeSlug] = append(pp.site.Models[typeSlug], page)
+		if foundational, ok := any(val).(v3.Foundational); ok {
+			pp.registerDeveloperModelPage(page, foundational)
+		}
 	}
 }
 

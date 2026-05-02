@@ -49,6 +49,7 @@ templ ModelPageTempl(page *ppmodel.ModelPage, baseURL string) {
 				}
 			</div>
 		}
+		@ViolationStats(page.Name)
 		if page.DescHTML != "" {
 			<div class="pp-description">
 				@templ.Raw(page.DescHTML)

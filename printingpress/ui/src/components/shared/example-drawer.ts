@@ -50,6 +50,9 @@ export class PpExampleDrawer extends LitElement {
 
   private handleShowExample = (e: Event) => {
     const detail = (e as CustomEvent<ShowExampleDetail>).detail;
+    const problems = document.querySelector('pp-problems-drawer') as HTMLElement | null;
+    const problemsDrawer = problems?.shadowRoot?.querySelector('sl-drawer') as any;
+    problemsDrawer?.hide?.();
     this.title = detail.title;
     this.json = detail.json;
     this.yaml = detail.yaml || '';

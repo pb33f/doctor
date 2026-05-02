@@ -51,6 +51,7 @@ type AggregatePrintingPressConfig struct {
 	Logger                  *slog.Logger
 	MaxPools                int
 	WorkersPerPool          int
+	Footer                  *ppmodel.FooterConfig
 }
 
 // AggregatePressStatistics reports the outcome of an aggregate print run.
@@ -139,6 +140,7 @@ func cloneAggregateConfig(config *AggregatePrintingPressConfig) *AggregatePrinti
 	cloned.ServiceOverrides = append([]AggregatePathOverride(nil), config.ServiceOverrides...)
 	cloned.DisplayNameOverrides = append([]AggregatePathOverride(nil), config.DisplayNameOverrides...)
 	cloned.VersionOverrides = append([]AggregatePathOverride(nil), config.VersionOverrides...)
+	cloned.Footer = cloneFooterConfig(config.Footer)
 	return &cloned
 }
 

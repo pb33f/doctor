@@ -3,21 +3,32 @@ import {css} from "lit";
 export default css`
     :host {
         display: block;
-        margin: 0; 
+        margin: 0;
     }
 
     .tag-header {
-        display: flex;
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr);
         align-items: center;
+        column-gap: var(--global-padding);
         cursor: pointer;
-        padding: var(--global-padding) 0 var(--global-padding) 0;
+        padding: var(--global-padding);
+        padding-left: 0;
         font-family: var(--font-stack), monospace;
         color: var(--font-color);
     }
-    
+
+    .tag-header.developer {
+        grid-template-columns: max-content minmax(0, 1fr) max-content;
+    }
+
     .tag-header sl-icon {
-        margin-right: var(--global-padding);
         padding-left: var(--global-padding);
+    }
+
+    .tag-name {
+        min-width: 0;
+        overflow-wrap: anywhere;
     }
 
     .tag-header:hover {
@@ -62,15 +73,20 @@ export default css`
     }
 
     li a {
-        display: flex;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) max-content;
         align-items: baseline;
-        gap: var(--global-padding);
+        column-gap: var(--global-padding);
         padding: var(--global-padding);
         border-radius: 0;
         color: var(--font-color);
         text-decoration: none;
         border-left: 2px solid var(--background-color);
         font-size: 0.9rem;
+    }
+
+    li a.developer {
+        grid-template-columns: minmax(0, 1fr) max-content max-content;
     }
 
     li a:hover {
@@ -87,7 +103,6 @@ export default css`
     }
     
     .op-title {
-        flex: 1;
         min-width: 0;
         font-family: var(--font-stack), monospace;
         word-wrap: break-word;
@@ -96,8 +111,63 @@ export default css`
     }
 
     pb33f-http-method {
-        flex-shrink: 0;
-        margin-left: auto;
+        justify-self: end;
+    }
+
+    .violation-badges {
+        display: inline-flex;
+        justify-self: end;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.25rem;
+        min-width: 0;
+    }
+
+    .violation-badge {
+        justify-self: end;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .violation-badge::part(base) {
+        min-width: 1.35rem;
+        height: 1.35rem;
+        padding: 0 0.35rem;
+        border-width: 1px;
+        border-style: solid;
+        border-radius: 0;
+        background: transparent;
+        font-family: var(--font-stack-bold), monospace;
+    }
+
+    li a .violation-badge {
+        margin-left: 0;
+    }
+
+    .violation-badge.error::part(base) {
+        border-color: var(--error-color, #ff5572);
+        color: var(--error-color, #ff5572);
+    }
+
+    .violation-badge.warn::part(base) {
+        border-color: var(--warn-color, #ffca5f);
+        color: var(--warn-color, #ffca5f);
+    }
+
+    .violation-badge.info::part(base) {
+        border-color: var(--secondary-color);
+        color: var(--secondary-color);
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
     }
 
     /* global html[theme] override in printing-press.css cannot reach into shadow DOM,

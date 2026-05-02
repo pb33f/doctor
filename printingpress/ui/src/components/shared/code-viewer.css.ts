@@ -234,6 +234,34 @@ export default css`
         cursor: help;
     }
 
+    /* Mermaid class diagrams need their own map; Prism's stock grammar is sparse. */
+
+    pre.language-mermaid .token.keyword,
+    pre.language-mermaid .token.class-name,
+    pre.language-mermaid .token.builtin,
+    .lined-code pre.language-mermaid .token.keyword,
+    .lined-code pre.language-mermaid .token.class-name,
+    .lined-code pre.language-mermaid .token.builtin {
+        color: var(--primary-color, rgba(98, 196, 255, 1.0));
+    }
+
+    pre.language-mermaid .token.property,
+    .lined-code pre.language-mermaid .token.property {
+        color: var(--secondary-color, #c9a0dc);
+    }
+
+    pre.language-mermaid .token.operator,
+    pre.language-mermaid .token.punctuation,
+    .lined-code pre.language-mermaid .token.operator,
+    .lined-code pre.language-mermaid .token.punctuation {
+        color: var(--font-color-sub1, #a7a7a7);
+    }
+
+    pre.language-mermaid .token.text,
+    .lined-code pre.language-mermaid .token.text {
+        color: var(--tertiary-color, #fd971f);
+    }
+
     /* ── Location bar ── */
 
     .location {

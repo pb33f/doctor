@@ -5,7 +5,7 @@ import "context"
 import "io"
 import "strings"
 
-templ Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL string, activeSlug string, specFormat string, assetMode string, sharedDataBase string, pageDataBase string, vizGraphDataBase string, vizDiagramDataBase string, extraCSS []string, lite bool, content templ.Component) {
+templ Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL string, activeSlug string, specFormat string, assetMode string, sharedDataBase string, pageDataBase string, vizGraphDataBase string, vizDiagramDataBase string, extraCSS []string, lite bool, developerMode bool, content templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en" class="sl-theme-dark">
 		@Head(pageTitle, baseURL, assetBaseURL, extraCSS, lite)
@@ -28,6 +28,9 @@ templ Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL st
 			}
 			if vizDiagramDataBase != "" {
 				data-pp-viz-diagram={ AssetHref(assetBaseURL, vizDiagramDataBase) }
+			}
+			if developerMode {
+				data-pp-developer-mode="true"
 			}>
 			<pp-layout data-title={ siteTitle }>
 				<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">{ siteTitle }</span></div>
@@ -66,6 +69,7 @@ templ Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL st
 			</pp-layout>
 			@BootstrapHydrationScript(assetMode, assetBaseURL, sharedDataBase, pageDataBase)
 			<pp-example-drawer></pp-example-drawer>
+			<pp-problems-drawer></pp-problems-drawer>
 		</body>
 	</html>
 }

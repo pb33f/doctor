@@ -14,6 +14,13 @@ const elkBundlePath = require.resolve('elkjs/lib/elk.bundled.js', {
 // Copy exported cowboy static CSS assets into ../static/ during build so they can
 // be go:embed'd. The theme file needs a font-path rewrite for the hosted docs
 // layout, but the source of truth remains cowboy-components.
+function addWarningColorAlias(themeCss: string): string {
+  return themeCss.replace(
+    /(^\s*--warn-color:\s*[^;]+;\s*$)(?!\n\s*--warning-color:)/gm,
+    '$1\n    --warning-color: var(--warn-color);'
+  );
+}
+
 function copyCowboyStaticAssets() {
   return {
     name: 'copy-cowboy-static-assets',
@@ -22,7 +29,7 @@ function copyCowboyStaticAssets() {
       copyFileSync(cowboyCssPath, cowboyCssDest);
 
       const themeDest = path.resolve(__dirname, '../static/pb33f-theme.css');
-      const themeCss = readFileSync(cowboyThemePath, 'utf8')
+      const themeCss = addWarningColorAlias(readFileSync(cowboyThemePath, 'utf8'))
         .replaceAll("url('../fonts/", "url('fonts/")
         .replaceAll('url("../fonts/', 'url("fonts/');
       writeFileSync(themeDest, themeCss);

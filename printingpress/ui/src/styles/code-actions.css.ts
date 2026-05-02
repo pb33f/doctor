@@ -22,6 +22,12 @@ export default css`
         z-index: 1;
     }
 
+    .floating-actions .floating-copy {
+        position: static;
+        top: auto;
+        right: auto;
+    }
+
     .floating-actions sl-icon-button::part(base),
     .floating-copy sl-icon-button::part(base) {
         color: var(--font-color-sub1);

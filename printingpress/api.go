@@ -13,6 +13,7 @@ import (
 	"time"
 
 	doctormodel "github.com/pb33f/doctor/model"
+	v3 "github.com/pb33f/doctor/model/high/v3"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/bundler"
@@ -24,13 +25,16 @@ import (
 //
 // A nil config is treated as an empty config and uses the default options.
 type PrintingPressConfig struct {
-	Title     string
-	BaseURL   string
-	BasePath  string
-	SpecPath  string
-	SpecURL   string
-	OutputDir string
-	AssetMode string
+	Title         string
+	BaseURL       string
+	BasePath      string
+	SpecPath      string
+	SpecURL       string
+	OutputDir     string
+	AssetMode     string
+	DeveloperMode bool
+	LintResults   []*v3.RuleFunctionResult
+	Footer        *ppmodel.FooterConfig
 }
 
 const (
@@ -296,12 +300,15 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 	}
 
 	cfg := &pressEngineConfig{
-		OutputDir: outputDir,
-		BaseURL:   pp.config.BaseURL,
-		AssetMode: pp.config.AssetMode,
-		Title:     pp.config.Title,
-		SpecURL:   pp.config.SpecURL,
-		Logger:    slog.Default(),
+		OutputDir:     outputDir,
+		BaseURL:       pp.config.BaseURL,
+		AssetMode:     pp.config.AssetMode,
+		Title:         pp.config.Title,
+		SpecURL:       pp.config.SpecURL,
+		Logger:        slog.Default(),
+		DeveloperMode: pp.config.DeveloperMode,
+		LintResults:   pp.config.LintResults,
+		Footer:        cloneFooterConfig(pp.config.Footer),
 		SyntheticTagFallback: &SyntheticTagFallbackConfig{
 			Enabled:         true,
 			MaxDistinctTags: 2,
@@ -390,6 +397,9 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 	if cfg.DrDoc == nil {
 		return nil, ErrNoDrDocument
 	}
+	if cfg.DeveloperMode && len(cfg.LintResults) > 0 {
+		cfg.OrphanResults = cfg.DrDoc.AbsorbLintResults(cfg.LintResults, cfg.Logger)
+	}
 	return cfg, nil
 }
 
@@ -412,6 +422,15 @@ func buildDrDocument(v3Model *libopenapi.DocumentModel[highv3.Document]) *doctor
 }
 
 func clonePrintingPressConfig(config *PrintingPressConfig) *PrintingPressConfig {
+	if config == nil {
+		return nil
+	}
+	cloned := *config
+	cloned.Footer = cloneFooterConfig(config.Footer)
+	return &cloned
+}
+
+func cloneFooterConfig(config *ppmodel.FooterConfig) *ppmodel.FooterConfig {
 	if config == nil {
 		return nil
 	}
@@ -446,6 +465,7 @@ func validateAndNormalizeConfig(config *PrintingPressConfig, source pressSource)
 	}
 
 	normalized := *config
+	normalized.Footer = cloneFooterConfig(config.Footer)
 	var issues []ValidationIssue
 
 	switch normalized.AssetMode {

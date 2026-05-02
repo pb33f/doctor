@@ -163,4 +163,40 @@ describe('pp-model-page', () => {
 
     expect(exampleSelector.getAttribute('mock-json')).toContain('finding-1');
   });
+
+  it('should collapse and restore split examples', async () => {
+    const el = document.createElement('pp-model-page') as HTMLElement & { updateComplete?: Promise<unknown> };
+    el.setAttribute('model-json', JSON.stringify({
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        name: { type: 'string' },
+      },
+    }));
+    el.setAttribute('name', 'User');
+    el.setAttribute('mock-json', JSON.stringify({ id: '123', name: 'Alex' }));
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    (el as any).wide = true;
+    await el.updateComplete;
+
+    const exampleSelector = el.shadowRoot?.querySelector('pp-example-selector') as HTMLElement;
+    expect(exampleSelector).toBeTruthy();
+    expect(exampleSelector.hasAttribute('show-visibility-toggle')).toBe(true);
+
+    exampleSelector.dispatchEvent(new CustomEvent('pp-hide-example'));
+    await el.updateComplete;
+
+    let split = el.shadowRoot?.querySelector('.schema-split');
+    expect(split?.classList.contains('example-hidden')).toBe(true);
+
+    const restore = el.shadowRoot?.querySelector('.example-restore') as HTMLElement;
+    expect(restore).toBeTruthy();
+    restore.click();
+    await el.updateComplete;
+
+    split = el.shadowRoot?.querySelector('.schema-split');
+    expect(split?.classList.contains('example-hidden')).toBe(false);
+  });
 });

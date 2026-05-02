@@ -3,13 +3,15 @@ import {customElement, property, state, query} from 'lit/decorators.js';
 import sharedCss from '../../styles/shared.css.js';
 import constraintsCss from '../../styles/constraints.css.js';
 import modelPageCss from './model-page.css.js';
+import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
+import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import '../shared/inline-code.js';
 import '../shared/code-viewer.js';
 import '../shared/schema-properties.js';
 import '../shared/example-selector.js';
 import '../shared/media-type-selector.js';
 
-import {collectConstraints} from '../../utils/schema.js';
+import {TYPE_SLUG_PATH_ITEMS, collectConstraints} from '../../utils/schema.js';
 
 const refSegmentToTypeSlug: Record<string, string> = {
   schemas: 'schemas',
@@ -21,7 +23,7 @@ const refSegmentToTypeSlug: Record<string, string> = {
   examples: 'examples',
   links: 'links',
   callbacks: 'callbacks',
-  pathItems: 'path-items',
+  pathItems: TYPE_SLUG_PATH_ITEMS,
 };
 
 @customElement('pp-model-page')
@@ -46,10 +48,13 @@ export class PpModelPage extends LitElement {
   @state() private parsed: any = null;
   @state() private wide = typeof window !== 'undefined' ? window.innerWidth >= 900 : false;
   @state() private exampleJson = '';
+  @state() private exampleHidden = false;
   private resizeObserver: ResizeObserver | null = null;
   private paneResizeObserver: ResizeObserver | null = null;
   private _sizePending = false;
   private _rafId = 0;
+  private _splitRepositioning = false;
+  private _splitRepositionTimer = 0;
   @query('.schema-split') splitPanel!: HTMLElement;
   @query('.schema-props-pane') propsPane!: HTMLElement;
   @query('.schema-example-pane') examplePane!: HTMLElement;
@@ -76,6 +81,7 @@ export class PpModelPage extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     cancelAnimationFrame(this._rafId);
+    window.clearTimeout(this._splitRepositionTimer);
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     this.paneResizeObserver?.disconnect();
@@ -87,32 +93,50 @@ export class PpModelPage extends LitElement {
   }
 
   updated(changed: Map<string, unknown>) {
-    if (changed.has('wide') || changed.has('parsed') || changed.has('exampleJson')) {
+    if (changed.has('wide') || changed.has('parsed') || changed.has('exampleJson') || changed.has('exampleHidden')) {
       this.sizeSplitPanel();
     }
     this.syncPaneObservers();
   }
 
   private sizeSplitPanel() {
-    if (!this.splitPanel || !this.propsPane || !this.examplePane || this._sizePending) return;
+    if (!this.splitPanel || !this.propsPane || !this.examplePane || this._sizePending || this._splitRepositioning) return;
     this._sizePending = true;
     this._rafId = requestAnimationFrame(() => {
       this._sizePending = false;
-      if (!this.splitPanel || !this.propsPane || !this.examplePane) return;
+      if (!this.splitPanel || !this.propsPane || !this.examplePane || this._splitRepositioning) return;
 
       const propsHeight = this.measurePaneContentHeight(this.propsPane);
-      const exampleHeight = this.measurePaneContentHeight(this.examplePane);
+      const exampleHeight = this.exampleHidden ? 0 : this.measurePaneContentHeight(this.examplePane);
 
       const vh = document.documentElement.clientHeight || 800;
       const propCount = this.parsed?.properties ? Object.keys(this.parsed.properties).length : 0;
-      const preferredHeight = Math.max(propsHeight, exampleHeight);
+      const preferredHeight = this.exampleHidden ? propsHeight : Math.max(propsHeight, exampleHeight);
       const hintedHeight = this.estimatedSplitHeight > 0 ? this.estimatedSplitHeight : 0;
       const minHeight = hintedHeight || (propCount >= 6 ? 300 : 220);
       const h = Math.max(minHeight, Math.min(preferredHeight, vh * 0.75));
       const splitStyle = getComputedStyle(this.splitPanel);
       const splitPadding = parseFloat(splitStyle.paddingTop) + parseFloat(splitStyle.paddingBottom);
-      this.splitPanel.style.height = `${h + splitPadding}px`;
+      const nextHeight = Math.round(h + splitPadding);
+      const currentHeight = parseFloat(this.splitPanel.style.height);
+      if (!Number.isFinite(currentHeight) || Math.abs(currentHeight - nextHeight) >= 1) {
+        this.splitPanel.style.height = `${nextHeight}px`;
+      }
     });
+  }
+
+  private handleSplitReposition() {
+    this._splitRepositioning = true;
+    if (this._rafId) {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = 0;
+      this._sizePending = false;
+    }
+    window.clearTimeout(this._splitRepositionTimer);
+    this._splitRepositionTimer = window.setTimeout(() => {
+      this._splitRepositioning = false;
+      this.sizeSplitPanel();
+    }, 120);
   }
 
   private measurePaneContentHeight(pane: HTMLElement): number {
@@ -384,18 +408,42 @@ export class PpModelPage extends LitElement {
 
   private renderSchemaSplit(heading: string) {
     const splitStyle = this.estimatedSplitHeight > 0 ? `height: ${this.estimatedSplitHeight}px;` : '';
+    const splitClass = this.exampleHidden ? 'schema-split example-hidden' : 'schema-split';
+    const position = this.exampleHidden ? '100' : '60';
     return html`
-      <sl-split-panel class="schema-split" position="60" style=${splitStyle}>
+      <sl-split-panel class=${splitClass} position=${position} style=${splitStyle} @sl-reposition=${this.handleSplitReposition}>
         <div slot="start" class="split-pane schema-props-pane">
           <h2>${heading}</h2>
           <pp-schema-properties schema-json=${this.modelJson} compact></pp-schema-properties>
         </div>
         <sl-icon slot="divider" name="grip-vertical"></sl-icon>
         <div slot="end" class="split-pane schema-example-pane">
-          <pp-example-selector mode="inline" mock-json=${this.exampleJson} hide-label show-expand
-            example-title="${this.name} Example"></pp-example-selector>
+          ${this.exampleHidden ? this.renderExampleRestore() : html`
+            <pp-example-selector mode="inline" mock-json=${this.exampleJson} hide-label show-expand
+              show-visibility-toggle
+              example-title="${this.name} Example"
+              @pp-hide-example=${this.hideExamplePane}></pp-example-selector>
+          `}
         </div>
       </sl-split-panel>
+    `;
+  }
+
+  private hideExamplePane() {
+    this.exampleHidden = true;
+  }
+
+  private showExamplePane() {
+    this.exampleHidden = false;
+  }
+
+  private renderExampleRestore() {
+    return html`
+      <sl-tooltip class="example-restore-tooltip" content="show example">
+        <sl-icon-button name="eye" label="Show example"
+          class="example-restore"
+          @click=${this.showExamplePane}></sl-icon-button>
+      </sl-tooltip>
     `;
   }
 

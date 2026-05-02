@@ -13,7 +13,7 @@ import "context"
 import "io"
 import "strings"
 
-func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL string, activeSlug string, specFormat string, assetMode string, sharedDataBase string, pageDataBase string, vizGraphDataBase string, vizDiagramDataBase string, extraCSS []string, lite bool, content templ.Component) templ.Component {
+func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL string, activeSlug string, specFormat string, assetMode string, sharedDataBase string, pageDataBase string, vizGraphDataBase string, vizDiagramDataBase string, extraCSS []string, lite bool, developerMode bool, content templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -173,46 +173,52 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "><pp-layout data-title=\"")
+		if developerMode {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " data-pp-developer-mode=\"true\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "><pp-layout data-title=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(siteTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 32, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 35, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\"><div class=\"pp-layout-fallback-header\" aria-hidden=\"true\"><span class=\"pp-layout-fallback-caret\">$</span><span class=\"pp-layout-fallback-name\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\"><div class=\"pp-layout-fallback-header\" aria-hidden=\"true\"><span class=\"pp-layout-fallback-caret\">$</span><span class=\"pp-layout-fallback-name\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(siteTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 33, Col: 158}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 36, Col: 158}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</span></div><pp-nav id=\"pp-nav\" slot=\"nav\" data-active=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</span></div><pp-nav id=\"pp-nav\" slot=\"nav\" data-active=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(activeSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 34, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 37, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\"><div class=\"pp-nav-fallback\" aria-hidden=\"true\"><div class=\"pp-nav-fallback-home\">API OVERVIEW</div><div class=\"pp-nav-fallback-section\"><h4>Operations</h4><div class=\"pp-nav-fallback-list\"><div class=\"pp-nav-fallback-row\" style=\"width:100%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:92%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:84%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:78%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:88%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:74%;\"></div></div></div><div class=\"pp-nav-fallback-section\"><h4>Models</h4><div class=\"pp-nav-fallback-list\"><div class=\"pp-nav-fallback-row\" style=\"width:96%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:86%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:82%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:90%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:76%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:88%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:80%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:72%;\"></div></div></div></div></pp-nav><main slot=\"content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\"><div class=\"pp-nav-fallback\" aria-hidden=\"true\"><div class=\"pp-nav-fallback-home\">API OVERVIEW</div><div class=\"pp-nav-fallback-section\"><h4>Operations</h4><div class=\"pp-nav-fallback-list\"><div class=\"pp-nav-fallback-row\" style=\"width:100%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:92%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:84%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:78%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:88%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:74%;\"></div></div></div><div class=\"pp-nav-fallback-section\"><h4>Models</h4><div class=\"pp-nav-fallback-list\"><div class=\"pp-nav-fallback-row\" style=\"width:96%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:86%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:82%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:90%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:76%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:88%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:80%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:72%;\"></div></div></div></div></pp-nav><main slot=\"content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -220,7 +226,7 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</main></pp-layout>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</main></pp-layout>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -228,7 +234,7 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<pp-example-drawer></pp-example-drawer></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<pp-example-drawer></pp-example-drawer> <pp-problems-drawer></pp-problems-drawer></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -1,5 +1,7 @@
 import {modelHref} from './doc-links.js';
 
+export const TYPE_SLUG_PATH_ITEMS = 'path-items';
+
 export interface ComponentLinkData {
   name: string;
   componentType: string;
@@ -46,7 +48,7 @@ const refSegmentToTypeSlug: Record<string, string> = {
   examples: 'examples',
   links: 'links',
   callbacks: 'callbacks',
-  pathItems: 'path-items',
+  pathItems: TYPE_SLUG_PATH_ITEMS,
 };
 
 export function sanitizeSlug(input: string): string {

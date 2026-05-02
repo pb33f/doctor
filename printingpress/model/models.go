@@ -7,6 +7,7 @@ package model
 import (
 	"fmt"
 
+	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/bundler"
 )
 
@@ -19,6 +20,9 @@ type Site struct {
 	Operations     []*OperationPage
 	Models         map[string][]*ModelPage // keyed by component type slug (e.g. "schemas")
 	Webhooks       []*OperationPage
+	Diagnostics    *DiagnosticsPage
+	OrphanResults  []*v3.RuleFunctionResult `json:"-"`
+	DeveloperMode  bool                     `json:"developerMode,omitempty"`
 	NavTags        []*NavTag
 	NavModelGroups []*NavModelGroup
 	NavWebhooks    []*NavOperation `json:"-"` // webhook nav entries
@@ -29,8 +33,74 @@ type Site struct {
 	OutputDir      string                          `json:"-"` // default writer output directory from config
 	BaseURL        string                          `json:"-"` // default HTML base URL from config
 	AssetMode      string                          `json:"-"` // html hydration asset mode: portable or served
+	Footer         *FooterConfig                   `json:"footer,omitempty"`
 	Source         *SourceRef                      `json:"source,omitempty"`
 	HeaderContext  *SiteHeaderContext              `json:"headerContext,omitempty"`
+}
+
+// FooterConfig controls the optional pb33f footer rendered at the bottom of
+// each generated HTML content page.
+type FooterConfig struct {
+	Disabled  bool   `json:"disabled,omitempty"`
+	URL       string `json:"url,omitempty"`
+	LinkTitle string `json:"linkTitle,omitempty"`
+	Build     string `json:"build,omitempty"`
+}
+
+// ViolationCounts groups lint results by the severities rendered by developer mode.
+type ViolationCounts struct {
+	Errors int `json:"errors"`
+	Warns  int `json:"warns"`
+	Infos  int `json:"infos"`
+}
+
+// Total returns the sum of all visible violation severities.
+func (c ViolationCounts) Total() int {
+	return c.Errors + c.Warns + c.Infos
+}
+
+// PageProblem matches cowboy-components' Problem wire shape. PageHref,
+// PageTitle, and SliceKey are printing-press metadata copied into hydration
+// side-channel maps because Problem.reconstruct preserves only known fields.
+type PageProblem struct {
+	Category        string `json:"category"`
+	JSONPath        string `json:"jsonPath"`
+	EndColumn       int    `json:"endColumn"`
+	EndLineNumber   int    `json:"endLineNumber"`
+	Message         string `json:"message"`
+	Severity        int    `json:"severity"`
+	StartColumn     int    `json:"startColumn"`
+	StartLineNumber int    `json:"startLineNumber"`
+	Source          string `json:"source"`
+	ID              string `json:"id"`
+	SourceLocation  string `json:"sourceLocation"`
+	PageHref        string `json:"pageHref,omitempty"`
+	PageTitle       string `json:"pageTitle,omitempty"`
+	PageKind        string `json:"pageKind,omitempty"`
+	PageMethod      string `json:"pageMethod,omitempty"`
+	PagePath        string `json:"pagePath,omitempty"`
+	PageOperationID string `json:"pageOperationId,omitempty"`
+	PageComponent   string `json:"pageComponent,omitempty"`
+	SliceKey        string `json:"sliceKey,omitempty"`
+}
+
+// DiagnosticsPage is the top-level developer-mode problem index.
+type DiagnosticsPage struct {
+	Title       string          `json:"title"`
+	Slug        string          `json:"slug"`
+	SiteCounts  ViolationCounts `json:"siteCounts"`
+	Problems    []*PageProblem  `json:"problems"`
+	OrphanCount int             `json:"orphanCount"`
+}
+
+// YamlSlice contains a bounded source excerpt for a problem drawer.
+type YamlSlice struct {
+	Key          string `json:"key"`
+	File         string `json:"file"`
+	FirstLine    int    `json:"firstLine"`
+	Source       string `json:"source,omitempty"`
+	LastLine     int    `json:"-"`
+	ResolvedFile string `json:"-"`
 }
 
 // SchemaRegistryEntry holds the data needed for hover popovers on $ref links.
@@ -59,6 +129,9 @@ type RootPage struct {
 	Webhooks           []*NavOperation
 	Warnings           []*BuildWarning
 	Source             *SourceRef `json:"source,omitempty"`
+	Counts             ViolationCounts
+	Problems           []*PageProblem
+	Slices             map[string]*YamlSlice
 }
 
 // SourceRef points back to the originating specification file for a rendered page or object.
@@ -104,14 +177,15 @@ type ExternalDocInfo struct {
 
 // NavTag represents a tag node in the hierarchical navigation tree.
 type NavTag struct {
-	Name        string          `json:"name"`
-	Summary     string          `json:"summary"`
-	Slug        string          `json:"slug"`
-	Description string          `json:"description,omitempty"`
-	DescHTML    string          `json:"-"`
-	Children    []*NavTag       `json:"children"`
-	Operations  []*NavOperation `json:"operations"`
-	IsNavOnly   bool            `json:"isNavOnly"` // kind: nav (grouping node with no direct operations)
+	Name        string           `json:"name"`
+	Summary     string           `json:"summary"`
+	Slug        string           `json:"slug"`
+	Description string           `json:"description,omitempty"`
+	DescHTML    string           `json:"-"`
+	Children    []*NavTag        `json:"children"`
+	Operations  []*NavOperation  `json:"operations"`
+	IsNavOnly   bool             `json:"isNavOnly"` // kind: nav (grouping node with no direct operations)
+	Counts      *ViolationCounts `json:"counts,omitempty"`
 }
 
 // DisplayName returns Summary if set, otherwise Name.
@@ -124,20 +198,22 @@ func (t *NavTag) DisplayName() string {
 
 // NavOperation is a lightweight reference to an operation for navigation.
 type NavOperation struct {
-	Method      string `json:"method"`
-	Path        string `json:"path"`
-	OperationID string `json:"operationId"`
-	Summary     string `json:"summary"`
-	Slug        string `json:"slug"`
-	Deprecated  bool   `json:"deprecated"`
+	Method      string           `json:"method"`
+	Path        string           `json:"path"`
+	OperationID string           `json:"operationId"`
+	Summary     string           `json:"summary"`
+	Slug        string           `json:"slug"`
+	Deprecated  bool             `json:"deprecated"`
+	Counts      *ViolationCounts `json:"counts,omitempty"`
 }
 
 // NavModelGroup is a group of models of the same component type for navigation.
 type NavModelGroup struct {
-	Name         string      `json:"name"`
-	TypeSlug     string      `json:"typeSlug"`
-	Models       []*NavModel `json:"models"`
-	CardMinWidth int         `json:"cardMinWidth,omitempty"`
+	Name         string           `json:"name"`
+	TypeSlug     string           `json:"typeSlug"`
+	Models       []*NavModel      `json:"models"`
+	CardMinWidth int              `json:"cardMinWidth,omitempty"`
+	Counts       *ViolationCounts `json:"counts,omitempty"`
 }
 
 func (g *NavModelGroup) CardGridStyle() string {
@@ -149,10 +225,11 @@ func (g *NavModelGroup) CardGridStyle() string {
 
 // NavModel is a lightweight reference to a model for navigation.
 type NavModel struct {
-	Name        string `json:"name"`
-	Slug        string `json:"slug"`
-	TypeSlug    string `json:"typeSlug"`
-	Description string `json:"description,omitempty"`
+	Name        string           `json:"name"`
+	Slug        string           `json:"slug"`
+	TypeSlug    string           `json:"typeSlug"`
+	Description string           `json:"description,omitempty"`
+	Counts      *ViolationCounts `json:"counts,omitempty"`
 }
 
 // OperationPage is the full data for rendering an operation detail page.
@@ -194,6 +271,9 @@ type OperationPage struct {
 	Location              string            `json:"-"` // source file path for multi-file specs
 	Source                *SourceRef        `json:"source,omitempty"`
 	CrossRefs             *OperationCrossRefs
+	Counts                ViolationCounts
+	Problems              []*PageProblem
+	Slices                map[string]*YamlSlice
 }
 
 // OperationCrossRefs holds cross-reference information for an operation.
@@ -344,6 +424,9 @@ type ModelPage struct {
 	PropertyCount            int    `json:"-"`
 	RequiredCount            int    `json:"-"`
 	HasExamplePayload        bool   `json:"-"`
+	Counts                   ViolationCounts
+	Problems                 []*PageProblem
+	Slices                   map[string]*YamlSlice
 }
 
 // ModelCrossRefs holds cross-reference information for a model.

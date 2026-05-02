@@ -32,6 +32,7 @@ export class PpExampleSelector extends LitElement {
   @property({attribute: 'code-language'}) codeLanguage: 'json' | 'yaml' | 'xml' = 'json';
   @property({type: Boolean, attribute: 'hide-label'}) hideLabel = false;
   @property({type: Boolean, attribute: 'show-expand'}) showExpand = false;
+  @property({type: Boolean, attribute: 'show-visibility-toggle'}) showVisibilityToggle = false;
   @property({attribute: 'example-title'}) exampleTitle = 'Example';
 
   @state() private entries: Array<{key: string; json: string}> = [];
@@ -160,10 +161,23 @@ export class PpExampleSelector extends LitElement {
     }));
   }
 
+  private requestHideExample() {
+    this.dispatchEvent(new CustomEvent('pp-hide-example', {
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
   private renderCodeBlock(code: string) {
     return html`
       <div class="code-container">
         <div class="floating-actions">
+          ${this.showVisibilityToggle ? html`
+            <sl-tooltip content="hide example">
+              <sl-icon-button name="eye-slash" label="Hide example"
+                @click=${this.requestHideExample}></sl-icon-button>
+            </sl-tooltip>
+          ` : nothing}
           ${this.showExpand ? html`
             <sl-tooltip content="view expanded example">
               <sl-icon-button name="arrows-fullscreen" label="Expand"

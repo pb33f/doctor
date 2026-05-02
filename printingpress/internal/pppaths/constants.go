@@ -25,17 +25,18 @@ const (
 	DirPageData   = "page-data"
 	DirPageViz    = "page-viz"
 
-	FileIndexHTML     = "index.html"
-	FileIndexJSON     = "index.json"
-	FileBundleJSON    = "bundle.json"
-	FileManifestJSON  = "manifest.json"
-	FileNavJSON       = "nav.json"
-	FileLLMIndex      = "llms.txt"
-	FileLLMFull       = "llms-full.txt"
-	FileLLMOperations = "llms-operations.txt"
-	FileLLMModels     = "llms-models.txt"
-	FileAgentsGuide   = "AGENTS.md"
-	FileStateSQLite   = ".printingpress-state.db"
+	FileIndexHTML       = "index.html"
+	FileDiagnosticsHTML = "diagnostics.html"
+	FileIndexJSON       = "index.json"
+	FileBundleJSON      = "bundle.json"
+	FileManifestJSON    = "manifest.json"
+	FileNavJSON         = "nav.json"
+	FileLLMIndex        = "llms.txt"
+	FileLLMFull         = "llms-full.txt"
+	FileLLMOperations   = "llms-operations.txt"
+	FileLLMModels       = "llms-models.txt"
+	FileAgentsGuide     = "AGENTS.md"
+	FileStateSQLite     = ".printingpress-state.db"
 
 	FilePB33FThemeCSS             = "pb33f-theme.css"
 	FileCowboyComponentsCSS       = "cowboy-components.css"
@@ -50,6 +51,8 @@ const (
 	FilePrintingPressLiteJS       = "printing-press-lite.js"
 
 	AssetSharedHydration = "printing-press-shared"
+	DiagnosticsSlug      = "diagnostics"
+	OrphansJSONPath      = "diagnostics-orphans.json"
 )
 
 func StaticAsset(name string) string {
@@ -118,6 +121,18 @@ func TagHTML(slug string) string {
 
 func OperationPageDataBase(slug string) string {
 	return path.Join(PageDataAssetDir(), DirOperations, slug)
+}
+
+func RootPageDataBase() string {
+	return path.Join(PageDataAssetDir(), "root")
+}
+
+func DiagnosticsHTMLPath() string {
+	return FileDiagnosticsHTML
+}
+
+func DiagnosticsPageDataBase() string {
+	return path.Join(PageDataAssetDir(), DiagnosticsSlug)
 }
 
 func ModelPageDataBase(typeSlug, slug string) string {

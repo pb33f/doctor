@@ -90,8 +90,9 @@ templ OperationPageTempl(page *ppmodel.OperationPage, baseURL string) {
                     </div>
                 }
 
-            </div>
+			</div>
 		</div>
+		@ViolationStats(page.Method + " " + page.Path)
 
 		if page.DescHTML != "" {
 			<div class="pp-description" id="section-description" data-nav-label="Description">

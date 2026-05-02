@@ -264,7 +264,7 @@ func writeLLMIndex(site *Site, outputDir string) error {
 	if len(site.NavModelGroups) > 0 {
 		b.WriteString("## Models\n\n")
 		for _, group := range site.NavModelGroups {
-			if group.TypeSlug == "path-items" {
+			if group.TypeSlug == typeSlugPathItems {
 				continue
 			}
 			b.WriteString("### " + group.Name + "\n\n")

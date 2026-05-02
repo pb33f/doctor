@@ -90,6 +90,7 @@ import '@pb33f/cowboy-components/components/model-icon/model-icon.js';
 import '@pb33f/cowboy-components/components/attention-box/attention-box.js';
 import '@pb33f/cowboy-components/components/paginator/paginator.js';
 import '@pb33f/cowboy-components/components/terminal/terminal-example.js';
+import '@pb33f/cowboy-components/components/footer/footer.js';
 
 export { PpLayout } from './components/layout/layout.js';
 export { PpNav } from './components/nav/nav.js';
@@ -106,6 +107,8 @@ export { PpCrossRefs } from './components/shared/cross-refs.js';
 export { PpExampleDrawer } from './components/shared/example-drawer.js';
 export { PpExampleSelector } from './components/shared/example-selector.js';
 export { PpRawViewerBtn } from './components/shared/raw-viewer-btn.js';
+export { PpProblemsDrawer } from './components/shared/problems-drawer.js';
+export { PpViolationStats } from './components/shared/violation-stats.js';
 export { PpCodeViewer } from './components/shared/code-viewer.js';
 export { PpInlineCode } from './components/shared/inline-code.js';
 export { PpSchemaProperties } from './components/shared/schema-properties.js';
@@ -116,6 +119,7 @@ export { PpMediaTypeSelector } from './components/shared/media-type-selector.js'
 export { PpPageNav } from './components/shared/page-nav.js';
 export { PpIconTitle } from './components/shared/icon-title.js';
 export { PpRefList } from './components/shared/ref-list.js';
+export { PpDiagnosticsList } from './components/diagnostics/diagnostics-list.js';
 
 // Shoelace tab components for visualization section
 import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
