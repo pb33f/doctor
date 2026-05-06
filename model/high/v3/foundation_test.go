@@ -96,6 +96,37 @@ func TestFoundation_GetSize_NodeChangesOnly_NoPropertyChanges(t *testing.T) {
 	assert.Equal(t, HEIGHT*2, h, "should add HEIGHT when Node has changes even without property changes")
 }
 
+func TestFoundation_GetSize_PreservesCalculatedNodeWidth(t *testing.T) {
+	node := &Node{
+		Width: calculateGraphNodeWidth("Security Requirements", "security", true, 1),
+	}
+	f := &Foundation{Node: node}
+
+	h, w := f.GetSize()
+
+	assert.Equal(t, HEIGHT, h)
+	assert.Equal(t, node.Width, w)
+	assert.GreaterOrEqual(t, w, 330, "GetSize should not collapse calculated title widths back to the default")
+	assert.LessOrEqual(t, w, 380, "GetSize should preserve a tight calculated width")
+}
+
+func TestCalculateGraphNodeWidth_AccountsForTitleControls(t *testing.T) {
+	withoutControls := calculateGraphNodeWidth("Security Requirements", "security", false, 0)
+	withControls := calculateGraphNodeWidth("Security Requirements", "security", true, 1)
+
+	assert.Greater(t, withControls, withoutControls)
+	assert.GreaterOrEqual(t, withControls, 330, "array/container title rows need room for label, icon, count, and expand control")
+	assert.LessOrEqual(t, withControls, 380, "array/container title rows should not over-expand")
+}
+
+func TestCalculateGraphNodeWidth_SpecialCaseWidthsAreMinimums(t *testing.T) {
+	assert.GreaterOrEqual(t, calculateGraphNodeWidth("Security Schemes", "securitySchemes", false, 0), 230)
+	assert.Greater(t,
+		calculateGraphNodeWidth("Very Long Security Schemes Container", "securitySchemes", false, 0),
+		230,
+	)
+}
+
 func TestFoundation_AddRuleFunctionResult_ReparentsCopiedResult(t *testing.T) {
 	source := &Foundation{}
 	receiver := &Foundation{}

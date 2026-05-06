@@ -489,7 +489,7 @@ func TestBuildFocusedGraph_TrimsNoExamplesRowForFocusedSchemas(t *testing.T) {
 
 	nodes := []*v3.Node{
 		makeSchemaNodeWithSchema(targetID, noExamplesSchema, 75),
-		makeSchemaNodeWithSchema("$.components.schemas['ExampleRich']", exampleSchema, 50),
+		makeSchemaNodeWithSchema("$.components.schemas['ExampleRich']", exampleSchema, 75),
 	}
 	edges := []*v3.Edge{
 		makeRefEdge("e1", targetID, "$.components.schemas['ExampleRich']", "#/components/schemas/ExampleRich"),
@@ -503,7 +503,7 @@ func TestBuildFocusedGraph_TrimsNoExamplesRowForFocusedSchemas(t *testing.T) {
 	assert.Equal(t, float64(50), nodeMap[targetID]["height"],
 		"focused schema nodes should not reserve space for the hidden no-examples row")
 	assert.Equal(t, float64(50), nodeMap["$.components.schemas['ExampleRich']"]["height"],
-		"schemas with examples should keep their existing height")
+		"focused schemas with examples should trim the hidden examples row")
 }
 
 func TestBuildFocusedModelGraph_OperationsOnly(t *testing.T) {

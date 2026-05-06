@@ -105,6 +105,9 @@ func (f *Foundation) AddChange(change *NodeChange) {
 func (f *Foundation) GetSize() (height, width int) {
 	width = WIDTH
 	height = HEIGHT
+	if f.Node != nil && f.Node.Width > width {
+		width = f.Node.Width
+	}
 
 	// check for property changes on the Foundation itself
 	for _, change := range f.Changes {
@@ -176,6 +179,38 @@ func AddChunkDefaultHeight(element any, height int) int {
 	return height
 }
 
+func calculateGraphNodeWidth(label, nodeType string, arrayType bool, arrayCount int) int {
+	const (
+		minNodeWidth               = 170
+		titleCharacterWidth        = 10
+		titlePadding               = 20
+		titleIconSlotWidth         = 36
+		titleCountBadgeWidth       = 46
+		titleDependentControlWidth = 30
+	)
+
+	width := len([]rune(label))*titleCharacterWidth + titlePadding + titleIconSlotWidth
+	if arrayType || arrayCount > 0 {
+		width += titleCountBadgeWidth + titleDependentControlWidth
+	}
+	if width < minNodeWidth {
+		width = minNodeWidth
+	}
+
+	switch nodeType {
+	case "securitySchemes":
+		if width < 230 {
+			width = 230
+		}
+	case "requestBodies":
+		if width < 210 {
+			width = 210
+		}
+	}
+
+	return width
+}
+
 func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arrayType bool, arrayCount, arrayIndex int, drModel any) *Node {
 	drCtx := GetDrContext(ctx)
 
@@ -190,7 +225,6 @@ func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arra
 		return nil
 	}
 
-	minWidth := 170
 	n := GenerateNode(f.GetNodeParent().GetNode().Id, f, drModel, drCtx)
 	f.SetNode(n)
 	if arrayType {
@@ -209,21 +243,8 @@ func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arra
 	n.ArrayIndex = arrayIndex
 	n.Type = drCtx.internString(nodeType)
 	n.Label = drCtx.internString(label)
-	calc := len(label)*10 + 20
-	if calc > minWidth {
-		n.Width = calc
-	} else {
-		n.Width = minWidth
-	}
-
+	n.Width = calculateGraphNodeWidth(label, nodeType, arrayType, arrayCount)
 	n.Height = 25
-
-	switch nodeType {
-	case "securitySchemes":
-		n.Width = 230
-	case "requestBodies":
-		n.Width = 210
-	}
 
 	if f.ValueNode != nil {
 		n.ValueLine = f.ValueNode.Line

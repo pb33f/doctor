@@ -704,8 +704,8 @@ func ParseSchemaSize(schema *base.Schema) (height, width int) {
 		}
 	}
 
-	// Show "No Examples" row only if no examples at any level
-	if !schemaHasExamples && !allPropertiesHaveExamples && !allPolyChildrenHaveExamples {
+	// reserve one examples status row when direct examples render, or when missing coverage renders "No Examples".
+	if schemaHasExamples || (!allPropertiesHaveExamples && !allPolyChildrenHaveExamples) {
 		height += HEIGHT
 	}
 
