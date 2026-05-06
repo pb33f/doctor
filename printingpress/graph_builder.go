@@ -523,7 +523,7 @@ func shouldTrimFocusedSchemaExampleRow(node *v3.Node) bool {
 	if schema == nil {
 		return false
 	}
-	return schemaReservesNoExamplesRow(schema)
+	return schemaUsesExampleStatusRow(schema)
 }
 
 func schemaFromFocusedNode(node *v3.Node) *base.Schema {
@@ -597,6 +597,13 @@ func schemaReservesNoExamplesRow(schema *base.Schema) bool {
 	}
 
 	return !schemaHasExamples && !allPropertiesHaveExamples && !allPolyChildrenHaveExamples
+}
+
+func schemaUsesExampleStatusRow(schema *base.Schema) bool {
+	if schema == nil {
+		return false
+	}
+	return len(schema.Examples) > 0 || schema.Example != nil || schemaReservesNoExamplesRow(schema)
 }
 
 // injectNodeAttrs adds extra fields to an already-marshaled JSON node object.
