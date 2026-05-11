@@ -282,10 +282,16 @@ func (ap *AggregatePrintingPress) runRenderPool(pool *aggregateRenderPool, entry
 func (ap *AggregatePrintingPress) renderSpecOutputs(spec *aggregateDiscoveredSpec, entry *ppmodel.CatalogSpecEntry, selection aggregateOutputSelection, reporter AggregateProgressReporter, state *aggregatePoolProgressState) ([]string, string, error) {
 	steps := selection.stageCount()
 	completedStages := 0
-	reportStage := func(stage string, specPercent float64) {
+	var progressMu sync.Mutex
+	reportStageLocked := func(stage string, specPercent float64) {
 		state.currentStage = stage
 		state.currentPercent = aggregateClampPercent(specPercent)
 		ap.reportAggregateProgress(reporter, state.snapshot(AggregateProgressStatusRunning, ""))
+	}
+	reportStage := func(stage string, specPercent float64) {
+		progressMu.Lock()
+		defer progressMu.Unlock()
+		reportStageLocked(stage, specPercent)
 	}
 
 	reportStage("building model", 0)
@@ -307,12 +313,14 @@ func (ap *AggregatePrintingPress) renderSpecOutputs(spec *aggregateDiscoveredSpe
 		lastBucket := -1
 		_, err := writeHTMLSiteDetailed(site, entryOutput, "", func(task string, completed, total int) {
 			specPercent := aggregateStageProgress(completedStages, steps, completed, total)
+			progressMu.Lock()
+			defer progressMu.Unlock()
 			bucket := aggregateProgressBucket(specPercent)
 			if bucket == lastBucket && completed < total {
 				return
 			}
 			lastBucket = bucket
-			reportStage(task, specPercent)
+			reportStageLocked(task, specPercent)
 		})
 		if err != nil {
 			return nil, "skipped html render for discovered spec", err
@@ -325,12 +333,14 @@ func (ap *AggregatePrintingPress) renderSpecOutputs(spec *aggregateDiscoveredSpe
 		lastBucket := -1
 		_, err := writeLLMSiteDetailed(site, entryOutput, func(task string, completed, total int) {
 			specPercent := aggregateStageProgress(completedStages, steps, completed, total)
+			progressMu.Lock()
+			defer progressMu.Unlock()
 			bucket := aggregateProgressBucket(specPercent)
 			if bucket == lastBucket && completed < total {
 				return
 			}
 			lastBucket = bucket
-			reportStage(task, specPercent)
+			reportStageLocked(task, specPercent)
 		})
 		if err != nil {
 			return nil, "skipped llm write for discovered spec", err

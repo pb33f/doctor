@@ -41,3 +41,24 @@ func TestSchemaCacheHitNodeWidthRace(t *testing.T) {
 	}
 	// If the race detector fires, `go test -race` exits non-zero automatically.
 }
+
+// TestSchemaCachePublicationRace verifies that schema cache hits only clone
+// fully published schema trees. The old pooled schema walker published parent
+// schemas while child SchemaProxy objects were still being populated, which
+// let cache hit readers race with SchemaProxy.Walk and Foundation graph writes.
+func TestSchemaCachePublicationRace(t *testing.T) {
+	docModel := buildCompositionHeavyV3Document(t, 96, 32, 96)
+
+	for i := 0; i < 10; i++ {
+		drDoc := NewDrDocumentWithConfig(docModel, &DrConfig{
+			BuildGraph:     true,
+			RenderChanges:  true,
+			UseSchemaCache: true,
+		})
+		require.NotNil(t, drDoc, "iteration %d", i)
+		require.NotEmpty(t, drDoc.Nodes, "iteration %d: expected graph nodes", i)
+		require.NotEmpty(t, drDoc.Edges, "iteration %d: expected graph edges", i)
+		drDoc.Release()
+	}
+	// If the race detector fires, `go test -race` exits non-zero automatically.
+}

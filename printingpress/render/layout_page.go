@@ -30,18 +30,34 @@ type LayoutPageParams struct {
 	VizDiagramDataBase string
 	ExtraCSS           []string
 	Lite               bool
+	NoMermaid          bool
 	HeaderContext      *ppmodel.SiteHeaderContext
+	Embedded           bool
 	DeveloperMode      bool
+	DocumentID         string
+	DocsExpiresAt      string
 	Footer             *ppmodel.FooterConfig
+	SharedAssetBaseURL string
 }
 
 // LayoutPage renders the shared printing press shell with optional aggregate header context.
 func LayoutPage(params LayoutPageParams, content templ.Component) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		if _, err := io.WriteString(w, `<!doctype html><html lang="en" class="sl-theme-dark">`); err != nil {
+		if _, err := io.WriteString(w, `<!doctype html><html lang="en" class="sl-theme-dark"`); err != nil {
 			return err
 		}
-		if err := Head(params.PageTitle, params.BaseURL, params.AssetBaseURL, params.ExtraCSS, params.Lite).Render(ctx, w); err != nil {
+		if params.Embedded {
+			if _, err := io.WriteString(w, ` data-pp-embedded-docs`); err != nil {
+				return err
+			}
+		}
+		if err := writeOptionalAttr(w, "data-pp-shared-asset-base-url", params.SharedAssetBaseURL); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w, `>`); err != nil {
+			return err
+		}
+		if err := Head(params.PageTitle, params.BaseURL, params.AssetBaseURL, params.SharedAssetBaseURL, params.ExtraCSS, params.Lite).Render(ctx, w); err != nil {
 			return err
 		}
 		if _, err := io.WriteString(w, `<body`); err != nil {
@@ -49,6 +65,14 @@ func LayoutPage(params LayoutPageParams, content templ.Component) templ.Componen
 		}
 		if err := writeAttr(w, "data-spec-format", params.SpecFormat); err != nil {
 			return err
+		}
+		if params.Embedded {
+			if err := writeOptionalAttr(w, "data-pp-embedded-docs", "true"); err != nil {
+				return err
+			}
+			if err := writeOptionalAttr(w, "data-pp-document-id", params.DocumentID); err != nil {
+				return err
+			}
 		}
 		if err := writeOptionalAttr(w, "data-pp-base-url", params.BaseURL); err != nil {
 			return err
@@ -76,6 +100,14 @@ func LayoutPage(params LayoutPageParams, content templ.Component) templ.Componen
 				return err
 			}
 		}
+		if params.NoMermaid {
+			if err := writeOptionalAttr(w, "data-pp-no-mermaid", "true"); err != nil {
+				return err
+			}
+		}
+		if err := writeOptionalAttr(w, "data-pp-docs-expires-at", params.DocsExpiresAt); err != nil {
+			return err
+		}
 		if params.HeaderContext != nil {
 			if err := writeOptionalAttr(w, "data-pp-catalog-href", params.HeaderContext.CatalogHref); err != nil {
 				return err
@@ -102,16 +134,32 @@ func LayoutPage(params LayoutPageParams, content templ.Component) templ.Componen
 				}
 			}
 		}
-		if _, err := io.WriteString(w, `><pp-layout data-title="`+templ.EscapeString(params.SiteTitle)+`">`); err != nil {
+		if _, err := io.WriteString(w, `><pp-layout data-title="`+templ.EscapeString(params.SiteTitle)+`"`); err != nil {
 			return err
 		}
-		if _, err := io.WriteString(w, `<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">`+templ.EscapeString(params.SiteTitle)+`</span></div>`); err != nil {
+		if params.Embedded {
+			if _, err := io.WriteString(w, ` embedded`); err != nil {
+				return err
+			}
+		}
+		if _, err := io.WriteString(w, `>`); err != nil {
 			return err
 		}
-		if _, err := io.WriteString(w, `<pp-nav id="pp-nav" slot="nav" data-active="`+templ.EscapeString(params.ActiveSlug)+`">`); err != nil {
+		if !params.Embedded {
+			if _, err := io.WriteString(w, `<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">`+templ.EscapeString(params.SiteTitle)+`</span></div>`); err != nil {
+				return err
+			}
+		}
+		if _, err := io.WriteString(w, `<pp-nav id="pp-nav" slot="nav" data-active="`+templ.EscapeString(params.ActiveSlug)+`"`); err != nil {
 			return err
 		}
-		if _, err := io.WriteString(w, `<div class="pp-nav-fallback" aria-hidden="true"><div class="pp-nav-fallback-home">API OVERVIEW</div><div class="pp-nav-fallback-section"><h4>Operations</h4><div class="pp-nav-fallback-list"><div class="pp-nav-fallback-row" style="width:100%;"></div><div class="pp-nav-fallback-row" style="width:92%;"></div><div class="pp-nav-fallback-row" style="width:84%;"></div><div class="pp-nav-fallback-row" style="width:78%;"></div><div class="pp-nav-fallback-row" style="width:88%;"></div><div class="pp-nav-fallback-row" style="width:74%;"></div></div></div><div class="pp-nav-fallback-section"><h4>Models</h4><div class="pp-nav-fallback-list"><div class="pp-nav-fallback-row" style="width:96%;"></div><div class="pp-nav-fallback-row" style="width:86%;"></div><div class="pp-nav-fallback-row" style="width:82%;"></div><div class="pp-nav-fallback-row" style="width:90%;"></div><div class="pp-nav-fallback-row" style="width:76%;"></div><div class="pp-nav-fallback-row" style="width:88%;"></div><div class="pp-nav-fallback-row" style="width:80%;"></div><div class="pp-nav-fallback-row" style="width:72%;"></div></div></div></div></pp-nav>`); err != nil {
+		if err := writeOptionalAttr(w, "data-docs-expires-at", params.DocsExpiresAt); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w, `>`); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w, navFallbackHTML(params.DocsExpiresAt, params.DeveloperMode)); err != nil {
 			return err
 		}
 		if err := BootstrapSharedNavCacheScript(params.AssetBaseURL, params.SharedDataBase, params.SharedDataHash).Render(ctx, w); err != nil {
@@ -132,6 +180,11 @@ func LayoutPage(params LayoutPageParams, content templ.Component) templ.Componen
 		if err := BootstrapHydrationScript(params.AssetMode, params.AssetBaseURL, params.SharedDataBase, params.PageDataBase).Render(ctx, w); err != nil {
 			return err
 		}
+		if params.Embedded {
+			if _, err := io.WriteString(w, embeddedReadyScript); err != nil {
+				return err
+			}
+		}
 		_, err := io.WriteString(w, `<pp-example-drawer></pp-example-drawer><pp-problems-drawer></pp-problems-drawer></body></html>`)
 		return err
 	})
@@ -141,6 +194,20 @@ const (
 	defaultFooterURL       = "https://github.com/pb33f/printing-press"
 	defaultFooterLinkTitle = "documentation generated by the printing press"
 )
+
+const embeddedReadyScript = `<script>(()=>{if(!window.parent||window.parent===window)return;var targetOrigin;try{targetOrigin=document.referrer?new URL(document.referrer).origin:location.origin}catch(e){targetOrigin=location.origin}var posted=false;var post=function(){if(posted)return;posted=true;try{window.parent.postMessage({type:"ppress:ready"},targetOrigin)}catch(e){}};var nextFrame=function(){return new Promise(function(resolve){requestAnimationFrame(function(){requestAnimationFrame(resolve)})})};var waitForHydration=function(){if(document.body&&document.body.dataset.ppHydrated==="true")return Promise.resolve();return new Promise(function(resolve){var finish=function(){document.removeEventListener("pp:hydrated",finish);resolve()};document.addEventListener("pp:hydrated",finish,{once:true})})};var waitForLayout=function(){var el=document.querySelector("pp-layout");if(!el||!window.customElements||!customElements.whenDefined)return Promise.resolve();return customElements.whenDefined("pp-layout").then(function(){el=document.querySelector("pp-layout");var p=el&&el.updateComplete;if(p&&typeof p.then==="function")return p.catch(function(){})}).catch(function(){})};var ready=function(){Promise.all([waitForHydration(),waitForLayout()]).then(nextFrame).then(post,post)};if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",ready,{once:true})}else{ready()}})();</script>`
+
+func navFallbackHTML(docsExpiresAt string, developerMode bool) string {
+	expiry := ""
+	if strings.TrimSpace(docsExpiresAt) != "" {
+		expiry = `<div class="docs-expiry" aria-live="polite">docs expire</div>`
+	}
+	diagnostics := ""
+	if developerMode {
+		diagnostics = `<div class="pp-nav-fallback-home diagnostics">DIAGNOSTICS</div>`
+	}
+	return `<div class="pp-nav-fallback" aria-hidden="true">` + expiry + `<div class="pp-nav-fallback-home">API OVERVIEW</div>` + diagnostics + `<div class="pp-nav-fallback-section"><h4>Operations</h4><div class="pp-nav-fallback-list"><div class="pp-nav-fallback-row" style="width:100%;"></div><div class="pp-nav-fallback-row" style="width:92%;"></div><div class="pp-nav-fallback-row" style="width:84%;"></div><div class="pp-nav-fallback-row" style="width:78%;"></div><div class="pp-nav-fallback-row" style="width:88%;"></div><div class="pp-nav-fallback-row" style="width:74%;"></div></div></div><div class="pp-nav-fallback-section"><h4>Models</h4><div class="pp-nav-fallback-list"><div class="pp-nav-fallback-row" style="width:96%;"></div><div class="pp-nav-fallback-row" style="width:86%;"></div><div class="pp-nav-fallback-row" style="width:82%;"></div><div class="pp-nav-fallback-row" style="width:90%;"></div><div class="pp-nav-fallback-row" style="width:76%;"></div><div class="pp-nav-fallback-row" style="width:88%;"></div><div class="pp-nav-fallback-row" style="width:80%;"></div><div class="pp-nav-fallback-row" style="width:72%;"></div></div></div></div></pp-nav>`
+}
 
 // WriteFooter renders the configured pb33f footer. A nil config means the
 // default footer is enabled; a config with Disabled set suppresses it.

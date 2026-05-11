@@ -94,19 +94,26 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	if err := os.MkdirAll(resolvedOutputDir, 0o755); err != nil {
 		return nil, fmt.Errorf("creating output directory: %w", err)
 	}
-	if err := cleanGeneratedHydrationAssets(resolvedOutputDir); err != nil {
+	if err := cleanGeneratedHydrationAssets(resolvedOutputDir, site.SharedAssetBaseURL != ""); err != nil {
 		return nil, fmt.Errorf("cleaning generated hydration assets: %w", err)
 	}
 
-	for _, dir := range pppaths.StaticDirs() {
-		if err := os.MkdirAll(filepath.Join(resolvedOutputDir, dir), 0o755); err != nil {
-			return nil, fmt.Errorf("creating directory %s: %w", dir, err)
+	// only materialize the embedded static asset tree when the host has not
+	// taken responsibility for serving it. when SharedAssetBaseURL is set the
+	// renderer emits absolute references at that prefix and never writes the
+	// shared bundle into the artifact.
+	var staticPaths []string
+	if site.SharedAssetBaseURL == "" {
+		for _, dir := range pppaths.StaticDirs() {
+			if err := os.MkdirAll(filepath.Join(resolvedOutputDir, dir), 0o755); err != nil {
+				return nil, fmt.Errorf("creating directory %s: %w", dir, err)
+			}
 		}
-	}
-
-	staticPaths, err := copyEmbeddedStatic(resolvedOutputDir)
-	if err != nil {
-		return nil, fmt.Errorf("copying static assets: %w", err)
+		copied, copyErr := copyEmbeddedStatic(resolvedOutputDir)
+		if copyErr != nil {
+			return nil, fmt.Errorf("copying static assets: %w", copyErr)
+		}
+		staticPaths = copied
 	}
 	assetMode := resolveHTMLAssetMode(site)
 	sharedPayload := buildSharedHydrationPayload(site)
@@ -114,7 +121,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	if err != nil {
 		return nil, fmt.Errorf("hashing shared hydration assets: %w", err)
 	}
-	sharedAssetPaths, err := writeHydrationAsset(resolvedOutputDir, htmlSharedDataAssetBase, sharedHydrationGlobal, assetMode, sharedPayload)
+	sharedAssetPaths, err := writeHydrationAsset(resolvedOutputDir, htmlNavCacheBase, sharedHydrationGlobal, assetMode, sharedPayload)
 	if err != nil {
 		return nil, fmt.Errorf("writing shared hydration assets: %w", err)
 	}
@@ -126,16 +133,21 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	}
 
 	params := &pageParams{
-		SiteTitle:      title,
-		AssetBaseURL:   resolvedBaseURL,
-		SpecFormat:     site.SpecFormat,
-		AssetMode:      assetMode,
-		SharedDataBase: htmlSharedDataAssetBase,
-		SharedDataHash: sharedDataHash,
-		Lite:           site.Lite,
-		HeaderContext:  site.HeaderContext,
-		DeveloperMode:  site.DeveloperMode,
-		Footer:         site.Footer,
+		SiteTitle:          title,
+		AssetBaseURL:       resolvedBaseURL,
+		SpecFormat:         site.SpecFormat,
+		AssetMode:          assetMode,
+		SharedDataBase:     htmlNavCacheBase,
+		SharedDataHash:     sharedDataHash,
+		Lite:               site.Lite,
+		NoMermaid:          site.NoMermaid,
+		HeaderContext:      site.HeaderContext,
+		Embedded:           site.Embedded,
+		DeveloperMode:      site.DeveloperMode,
+		DocumentID:         site.HostedDocumentID,
+		DocsExpiresAt:      site.DocsExpiresAt,
+		Footer:             site.Footer,
+		SharedAssetBaseURL: site.SharedAssetBaseURL,
 	}
 
 	var jobs []htmlWriteJob
@@ -379,17 +391,35 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	return written, nil
 }
 
-func cleanGeneratedHydrationAssets(outputDir string) error {
-	cleanupPaths := []string{
+func cleanGeneratedHydrationAssets(outputDir string, removeSharedStatic bool) error {
+	cleanupDirs := []string{
 		filepath.Join(outputDir, filepath.FromSlash(htmlPageDataAssetDir)),
 		filepath.Join(outputDir, filepath.FromSlash(htmlVizDataAssetDir)),
-		filepath.Join(outputDir, filepath.FromSlash(htmlSharedDataAssetBase+".json")),
-		filepath.Join(outputDir, filepath.FromSlash(htmlSharedDataAssetBase+".js")),
+		filepath.Join(outputDir, filepath.FromSlash(pppaths.StaticAsset("page-data"))),
+		filepath.Join(outputDir, filepath.FromSlash(pppaths.StaticAsset("page-viz"))),
+	}
+	if removeSharedStatic {
+		cleanupDirs = append(cleanupDirs, filepath.Join(outputDir, filepath.FromSlash(pppaths.DirStatic)))
+	}
+	for _, target := range cleanupDirs {
+		if err := os.RemoveAll(target); err != nil {
+			return err
+		}
+	}
+
+	cleanupFiles := []string{
+		filepath.Join(outputDir, filepath.FromSlash(htmlNavCacheBase+".json")),
+		filepath.Join(outputDir, filepath.FromSlash(htmlNavCacheBase+".js")),
+		filepath.Join(outputDir, filepath.FromSlash(pppaths.StaticAsset("printing-press-shared.json"))),
+		filepath.Join(outputDir, filepath.FromSlash(pppaths.StaticAsset("printing-press-shared.js"))),
 		filepath.Join(outputDir, filepath.FromSlash(pppaths.DiagnosticsHTMLPath())),
 		filepath.Join(outputDir, filepath.FromSlash(pppaths.OrphansJSONPath)),
 	}
-	for _, target := range cleanupPaths {
+	for _, target := range cleanupFiles {
 		if err := os.RemoveAll(target); err != nil {
+			return err
+		}
+		if err := os.RemoveAll(target + ".gz"); err != nil {
 			return err
 		}
 	}
@@ -497,9 +527,14 @@ type pageParams struct {
 	VizDiagramDataBase string
 	ExtraCSS           []string
 	Lite               bool
+	NoMermaid          bool
 	HeaderContext      *ppmodel.SiteHeaderContext
+	Embedded           bool
 	DeveloperMode      bool
+	DocumentID         string
+	DocsExpiresAt      string
 	Footer             *ppmodel.FooterConfig
+	SharedAssetBaseURL string
 }
 
 func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content templ.Component) error {
@@ -527,9 +562,14 @@ func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content t
 		VizDiagramDataBase: p.VizDiagramDataBase,
 		ExtraCSS:           p.ExtraCSS,
 		Lite:               p.Lite,
+		NoMermaid:          p.NoMermaid,
 		HeaderContext:      p.HeaderContext,
+		Embedded:           p.Embedded,
 		DeveloperMode:      p.DeveloperMode,
+		DocumentID:         p.DocumentID,
+		DocsExpiresAt:      p.DocsExpiresAt,
 		Footer:             p.Footer,
+		SharedAssetBaseURL: p.SharedAssetBaseURL,
 	}, content)
 	return layout.Render(context.Background(), f)
 }

@@ -423,13 +423,11 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 
 	drCtx := context.WithValue(context.Background(), "drCtx", dctx)
 
-	// create bounded worker pools - these prevent goroutine explosion on large specs
-	// workers scale with CPU cores (one per core), queue size is 5000 for enterprise specs
+	// Create the bounded worker pool for document-level branches. Schema
+	// subtrees are walked inline so a schema is fully built before it is
+	// published to the schema cache.
 	dctx.WalkPool = drV3.NewWalkPool(drV3.DefaultWalkWorkers())
 	defer dctx.WalkPool.Shutdown()
-
-	dctx.SchemaPool = drV3.NewSchemaWalkPool(drCtx, dctx, drV3.DefaultSchemaWorkers())
-	defer dctx.SchemaPool.Shutdown()
 
 	var schemas []*drV3.Schema
 	var skippedSchemas []*drV3.Schema

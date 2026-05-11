@@ -93,6 +93,10 @@ export default [dropdownCss, css`
         --max: 40%;
     }
 
+    :host([embedded]) sl-split-panel {
+        height: 100vh;
+    }
+
     sl-split-panel::part(divider) {
         background-color: var(--secondary-color);
     }
@@ -124,6 +128,11 @@ export default [dropdownCss, css`
         height: calc(100vh - var(--pp-header-height, 57px));
         scrollbar-width: thin;
         scrollbar-color: var(--secondary-color-lowalpha) var(--terminal-background);
+    }
+
+    :host([embedded]) .nav-panel,
+    :host([embedded]) .content-panel {
+        height: 100vh;
     }
 
     .nav-panel::-webkit-scrollbar,

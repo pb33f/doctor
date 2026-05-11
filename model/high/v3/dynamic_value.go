@@ -20,14 +20,13 @@ type DynamicValue[A, R, S, E any] struct {
 }
 
 func (d *DynamicValue[A, R, S, E]) Walk(ctx context.Context) {
-	drCtx := GetDrContext(ctx)
-
 	if d.Value.IsA() {
 		if v, ok := any(d.A).(*SchemaProxy); ok {
 			p := any(d.Value.A).(*base.SchemaProxy)
-			drCtx.RunWalk(func() { v.Walk(ctx, p, 0) })
+			v.Walk(ctx, p, 0)
 		}
 	}
+	drCtx := GetDrContext(ctx)
 	drCtx.ObjectChan <- d
 	// there are no models that use the B value for walkable structures.
 }

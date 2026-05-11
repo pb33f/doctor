@@ -190,16 +190,6 @@ func cloneFoundation(cached *Foundation, parent any, nodeParent any) Foundation 
 	}
 }
 
-func (s *Schema) readyForCacheClone() bool {
-	if s == nil {
-		return false
-	}
-	if s.isCacheCloneReady() {
-		return true
-	}
-	return schemaReadyForCacheClone(s, make(map[*Schema]struct{}))
-}
-
 func (s *Schema) isWalked() bool {
 	if s == nil {
 		return false
@@ -218,110 +208,10 @@ func (s *Schema) setWalked() {
 	s.Walked = true
 }
 
-func (s *Schema) isCacheCloneReady() bool {
-	if s == nil {
-		return false
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.CacheCloneReady
-}
-
-func (s *Schema) setCacheCloneReady() {
-	if s == nil {
-		return
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.CacheCloneReady = true
-}
-
 func (s *Schema) isComponentSchemaOccurrence() bool {
 	if s == nil {
 		return false
 	}
 	parent, ok := s.Parent.(*SchemaProxy)
 	return ok && parent.GetPathSegment() == "schemas"
-}
-
-func schemaReadyForCacheClone(schema *Schema, visited map[*Schema]struct{}) bool {
-	if schema == nil {
-		return true
-	}
-	if schema.isCacheCloneReady() {
-		return true
-	}
-	if !schema.isWalked() {
-		return false
-	}
-	if _, ok := visited[schema]; ok {
-		return true
-	}
-	visited[schema] = struct{}{}
-
-	if !schemaProxySliceReady(schema.AllOf, visited) ||
-		!schemaProxySliceReady(schema.OneOf, visited) ||
-		!schemaProxySliceReady(schema.AnyOf, visited) ||
-		!schemaProxySliceReady(schema.PrefixItems, visited) ||
-		!schemaProxyReady(schema.Contains, visited) ||
-		!schemaProxyReady(schema.If, visited) ||
-		!schemaProxyReady(schema.Else, visited) ||
-		!schemaProxyReady(schema.Then, visited) ||
-		!schemaProxyMapReady(schema.DependentSchemas, visited) ||
-		!schemaProxyMapReady(schema.PatternProperties, visited) ||
-		!schemaProxyReady(schema.PropertyNames, visited) ||
-		!schemaProxyReady(schema.UnevaluatedItems, visited) ||
-		!dynamicSchemaProxyReady(schema.UnevaluatedProperties, visited) ||
-		!dynamicSchemaProxyReady(schema.Items, visited) ||
-		!schemaProxyReady(schema.Not, visited) ||
-		!schemaProxyMapReady(schema.Properties, visited) ||
-		!dynamicSchemaProxyReady(schema.AdditionalProperties, visited) {
-		return false
-	}
-	schema.setCacheCloneReady()
-	return true
-}
-
-func schemaProxySliceReady(items []*SchemaProxy, visited map[*Schema]struct{}) bool {
-	for _, item := range items {
-		if !schemaProxyReady(item, visited) {
-			return false
-		}
-	}
-	return true
-}
-
-func schemaProxyMapReady(items *orderedmap.Map[string, *SchemaProxy], visited map[*Schema]struct{}) bool {
-	if items == nil {
-		return true
-	}
-	for pair := items.First(); pair != nil; pair = pair.Next() {
-		if !schemaProxyReady(pair.Value(), visited) {
-			return false
-		}
-	}
-	return true
-}
-
-func dynamicSchemaProxyReady(
-	item *DynamicValue[*base.SchemaProxy, bool, *SchemaProxy, bool],
-	visited map[*Schema]struct{},
-) bool {
-	if item == nil {
-		return true
-	}
-	return schemaProxyReady(item.A, visited)
-}
-
-func schemaProxyReady(item *SchemaProxy, visited map[*Schema]struct{}) bool {
-	if item == nil {
-		return true
-	}
-	if item.Schema != nil {
-		return schemaReadyForCacheClone(item.Schema, visited)
-	}
-	if item.Value == nil {
-		return true
-	}
-	return item.Value.Schema() == nil
 }

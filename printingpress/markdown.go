@@ -9,24 +9,37 @@ import (
 
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/yuin/goldmark"
+	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer/html"
-	highlighting "github.com/yuin/goldmark-highlighting/v2"
 )
 
-var mdRenderer goldmark.Markdown
+var (
+	mdRenderer      goldmark.Markdown
+	mdRendererPlain goldmark.Markdown
+)
 
 func init() {
-	mdRenderer = goldmark.New(
+	mdRenderer = newMarkdownRenderer(true)
+	mdRendererPlain = newMarkdownRenderer(false)
+}
+
+func newMarkdownRenderer(includeMermaid bool) goldmark.Markdown {
+	extensions := []goldmark.Extender{extension.GFM}
+	if includeMermaid {
+		extensions = append(extensions, &mermaidExtension{})
+	}
+	extensions = append(extensions, highlighting.NewHighlighting(
+		highlighting.WithStyle("dracula"),
+		highlighting.WithFormatOptions(
+			chromahtml.WithClasses(true),
+		),
+	))
+
+	return goldmark.New(
 		goldmark.WithExtensions(
-			extension.GFM,
-			highlighting.NewHighlighting(
-				highlighting.WithStyle("dracula"),
-				highlighting.WithFormatOptions(
-					chromahtml.WithClasses(true),
-				),
-			),
+			extensions...,
 		),
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(),
@@ -39,13 +52,21 @@ func init() {
 }
 
 // renderMarkdown converts a markdown string to HTML.
-func renderMarkdown(md string) string {
+func renderMarkdown(md string, noMermaid bool) string {
 	if md == "" {
 		return ""
 	}
+	renderer := mdRenderer
+	if noMermaid {
+		renderer = mdRendererPlain
+	}
 	var buf bytes.Buffer
-	if err := mdRenderer.Convert([]byte(md), &buf); err != nil {
+	if err := renderer.Convert([]byte(md), &buf); err != nil {
 		return md // fallback to raw text
 	}
 	return buf.String()
+}
+
+func (pp *PrintingPress) renderMarkdown(md string) string {
+	return renderMarkdown(md, pp.engineConfig.NoMermaid)
 }

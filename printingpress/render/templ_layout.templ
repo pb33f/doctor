@@ -5,10 +5,10 @@ import "context"
 import "io"
 import "strings"
 
-templ Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL string, activeSlug string, specFormat string, assetMode string, sharedDataBase string, pageDataBase string, vizGraphDataBase string, vizDiagramDataBase string, extraCSS []string, lite bool, developerMode bool, content templ.Component) {
+templ Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL string, sharedAssetBaseURL string, activeSlug string, specFormat string, assetMode string, sharedDataBase string, pageDataBase string, vizGraphDataBase string, vizDiagramDataBase string, extraCSS []string, lite bool, developerMode bool, content templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en" class="sl-theme-dark">
-		@Head(pageTitle, baseURL, assetBaseURL, extraCSS, lite)
+		@Head(pageTitle, baseURL, assetBaseURL, sharedAssetBaseURL, extraCSS, lite)
 		<body
 			data-spec-format={ specFormat }
 			if baseURL != "" {

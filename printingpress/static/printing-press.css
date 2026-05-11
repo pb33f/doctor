@@ -63,6 +63,16 @@ pp-layout:not(:defined) {
     align-items: stretch;
 }
 
+html[data-pp-embedded-docs] pp-layout:not(:defined) {
+    grid-template-rows: minmax(0, 1fr);
+    min-height: 100vh;
+    height: 100vh;
+}
+
+html[data-pp-embedded-docs] pp-layout:not(:defined) > .pp-layout-fallback-header {
+    display: none !important;
+}
+
 pp-layout:not(:defined) > .pp-layout-fallback-header {
     grid-column: 1 / -1;
     display: flex;
@@ -124,6 +134,21 @@ pp-nav > .pp-nav-fallback {
     display: block;
     padding: var(--global-padding);
     font-family: var(--font-stack), monospace;
+}
+
+pp-nav > .pp-nav-fallback .docs-expiry {
+    margin: 0 0 var(--global-padding) 0;
+    padding: calc(var(--global-padding) * 0.75) var(--global-padding);
+    border: 1px solid var(--primary-color);
+    border-left: 3px solid var(--primary-color);
+    background: var(--background-color);
+    color: var(--terminal-text);
+    font-family: var(--font-stack), monospace;
+    font-size: 0.72rem;
+    line-height: 1.2;
+    text-transform: lowercase;
+    box-shadow: 0 0 8px var(--primary-color-dimmer);
+    white-space: nowrap;
 }
 
 pp-nav > .pp-nav-fallback .pp-nav-fallback-home {
@@ -1345,6 +1370,18 @@ body.pp-dialog-open > pp-layout {
 
 .pp-expanded-diagram-dialog .expanded-diagram-area pb33f-mermaid-renderer {
     height: 100%;
+}
+
+.pp-mermaid-fallback {
+    display: block;
+}
+
+pp-mermaid[data-rendered] > .pp-mermaid-fallback {
+    display: none;
+}
+
+pp-mermaid[data-render-failed] > .pp-mermaid-fallback {
+    display: block;
 }
 
 .pp-model {

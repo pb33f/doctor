@@ -66,7 +66,7 @@ type DrContext struct {
 	UseSchemaCache     bool
 	SyncWalk           bool            // When true, walk everything synchronously (no goroutines)
 	PooledWalk         bool            // When true, use bounded worker pools (default)
-	SchemaPool         *SchemaWalkPool // Bounded worker pool for schema walks
+	SchemaPool         *SchemaWalkPool // Optional bounded worker pool for schema walks
 	WalkPool           *WalkPool       // General bounded worker pool for all walk operations
 	DeterministicPaths bool            // When true, component objects return definition-site paths
 	SchemaCache        *sync.Map
@@ -140,6 +140,9 @@ func (d *DrContext) WaitForCompletion() {
 }
 
 // SubmitSchemaWalk submits a schema walk to the SchemaPool, or runs synchronously.
+// The main document walker intentionally walks schema descendants synchronously
+// before publishing schema cache entries; use this only for callers that can
+// guarantee they are not exposing partially built schema trees to shared state.
 func (d *DrContext) SubmitSchemaWalk(ctx context.Context, sch *SchemaProxy, baseSchema *base.SchemaProxy, depth int) {
 	if d.SchemaPool != nil {
 		d.SchemaPool.SubmitOrWalk(sch, baseSchema, depth)

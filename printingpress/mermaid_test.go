@@ -195,6 +195,7 @@ components:
 	customer := findSchema(site, "Customer")
 	require.NotNil(t, customer)
 	assert.Empty(t, customer.MermaidDiagram, "NoMermaid should suppress all diagram generation")
+	assert.True(t, site.NoMermaid)
 }
 
 func TestMermaid_HTMLOutput(t *testing.T) {
@@ -231,12 +232,12 @@ components:
 	require.NoError(t, err)
 	assert.True(t, strings.Contains(string(customerHTML), "<pp-class-diagram"),
 		"customer page should contain <pp-class-diagram>")
-	assert.True(t, strings.Contains(string(customerHTML), `data-pp-page="static/page-data/models/schemas/customer"`),
+	assert.True(t, strings.Contains(string(customerHTML), `data-pp-page="data/pages/models/schemas/customer"`),
 		"customer page should reference model hydration data")
-	assert.True(t, strings.Contains(string(customerHTML), `data-pp-viz-diagram="static/page-viz/models/schemas/customer-diagram"`),
+	assert.True(t, strings.Contains(string(customerHTML), `data-pp-viz-diagram="data/viz/models/schemas/customer-diagram"`),
 		"customer page should reference diagram hydration data")
 
-	customerHydration, err := os.ReadFile(filepath.Join(outDir, "static", "page-viz", "models", "schemas", "customer-diagram.js"))
+	customerHydration, err := os.ReadFile(filepath.Join(outDir, "data", "viz", "models", "schemas", "customer-diagram.js"))
 	require.NoError(t, err)
 	assert.True(t, strings.Contains(string(customerHydration), "pp-mermaid-data"),
 		"customer diagram payload should contain mermaid data")

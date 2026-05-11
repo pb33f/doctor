@@ -2,6 +2,7 @@
 // Copyright 2024-2026 Princess Beef Heavy Industries, LLC
 import {hydratePrintingPressPage} from './utils/hydration.js';
 import {attentionInlineIcons} from './utils/attention-icons.js';
+import {printingPressStaticAssetHref} from './utils/static-assets.js';
 
 // Import Shoelace components used by cowboy-components
 import '@shoelace-style/shoelace/dist/components/tag/tag.js';
@@ -22,7 +23,7 @@ import '@shoelace-style/shoelace/dist/components/badge/badge.js';
 import '@shoelace-style/shoelace/dist/components/format-number/format-number.js';
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.js';
 import { registerIconLibrary } from '@shoelace-style/shoelace/dist/utilities/icon-library.js';
-setBasePath('static/shoelace');
+setBasePath(printingPressStaticAssetHref('shoelace'));
 
 // Inline shoelace icons, the ones we need.
 const inlineIcons: Record<string, string> = {
@@ -77,7 +78,7 @@ registerIconLibrary('default', {
   resolver: (name: string) => {
     const svg = inlineIcons[name];
     if (svg) return `data:image/svg+xml,${encodeURIComponent(svg)}`;
-    return `static/shoelace/assets/icons/${name}.svg`;
+    return printingPressStaticAssetHref(`shoelace/assets/icons/${name}.svg`);
   },
 });
 
@@ -128,7 +129,56 @@ import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
 
 // Visualization components (excluded in lite builds via VITE_BUNDLE_LITE=1)
 import './components/class-diagram/class-diagram.js';
+import './components/mermaid/mermaid.js';
 import './components/explorer/focused-explorer.js';
+
+type HostThemeName = 'dark' | 'light' | 'tektronix';
+
+const PB33F_THEME = 'pb33f-theme';
+const PB33F_BASE_THEME = 'pb33f-base-theme';
+const PB33F_THEME_CHANGE = 'pb33f-theme-change';
+const hostThemes = new Set<HostThemeName>(['dark', 'light', 'tektronix']);
+
+function expectedHostOrigin() {
+  try {
+    return document.referrer ? new URL(document.referrer).origin : window.location.origin;
+  } catch {
+    return window.location.origin;
+  }
+}
+
+function isHostThemeName(value: unknown): value is HostThemeName {
+  return typeof value === 'string' && hostThemes.has(value as HostThemeName);
+}
+
+function applyHostTheme(theme: HostThemeName) {
+  try {
+    localStorage.setItem(PB33F_THEME, theme);
+    if (theme !== 'tektronix') {
+      localStorage.setItem(PB33F_BASE_THEME, theme);
+    }
+  } catch {
+    // storage failures should not prevent the embedded page from matching its host.
+  }
+  document.documentElement.setAttribute('theme', theme);
+  if (theme === 'light') {
+    document.documentElement.classList.remove('sl-theme-dark');
+  } else {
+    document.documentElement.classList.add('sl-theme-dark');
+  }
+  window.dispatchEvent(new CustomEvent(PB33F_THEME_CHANGE, {detail: {theme}}));
+}
+
+window.addEventListener('message', (event) => {
+  if (event.source !== window.parent || event.origin !== expectedHostOrigin()) {
+    return;
+  }
+  const data = event.data as {type?: unknown; theme?: unknown};
+  if (!data || typeof data !== 'object' || data.type !== 'doctor:theme' || !isHostThemeName(data.theme)) {
+    return;
+  }
+  applyHostTheme(data.theme);
+});
 
 if (document.body) {
   void hydratePrintingPressPage();

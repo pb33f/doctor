@@ -357,8 +357,28 @@ export class PpOperationResponses extends LitElement {
         `;
     }
 
+    private hasPayload(): boolean {
+        return this.responsesJson !== '' ||
+            this.commonHeadersJson !== '' ||
+            this.hasAttribute('responses-json') ||
+            this.hasAttribute('common-headers-json');
+    }
+
+    private renderSkeleton() {
+        const rows = [32, 84, 62];
+        return html`
+            <h2>Responses</h2>
+            <div class="response response-skeleton" aria-hidden="true">
+                <div class="response-skeleton-heading"></div>
+                ${rows.map((width) => html`<div class="response-skeleton-line" style=${`width:${width}%;`}></div>`)}
+            </div>
+        `;
+    }
+
     render() {
-        if (!this.responses.length) return nothing;
+        if (!this.responses.length) {
+            return this.hasPayload() ? nothing : this.renderSkeleton();
+        }
         const commonNames = this.commonHeaderNames;
         const commonKeys = this.commonErrorKeys;
         const commonResponses = this.commonErrorResponses;

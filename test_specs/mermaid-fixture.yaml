@@ -1,0 +1,68 @@
+openapi: 3.1.0
+info:
+  title: Mermaid Fixture
+  version: 1.0.0
+  description: |
+    This page has inline diagrams.
+
+    ```mermaid
+    graph TD
+      Start --> Stop
+    ```
+
+    ```MERMAID title="case-insensitive"
+    sequenceDiagram
+      Alice->>Bob: Hi
+    ```
+
+    ```mermaid
+    ```
+tags:
+  - name: Diagrams
+    description: |
+      ```Mermaid
+      stateDiagram-v2
+        [*] --> Ready
+      ```
+paths:
+  /flow:
+    get:
+      tags:
+        - Diagrams
+      summary: Flow
+      parameters:
+        - name: trace
+          in: query
+          description: |
+            ```mermaid
+            graph LR
+              Query --> Frontend
+            ```
+          schema:
+            type: string
+      description: |
+        ```mermaid
+        graph LR
+          A --> B
+        ```
+      responses:
+        "200":
+          description: |
+            OK
+
+            ```mermaid
+            graph TD
+              OK --> Done
+            ```
+components:
+  schemas:
+    Widget:
+      type: object
+      description: |
+        ```mermaid
+        graph TD
+          Widget --> Part
+        ```
+      properties:
+        id:
+          type: string

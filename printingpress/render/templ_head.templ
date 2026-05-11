@@ -2,7 +2,7 @@ package render
 
 import "github.com/pb33f/doctor/printingpress/internal/pppaths"
 
-templ Head(title string, baseURL string, assetBaseURL string, extraCSS []string, lite bool) {
+templ Head(title string, baseURL string, assetBaseURL string, sharedAssetBaseURL string, extraCSS []string, lite bool) {
 	<head>
 		<meta charset="UTF-8"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -29,18 +29,18 @@ templ Head(title string, baseURL string, assetBaseURL string, extraCSS []string,
 		if baseURL != "" {
 			<base href={ baseURL }/>
 		}
-		<link rel="stylesheet" href={ AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FilePB33FThemeCSS)) }/>
-		<link rel="stylesheet" href={ AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FileCowboyComponentsCSS)) }/>
-		<link rel="stylesheet" href={ AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FileShoelaceDarkCSS)) }/>
-		<link rel="stylesheet" href={ AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressCSS)) }/>
-		<link rel="stylesheet" href={ AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FileChromaCSS)) }/>
+		<link rel="stylesheet" href={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FilePB33FThemeCSS)) }/>
+		<link rel="stylesheet" href={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FileCowboyComponentsCSS)) }/>
+		<link rel="stylesheet" href={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FileShoelaceDarkCSS)) }/>
+		<link rel="stylesheet" href={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressCSS)) }/>
+		<link rel="stylesheet" href={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FileChromaCSS)) }/>
 		for _, css := range extraCSS {
-			<link rel="stylesheet" href={ AssetHref(assetBaseURL, css) }/>
+			<link rel="stylesheet" href={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, css) }/>
 		}
 		if lite {
-			<script defer src={ AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressLiteJS)) }></script>
+			<script defer src={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressLiteJS)) }></script>
 		} else {
-			<script defer src={ AssetHref(assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressJS)) }></script>
+			<script defer src={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressJS)) }></script>
 		}
 	</head>
 }

@@ -47,7 +47,8 @@ function stubVisualizationsInLite(): Plugin | null {
     name: 'stub-visualizations-lite',
     enforce: 'pre',
     resolveId(source: string) {
-      if (source.includes('class-diagram') || source.includes('mermaid-renderer')
+      if (source.includes('class-diagram') || source.includes('components/mermaid/mermaid')
+          || source.includes('mermaid-renderer')
           || source.includes('focused-explorer') || source.includes('elk-layout-worker')
           || source.includes('graph-dependent-worker')
           || (source.includes('visualizer/explorer') && !source.includes('?worker'))) {
