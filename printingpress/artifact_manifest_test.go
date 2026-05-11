@@ -123,6 +123,10 @@ func TestPrintingPress_DoesNotWriteHostedArtifactManifestByDefault(t *testing.T)
 	require.NoError(t, err)
 
 	outputDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, ArtifactManifestFilename), []byte("stale manifest"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, ArtifactManifestFilename+".gz"), []byte("stale manifest gzip"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "index.html.gz"), []byte("stale index gzip"), 0o644))
+
 	pp, err := CreatePrintingPressFromBytes(specBytes, &PrintingPressConfig{
 		Title:     "Burger Shop",
 		OutputDir: outputDir,
@@ -132,6 +136,34 @@ func TestPrintingPress_DoesNotWriteHostedArtifactManifestByDefault(t *testing.T)
 	_, err = pp.PrintHTML()
 	require.NoError(t, err)
 	assert.NoFileExists(t, filepath.Join(outputDir, ArtifactManifestFilename))
+	assert.NoFileExists(t, filepath.Join(outputDir, ArtifactManifestFilename+".gz"))
+	assert.NoFileExists(t, filepath.Join(outputDir, "index.html.gz"))
+}
+
+func TestPrintingPress_RemovesHostedArtifactManifestWhenDisabled(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	outputDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, ArtifactManifestFilename), []byte("stale manifest"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, ArtifactManifestFilename+".gz"), []byte("stale manifest gzip"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "index.html.gz"), []byte("stale index gzip"), 0o644))
+
+	pp, err := CreatePrintingPressFromBytes(specBytes, &PrintingPressConfig{
+		Title:     "Burger Shop",
+		OutputDir: outputDir,
+		Artifact: &ArtifactManifestConfig{
+			Enabled:    false,
+			DocumentID: "doc-disabled",
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = pp.PrintHTML()
+	require.NoError(t, err)
+	assert.NoFileExists(t, filepath.Join(outputDir, ArtifactManifestFilename))
+	assert.NoFileExists(t, filepath.Join(outputDir, ArtifactManifestFilename+".gz"))
+	assert.NoFileExists(t, filepath.Join(outputDir, "index.html.gz"))
 }
 
 func TestWriteHostedArtifactContract_RemovesStaleGzipSidecars(t *testing.T) {
@@ -203,6 +235,40 @@ func TestWriteHostedArtifactContract_OnlyIncludesGeneratedFiles(t *testing.T) {
 	assert.FileExists(t, staleOperationPath+".gz")
 	assert.True(t, manifest.Files["index.html"].Gzip)
 	assert.True(t, manifest.Files["data/nav.json"].Gzip)
+}
+
+func TestWriteHostedArtifactContract_NormalizesArtifactVisibility(t *testing.T) {
+	outputDir := t.TempDir()
+	indexPath := filepath.Join(outputDir, "index.html")
+	require.NoError(t, os.WriteFile(indexPath, []byte(strings.Repeat("large html ", 200)), 0o644))
+
+	_, err := writeHostedArtifactContract(outputDir, &ArtifactManifestConfig{
+		Enabled:    true,
+		DocumentID: "doc-123",
+		Visibility: "Private",
+	}, []string{indexPath})
+	require.NoError(t, err)
+
+	manifest := readHostedArtifactManifestForTest(t, outputDir)
+	assert.Equal(t, ArtifactVisibilityPrivate, manifest.Visibility)
+	assert.Equal(t, ArtifactAccessProtected, manifest.Files["index.html"].Access)
+}
+
+func TestWriteHostedArtifactContract_RejectsUnknownArtifactVisibility(t *testing.T) {
+	outputDir := t.TempDir()
+	indexPath := filepath.Join(outputDir, "index.html")
+	require.NoError(t, os.WriteFile(indexPath, []byte(strings.Repeat("large html ", 200)), 0o644))
+
+	_, err := writeHostedArtifactContract(outputDir, &ArtifactManifestConfig{
+		Enabled:      true,
+		DocumentID:   "doc-123",
+		Visibility:   "internal",
+		GzipSidecars: true,
+	}, []string{indexPath})
+	require.Error(t, err)
+	assert.ErrorContains(t, err, `unknown artifact visibility "internal"`)
+	assert.NoFileExists(t, filepath.Join(outputDir, ArtifactManifestFilename))
+	assert.NoFileExists(t, indexPath+".gz")
 }
 
 func readHostedArtifactManifestForTest(t *testing.T, outputDir string) HostedArtifactManifest {

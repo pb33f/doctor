@@ -93,23 +93,32 @@ func cloneArtifactManifestConfig(config *ArtifactManifestConfig) *ArtifactManife
 }
 
 func (pp *PrintingPress) writeArtifactContract(generatedPaths []string) ([]string, error) {
-	if pp == nil || pp.config == nil || pp.config.Artifact == nil || !pp.config.Artifact.Enabled {
+	if pp == nil || pp.config == nil {
 		return nil, nil
 	}
 	outputDir, err := pp.resolveOutputDir()
 	if err != nil {
 		return nil, err
 	}
+	if pp.config.Artifact == nil || !pp.config.Artifact.Enabled {
+		return nil, removeHostedArtifactContract(outputDir, generatedPaths)
+	}
 	return writeHostedArtifactContract(outputDir, pp.config.Artifact, generatedPaths)
 }
 
 func writeHostedArtifactContract(root string, config *ArtifactManifestConfig, generatedPaths []string) ([]string, error) {
 	if config == nil || !config.Enabled {
-		return nil, nil
+		return nil, removeHostedArtifactContract(root, generatedPaths)
 	}
 	if strings.TrimSpace(root) == "" {
 		return nil, errors.New("artifact manifest output root is required")
 	}
+	normalizedVisibility, err := normalizeArtifactVisibility(config.Visibility)
+	if err != nil {
+		return nil, err
+	}
+	normalizedConfig := *config
+	normalizedConfig.Visibility = normalizedVisibility
 	entries, err := collectArtifactFileEntries(root, generatedPaths)
 	if err != nil {
 		return nil, err
@@ -133,7 +142,7 @@ func writeHostedArtifactContract(root string, config *ArtifactManifestConfig, ge
 			gzipped[rel] = struct{}{}
 		}
 	}
-	manifest, err := buildHostedArtifactManifest(config, entries, precomputed, gzipped)
+	manifest, err := buildHostedArtifactManifest(&normalizedConfig, entries, precomputed, gzipped)
 	if err != nil {
 		return nil, err
 	}
@@ -147,6 +156,25 @@ func writeHostedArtifactContract(root string, config *ArtifactManifestConfig, ge
 	}
 	written = append(written, path)
 	return written, nil
+}
+
+func removeHostedArtifactContract(root string, generatedPaths []string) error {
+	if strings.TrimSpace(root) == "" {
+		return nil
+	}
+	for _, path := range []string{
+		filepath.Join(root, ArtifactManifestFilename),
+		filepath.Join(root, ArtifactManifestFilename+".gz"),
+	} {
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+	entries, err := collectArtifactFileEntries(root, generatedPaths)
+	if err != nil {
+		return err
+	}
+	return removeArtifactGzipSidecars(entries)
 }
 
 func writeFileAtomic(path string, body []byte, perm os.FileMode) error {
@@ -180,9 +208,9 @@ type artifactFileEntry struct {
 }
 
 func buildHostedArtifactManifest(config *ArtifactManifestConfig, entries []*artifactFileEntry, precomputedHashes map[string]string, gzipped map[string]struct{}) (*HostedArtifactManifest, error) {
-	visibility := strings.TrimSpace(config.Visibility)
-	if visibility == "" {
-		visibility = ArtifactVisibilityAnonymous
+	visibility, err := normalizeArtifactVisibility(config.Visibility)
+	if err != nil {
+		return nil, err
 	}
 	manifest := &HostedArtifactManifest{
 		ManifestVersion:      ArtifactManifestVersion,
@@ -343,6 +371,19 @@ func normalizedArtifactEntrypoints(entrypoints map[string]string) map[string]str
 	return normalized
 }
 
+func normalizeArtifactVisibility(visibility string) (string, error) {
+	normalized := strings.ToLower(strings.TrimSpace(visibility))
+	if normalized == "" {
+		return ArtifactVisibilityAnonymous, nil
+	}
+	switch normalized {
+	case ArtifactVisibilityAnonymous, ArtifactVisibilityPrivate, ArtifactVisibilityPublished:
+		return normalized, nil
+	default:
+		return "", fmt.Errorf("unknown artifact visibility %q", visibility)
+	}
+}
+
 func artifactRelHasPrefix(root, path, prefix string) bool {
 	rel, err := filepath.Rel(root, path)
 	if err != nil {
@@ -357,7 +398,11 @@ func artifactAccessForPath(visibility string, rel string) string {
 	// shared URL outside the artifact. every file here is per-spec content.
 	// for private artifacts that means protected; for anonymous/published the
 	// whole artifact is public.
-	if visibility == ArtifactVisibilityPrivate {
+	normalized, err := normalizeArtifactVisibility(visibility)
+	if err != nil {
+		return ArtifactAccessProtected
+	}
+	if normalized == ArtifactVisibilityPrivate {
 		return ArtifactAccessProtected
 	}
 	return ArtifactAccessPublic
