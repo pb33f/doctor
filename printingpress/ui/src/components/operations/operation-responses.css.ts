@@ -299,4 +299,23 @@ export default css`
     pp-raw-viewer-btn {
         float: right;
     }
+
+    .response-skeleton {
+        display: grid;
+        gap: var(--global-padding);
+    }
+
+    .response-skeleton-heading,
+    .response-skeleton-line {
+        height: 1rem;
+        background: var(--card-background-color);
+        border: 1px dotted var(--hrcolor);
+        box-sizing: border-box;
+    }
+
+    .response-skeleton-heading {
+        width: 120px;
+        height: 1.35rem;
+        margin-bottom: var(--global-padding);
+    }
 `

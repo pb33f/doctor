@@ -76,6 +76,10 @@
     return docHref(configuredOverview || 'index.html');
   }
 
+  function developerMode() {
+    return document.body && document.body.dataset && document.body.dataset.ppDeveloperMode === 'true';
+  }
+
   function operationHref(slug) {
     return docHref('operations/' + slug + '.html');
   }
@@ -287,6 +291,14 @@
       "' href='" +
       escapeHtml(overviewHref()) +
       "'><span class='nav-home-chevron'>›</span>API OVERVIEW</a>";
+    if (developerMode()) {
+      html +=
+        "<a class='nav-home diagnostics" +
+        (activeSlug === 'diagnostics' ? ' active' : '') +
+        "' href='" +
+        escapeHtml(docHref('diagnostics.html')) +
+        "'><span class='nav-home-chevron'>›</span>DIAGNOSTICS</a>";
+    }
     if (tags.length) {
       html += "<div class='nav-section nav-operations-section'><h4>Operations</h4>";
       for (let i = 0; i < tags.length; i++) {

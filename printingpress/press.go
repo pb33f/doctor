@@ -28,9 +28,11 @@ import (
 type pressEngineConfig struct {
 	DrDoc         *doctormodel.DrDocument
 	Origins       bundler.ComponentOriginMap
-	OutputDir     string
-	BaseURL       string
-	AssetMode     string
+	OutputDir          string
+	BaseURL            string
+	AssetMode          string
+	Embedded           bool
+	SharedAssetBaseURL string
 	Title         string
 	Logger        *slog.Logger
 	SpecFormat    string // "yaml" or "json" — caller should set based on input format
@@ -43,6 +45,7 @@ type pressEngineConfig struct {
 	BuildWarnings []*BuildWarning
 	BuildErrors   []error // errors from libopenapi model building (surfaced as warnings on index page)
 	DeveloperMode bool
+	DocsExpiresAt string
 	LintResults   []*v3.RuleFunctionResult
 	OrphanResults []*v3.RuleFunctionResult
 	Footer        *FooterConfig
@@ -123,8 +126,11 @@ func (pp *PrintingPress) initEngine(config *pressEngineConfig) {
 	pp.rawArtifacts = newRawArtifactCache()
 	pp.schemaArtifacts = newSchemaArtifactCache()
 	pp.site = &Site{
-		Models:        make(map[string][]*ModelPage),
-		DeveloperMode: config.DeveloperMode,
+		Models:             make(map[string][]*ModelPage),
+		Embedded:           config.Embedded,
+		SharedAssetBaseURL: config.SharedAssetBaseURL,
+		DeveloperMode:      config.DeveloperMode,
+		DocsExpiresAt:      config.DocsExpiresAt,
 	}
 	pp.devOperationPages = nil
 	pp.devModelPages = nil
@@ -331,13 +337,17 @@ func (pp *PrintingPress) pressSite() (*Site, error) {
 	pp.site.OutputDir = pp.engineConfig.OutputDir
 	pp.site.BaseURL = pp.engineConfig.BaseURL
 	pp.site.AssetMode = pp.engineConfig.AssetMode
+	pp.site.Embedded = pp.engineConfig.Embedded
+	pp.site.SharedAssetBaseURL = pp.engineConfig.SharedAssetBaseURL
 	pp.site.Footer = cloneFooterConfig(pp.engineConfig.Footer)
 	pp.site.DeveloperMode = pp.engineConfig.DeveloperMode
+	pp.site.DocsExpiresAt = pp.engineConfig.DocsExpiresAt
 	pp.site.OrphanResults = pp.engineConfig.OrphanResults
 	pp.site.SpecFormat = pp.engineConfig.SpecFormat
 	if pp.site.SpecFormat == "" {
 		pp.site.SpecFormat = "yaml"
 	}
+	pp.site.NoMermaid = pp.engineConfig.NoMermaid
 	pp.site.Lite = pp.engineConfig.NoMermaid && pp.engineConfig.NoExplorer
 
 	return pp.site, nil

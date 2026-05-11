@@ -181,7 +181,7 @@ func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
 				root.Title = pp.engineConfig.Title
 			}
 			root.Description = info.Description
-			root.DescHTML = renderMarkdown(info.Description)
+			root.DescHTML = pp.renderMarkdown(info.Description)
 			root.Version = info.Version
 
 			if info.Contact != nil {
@@ -284,7 +284,7 @@ func (pp *PrintingPress) buildTagTree(tags []*v3.Tag) []*NavTag {
 			Summary:     tag.Value.Summary,
 			Slug:        pp.slugs.Register("tags", slugpkg.Sanitize(tag.Value.Name)),
 			Description: tag.Value.Description,
-			DescHTML:    renderMarkdown(tag.Value.Description),
+			DescHTML:    pp.renderMarkdown(tag.Value.Description),
 			IsNavOnly:   strings.EqualFold(tag.Value.Kind, "nav"),
 		}
 		tagMap[tag.Value.Name] = nt
@@ -363,7 +363,7 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 		OperationID: operationID,
 		Summary:     val.Summary,
 		Description: val.Description,
-		DescHTML:    renderMarkdown(val.Description),
+		DescHTML:    pp.renderMarkdown(val.Description),
 		Deprecated:  ptrBool(val.Deprecated),
 		Slug:        slug,
 	}
@@ -574,7 +574,7 @@ func (pp *PrintingPress) collectRequestBody(rb *v3.RequestBody, piOrigin *bundle
 	val := rb.Value
 	rbi := &RequestBodyInfo{
 		Description: val.Description,
-		DescHTML:    renderMarkdown(val.Description),
+		DescHTML:    pp.renderMarkdown(val.Description),
 		Required:    ptrBool(val.Required),
 	}
 	pp.captureRawData(val, "requestBody", &rbi.RawYAML, &rbi.RawJSON, nil)
@@ -748,7 +748,7 @@ func (pp *PrintingPress) collectResponses(responses *v3.Responses, piOrigin *bun
 		ri := &ResponseInfo{
 			StatusCode:  code,
 			Description: resp.Value.Description,
-			DescHTML:    renderMarkdown(resp.Value.Description),
+			DescHTML:    pp.renderMarkdown(resp.Value.Description),
 		}
 		pp.captureRawData(resp.Value, code, &ri.RawYAML, &ri.RawJSON, nil)
 		if resp.ValueNode != nil {
@@ -905,7 +905,7 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 
 		if sp.Schema != nil && sp.Schema.Value != nil {
 			page.Description = sp.Schema.Value.Description
-			page.DescHTML = renderMarkdown(sp.Schema.Value.Description)
+			page.DescHTML = pp.renderMarkdown(sp.Schema.Value.Description)
 			pp.captureRawData(sp.Schema.Value, name,
 				&page.RawYAML, &page.SchemaJSON, nil)
 			if isComplexSchema(sp.Schema.Value) {
@@ -1150,7 +1150,7 @@ func collectRenderable[V interface{ GetValue() any }](
 
 		desc := getDesc(val)
 		page.Description = desc
-		page.DescHTML = renderMarkdown(desc)
+		page.DescHTML = pp.renderMarkdown(desc)
 
 		if r := getValueRenderer(val); r != nil {
 			pp.captureRawData(r, fmt.Sprintf("%s/%s", componentType, name),
@@ -1290,7 +1290,7 @@ func (pp *PrintingPress) collectCallbacks(callbacks *orderedmap.Map[string, *v3.
 						Expression:  expression,
 						Method:      strings.ToUpper(method),
 						Description: op.Value.Description,
-						DescHTML:    renderMarkdown(op.Value.Description),
+						DescHTML:    pp.renderMarkdown(op.Value.Description),
 					}
 					if op.RequestBody != nil {
 						coi.RequestBody = pp.collectRequestBody(op.RequestBody, nil, 0)

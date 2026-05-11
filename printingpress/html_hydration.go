@@ -14,9 +14,9 @@ import (
 )
 
 var (
-	htmlSharedDataAssetBase = pppaths.SharedHydrationAssetBase()
-	htmlPageDataAssetDir    = pppaths.PageDataAssetDir()
-	htmlVizDataAssetDir     = pppaths.PageVizAssetDir()
+	htmlNavCacheBase     = pppaths.NavCacheBase()
+	htmlPageDataAssetDir = pppaths.PageDataDir()
+	htmlVizDataAssetDir  = pppaths.PageVizDir()
 )
 
 const (

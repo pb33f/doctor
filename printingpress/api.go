@@ -32,9 +32,26 @@ type PrintingPressConfig struct {
 	SpecURL       string
 	OutputDir     string
 	AssetMode     string
+	Embedded      bool
 	DeveloperMode bool
+	ExpiresAt     *time.Time
 	LintResults   []*v3.RuleFunctionResult
 	Footer        *ppmodel.FooterConfig
+	Artifact      *ArtifactManifestConfig
+
+	// SharedAssetBaseURL, when set, instructs the renderer to:
+	//   1. skip writing embedded shared assets (JS bundle, CSS, fonts, icons)
+	//      into OutputDir
+	//   2. emit references to those assets at this URL prefix in generated HTML
+	//
+	// Per-artifact files (HTML, page-data JSON, page-viz JSON, the nav cache
+	// JSON under data/) continue to be written into OutputDir and referenced
+	// via BaseURL.
+	//
+	// Use case: a host application mounts the renderer's SharedAssets FS at a
+	// known URL (e.g. /ppress/static/{contentVersion}) and wants every artifact
+	// to share that one copy instead of duplicating the bundle per generation.
+	SharedAssetBaseURL string
 }
 
 const (
@@ -187,6 +204,9 @@ func (pp *PrintingPress) PrintHTML() (*PressStatistics, error) {
 		job.fail(err)
 		return nil, err
 	}
+	if pp.site != nil && pp.config.Artifact != nil {
+		pp.site.HostedDocumentID = pp.config.Artifact.DocumentID
+	}
 
 	job.snapshot("writing html output", 0, 0, 0)
 	generationStart := time.Now()
@@ -197,6 +217,12 @@ func (pp *PrintingPress) PrintHTML() (*PressStatistics, error) {
 		job.fail(err)
 		return nil, err
 	}
+	artifactWritten, err := pp.writeArtifactContract(written)
+	if err != nil {
+		job.fail(err)
+		return nil, err
+	}
+	written = append(written, artifactWritten...)
 	generationDuration := time.Since(generationStart)
 
 	stats, err := pp.buildStatistics(job.job, written, buildDuration, generationDuration, time.Since(start))
@@ -302,11 +328,14 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 	cfg := &pressEngineConfig{
 		OutputDir:     outputDir,
 		BaseURL:       pp.config.BaseURL,
-		AssetMode:     pp.config.AssetMode,
+		AssetMode:          pp.config.AssetMode,
+		Embedded:           pp.config.Embedded,
+		SharedAssetBaseURL: pp.config.SharedAssetBaseURL,
 		Title:         pp.config.Title,
 		SpecURL:       pp.config.SpecURL,
 		Logger:        slog.Default(),
 		DeveloperMode: pp.config.DeveloperMode,
+		DocsExpiresAt: printingPressExpiryString(pp.config.ExpiresAt),
 		LintResults:   pp.config.LintResults,
 		Footer:        cloneFooterConfig(pp.config.Footer),
 		SyntheticTagFallback: &SyntheticTagFallbackConfig{
@@ -403,6 +432,13 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 	return cfg, nil
 }
 
+func printingPressExpiryString(expiresAt *time.Time) string {
+	if expiresAt == nil || expiresAt.IsZero() {
+		return ""
+	}
+	return expiresAt.UTC().Format(time.RFC3339Nano)
+}
+
 func shouldBundleModel(v3Model *libopenapi.DocumentModel[highv3.Document]) bool {
 	if v3Model == nil || v3Model.Index == nil {
 		return false
@@ -426,7 +462,17 @@ func clonePrintingPressConfig(config *PrintingPressConfig) *PrintingPressConfig 
 		return nil
 	}
 	cloned := *config
+	cloned.ExpiresAt = cloneTime(config.ExpiresAt)
 	cloned.Footer = cloneFooterConfig(config.Footer)
+	cloned.Artifact = cloneArtifactManifestConfig(config.Artifact)
+	return &cloned
+}
+
+func cloneTime(value *time.Time) *time.Time {
+	if value == nil {
+		return nil
+	}
+	cloned := *value
 	return &cloned
 }
 
@@ -465,7 +511,9 @@ func validateAndNormalizeConfig(config *PrintingPressConfig, source pressSource)
 	}
 
 	normalized := *config
+	normalized.ExpiresAt = cloneTime(config.ExpiresAt)
 	normalized.Footer = cloneFooterConfig(config.Footer)
+	normalized.Artifact = cloneArtifactManifestConfig(config.Artifact)
 	var issues []ValidationIssue
 
 	switch normalized.AssetMode {

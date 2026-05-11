@@ -48,6 +48,20 @@ func AssetHref(assetBaseURL, href string) string {
 	return resolveDocHref(assetBaseURL, href)
 }
 
+// SharedAssetHref resolves an asset reference, preferring sharedAssetBaseURL
+// for paths that live in the renderer's embedded static tree (any href whose
+// first segment is the static directory). Falls back to AssetHref otherwise.
+//
+// This is how generated HTML references the JS bundle, CSS, fonts, and icons
+// at a host-mounted shared URL while keeping per-artifact references relative.
+func SharedAssetHref(sharedAssetBaseURL, assetBaseURL, href string) string {
+	if sharedAssetBaseURL != "" && strings.HasPrefix(href, pppaths.DirStatic+"/") {
+		trimmed := strings.TrimRight(sharedAssetBaseURL, "/")
+		return trimmed + "/" + strings.TrimPrefix(href, pppaths.DirStatic+"/")
+	}
+	return AssetHref(assetBaseURL, href)
+}
+
 // DocHref resolves a document link against the configured hosted docs root.
 // Portable pages preserve the original relative href so the page's <base href>
 // continues to handle nested file:// navigation correctly.

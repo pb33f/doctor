@@ -26,6 +26,7 @@ export class PpLayout extends LitElement {
   @state() private currentVersion = '';
   @state() private versions: HeaderVersionLink[] = [];
   @state() private catalogHref = '';
+  @state() private embedded = false;
 
   connectedCallback() {
     super.connectedCallback();
@@ -33,6 +34,9 @@ export class PpLayout extends LitElement {
     this.currentVersion = document.body?.dataset.ppCurrentVersion || '';
     this.versions = this.parseVersions(document.body?.dataset.ppVersions);
     this.catalogHref = document.body?.dataset.ppCatalogHref ? docHref(document.body.dataset.ppCatalogHref) : '';
+    this.embedded = document.documentElement.hasAttribute('data-pp-embedded-docs') ||
+      document.body?.dataset.ppEmbeddedDocs === 'true';
+    this.toggleAttribute('embedded', this.embedded);
     const saved = sessionStorage.getItem(SPLIT_POS_KEY);
     if (saved) {
       this.splitPos = parseFloat(saved);
@@ -84,45 +88,47 @@ export class PpLayout extends LitElement {
 
   render() {
     return html`
-      <pb33f-header name=${this.title} url=${headerTitleHref()} fluid>
-        <div class="header-tools">
-          ${this.catalogHref || this.versions.length
-            ? html`
-                <div class="header-context">
-                  ${this.catalogHref
-                    ? html`
-                        <a class="catalog-backlink" href=${this.catalogHref}>
-                          <sl-icon name="arrow-90deg-up" aria-hidden="true"></sl-icon>
-                          <span>API Catalog</span>
-                        </a>
-                      `
-                    : null}
-                  ${this.versions.length
-                    ? html`
-                        <div class="version-picker">
-                          <sl-dropdown skidding="5" distance="5">
-                            <sl-button slot="trigger" caret>${this.currentVersionTriggerLabel()}</sl-button>
-                            <sl-menu @sl-select=${this.onVersionChange}>
-                              ${this.versions.map(
-                                (version) => html`
-                                  <sl-menu-item value=${docHref(version.href)}>
-                                    ${version.label}
-                                  </sl-menu-item>
-                                `,
-                              )}
-                            </sl-menu>
-                          </sl-dropdown>
-                        </div>
-                      `
-                    : null}
-                </div>
-              `
-            : null}
-          <div class="theme-controls">
-            <pb33f-theme-switcher></pb33f-theme-switcher>
+      ${this.embedded ? null : html`
+        <pb33f-header name=${this.title} url=${headerTitleHref()} fluid>
+          <div class="header-tools">
+            ${this.catalogHref || this.versions.length
+              ? html`
+                  <div class="header-context">
+                    ${this.catalogHref
+                      ? html`
+                          <a class="catalog-backlink" href=${this.catalogHref}>
+                            <sl-icon name="arrow-90deg-up" aria-hidden="true"></sl-icon>
+                            <span>API Catalog</span>
+                          </a>
+                        `
+                      : null}
+                    ${this.versions.length
+                      ? html`
+                          <div class="version-picker">
+                            <sl-dropdown skidding="5" distance="5">
+                              <sl-button slot="trigger" caret>${this.currentVersionTriggerLabel()}</sl-button>
+                              <sl-menu @sl-select=${this.onVersionChange}>
+                                ${this.versions.map(
+                                  (version) => html`
+                                    <sl-menu-item value=${docHref(version.href)}>
+                                      ${version.label}
+                                    </sl-menu-item>
+                                  `,
+                                )}
+                              </sl-menu>
+                            </sl-dropdown>
+                          </div>
+                        `
+                      : null}
+                  </div>
+                `
+              : null}
+            <div class="theme-controls">
+              <pb33f-theme-switcher></pb33f-theme-switcher>
+            </div>
           </div>
-        </div>
-      </pb33f-header>
+        </pb33f-header>
+      `}
       <sl-split-panel position=${this.splitPos} @sl-reposition=${this.onReposition}>
         <sl-icon slot="divider" name="grip-vertical" class="divider-vert" aria-hidden="true"></sl-icon>
         <div slot="start" class="nav-panel">

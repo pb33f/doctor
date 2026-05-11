@@ -11,19 +11,29 @@ const (
 	ExtJSON     = ".json"
 	ExtMarkdown = ".md"
 
-	DirStatic     = "static"
-	DirFonts      = "fonts"
-	DirShoelace   = "shoelace"
-	DirAssets     = "assets"
-	DirIcons      = "icons"
+	// DirStatic is the renderer's embedded shared-asset tree. Files under
+	// DirStatic are global to a build (JS bundle, CSS, fonts, icons) and are
+	// served by the host at a single URL prefix; they are never written per
+	// artifact.
+	DirStatic   = "static"
+	DirFonts    = "fonts"
+	DirShoelace = "shoelace"
+	DirAssets   = "assets"
+	DirIcons    = "icons"
+
 	DirOperations = "operations"
 	DirModels     = "models"
 	DirTags       = "tags"
 	DirServices   = "services"
 	DirVersions   = "versions"
 	DirSpecs      = "specs"
-	DirPageData   = "page-data"
-	DirPageViz    = "page-viz"
+
+	// DirData is the per-artifact namespace for hydration JSON. Everything
+	// under DirData contains rendered spec content for the document and is
+	// classified protected for private artifacts.
+	DirData  = "data"
+	DirPages = "pages"
+	DirViz   = "viz"
 
 	FileIndexHTML       = "index.html"
 	FileDiagnosticsHTML = "diagnostics.html"
@@ -50,11 +60,18 @@ const (
 	FilePrintingPressJS           = "printing-press.js"
 	FilePrintingPressLiteJS       = "printing-press-lite.js"
 
-	AssetSharedHydration = "printing-press-shared"
-	DiagnosticsSlug      = "diagnostics"
-	OrphansJSONPath      = "diagnostics-orphans.json"
+	// NavCacheBaseName is the basename (no extension) of the per-artifact
+	// navigation/registry hydration asset; writeHydrationAsset appends .json
+	// or .js based on the asset mode.
+	NavCacheBaseName = "nav"
+
+	DiagnosticsSlug = "diagnostics"
+	OrphansJSONPath = "diagnostics-orphans.json"
 )
 
+// StaticAsset returns the path of a shared asset relative to the renderer's
+// embedded static tree (e.g. "static/printing-press.js"). Hosts that mount the
+// embedded FS at a public URL strip DirStatic when serving.
 func StaticAsset(name string) string {
 	return path.Join(DirStatic, name)
 }
@@ -71,16 +88,20 @@ func StaticDirs() []string {
 	return []string{DirStatic, StaticFontsDir(), StaticShoelaceIconsDir()}
 }
 
-func SharedHydrationAssetBase() string {
-	return StaticAsset(AssetSharedHydration)
+// NavCacheBase is the per-artifact path (no extension) for the navigation and
+// schema-registry hydration asset. writeHydrationAsset appends .json or .js.
+func NavCacheBase() string {
+	return path.Join(DirData, NavCacheBaseName)
 }
 
-func PageDataAssetDir() string {
-	return path.Join(DirStatic, DirPageData)
+// PageDataDir is the per-artifact directory for page hydration JSON.
+func PageDataDir() string {
+	return path.Join(DirData, DirPages)
 }
 
-func PageVizAssetDir() string {
-	return path.Join(DirStatic, DirPageViz)
+// PageVizDir is the per-artifact directory for visualization hydration JSON.
+func PageVizDir() string {
+	return path.Join(DirData, DirViz)
 }
 
 func OperationHTML(slug string) string {
@@ -120,11 +141,11 @@ func TagHTML(slug string) string {
 }
 
 func OperationPageDataBase(slug string) string {
-	return path.Join(PageDataAssetDir(), DirOperations, slug)
+	return path.Join(PageDataDir(), DirOperations, slug)
 }
 
 func RootPageDataBase() string {
-	return path.Join(PageDataAssetDir(), "root")
+	return path.Join(PageDataDir(), "root")
 }
 
 func DiagnosticsHTMLPath() string {
@@ -132,19 +153,19 @@ func DiagnosticsHTMLPath() string {
 }
 
 func DiagnosticsPageDataBase() string {
-	return path.Join(PageDataAssetDir(), DiagnosticsSlug)
+	return path.Join(PageDataDir(), DiagnosticsSlug)
 }
 
 func ModelPageDataBase(typeSlug, slug string) string {
-	return path.Join(PageDataAssetDir(), DirModels, typeSlug, slug)
+	return path.Join(PageDataDir(), DirModels, typeSlug, slug)
 }
 
 func ModelDiagramVizBase(typeSlug, slug string) string {
-	return path.Join(PageVizAssetDir(), DirModels, typeSlug, slug+"-diagram")
+	return path.Join(PageVizDir(), DirModels, typeSlug, slug+"-diagram")
 }
 
 func ModelGraphVizBase(typeSlug, slug string) string {
-	return path.Join(PageVizAssetDir(), DirModels, typeSlug, slug+"-graph")
+	return path.Join(PageVizDir(), DirModels, typeSlug, slug+"-graph")
 }
 
 func AggregateServiceDir(serviceSlug string) string {

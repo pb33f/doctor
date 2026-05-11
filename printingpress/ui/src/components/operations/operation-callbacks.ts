@@ -107,8 +107,25 @@ export class PpOperationCallbacks extends LitElement {
         `;
     }
 
+    private hasPayload(): boolean {
+        return this.callbacksJson !== '' || this.hasAttribute('callbacks-json');
+    }
+
+    private renderSkeleton() {
+        const rows = [88, 70, 54];
+        return html`
+            <div class="callback-entry callback-skeleton" aria-hidden="true">
+                <div class="callback-skeleton-heading"></div>
+                <div class="callback-skeleton-method"></div>
+                ${rows.map((width) => html`<div class="callback-skeleton-line" style=${`width:${width}%;`}></div>`)}
+            </div>
+        `;
+    }
+
     render() {
-        if (!this.callbacks.length) return nothing;
+        if (!this.callbacks.length) {
+            return this.hasPayload() ? nothing : this.renderSkeleton();
+        }
         return html`
             ${this.callbacks.map(cb => html`
                 <div class="callback-entry">

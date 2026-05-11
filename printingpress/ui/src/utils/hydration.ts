@@ -341,6 +341,9 @@ function applyModelPayload(model: NonNullable<HydrationPayload['model']>) {
 }
 
 function notifyHydrationComplete() {
+  if (document.body) {
+    document.body.dataset.ppHydrated = 'true';
+  }
   document.dispatchEvent(new CustomEvent('pp:hydrated'));
 }
 

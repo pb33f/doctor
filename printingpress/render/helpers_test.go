@@ -74,6 +74,44 @@ func TestAssetHref(t *testing.T) {
 	}
 }
 
+func TestSharedAssetHref(t *testing.T) {
+	tests := []struct {
+		name               string
+		sharedAssetBaseURL string
+		assetBaseURL       string
+		href               string
+		want               string
+	}{
+		{
+			name:               "root shared base resolves static asset from origin root",
+			sharedAssetBaseURL: "/",
+			href:               "static/printing-press.js",
+			want:               "/printing-press.js",
+		},
+		{
+			name:               "nested shared base strips static prefix",
+			sharedAssetBaseURL: "/ppress/static/v1/",
+			href:               "static/shoelace/assets/icons/x.svg",
+			want:               "/ppress/static/v1/shoelace/assets/icons/x.svg",
+		},
+		{
+			name:               "non-static asset falls back to document asset base",
+			sharedAssetBaseURL: "/ppress/static/v1/",
+			assetBaseURL:       "/docs/",
+			href:               "data/pages/index.json",
+			want:               "/docs/data/pages/index.json",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := SharedAssetHref(tt.sharedAssetBaseURL, tt.assetBaseURL, tt.href); got != tt.want {
+				t.Fatalf("SharedAssetHref(%q, %q, %q) = %q, want %q", tt.sharedAssetBaseURL, tt.assetBaseURL, tt.href, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestDocHref(t *testing.T) {
 	tests := []struct {
 		name    string

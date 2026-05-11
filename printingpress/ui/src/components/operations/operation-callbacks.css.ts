@@ -78,4 +78,28 @@ export default css`
         color: var(--font-color-sub1);
     }
 
+    .callback-skeleton {
+        display: grid;
+        gap: var(--global-padding);
+    }
+
+    .callback-skeleton-heading,
+    .callback-skeleton-method,
+    .callback-skeleton-line {
+        height: 1rem;
+        background: var(--card-background-color);
+        border: 1px dotted var(--hrcolor);
+        box-sizing: border-box;
+    }
+
+    .callback-skeleton-heading {
+        width: 40%;
+        height: 1.25rem;
+        margin-bottom: var(--global-padding);
+    }
+
+    .callback-skeleton-method {
+        width: 220px;
+    }
+
 `

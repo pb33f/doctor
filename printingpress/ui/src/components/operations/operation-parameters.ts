@@ -47,6 +47,26 @@ export class PpOperationParameters extends LitElement {
   }
 
 
+  private hasPayload(): boolean {
+    return this.parametersJson !== '' || this.hasAttribute('parameters-json');
+  }
+
+  private renderSkeleton() {
+    const rows = [96, 88, 82];
+    return html`
+      <div class="parameters-skeleton" aria-hidden="true">
+        ${rows.map((width) => html`
+          <div class="parameter-skeleton-row">
+            <div class="parameter-skeleton-name"></div>
+            <div class="parameter-skeleton-type"></div>
+            <div class="parameter-skeleton-in"></div>
+            <div class="parameter-skeleton-desc" style=${`width:${width}%;`}></div>
+          </div>
+        `)}
+      </div>
+    `;
+  }
+
   private inIcon(location: string): string {
     switch (location) {
       case 'cookie': return 'cookie';
@@ -63,7 +83,9 @@ export class PpOperationParameters extends LitElement {
   }
 
   render() {
-    if (!this.params.length) return nothing;
+    if (!this.params.length) {
+      return this.hasPayload() ? nothing : this.renderSkeleton();
+    }
 
     return html`
       ${this.params.map(p => {

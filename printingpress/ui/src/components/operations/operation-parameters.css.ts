@@ -129,4 +129,44 @@ export default css`
         margin-bottom: var(--global-padding-double);
         padding-bottom: var(--global-padding);
     }
+
+    .parameters-skeleton {
+        display: grid;
+        gap: var(--global-padding);
+    }
+
+    .parameter-skeleton-row {
+        display: grid;
+        grid-template-columns: 200px minmax(220px, 320px) 130px minmax(0, 1fr);
+        gap: 0 20px;
+        padding: var(--global-padding) var(--global-padding-double);
+        border-top: 1px dotted var(--hrcolor);
+    }
+
+    .parameter-skeleton-row:first-child {
+        border-top: none;
+    }
+
+    .parameter-skeleton-name,
+    .parameter-skeleton-type,
+    .parameter-skeleton-in,
+    .parameter-skeleton-desc {
+        height: 1rem;
+        background: var(--card-background-color);
+        border: 1px dotted var(--hrcolor);
+        box-sizing: border-box;
+    }
+
+    .parameter-skeleton-name {
+        justify-self: end;
+        width: 70%;
+    }
+
+    .parameter-skeleton-type {
+        width: 48%;
+    }
+
+    .parameter-skeleton-in {
+        width: 58%;
+    }
 `
