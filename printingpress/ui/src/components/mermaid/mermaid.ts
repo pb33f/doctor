@@ -87,8 +87,8 @@ export class PpMermaid extends LitElement {
 
     disconnectedCallback() {
         super.disconnectedCallback();
-        clearInterval(this.renderCheckInterval);
-        clearTimeout(this.renderScheduleHandle);
+        this.clearRendererPolling();
+        this.clearScheduledRender();
         this.embeddedDataObserver?.disconnect();
         this.embeddedDataObserver = null;
         this.resizeObserver?.disconnect();
@@ -125,6 +125,16 @@ export class PpMermaid extends LitElement {
         this.toggleAttribute('data-rendered', rendered);
     }
 
+    private clearRendererPolling() {
+        clearInterval(this.renderCheckInterval);
+        this.renderCheckInterval = 0;
+    }
+
+    private clearScheduledRender() {
+        clearTimeout(this.renderScheduleHandle);
+        this.renderScheduleHandle = 0;
+    }
+
     private canRenderDiagram(): boolean {
         if (!this.isConnected) return false;
         const style = getComputedStyle(this);
@@ -134,8 +144,14 @@ export class PpMermaid extends LitElement {
     }
 
     private scheduleRenderer() {
-        clearTimeout(this.renderScheduleHandle);
-        if (!this.diagram || this.diagramHidden || this.renderFailed) {
+        this.clearScheduledRender();
+        if (!this.diagram || this.diagramHidden) {
+            this.clearRendererPolling();
+            this.rendererDiagram = '';
+            this.setRendered(false);
+            return;
+        }
+        if (this.renderFailed) {
             this.rendererDiagram = '';
             this.setRendered(false);
             return;
@@ -161,26 +177,30 @@ export class PpMermaid extends LitElement {
     }
 
     private watchRenderer(renderer: MermaidRenderer) {
-        clearInterval(this.renderCheckInterval);
+        this.clearRendererPolling();
         let attempts = 0;
         this.renderCheckInterval = window.setInterval(() => {
+            if (!this.isConnected || this.diagramHidden || renderer !== this.renderer || !this.rendererDiagram) {
+                this.clearRendererPolling();
+                return;
+            }
             attempts += 1;
             const root = renderer.shadowRoot;
             const hasError = !!root?.querySelector('.error');
             const hasSVG = !!root?.querySelector('svg');
             if (hasError) {
-                clearInterval(this.renderCheckInterval);
+                this.clearRendererPolling();
                 this.setRenderFailed(true);
                 return;
             }
             if (hasSVG) {
-                clearInterval(this.renderCheckInterval);
+                this.clearRendererPolling();
                 this.setRendered(true);
                 this.setRenderFailed(false);
                 return;
             }
             if (attempts > 150) {
-                clearInterval(this.renderCheckInterval);
+                this.clearRendererPolling();
                 this.setRenderFailed(true);
             }
         }, 40);
@@ -194,6 +214,9 @@ export class PpMermaid extends LitElement {
     private toggleDiagram() {
         this.diagramHidden = !this.diagramHidden;
         localStorage.setItem(diagramHiddenKey, String(this.diagramHidden));
+        this.clearScheduledRender();
+        this.clearRendererPolling();
+        this.setRenderFailed(false);
         if (this.diagramHidden) {
             this.rendererDiagram = '';
             this.setRendered(false);

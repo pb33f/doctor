@@ -61,6 +61,39 @@ describe('pp-mermaid', () => {
         expect(fallback?.textContent).toContain('A-->');
     });
 
+    it('clears renderer polling and stale failures when diagrams are hidden', async () => {
+        vi.useFakeTimers();
+
+        const el = document.createElement('pp-mermaid') as PpMermaid;
+        el.diagram = 'graph TD\nA-->B';
+        const script = document.createElement('script');
+        script.type = 'application/json';
+        script.className = 'pp-mermaid-data';
+        script.textContent = JSON.stringify(el.diagram);
+        el.appendChild(script);
+        (el as any).canRenderDiagram = () => false;
+        document.body.appendChild(el);
+        vi.runOnlyPendingTimers();
+        await el.updateComplete;
+
+        const renderer = (el as any).renderer;
+        expect(renderer).toBeTruthy();
+        (el as any).rendererDiagram = el.diagram;
+        (el as any).watchRenderer(renderer);
+        (el as any).toggleDiagram();
+        await el.updateComplete;
+
+        vi.advanceTimersByTime(40 * 200);
+        expect(el.hasAttribute('data-render-failed')).toBe(false);
+        expect((el as any).rendererDiagram).toBe('');
+
+        (el as any).setRenderFailed(true);
+        (el as any).toggleDiagram();
+        await el.updateComplete;
+
+        expect(el.hasAttribute('data-render-failed')).toBe(false);
+    });
+
     it('decodes json script data without changing literal closing tags', async () => {
         vi.useFakeTimers();
         const el = document.createElement('pp-mermaid') as PpMermaid;
