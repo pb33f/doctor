@@ -51,6 +51,18 @@ func TestLayoutPageSharedAssetBaseURLAttribute(t *testing.T) {
 	}
 }
 
+func TestLayoutPageArchiveExportURLAttribute(t *testing.T) {
+	html := renderLayoutPageForTest(t, LayoutPageParams{
+		PageTitle:        "Train Travel",
+		SiteTitle:        "Train Travel",
+		ArchiveExportURL: "/_printing-press/export",
+	})
+
+	if !strings.Contains(html, `data-archive-export-url="/_printing-press/export"`) {
+		t.Fatalf("expected archive export URL on nav element")
+	}
+}
+
 func TestSharedNavPreviewHonorsDeveloperMode(t *testing.T) {
 	if !strings.Contains(bootstrapSharedNavCacheSource, `function developerMode()`) {
 		t.Fatalf("expected shared nav preview bootstrap to detect developer mode")

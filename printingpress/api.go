@@ -25,19 +25,20 @@ import (
 //
 // A nil config is treated as an empty config and uses the default options.
 type PrintingPressConfig struct {
-	Title         string
-	BaseURL       string
-	BasePath      string
-	SpecPath      string
-	SpecURL       string
-	OutputDir     string
-	AssetMode     string
-	Embedded      bool
-	DeveloperMode bool
-	ExpiresAt     *time.Time
-	LintResults   []*v3.RuleFunctionResult
-	Footer        *ppmodel.FooterConfig
-	Artifact      *ArtifactManifestConfig
+	Title            string
+	BaseURL          string
+	BasePath         string
+	SpecPath         string
+	SpecURL          string
+	OutputDir        string
+	AssetMode        string
+	Embedded         bool
+	DeveloperMode    bool
+	ExpiresAt        *time.Time
+	ArchiveExportURL string
+	LintResults      []*v3.RuleFunctionResult
+	Footer           *ppmodel.FooterConfig
+	Artifact         *ArtifactManifestConfig
 
 	// SharedAssetBaseURL, when set, instructs the renderer to:
 	//   1. skip writing embedded shared assets (JS bundle, CSS, fonts, icons)
@@ -326,18 +327,19 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 	}
 
 	cfg := &pressEngineConfig{
-		OutputDir:     outputDir,
-		BaseURL:       pp.config.BaseURL,
+		OutputDir:          outputDir,
+		BaseURL:            pp.config.BaseURL,
 		AssetMode:          pp.config.AssetMode,
 		Embedded:           pp.config.Embedded,
 		SharedAssetBaseURL: pp.config.SharedAssetBaseURL,
-		Title:         pp.config.Title,
-		SpecURL:       pp.config.SpecURL,
-		Logger:        slog.Default(),
-		DeveloperMode: pp.config.DeveloperMode,
-		DocsExpiresAt: printingPressExpiryString(pp.config.ExpiresAt),
-		LintResults:   pp.config.LintResults,
-		Footer:        cloneFooterConfig(pp.config.Footer),
+		Title:              pp.config.Title,
+		SpecURL:            pp.config.SpecURL,
+		Logger:             slog.Default(),
+		DeveloperMode:      pp.config.DeveloperMode,
+		DocsExpiresAt:      printingPressExpiryString(pp.config.ExpiresAt),
+		ArchiveExportURL:   pp.config.ArchiveExportURL,
+		LintResults:        pp.config.LintResults,
+		Footer:             cloneFooterConfig(pp.config.Footer),
 		SyntheticTagFallback: &SyntheticTagFallbackConfig{
 			Enabled:         true,
 			MaxDistinctTags: 2,
@@ -364,10 +366,7 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 		cfg.SpecLocation = formatSpecLocation(pp.config.SpecPath, basePath)
 		cfg.SpecPath = pp.config.SpecPath
 
-		docConfig := datamodel.NewDocumentConfiguration()
-		docConfig.AllowFileReferences = true
-		docConfig.BasePath = basePath
-		docConfig.Logger = cfg.Logger
+		docConfig := newPrintingPressDocumentConfiguration(basePath, cfg.Logger)
 		job.snapshot("building libopenapi document", 0, 4, 0)
 		doc, err := libopenapi.NewDocumentWithConfiguration(specBytes, docConfig)
 		if err != nil {
@@ -385,11 +384,7 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 
 		if shouldBundleModel(v3Model) {
 			job.snapshot("bundling source bytes", 2, 4, 0)
-			result, bundleErr := bundleBytesWithOrigins(specBytes, &datamodel.DocumentConfiguration{
-				AllowFileReferences: true,
-				BasePath:            basePath,
-				Logger:              cfg.Logger,
-			}, nil)
+			result, bundleErr := bundleBytesWithOrigins(specBytes, newPrintingPressDocumentConfiguration(basePath, cfg.Logger), nil)
 			if bundleErr == nil && result != nil {
 				cfg.Origins = result.Origins
 				job.snapshot("building bundled v3 model", 3, 4, 0)
@@ -437,6 +432,17 @@ func printingPressExpiryString(expiresAt *time.Time) string {
 		return ""
 	}
 	return expiresAt.UTC().Format(time.RFC3339Nano)
+}
+
+// newPrintingPressDocumentConfiguration returns the libopenapi settings the
+// renderer needs for hosted and archived documentation builds.
+func newPrintingPressDocumentConfiguration(basePath string, logger *slog.Logger) *datamodel.DocumentConfiguration {
+	docConfig := datamodel.NewDocumentConfiguration()
+	docConfig.AllowFileReferences = true
+	docConfig.BasePath = basePath
+	docConfig.ExcludeExtensionRefs = true
+	docConfig.Logger = logger
+	return docConfig
 }
 
 func shouldBundleModel(v3Model *libopenapi.DocumentModel[highv3.Document]) bool {

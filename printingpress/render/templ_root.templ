@@ -102,6 +102,9 @@ templ RootPageTempl(page *ppmodel.RootPage, baseURL string) {
 							if w.Context != "" {
 								<span> ({ w.Context })</span>
 							}
+							if w.Err != nil {
+								<div class="pp-warning-error">{ w.Err.Error() }</div>
+							}
 						</li>
 					}
 				</ul>

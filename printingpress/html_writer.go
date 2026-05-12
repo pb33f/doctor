@@ -146,6 +146,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		DeveloperMode:      site.DeveloperMode,
 		DocumentID:         site.HostedDocumentID,
 		DocsExpiresAt:      site.DocsExpiresAt,
+		ArchiveExportURL:   site.ArchiveExportURL,
 		Footer:             site.Footer,
 		SharedAssetBaseURL: site.SharedAssetBaseURL,
 	}
@@ -533,6 +534,7 @@ type pageParams struct {
 	DeveloperMode      bool
 	DocumentID         string
 	DocsExpiresAt      string
+	ArchiveExportURL   string
 	Footer             *ppmodel.FooterConfig
 	SharedAssetBaseURL string
 }
@@ -568,6 +570,7 @@ func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content t
 		DeveloperMode:      p.DeveloperMode,
 		DocumentID:         p.DocumentID,
 		DocsExpiresAt:      p.DocsExpiresAt,
+		ArchiveExportURL:   p.ArchiveExportURL,
 		Footer:             p.Footer,
 		SharedAssetBaseURL: p.SharedAssetBaseURL,
 	}, content)

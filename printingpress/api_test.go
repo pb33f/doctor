@@ -164,6 +164,39 @@ func TestCreatePrintingPress_SpecBytesUseConfiguredBasePath(t *testing.T) {
 	assert.FileExists(t, filepath.Join(outputDir, "index.html"))
 }
 
+func TestCreatePrintingPress_SkipsMissingExtensionReferences(t *testing.T) {
+	specBytes := []byte(`openapi: 3.1.0
+info:
+  title: Extension Docs
+  version: 1.0.0
+paths:
+  /ping:
+    get:
+      x-docs:
+        $ref: ./docs/getting-started.md
+      responses:
+        '200':
+          description: ok
+`)
+
+	pp, err := CreatePrintingPressFromBytes(specBytes, &PrintingPressConfig{
+		BasePath:  t.TempDir(),
+		OutputDir: t.TempDir(),
+	})
+	require.NoError(t, err)
+
+	site, err := pp.PressModel()
+	require.NoError(t, err)
+	require.NotNil(t, site)
+	for _, warning := range site.Warnings {
+		assert.NotContains(t, warning.Message, "getting-started.md")
+		if warning.Err != nil {
+			assert.NotContains(t, warning.Err.Error(), "getting-started.md")
+		}
+	}
+	assert.Empty(t, site.Warnings)
+}
+
 func TestCreatePrintingPress_UsesConfiguredSpecPathForSourceMetadata(t *testing.T) {
 	specPath := filepath.Join("..", "test_specs", "burgershop.openapi.yaml")
 	specBytes, err := os.ReadFile(specPath)
@@ -264,6 +297,7 @@ func TestCreatePrintingPress_BundlingFallbackWarningExposed(t *testing.T) {
 
 	originalBundle := bundleBytesWithOrigins
 	bundleBytesWithOrigins = func(specBytes []byte, configuration *datamodel.DocumentConfiguration, compositionConfig *bundler.BundleCompositionConfig) (*bundler.BundleResult, error) {
+		assert.True(t, configuration.ExcludeExtensionRefs)
 		return nil, errors.New("forced bundle failure")
 	}
 	defer func() {
@@ -287,6 +321,10 @@ func TestCreatePrintingPress_BundlingFallbackWarningExposed(t *testing.T) {
 	require.NotEmpty(t, stats.Warnings)
 	assert.Contains(t, stats.Warnings[0].Message, "source bundling failed")
 	require.Error(t, stats.Warnings[0].Err)
+
+	indexHTML, err := os.ReadFile(filepath.Join(pp.config.OutputDir, "index.html"))
+	require.NoError(t, err)
+	assert.Contains(t, string(indexHTML), "forced bundle failure")
 }
 
 func TestCreatePrintingPress_BundlingFallbackStillUsesConfiguredDocumentSettings(t *testing.T) {
