@@ -1,5 +1,11 @@
 import {LitElement, html, nothing, TemplateResult} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
+import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
+import '@shoelace-style/shoelace/dist/components/menu/menu.js';
+import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
+import '@shoelace-style/shoelace/dist/components/checkbox/checkbox.js';
+import '@shoelace-style/shoelace/dist/components/button/button.js';
+import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import navCss from './nav.css.js';
 import {docHref, overviewHref} from '../../utils/doc-links.js';
 import type {ViolationCounts} from '../../utils/violations.js';
@@ -46,13 +52,19 @@ export class PpNav extends LitElement {
     @property({attribute: 'data-webhooks'}) webhooksJson = '';
     @property({attribute: 'data-active'}) activeSlug = '';
     @property({attribute: 'data-docs-expires-at'}) docsExpiresAt = '';
+    @property({attribute: 'data-archive-export-url'}) archiveExportUrl = '';
     @state() private tags: NavTag[] = [];
     @state() private modelGroups: NavModelGroup[] = [];
     @state() private webhooks: NavOperation[] = [];
     @state() private expiryTick = 0;
+    @state() private hostedArchiveControls = false;
+    @state() private archiveFormat: 'zip' | 'tar.gz' = 'zip';
+    @state() private includeDiagnostics = false;
+    private archiveExportTargetOrigin = '';
     private expiryTimer?: number;
     private loggedEmptyState = false;
     private loggedContentState = false;
+    private readonly hostMessageHandler = (event: MessageEvent) => this.handleHostMessage(event);
 
     private logPerf(stage: string, detail?: unknown) {
         const logger = (globalThis as Record<string, unknown>).__PP_LOG as ((stage: string, detail?: unknown) => void) | undefined;
@@ -78,6 +90,10 @@ export class PpNav extends LitElement {
 
     private hasNavContent(): boolean {
         return this.tags.length > 0 || this.modelGroups.length > 0 || this.webhooks.length > 0;
+    }
+
+    private archiveControlsEnabled(): boolean {
+        return this.hostedArchiveControls || this.archiveExportUrl.trim() !== '';
     }
 
     private ensureExpiryTimer() {
@@ -136,11 +152,95 @@ export class PpNav extends LitElement {
             <div class="docs-expiry ${critical ? 'critical' : ''} ${expired ? 'expired' : ''}" aria-live="polite">${label}</div>`;
     }
 
+    private renderHostedArchiveControls() {
+        if (!this.archiveControlsEnabled()) {
+            return nothing;
+        }
+        return html`
+            <div class="host-archive-controls" aria-label="Documentation archive export">
+                <div class="host-archive-controls-title">export api docs</div>
+                <div class="host-archive-control-row">
+                    <sl-dropdown class="archive-format-dropdown" skidding="0" distance="4" hoist>
+                        <sl-button slot="trigger" class="archive-format-trigger" size="small" caret>
+                            <sl-icon slot="prefix" name="download"></sl-icon>
+                            ${this.archiveFormat}
+                        </sl-button>
+                        <sl-menu @sl-select=${this.handleArchiveFormatSelect}>
+                            <sl-menu-item value="zip" type="checkbox" .checked=${this.archiveFormat === 'zip'}>
+                                zip
+                            </sl-menu-item>
+                            <sl-menu-item value="tar.gz" type="checkbox" .checked=${this.archiveFormat === 'tar.gz'}>
+                                tar.gz
+                            </sl-menu-item>
+                        </sl-menu>
+                    </sl-dropdown>
+                    <sl-checkbox
+                        ?checked=${this.includeDiagnostics}
+                        @sl-change=${this.handleIncludeDiagnosticsChange}>
+                        include diagnostics
+                    </sl-checkbox>
+                    <sl-button
+                        class="archive-download-button"
+                        size="small"
+                        @click=${this.requestArchiveExport}
+                        aria-label="Download documentation archive">
+                        export
+                    </sl-button>
+                </div>
+            </div>
+        `;
+    }
+
+    private handleArchiveFormatSelect(event: CustomEvent) {
+        const value = event.detail?.item?.value;
+        if (value === 'zip' || value === 'tar.gz') {
+            this.archiveFormat = value;
+        }
+    }
+
+    private handleIncludeDiagnosticsChange(event: Event) {
+        this.includeDiagnostics = Boolean((event.target as HTMLInputElement | null)?.checked);
+    }
+
+    private requestArchiveExport() {
+        const directExportURL = this.archiveExportUrl.trim();
+        if (directExportURL) {
+            const url = new URL(directExportURL, window.location.href);
+            url.searchParams.set('format', this.archiveFormat);
+            if (this.includeDiagnostics) {
+                url.searchParams.set('diagnostics', '1');
+            }
+            window.location.assign(url.toString());
+            return;
+        }
+        if (!this.hostedArchiveControls || !this.archiveExportTargetOrigin || !window.parent) {
+            return;
+        }
+        window.parent.postMessage({
+            type: 'ppress:export',
+            format: this.archiveFormat,
+            diagnostics: this.includeDiagnostics,
+        }, this.archiveExportTargetOrigin);
+    }
+
+    private handleHostMessage(event: MessageEvent) {
+        if (event.source !== window.parent) {
+            return;
+        }
+        const data = event.data as { type?: string; enabled?: boolean } | null;
+        if (!data || typeof data !== 'object' || data.type !== 'doctor:archive-controls') {
+            return;
+        }
+        this.hostedArchiveControls = data.enabled === true;
+        this.archiveExportTargetOrigin = this.hostedArchiveControls ? event.origin : '';
+    }
+
     private renderFallbackNav() {
         const operationRows = [100, 92, 84, 78, 88, 74];
         const modelRows = [96, 86, 82, 90, 76, 88, 80, 72];
         return html`
             <div class="pp-nav-fallback" aria-hidden="true">
+                ${this.renderHostedArchiveControls()}
                 ${this.renderDocsExpiry()}
                 <div class="pp-nav-fallback-home">API OVERVIEW</div>
                 ${this.developerMode()
@@ -166,6 +266,7 @@ export class PpNav extends LitElement {
 
     connectedCallback() {
         super.connectedCallback();
+        window.addEventListener('message', this.hostMessageHandler);
         this.ensureExpiryTimer();
         const preview = this.querySelector('.pp-nav-preview');
         this.logPerf('nav:connected', {
@@ -177,6 +278,7 @@ export class PpNav extends LitElement {
     }
 
     disconnectedCallback() {
+        window.removeEventListener('message', this.hostMessageHandler);
         this.stopExpiryTimer();
         super.disconnectedCallback();
     }
@@ -242,6 +344,7 @@ export class PpNav extends LitElement {
             return this.renderFallbackNav();
         }
         return html`
+            ${this.renderHostedArchiveControls()}
             ${this.renderDocsExpiry()}
             <a class="nav-home ${!this.activeSlug ? 'active' : ''}" href=${overviewHref()}>
                 <sl-icon name="chevron-right" class="nav-home-chevron"></sl-icon>

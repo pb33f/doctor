@@ -26,29 +26,30 @@ import (
 )
 
 type pressEngineConfig struct {
-	DrDoc         *doctormodel.DrDocument
-	Origins       bundler.ComponentOriginMap
+	DrDoc              *doctormodel.DrDocument
+	Origins            bundler.ComponentOriginMap
 	OutputDir          string
 	BaseURL            string
 	AssetMode          string
 	Embedded           bool
 	SharedAssetBaseURL string
-	Title         string
-	Logger        *slog.Logger
-	SpecFormat    string // "yaml" or "json" — caller should set based on input format
-	SpecRoot      string // root directory of the spec; absolute paths are made relative to this
-	SpecPath      string // absolute local path to the root spec file when known
-	SpecLocation  string // display path of the root spec file relative to SpecRoot when possible
-	SpecURL       string // optional published source URL for the root spec file
-	NoMermaid     bool   // skip mermaid class diagram generation on model pages
-	NoExplorer    bool   // skip dependency explorer on model pages
-	BuildWarnings []*BuildWarning
-	BuildErrors   []error // errors from libopenapi model building (surfaced as warnings on index page)
-	DeveloperMode bool
-	DocsExpiresAt string
-	LintResults   []*v3.RuleFunctionResult
-	OrphanResults []*v3.RuleFunctionResult
-	Footer        *FooterConfig
+	Title              string
+	Logger             *slog.Logger
+	SpecFormat         string // "yaml" or "json" — caller should set based on input format
+	SpecRoot           string // root directory of the spec; absolute paths are made relative to this
+	SpecPath           string // absolute local path to the root spec file when known
+	SpecLocation       string // display path of the root spec file relative to SpecRoot when possible
+	SpecURL            string // optional published source URL for the root spec file
+	NoMermaid          bool   // skip mermaid class diagram generation on model pages
+	NoExplorer         bool   // skip dependency explorer on model pages
+	BuildWarnings      []*BuildWarning
+	BuildErrors        []error // errors from libopenapi model building (surfaced as warnings on index page)
+	DeveloperMode      bool
+	DocsExpiresAt      string
+	ArchiveExportURL   string
+	LintResults        []*v3.RuleFunctionResult
+	OrphanResults      []*v3.RuleFunctionResult
+	Footer             *FooterConfig
 	// SyntheticTagFallback reuses untagged path grouping when operation tags are too coarse.
 	SyntheticTagFallback *SyntheticTagFallbackConfig
 }
@@ -131,6 +132,7 @@ func (pp *PrintingPress) initEngine(config *pressEngineConfig) {
 		SharedAssetBaseURL: config.SharedAssetBaseURL,
 		DeveloperMode:      config.DeveloperMode,
 		DocsExpiresAt:      config.DocsExpiresAt,
+		ArchiveExportURL:   config.ArchiveExportURL,
 	}
 	pp.devOperationPages = nil
 	pp.devModelPages = nil
@@ -342,6 +344,7 @@ func (pp *PrintingPress) pressSite() (*Site, error) {
 	pp.site.Footer = cloneFooterConfig(pp.engineConfig.Footer)
 	pp.site.DeveloperMode = pp.engineConfig.DeveloperMode
 	pp.site.DocsExpiresAt = pp.engineConfig.DocsExpiresAt
+	pp.site.ArchiveExportURL = pp.engineConfig.ArchiveExportURL
 	pp.site.OrphanResults = pp.engineConfig.OrphanResults
 	pp.site.SpecFormat = pp.engineConfig.SpecFormat
 	if pp.site.SpecFormat == "" {

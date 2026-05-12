@@ -54,6 +54,145 @@ export default css`
         color: var(--error-color);
     }
 
+    .host-archive-controls {
+        container-type: inline-size;
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        margin: 0 0 var(--global-padding) 0;
+        padding: var(--global-padding);
+        border: 1px solid var(--primary-color-lowalpha);
+        background: var(--background-color);
+    }
+
+    .host-archive-control-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--global-padding) var(--global-padding-double);
+        align-items: center;
+        min-width: 0;
+        margin-top: var(--global-padding);
+    }
+
+    .host-archive-controls-title {
+        color: var(--font-color);
+        font-family: var(--font-stack-bold), monospace;
+        font-size: 0.9rem;
+        line-height: 1;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .host-archive-controls .archive-format-dropdown,
+    .host-archive-controls .archive-format-trigger {
+        width: 7.25rem;
+        min-width: 7.25rem;
+    }
+
+    .host-archive-controls .archive-download-button {
+        margin-left: auto;
+    }
+
+    .host-archive-controls sl-checkbox {
+        color: var(--font-color);
+        flex: 1 1 11rem;
+        min-width: 0;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+    }
+
+    .host-archive-controls sl-checkbox::part(base) {
+        align-items: center;
+    }
+
+    .host-archive-controls sl-checkbox::part(label) {
+        font-family: var(--font-stack), monospace;
+        font-size: 0.9rem;
+        line-height: 1;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .host-archive-controls .archive-format-trigger::part(base),
+    .host-archive-controls .archive-download-button::part(base) {
+        width: 100%;
+        padding: 0 var(--global-padding);
+        border-radius: 0;
+        background: var(--background-color);
+        font-family: var(--font-stack), monospace;
+        text-transform: uppercase;
+    }
+
+    .host-archive-controls .archive-format-trigger::part(base) {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+
+    .host-archive-controls .archive-format-trigger::part(base):hover {
+        background: var(--primary-color);
+        color: var(--background-color);
+    }
+
+    .host-archive-controls .archive-download-button::part(base) {
+        min-width: 4.75rem;
+        border-color: var(--warn-color);
+        color: var(--warn-color);
+    }
+
+    .host-archive-controls .archive-download-button::part(base):hover {
+        background: var(--warn-color);
+        color: var(--background-color);
+    }
+
+    .host-archive-controls sl-menu {
+        border: 1px solid var(--primary-color);
+        border-radius: 0;
+        background: var(--background-color);
+    }
+
+    .host-archive-controls sl-menu::part(base) {
+        border-radius: 0;
+        background: var(--background-color);
+    }
+
+    .host-archive-controls sl-menu-item::part(base) {
+        color: var(--primary-color);
+        font-family: var(--font-stack), monospace;
+        font-size: 0.9rem;
+        line-height: 1.1;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        --sl-color-neutral-100: var(--secondary-color-lowalpha);
+        --sl-color-neutral-200: var(--secondary-color-lowalpha);
+    }
+
+    .host-archive-controls sl-menu-item::part(checked-icon) {
+        color: var(--primary-color);
+    }
+
+    .host-archive-controls sl-button::part(label) {
+        font-family: var(--font-stack), monospace;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    @container (max-width: 27rem) {
+        .host-archive-controls .archive-download-button {
+            flex: 1 1 100%;
+            margin-left: 0;
+        }
+    }
+
+    @container (max-width: 16rem) {
+        .host-archive-controls .archive-format-dropdown,
+        .host-archive-controls .archive-format-trigger {
+            flex: 1 1 100%;
+            width: 100%;
+            min-width: 0;
+        }
+    }
+
     @keyframes blink-fade {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.3; }

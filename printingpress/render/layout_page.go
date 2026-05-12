@@ -36,6 +36,7 @@ type LayoutPageParams struct {
 	DeveloperMode      bool
 	DocumentID         string
 	DocsExpiresAt      string
+	ArchiveExportURL   string
 	Footer             *ppmodel.FooterConfig
 	SharedAssetBaseURL string
 }
@@ -154,6 +155,9 @@ func LayoutPage(params LayoutPageParams, content templ.Component) templ.Componen
 			return err
 		}
 		if err := writeOptionalAttr(w, "data-docs-expires-at", params.DocsExpiresAt); err != nil {
+			return err
+		}
+		if err := writeOptionalAttr(w, "data-archive-export-url", params.ArchiveExportURL); err != nil {
 			return err
 		}
 		if _, err := io.WriteString(w, `>`); err != nil {

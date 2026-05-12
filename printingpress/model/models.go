@@ -16,31 +16,32 @@ import (
 // A Site returned by PressModel is the cached instance later reused by
 // PrintHTML and PrintLLM, so caller mutations affect subsequent print output.
 type Site struct {
-	Root             *RootPage
-	Operations       []*OperationPage
-	Models           map[string][]*ModelPage // keyed by component type slug (e.g. "schemas")
-	Webhooks         []*OperationPage
-	Diagnostics      *DiagnosticsPage
-	OrphanResults    []*v3.RuleFunctionResult `json:"-"`
-	Embedded         bool                     `json:"embedded,omitempty"`
-	DeveloperMode    bool                     `json:"developerMode,omitempty"`
-	HostedDocumentID string                   `json:"hostedDocumentId,omitempty"`
-	DocsExpiresAt    string                   `json:"docsExpiresAt,omitempty"`
-	NavTags          []*NavTag
-	NavModelGroups   []*NavModelGroup
-	NavWebhooks      []*NavOperation `json:"-"` // webhook nav entries
-	Warnings         []*BuildWarning
-	SpecFormat       string                          // "yaml" or "json" — the input spec format
-	SchemaRegistry   map[string]*SchemaRegistryEntry `json:"-"` // keyed by "componentType/name"
-	Lite             bool                            // when true, use lite JS bundle (no mermaid/explorer)
-	NoMermaid        bool                            // when true, suppress inline mermaid rendering
-	OutputDir          string                        `json:"-"` // default writer output directory from config
-	BaseURL            string                        `json:"-"` // default HTML base URL from config
-	AssetMode          string                        `json:"-"` // html hydration asset mode: portable or served
-	SharedAssetBaseURL string                        `json:"-"` // when set, shared assets are referenced at this URL prefix and not copied into the artifact
-	Footer           *FooterConfig                   `json:"footer,omitempty"`
-	Source           *SourceRef                      `json:"source,omitempty"`
-	HeaderContext    *SiteHeaderContext              `json:"headerContext,omitempty"`
+	Root               *RootPage
+	Operations         []*OperationPage
+	Models             map[string][]*ModelPage // keyed by component type slug (e.g. "schemas")
+	Webhooks           []*OperationPage
+	Diagnostics        *DiagnosticsPage
+	OrphanResults      []*v3.RuleFunctionResult `json:"-"`
+	Embedded           bool                     `json:"embedded,omitempty"`
+	DeveloperMode      bool                     `json:"developerMode,omitempty"`
+	HostedDocumentID   string                   `json:"hostedDocumentId,omitempty"`
+	DocsExpiresAt      string                   `json:"docsExpiresAt,omitempty"`
+	ArchiveExportURL   string                   `json:"-"`
+	NavTags            []*NavTag
+	NavModelGroups     []*NavModelGroup
+	NavWebhooks        []*NavOperation `json:"-"` // webhook nav entries
+	Warnings           []*BuildWarning
+	SpecFormat         string                          // "yaml" or "json" — the input spec format
+	SchemaRegistry     map[string]*SchemaRegistryEntry `json:"-"` // keyed by "componentType/name"
+	Lite               bool                            // when true, use lite JS bundle (no mermaid/explorer)
+	NoMermaid          bool                            // when true, suppress inline mermaid rendering
+	OutputDir          string                          `json:"-"` // default writer output directory from config
+	BaseURL            string                          `json:"-"` // default HTML base URL from config
+	AssetMode          string                          `json:"-"` // html hydration asset mode: portable or served
+	SharedAssetBaseURL string                          `json:"-"` // when set, shared assets are referenced at this URL prefix and not copied into the artifact
+	Footer             *FooterConfig                   `json:"footer,omitempty"`
+	Source             *SourceRef                      `json:"source,omitempty"`
+	HeaderContext      *SiteHeaderContext              `json:"headerContext,omitempty"`
 }
 
 // FooterConfig controls the optional pb33f footer rendered at the bottom of
