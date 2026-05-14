@@ -31,6 +31,9 @@ func NewSQLiteSpecStateStore(dbPath string) (SpecStateStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("printingpress: opening sqlite state store: %w", err)
 	}
+	// Windows keeps open SQLite file handles locked, so don't retain idle
+	// connections between aggregate state operations.
+	db.SetMaxIdleConns(0)
 	store := &sqliteSpecStateStore{db: db}
 	if err := store.init(); err != nil {
 		_ = db.Close()

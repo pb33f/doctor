@@ -6,6 +6,7 @@ package frank
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 
 	"go.yaml.in/yaml/v4"
@@ -42,7 +43,7 @@ func RenderExploded(result *FrankResult) ([]ExplodedFile, error) {
 			return nil, fmt.Errorf("marshaling folder %s: %w", fo.DirName, err)
 		}
 		files = append(files, ExplodedFile{
-			Path:    filepath.Join(fo.DirName, "folder.yml"),
+			Path:    path.Join(fo.DirName, "folder.yml"),
 			Content: folderBytes,
 		})
 
@@ -63,7 +64,7 @@ func RenderExploded(result *FrankResult) ([]ExplodedFile, error) {
 			}
 			fileName += ".yml"
 			files = append(files, ExplodedFile{
-				Path:    filepath.Join(fo.DirName, fileName),
+				Path:    path.Join(fo.DirName, fileName),
 				Content: reqBytes,
 			})
 		}
@@ -76,7 +77,7 @@ func RenderExploded(result *FrankResult) ([]ExplodedFile, error) {
 			return nil, fmt.Errorf("marshaling environment %s: %w", env.Name, err)
 		}
 		files = append(files, ExplodedFile{
-			Path:    filepath.Join("environments", slugify(env.Name)+".yml"),
+			Path:    path.Join("environments", slugify(env.Name)+".yml"),
 			Content: envBytes,
 		})
 	}

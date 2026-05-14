@@ -5,13 +5,15 @@ package gopher
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
 	"github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"path/filepath"
-	"testing"
 )
 
 func TestGopher_BuildRolodexTree_SimpleTest(t *testing.T) {
@@ -34,8 +36,8 @@ func TestGopher_BuildRolodexTree_SimpleTest(t *testing.T) {
 	assert.Len(t, node.Children, 2)
 	assert.Equal(t, "root.yaml", node.Children["root.yaml"].StringValue)
 	assert.Equal(t, "schemas.yaml", node.Children["schemas.yaml"].StringValue)
-	assert.Len(t, node.Children["root.yaml"].GetString(), 272)
-	assert.Len(t, node.Children["schemas.yaml"].GetString(), 232)
+	assert.Len(t, normalizeTestLineEndings(node.Children["root.yaml"].GetString()), 272)
+	assert.Len(t, normalizeTestLineEndings(node.Children["schemas.yaml"].GetString()), 232)
 
 }
 
@@ -77,10 +79,10 @@ func TestGopher_BuildRolodexTree_TestRelativeFiles(t *testing.T) {
 	assert.True(t, sorted[4].hasContent)
 
 	assert.Equal(t, "schemas.yaml", sorted[1].SortChildren()[0].StringValue)
-	assert.Len(t, sorted[1].SortChildren()[0].GetString(), 170)
+	assert.Len(t, normalizeTestLineEndings(sorted[1].SortChildren()[0].GetString()), 170)
 	assert.True(t, sorted[1].SortChildren()[0].hasContent)
 
-	assert.Len(t, sorted[2].SortChildren()[0].GetString(), 164)
+	assert.Len(t, normalizeTestLineEndings(sorted[2].SortChildren()[0].GetString()), 164)
 	assert.True(t, sorted[2].SortChildren()[0].hasContent)
 
 	assert.Equal(t, "subtypes", sorted[3].SortChildren()[1].StringValue)
@@ -88,7 +90,7 @@ func TestGopher_BuildRolodexTree_TestRelativeFiles(t *testing.T) {
 
 	assert.Equal(t, "types.yaml", sorted[3].SortChildren()[1].SortChildren()[0].StringValue)
 	assert.True(t, sorted[3].SortChildren()[1].SortChildren()[0].hasContent)
-	assert.Len(t, sorted[3].SortChildren()[1].SortChildren()[0].GetString(), 220)
+	assert.Len(t, normalizeTestLineEndings(sorted[3].SortChildren()[1].SortChildren()[0].GetString()), 220)
 
 	jsn, e := json.Marshal(node)
 
@@ -99,6 +101,10 @@ func TestGopher_BuildRolodexTree_TestRelativeFiles(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, found.Id, node.SortChildren()[2].SortChildren()[0].Id)
 
+}
+
+func normalizeTestLineEndings(value string) string {
+	return strings.ReplaceAll(value, "\r\n", "\n")
 }
 
 func TestGopher_BuildRolodexTree_TestDeepRelativeFiles(t *testing.T) {
