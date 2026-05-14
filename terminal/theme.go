@@ -12,6 +12,7 @@ import (
 
 	lipgloss "charm.land/lipgloss/v2"
 	"github.com/charmbracelet/colorprofile"
+	"github.com/charmbracelet/x/term"
 )
 
 type ThemeName string
@@ -89,7 +90,18 @@ func DetectDarkBackgroundFromEnv(env []string) bool {
 }
 
 var detectTerminalDarkBackground = func() bool {
+	if !canQueryTerminalBackground(os.Stdin, os.Stderr) {
+		return true
+	}
 	return lipgloss.HasDarkBackground(os.Stdin, os.Stderr)
+}
+
+func canQueryTerminalBackground(in, out *os.File) bool {
+	return isTerminalFile(in) && isTerminalFile(out)
+}
+
+func isTerminalFile(file *os.File) bool {
+	return file != nil && term.IsTerminal(file.Fd())
 }
 
 func detectDarkBackgroundFromEnv(env []string) (bool, bool) {

@@ -80,3 +80,21 @@ func TestDetectDarkBackground_EnvOverrideWinsOverTerminalFallback(t *testing.T) 
 
 	assert.False(t, DetectDarkBackground())
 }
+
+func TestCanQueryTerminalBackground_RejectsRedirectedHandles(t *testing.T) {
+	stdinReader, stdinWriter, err := os.Pipe()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = stdinReader.Close()
+		_ = stdinWriter.Close()
+	})
+
+	stderrReader, stderrWriter, err := os.Pipe()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = stderrReader.Close()
+		_ = stderrWriter.Close()
+	})
+
+	assert.False(t, canQueryTerminalBackground(stdinReader, stderrWriter))
+}

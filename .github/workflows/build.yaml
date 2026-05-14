@@ -12,6 +12,30 @@ on:
       - main
 
 jobs:
+  build-windows:
+    name: Build Windows
+    runs-on: blacksmith-4vcpu-windows-2025
+    env:
+      GOWORK: off
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build ./...
+
   build:
     name: Build
     runs-on: ubuntu-latest
