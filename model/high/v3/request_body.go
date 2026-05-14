@@ -21,13 +21,9 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 	drCtx := GetDrContext(ctx)
 
 	// Check for canonical path - ensures deterministic paths for $ref'd requestBodies
-	if drCtx.DeterministicPaths && drCtx.CanonicalPathCache != nil && requestBody != nil {
+	if requestBody != nil {
 		if low := requestBody.GoLow(); low != nil && low.RootNode != nil {
-			if canonicalPath, found := drCtx.CanonicalPathCache.Load(low.RootNode); found {
-				r.JSONPathOnce.Do(func() {
-					r.JSONPath = canonicalPath.(string)
-				})
-			}
+			r.setCanonicalJSONPathFromContext(drCtx, low.RootNode)
 		}
 	}
 

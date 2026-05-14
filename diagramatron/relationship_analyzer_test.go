@@ -69,6 +69,31 @@ func TestRelationshipAnalyzer_AnalyzeSchema(t *testing.T) {
 		assert.Equal(t, "allOf", rels[0].Label)
 	})
 
+	t.Run("hydrates alias children before relationship analysis", func(t *testing.T) {
+		ra := NewRelationshipAnalyzer(50)
+
+		canonical := &v3.Schema{
+			Value: &base.Schema{Title: "AliasChild"},
+			AllOf: []*v3.SchemaProxy{
+				{Schema: &v3.Schema{Value: &base.Schema{Title: "AliasParent"}}},
+			},
+			Walked: true,
+		}
+		alias := &v3.Schema{
+			Value:      canonical.Value,
+			Definition: canonical,
+			Walked:     true,
+		}
+
+		rels := ra.AnalyzeSchema(alias, getID)
+
+		assert.Len(t, rels, 1)
+		assert.NotNil(t, alias.AllOf)
+		assert.Equal(t, "AliasChild", rels[0].SourceID)
+		assert.Equal(t, "AliasParent", rels[0].TargetID)
+		assert.Equal(t, RelationInheritance, rels[0].Type)
+	})
+
 	t.Run("analyzes oneOf union", func(t *testing.T) {
 		ra := NewRelationshipAnalyzer(50)
 

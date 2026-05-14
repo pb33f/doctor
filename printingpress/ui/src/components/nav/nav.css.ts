@@ -29,7 +29,6 @@ export default css`
         color: var(--warning-color);
         font-family: var(--font-stack), monospace;
         line-height: 1.2;
-        font-size: 0.9rem;
         text-transform: uppercase;
         white-space: normal;
         overflow-wrap: break-word;
@@ -60,44 +59,57 @@ export default css`
         width: 100%;
         min-width: 0;
         margin: 0 0 var(--global-padding) 0;
-        padding: var(--global-padding);
-        border: 1px solid var(--primary-color-lowalpha);
+        padding: 0;
+        border: 1px solid var(--secondary-color);
         background: var(--background-color);
     }
 
     .host-archive-control-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--global-padding) var(--global-padding-double);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--global-padding);
         align-items: center;
         min-width: 0;
-        margin-top: var(--global-padding);
+        padding: var(--global-padding);
     }
 
     .host-archive-controls-title {
+        box-sizing: border-box;
+        width: 100%;
+        padding: var(--global-padding);
+        background: var(--secondary-color-lowalpha);
         color: var(--font-color);
-        font-family: var(--font-stack-bold), monospace;
-        font-size: 0.9rem;
+        font-family: var(--font-stack), monospace;
         line-height: 1;
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
 
+    .archive-format-dropdown {
+        padding-top: 4px;
+    }
+
     .host-archive-controls .archive-format-dropdown,
     .host-archive-controls .archive-format-trigger {
-        width: 7.25rem;
-        min-width: 7.25rem;
+        width: 100%;
+        min-width: 0;
     }
 
     .host-archive-controls .archive-download-button {
-        margin-left: auto;
+        width: 100%;
+        margin-left: 0;
     }
 
-    .host-archive-controls sl-checkbox {
-        color: var(--font-color);
-        flex: 1 1 11rem;
+    .host-archive-controls .archive-option-tooltip {
+        display: block;
+        width: 100%;
         min-width: 0;
-        font-size: 0.9rem;
+    }
+
+    .host-archive-controls .archive-option-tooltip sl-checkbox,
+    .host-archive-controls > sl-checkbox {
+        color: var(--font-color);
+        width: 100%;
         text-transform: uppercase;
     }
 
@@ -107,7 +119,6 @@ export default css`
 
     .host-archive-controls sl-checkbox::part(label) {
         font-family: var(--font-stack), monospace;
-        font-size: 0.9rem;
         line-height: 1;
         white-space: normal;
         overflow-wrap: anywhere;
@@ -158,7 +169,6 @@ export default css`
     .host-archive-controls sl-menu-item::part(base) {
         color: var(--primary-color);
         font-family: var(--font-stack), monospace;
-        font-size: 0.9rem;
         line-height: 1.1;
         text-transform: uppercase;
         letter-spacing: 0.05em;
@@ -172,30 +182,39 @@ export default css`
 
     .host-archive-controls sl-button::part(label) {
         font-family: var(--font-stack), monospace;
-        font-size: 0.9rem;
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
 
-    @container (max-width: 27rem) {
+    @container (min-width: 22rem) {
+        .host-archive-control-row {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            column-gap: var(--global-padding-double);
+        }
+
+        .host-archive-controls .archive-format-dropdown,
         .host-archive-controls .archive-download-button {
-            flex: 1 1 100%;
-            margin-left: 0;
+            grid-column: 1 / -1;
         }
     }
 
-    @container (max-width: 16rem) {
-        .host-archive-controls .archive-format-dropdown,
-        .host-archive-controls .archive-format-trigger {
-            flex: 1 1 100%;
-            width: 100%;
-            min-width: 0;
+    @container (min-width: 34rem) {
+        .host-archive-controls .archive-format-dropdown {
+            grid-column: 1;
+        }
+
+        .host-archive-controls .archive-download-button {
+            grid-column: 2;
         }
     }
 
     @keyframes blink-fade {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.3; }
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.3;
+        }
     }
 
     .nav-home-chevron {
@@ -231,7 +250,6 @@ export default css`
     h4 {
         text-transform: uppercase;
         letter-spacing: var(--title-spacing);
-        font-size: 1.3rem;
         color: var(--primary-color);
         font-family: var(--font-stack-bold), monospace;
         margin: 0 0 var(--global-padding) 0;
@@ -242,7 +260,7 @@ export default css`
     .nav-models-section {
         margin-top: var(--global-padding-double);
     }
-    
+
     .nav-webhooks-section {
         margin-top: var(--global-padding-double);
     }
@@ -256,7 +274,6 @@ export default css`
         padding: var(--global-padding) 0;
         color: var(--font-color);
         letter-spacing: var(--label-spacing);
-        font-size: 0.95rem;
     }
 
     .pp-nav-fallback-section {
@@ -273,7 +290,7 @@ export default css`
         background: var(--card-background-color);
         border: 1px dotted var(--hrcolor);
     }
-    
+
     .nav-operations-section {
         margin-top: var(--global-padding-double);
     }

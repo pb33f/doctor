@@ -276,11 +276,11 @@ func nestedResponseFieldPath(t *testing.T, walker *DrDocument, path string) stri
 	require.NotNil(t, mediaType.SchemaProxy)
 	require.NotNil(t, mediaType.SchemaProxy.Schema)
 
-	leaf := mediaType.SchemaProxy.Schema.Properties.GetOrZero("leaf")
+	leaf := mediaType.SchemaProxy.Schema.PropertiesForRead().GetOrZero("leaf")
 	require.NotNil(t, leaf)
 	require.NotNil(t, leaf.Schema)
 
-	field := leaf.Schema.Properties.GetOrZero("field")
+	field := leaf.Schema.PropertiesForRead().GetOrZero("field")
 	require.NotNil(t, field)
 	require.NotNil(t, field.Schema)
 

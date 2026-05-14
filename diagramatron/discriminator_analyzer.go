@@ -29,6 +29,7 @@ func (da *discriminatorAnalyzer) AnalyzeDiscriminator(schema *v3.Schema, getID f
 	if schema == nil {
 		return nil
 	}
+	v3.EnsureSchemaChildrenForRead(schema)
 
 	schemaID := getID(schema)
 
@@ -69,12 +70,13 @@ func (da *discriminatorAnalyzer) DetectImplicitMapping(schema *v3.Schema, getID 
 	if schema == nil {
 		return mapping
 	}
+	v3.EnsureSchemaChildrenForRead(schema)
 
 	var compositionSchemas []*v3.SchemaProxy
-	if schema.OneOf != nil && len(schema.OneOf) > 0 {
-		compositionSchemas = schema.OneOf
-	} else if schema.AnyOf != nil && len(schema.AnyOf) > 0 {
-		compositionSchemas = schema.AnyOf
+	if oneOf := schema.OneOfForRead(); len(oneOf) > 0 {
+		compositionSchemas = oneOf
+	} else if anyOf := schema.AnyOfForRead(); len(anyOf) > 0 {
+		compositionSchemas = anyOf
 	}
 
 	if len(compositionSchemas) == 0 {
@@ -105,12 +107,13 @@ func (da *discriminatorAnalyzer) DetectImplicitMapping(schema *v3.Schema, getID 
 }
 
 func (da *discriminatorAnalyzer) extractDiscriminatorValueFromProxy(proxy *v3.SchemaProxy, propName string, getID func(any) string) string {
-	if proxy == nil || proxy.Schema == nil {
+	schema := v3.SchemaFromProxyForRead(proxy)
+	if schema == nil {
 		return ""
 	}
 
-	if proxy.Schema.Value != nil && proxy.Schema.Value.Properties != nil {
-		for pair := proxy.Schema.Value.Properties.First(); pair != nil; pair = pair.Next() {
+	if schema.Value != nil && schema.Value.Properties != nil {
+		for pair := schema.Value.Properties.First(); pair != nil; pair = pair.Next() {
 			if pair.Key() == propName {
 				propSchemaProxy := pair.Value()
 				value := da.extractDiscriminatorValue(propSchemaProxy)
@@ -123,12 +126,10 @@ func (da *discriminatorAnalyzer) extractDiscriminatorValueFromProxy(proxy *v3.Sc
 	}
 
 	// recursively check allOf schemas
-	if proxy.Schema.AllOf != nil && len(proxy.Schema.AllOf) > 0 {
-		for _, allOfProxy := range proxy.Schema.AllOf {
-			value := da.extractDiscriminatorValueFromProxy(allOfProxy, propName, getID)
-			if value != "" {
-				return value
-			}
+	for _, allOfProxy := range schema.AllOfForRead() {
+		value := da.extractDiscriminatorValueFromProxy(allOfProxy, propName, getID)
+		if value != "" {
+			return value
 		}
 	}
 

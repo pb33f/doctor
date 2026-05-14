@@ -411,6 +411,7 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 		RenderChanges:      config.RenderChanges,
 		SchemaCache:        &schemaCache,
 		CanonicalPathCache: &canonicalPathCache,
+		HashCache:          drV3.NewHashCache(),
 		StringCache:        &stringCache,
 		StorageRoot:        doc.GoLow().StorageRoot,
 		Logger:             doc.Index.GetLogger(),
@@ -839,6 +840,8 @@ func prePopulateNestedSchemaPaths(
 	basePath string,
 	visited map[*yaml.Node]bool,
 ) {
+	// This walks libopenapi highbase.Schema objects before doctor v3.Schema
+	// cache aliases exist, so alias-safe *ForRead accessors do not apply here.
 	if cache == nil || schema == nil {
 		return
 	}

@@ -787,8 +787,8 @@ func (pp *PrintingPress) collectResponses(responses *v3.Responses, piOrigin *bun
 					}
 				}
 				hi.Description = h.Value.Description
-				if h.Schema != nil && h.Schema.Value != nil {
-					sch := h.Schema.Value.Schema()
+				if headerSchema := h.Schema.SchemaForRead(); headerSchema != nil && headerSchema.Value != nil {
+					sch := headerSchema.Value
 					if sch != nil {
 						t := ""
 						if sch.Type != nil {
@@ -903,13 +903,14 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 			Slug:          slug,
 		}
 
-		if sp.Schema != nil && sp.Schema.Value != nil {
-			page.Description = sp.Schema.Value.Description
-			page.DescHTML = pp.renderMarkdown(sp.Schema.Value.Description)
-			pp.captureRawData(sp.Schema.Value, name,
+		schema := sp.SchemaForRead()
+		if schema != nil && schema.Value != nil {
+			page.Description = schema.Value.Description
+			page.DescHTML = pp.renderMarkdown(schema.Value.Description)
+			pp.captureRawData(schema.Value, name,
 				&page.RawYAML, &page.SchemaJSON, nil)
-			if isComplexSchema(sp.Schema.Value) {
-				page.MockJSON = pp.generateMock(sp.Schema.Value)
+			if isComplexSchema(schema.Value) {
+				page.MockJSON = pp.generateMock(schema.Value)
 				if mermaidCfg != nil {
 					diagram := diagramatron.Mermaidify(context.Background(), sp, mermaidCfg)
 					if len(diagram.Relationships) > 0 {
@@ -918,14 +919,14 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 				}
 			}
 			// Collect inline example(s) from schema
-			if sp.Schema.Value.Example != nil || len(sp.Schema.Value.Examples) > 0 {
+			if schema.Value.Example != nil || len(schema.Value.Examples) > 0 {
 				page.Examples = make(map[string]string)
-				if sp.Schema.Value.Example != nil {
-					if s := yamlNodeToJSON(sp.Schema.Value.Example); s != "" {
+				if schema.Value.Example != nil {
+					if s := yamlNodeToJSON(schema.Value.Example); s != "" {
 						page.Examples["Example"] = s
 					}
 				}
-				for i, ex := range sp.Schema.Value.Examples {
+				for i, ex := range schema.Value.Examples {
 					if s := yamlNodeToJSON(ex); s != "" {
 						page.Examples[fmt.Sprintf("Example %d", i+1)] = s
 					}
@@ -947,8 +948,8 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 		}
 		page.Source = pp.buildModelSourceRef(page.Origin)
 
-		if sp.Schema != nil && sp.Schema.Value != nil && sp.Schema.Value.Extensions != nil {
-			page.Extensions = collectExtensions(sp.Schema.Value.Extensions)
+		if schema != nil && schema.Value != nil && schema.Value.Extensions != nil {
+			page.Extensions = collectExtensions(schema.Value.Extensions)
 			if page.Extensions != nil {
 				page.ExtensionsJSON = render.MustJSON(page.Extensions)
 			}

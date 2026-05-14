@@ -6,7 +6,9 @@ import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/checkbox/checkbox.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
+import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import navCss from './nav.css.js';
+import tooltipCss from '../../styles/tooltip.css.js';
 import {docHref, overviewHref} from '../../utils/doc-links.js';
 import type {ViolationCounts} from '../../utils/violations.js';
 
@@ -45,7 +47,7 @@ interface NavModel {
 
 @customElement('pp-nav')
 export class PpNav extends LitElement {
-    static styles = navCss;
+    static styles = [navCss, tooltipCss];
 
     @property({attribute: 'data-nav'}) navJson = '';
     @property({attribute: 'data-models'}) modelsJson = '';
@@ -60,6 +62,7 @@ export class PpNav extends LitElement {
     @state() private hostedArchiveControls = false;
     @state() private archiveFormat: 'zip' | 'tar.gz' = 'zip';
     @state() private includeDiagnostics = false;
+    @state() private includeAIDocs = false;
     private archiveExportTargetOrigin = '';
     private expiryTimer?: number;
     private loggedEmptyState = false;
@@ -158,8 +161,28 @@ export class PpNav extends LitElement {
         }
         return html`
             <div class="host-archive-controls" aria-label="Documentation archive export">
-                <div class="host-archive-controls-title">export api docs</div>
+                <div class="host-archive-controls-title">export documentation</div>
                 <div class="host-archive-control-row">
+                    <sl-tooltip
+                        class="archive-option-tooltip"
+                        content="INCLUDE QUALITY DIAGNOSTICS IN GENERATED DOCS"
+                        placement="top">
+                        <sl-checkbox
+                            ?checked=${this.includeDiagnostics}
+                            @sl-change=${this.handleIncludeDiagnosticsChange}>
+                            diagnostics?
+                        </sl-checkbox>
+                    </sl-tooltip>
+                    <sl-tooltip
+                        class="archive-option-tooltip"
+                        content="INCLUDE llms.txt & AGENTIC READY VERSION OF DOCUMENTATION"
+                        placement="top">
+                        <sl-checkbox
+                            ?checked=${this.includeAIDocs}
+                            @sl-change=${this.handleIncludeAIDocsChange}>
+                            AI docs?
+                        </sl-checkbox>
+                    </sl-tooltip>
                     <sl-dropdown class="archive-format-dropdown" skidding="0" distance="4" hoist>
                         <sl-button slot="trigger" class="archive-format-trigger" size="small" caret>
                             <sl-icon slot="prefix" name="download"></sl-icon>
@@ -174,11 +197,6 @@ export class PpNav extends LitElement {
                             </sl-menu-item>
                         </sl-menu>
                     </sl-dropdown>
-                    <sl-checkbox
-                        ?checked=${this.includeDiagnostics}
-                        @sl-change=${this.handleIncludeDiagnosticsChange}>
-                        include diagnostics
-                    </sl-checkbox>
                     <sl-button
                         class="archive-download-button"
                         size="small"
@@ -202,13 +220,20 @@ export class PpNav extends LitElement {
         this.includeDiagnostics = Boolean((event.target as HTMLInputElement | null)?.checked);
     }
 
+    private handleIncludeAIDocsChange(event: Event) {
+        this.includeAIDocs = Boolean((event.target as HTMLInputElement | null)?.checked);
+    }
+
     private requestArchiveExport() {
         const directExportURL = this.archiveExportUrl.trim();
         if (directExportURL) {
             const url = new URL(directExportURL, window.location.href);
             url.searchParams.set('format', this.archiveFormat);
             if (this.includeDiagnostics) {
-                url.searchParams.set('diagnostics', '1');
+                url.searchParams.set('diagnostics', 'true');
+            }
+            if (this.includeAIDocs) {
+                url.searchParams.set('llm', 'true');
             }
             window.location.assign(url.toString());
             return;
@@ -220,6 +245,7 @@ export class PpNav extends LitElement {
             type: 'ppress:export',
             format: this.archiveFormat,
             diagnostics: this.includeDiagnostics,
+            llm: this.includeAIDocs,
         }, this.archiveExportTargetOrigin);
     }
 

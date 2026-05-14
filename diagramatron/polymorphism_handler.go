@@ -17,18 +17,21 @@ func (mt *MermaidTardis) createPolymorphicPlaceholder(ctx context.Context, schem
 	if schema == nil {
 		return nil
 	}
+	v3.EnsureSchemaChildrenForRead(schema)
 
 	// determine which polymorphic construct we're dealing with
 	var variants []*v3.SchemaProxy
 	var stereotype string
 	var suffix string
 
-	if schema.OneOf != nil && len(schema.OneOf) > 1 {
-		variants = schema.OneOf
+	oneOf := schema.OneOfForRead()
+	anyOf := schema.AnyOfForRead()
+	if len(oneOf) > 1 {
+		variants = oneOf
 		stereotype = "oneOf"
 		suffix = "_Choice"
-	} else if schema.AnyOf != nil && len(schema.AnyOf) > 1 {
-		variants = schema.AnyOf
+	} else if len(anyOf) > 1 {
+		variants = anyOf
 		stereotype = "anyOf"
 		suffix = "_Union"
 	} else {
@@ -300,6 +303,7 @@ func (mt *MermaidTardis) createInlineVariantClass(ctx context.Context, variantID
 // If RenderTitledInlineSchema is enabled and an inline member has a Title, it will be rendered
 // as a separate class with an inheritance relationship instead of being flattened.
 func (mt *MermaidTardis) flattenAllOfComposition(ctx context.Context, schema *v3.Schema, id, name string, baseSchema *base.Schema) (*MermaidClass, []string) {
+	v3.EnsureSchemaChildrenForRead(schema)
 	class := NewMermaidClass(id, name)
 	baseSchemaRefs := make([]string, 0)
 
@@ -312,7 +316,7 @@ func (mt *MermaidTardis) flattenAllOfComposition(ctx context.Context, schema *v3
 	allProperties := make(map[string]*MermaidMember)
 	requiredMap := CreateRequiredMap(baseSchema.Required)
 
-	for _, allOfProxy := range schema.AllOf {
+	for _, allOfProxy := range schema.AllOfForRead() {
 		if allOfProxy == nil {
 			continue
 		}
@@ -420,10 +424,12 @@ func (mt *MermaidTardis) isCompositionMemberOfParent(schema *v3.Schema) bool {
 	if !ok {
 		return false
 	}
+	v3.EnsureSchemaChildrenForRead(parentSchema)
 
 	// check if this schema is in the parent's allOf list (will be flattened)
-	if parentSchema.AllOf != nil {
-		for _, allOfMember := range parentSchema.AllOf {
+	allOf := parentSchema.AllOfForRead()
+	if len(allOf) > 0 {
+		for _, allOfMember := range allOf {
 			if allOfMember != nil && allOfMember.Schema == schema {
 				// found it - check if parent will be flattened
 				pattern := mt.relationshipAnalyzer.DetectCompositionPattern(parentSchema, mt.getClassID)
@@ -433,8 +439,9 @@ func (mt *MermaidTardis) isCompositionMemberOfParent(schema *v3.Schema) bool {
 	}
 
 	// check if this schema is in the parent's oneOf list (will be handled by placeholder)
-	if parentSchema.OneOf != nil && len(parentSchema.OneOf) > 1 {
-		for _, oneOfMember := range parentSchema.OneOf {
+	oneOf := parentSchema.OneOfForRead()
+	if len(oneOf) > 1 {
+		for _, oneOfMember := range oneOf {
 			if oneOfMember != nil && oneOfMember.Schema == schema {
 				return true // oneOf members are handled by the placeholder
 			}
@@ -442,8 +449,9 @@ func (mt *MermaidTardis) isCompositionMemberOfParent(schema *v3.Schema) bool {
 	}
 
 	// check if this schema is in the parent's anyOf list (will be handled by placeholder)
-	if parentSchema.AnyOf != nil && len(parentSchema.AnyOf) > 1 {
-		for _, anyOfMember := range parentSchema.AnyOf {
+	anyOf := parentSchema.AnyOfForRead()
+	if len(anyOf) > 1 {
+		for _, anyOfMember := range anyOf {
 			if anyOfMember != nil && anyOfMember.Schema == schema {
 				return true // anyOf members are handled by the placeholder
 			}

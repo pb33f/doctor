@@ -78,6 +78,7 @@ func (ra *RelationshipAnalyzer) analyzeSchemaWithDepth(schema *v3.Schema, getID 
 	if depth > ra.maxDepth {
 		return nil
 	}
+	v3.EnsureSchemaChildrenForRead(schema)
 
 	schemaID := getID(schema)
 
@@ -87,23 +88,27 @@ func (ra *RelationshipAnalyzer) analyzeSchemaWithDepth(schema *v3.Schema, getID 
 
 	var relationships []Relationship
 
-	if schema.AllOf != nil && len(schema.AllOf) > 0 {
+	allOf := schema.AllOfForRead()
+	if len(allOf) > 0 {
 		relationships = append(relationships,
-			ra.analyzeCompositionSchemas(schema.AllOf, schemaID, RelationInheritance, "allOf", getID)...)
+			ra.analyzeCompositionSchemas(allOf, schemaID, RelationInheritance, "allOf", getID)...)
 	}
 
-	if schema.OneOf != nil && len(schema.OneOf) > 0 {
+	oneOf := schema.OneOfForRead()
+	if len(oneOf) > 0 {
 		relationships = append(relationships,
-			ra.analyzeCompositionSchemas(schema.OneOf, schemaID, RelationAssociation, "oneOf", getID)...)
+			ra.analyzeCompositionSchemas(oneOf, schemaID, RelationAssociation, "oneOf", getID)...)
 	}
 
-	if schema.AnyOf != nil && len(schema.AnyOf) > 0 {
+	anyOf := schema.AnyOfForRead()
+	if len(anyOf) > 0 {
 		relationships = append(relationships,
-			ra.analyzeCompositionSchemas(schema.AnyOf, schemaID, RelationAssociation, "anyOf", getID)...)
+			ra.analyzeCompositionSchemas(anyOf, schemaID, RelationAssociation, "anyOf", getID)...)
 	}
 
-	if schema.Items != nil && schema.Items.Value != nil && schema.Items.Value.IsA() {
-		if items := schema.Items.A; items != nil {
+	itemsSchema := schema.ItemsForRead()
+	if itemsSchema != nil && itemsSchema.Value != nil && itemsSchema.Value.IsA() {
+		if items := itemsSchema.A; items != nil {
 			rel := Relationship{
 				SourceID:    schemaID,
 				TargetID:    getID(items),
@@ -115,8 +120,9 @@ func (ra *RelationshipAnalyzer) analyzeSchemaWithDepth(schema *v3.Schema, getID 
 		}
 	}
 
-	if schema.AdditionalProperties != nil && schema.AdditionalProperties.Value != nil && schema.AdditionalProperties.Value.IsA() {
-		if addProps := schema.AdditionalProperties.A; addProps != nil {
+	additionalProperties := schema.AdditionalPropertiesForRead()
+	if additionalProperties != nil && additionalProperties.Value != nil && additionalProperties.Value.IsA() {
+		if addProps := additionalProperties.A; addProps != nil {
 			rel := Relationship{
 				SourceID: schemaID,
 				TargetID: getID(addProps),
@@ -127,10 +133,10 @@ func (ra *RelationshipAnalyzer) analyzeSchemaWithDepth(schema *v3.Schema, getID 
 		}
 	}
 
-	if schema.Not != nil {
+	if notSchema := schema.NotForRead(); notSchema != nil {
 		rel := Relationship{
 			SourceID: schemaID,
-			TargetID: getID(schema.Not),
+			TargetID: getID(notSchema),
 			Type:     RelationNegation,
 			Label:    "not",
 		}
@@ -167,6 +173,7 @@ func (ra *RelationshipAnalyzer) DetectCompositionPattern(schema *v3.Schema, getI
 	if schema == nil {
 		return PatternNone
 	}
+	v3.EnsureSchemaChildrenForRead(schema)
 
 	schemaID := getID(schema)
 
@@ -176,26 +183,29 @@ func (ra *RelationshipAnalyzer) DetectCompositionPattern(schema *v3.Schema, getI
 
 	var pattern CompositionPattern
 
-	hasAllOf := schema.AllOf != nil && len(schema.AllOf) > 0
-	hasOneOf := schema.OneOf != nil && len(schema.OneOf) > 0
-	hasAnyOf := schema.AnyOf != nil && len(schema.AnyOf) > 0
+	allOf := schema.AllOfForRead()
+	oneOf := schema.OneOfForRead()
+	anyOf := schema.AnyOfForRead()
+	hasAllOf := len(allOf) > 0
+	hasOneOf := len(oneOf) > 0
+	hasAnyOf := len(anyOf) > 0
 	hasInlineProps := schema.Value != nil && schema.Value.Properties != nil && schema.Value.Properties.Len() > 0
 
 	if hasAllOf {
-		allOfCount := len(schema.AllOf)
+		allOfCount := len(allOf)
 		hasMixinNaming := false
 		hasPropsInAllOfMembers := false
 
 		// check if any allOf member has inline properties (not just top level)
-		for _, subSchema := range schema.AllOf {
-			if subSchema != nil && subSchema.Schema != nil {
+		for _, subSchema := range allOf {
+			if schemaForRead := subSchema.SchemaForRead(); schemaForRead != nil {
 				name := ExtractSchemaNameFromProxy(subSchema)
 				if strings.Contains(strings.ToLower(name), "mixin") ||
 					strings.Contains(strings.ToLower(name), "trait") {
 					hasMixinNaming = true
 				}
 				// check if this allOf member has inline properties
-				if subSchema.Schema.Value != nil && subSchema.Schema.Value.Properties != nil && subSchema.Schema.Value.Properties.Len() > 0 {
+				if schemaForRead.Value != nil && schemaForRead.Value.Properties != nil && schemaForRead.Value.Properties.Len() > 0 {
 					hasPropsInAllOfMembers = true
 				}
 			}
@@ -251,6 +261,7 @@ func (ra *RelationshipAnalyzer) AnalyzeComposition(schema *v3.Schema, getID func
 	if schema == nil {
 		return nil
 	}
+	v3.EnsureSchemaChildrenForRead(schema)
 
 	analysis := &CompositionAnalysis{
 		BaseSchemas:      make([]string, 0),
@@ -260,12 +271,13 @@ func (ra *RelationshipAnalyzer) AnalyzeComposition(schema *v3.Schema, getID func
 	// detect pattern
 	analysis.Pattern = ra.DetectCompositionPattern(schema, getID)
 
-	hasAllOf := schema.AllOf != nil && len(schema.AllOf) > 0
+	allOf := schema.AllOfForRead()
+	hasAllOf := len(allOf) > 0
 	hasInlineProps := schema.Value != nil && schema.Value.Properties != nil && schema.Value.Properties.Len() > 0
 
 	if hasAllOf {
 		// separate refs from inline schemas
-		for _, allOfSchema := range schema.AllOf {
+		for _, allOfSchema := range allOf {
 			if allOfSchema == nil {
 				continue
 			}
@@ -281,8 +293,8 @@ func (ra *RelationshipAnalyzer) AnalyzeComposition(schema *v3.Schema, getID func
 				}
 			} else {
 				// check if inline schema has a title (could be a base schema or inline extension)
-				if allOfSchema.Schema != nil && allOfSchema.Schema.Value != nil {
-					title := allOfSchema.Schema.Value.Title
+				if schemaForRead := allOfSchema.SchemaForRead(); schemaForRead != nil && schemaForRead.Value != nil {
+					title := schemaForRead.Value.Title
 					if title != "" {
 						// treat as a base schema
 						analysis.BaseSchemas = append(analysis.BaseSchemas, title)
@@ -294,10 +306,10 @@ func (ra *RelationshipAnalyzer) AnalyzeComposition(schema *v3.Schema, getID func
 					}
 
 					// if it has properties, it's also an extension
-					if allOfSchema.Schema.Value.Properties != nil && allOfSchema.Schema.Value.Properties.Len() > 0 {
+					if schemaForRead.Value.Properties != nil && schemaForRead.Value.Properties.Len() > 0 {
 						analysis.IsExtension = true
 						// extract inline property names
-						for pair := allOfSchema.Schema.Value.Properties.First(); pair != nil; pair = pair.Next() {
+						for pair := schemaForRead.Value.Properties.First(); pair != nil; pair = pair.Next() {
 							analysis.InlineProperties = append(analysis.InlineProperties, pair.Key())
 						}
 					}
