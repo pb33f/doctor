@@ -547,7 +547,7 @@ pp-nav > .pp-nav-preview .deprecated {
 
 /* Content */
 main {
-    padding: var(--global-padding-double) 40px;
+    padding: var(--global-padding) 40px;
 }
 
 /* Page navigator — hidden on small screens */

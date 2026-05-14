@@ -224,21 +224,16 @@ export class PpNav extends LitElement {
         this.includeAIDocs = Boolean((event.target as HTMLInputElement | null)?.checked);
     }
 
-    private requestArchiveExport() {
-        const directExportURL = this.archiveExportUrl.trim();
-        if (directExportURL) {
-            const url = new URL(directExportURL, window.location.href);
-            url.searchParams.set('format', this.archiveFormat);
-            if (this.includeDiagnostics) {
-                url.searchParams.set('diagnostics', 'true');
-            }
-            if (this.includeAIDocs) {
-                url.searchParams.set('llm', 'true');
-            }
-            window.location.assign(url.toString());
-            return;
-        }
-        if (!this.hostedArchiveControls || !this.archiveExportTargetOrigin || !window.parent) {
+    private canRequestHostedArchiveExport(): boolean {
+        return this.hostedArchiveControls && this.archiveExportTargetOrigin !== '' && Boolean(window.parent);
+    }
+
+    private isEmbeddedInHost(): boolean {
+        return Boolean(window.parent && window.parent !== window);
+    }
+
+    private postHostedArchiveExport() {
+        if (!this.canRequestHostedArchiveExport()) {
             return;
         }
         window.parent.postMessage({
@@ -247,6 +242,29 @@ export class PpNav extends LitElement {
             diagnostics: this.includeDiagnostics,
             llm: this.includeAIDocs,
         }, this.archiveExportTargetOrigin);
+    }
+
+    private requestDirectArchiveExport(directExportURL: string) {
+        const url = new URL(directExportURL, window.location.href);
+        url.searchParams.set('format', this.archiveFormat);
+        if (this.includeDiagnostics) {
+            url.searchParams.set('diagnostics', 'true');
+        }
+        if (this.includeAIDocs) {
+            url.searchParams.set('llm', 'true');
+        }
+        window.location.assign(url.toString());
+    }
+
+    private requestArchiveExport() {
+        if (this.canRequestHostedArchiveExport()) {
+            this.postHostedArchiveExport();
+            return;
+        }
+        const directExportURL = this.archiveExportUrl.trim();
+        if (directExportURL && !this.isEmbeddedInHost()) {
+            this.requestDirectArchiveExport(directExportURL);
+        }
     }
 
     private handleHostMessage(event: MessageEvent) {

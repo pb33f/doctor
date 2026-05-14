@@ -110,6 +110,47 @@ describe('pp-nav', () => {
     }, 'https://host.example');
   });
 
+  it('prefers hosted archive export over a direct export URL when embedded by Doctor', async () => {
+    const el = document.createElement('pp-nav');
+    el.setAttribute('data-archive-export-url', '/ppress/docs/doc-1/export');
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    window.dispatchEvent(new MessageEvent('message', {
+      data: {type: 'doctor:archive-controls', enabled: true},
+      origin: 'https://doctor.example',
+      source: window.parent,
+    }));
+    await el.updateComplete;
+
+    const postMessage = vi.spyOn(window.parent, 'postMessage').mockImplementation(() => {});
+    const directExport = vi.spyOn(el as any, 'requestDirectArchiveExport');
+    const button = el.shadowRoot?.querySelector('.archive-download-button') as HTMLElement | null;
+    button?.click();
+
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'ppress:export',
+      format: 'zip',
+      diagnostics: false,
+      llm: false,
+    }, 'https://doctor.example');
+    expect(directExport).not.toHaveBeenCalled();
+  });
+
+  it('does not navigate to the direct export URL while embedded before hosted controls arrive', async () => {
+    const el = document.createElement('pp-nav');
+    el.setAttribute('data-archive-export-url', '/ppress/docs/doc-1/export');
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    vi.spyOn(el as any, 'isEmbeddedInHost').mockReturnValue(true);
+    const directExport = vi.spyOn(el as any, 'requestDirectArchiveExport');
+    const button = el.shadowRoot?.querySelector('.archive-download-button') as HTMLElement | null;
+    button?.click();
+
+    expect(directExport).not.toHaveBeenCalled();
+  });
+
   it('sends the llm archive option when AI docs are included', async () => {
     const el = document.createElement('pp-nav');
     document.body.appendChild(el);
