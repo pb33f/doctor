@@ -13,6 +13,7 @@ import (
 )
 
 func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
+	v3.EnsureSchemaChildrenForRead(schema)
 	var nCtx = ctx
 	if changes, ok := ctx.Value(v3.Context).(*model.SchemaChanges); ok {
 		PushChanges(ctx, schema, &model.SchemaChanges{})
@@ -117,33 +118,38 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 		}
 
 		// contains
-		if changes.ContainsChanges != nil && schema.Contains != nil {
-			processSchema(changes.ContainsChanges, schema.Contains.Schema)
+		if changes.ContainsChanges != nil {
+			if contains := schema.ContainsForRead(); contains != nil {
+				processSchema(changes.ContainsChanges, contains.SchemaForRead())
+			}
 		}
 
 		// if
-		if changes.IfChanges != nil && schema.If != nil {
-			processSchema(changes.IfChanges, schema.If.Schema)
+		if changes.IfChanges != nil {
+			if ifSchema := schema.IfForRead(); ifSchema != nil {
+				processSchema(changes.IfChanges, ifSchema.SchemaForRead())
+			}
 		}
 
 		// else
-		if changes.ElseChanges != nil && schema.Else != nil {
-			processSchema(changes.ElseChanges, schema.Else.Schema)
+		if changes.ElseChanges != nil {
+			if elseSchema := schema.ElseForRead(); elseSchema != nil {
+				processSchema(changes.ElseChanges, elseSchema.SchemaForRead())
+			}
 		}
 
 		// then
-		if changes.ThenChanges != nil && schema.Then != nil {
-			processSchema(changes.ThenChanges, schema.Then.Schema)
-		}
-
-		// else
-		if changes.ElseChanges != nil && schema.Else != nil {
-			processSchema(changes.ElseChanges, schema.Else.Schema)
+		if changes.ThenChanges != nil {
+			if thenSchema := schema.ThenForRead(); thenSchema != nil {
+				processSchema(changes.ThenChanges, thenSchema.SchemaForRead())
+			}
 		}
 
 		// not
-		if changes.NotChanges != nil && schema.Not != nil {
-			processSchema(changes.NotChanges, schema.Not.Schema)
+		if changes.NotChanges != nil {
+			if notSchema := schema.NotForRead(); notSchema != nil {
+				processSchema(changes.NotChanges, notSchema.SchemaForRead())
+			}
 		}
 
 		// xml
@@ -159,43 +165,51 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 		}
 
 		// property names
-		if changes.PropertyNamesChanges != nil && schema.PropertyNames != nil {
-			processSchema(changes.PropertyNamesChanges, schema.PropertyNames.Schema)
+		if changes.PropertyNamesChanges != nil {
+			if propertyNames := schema.PropertyNamesForRead(); propertyNames != nil {
+				processSchema(changes.PropertyNamesChanges, propertyNames.SchemaForRead())
+			}
 		}
 
 		// unevaluated items
-		if changes.UnevaluatedItemsChanges != nil && schema.UnevaluatedItems != nil {
-			processSchema(changes.UnevaluatedItemsChanges, schema.UnevaluatedItems.Schema)
+		if changes.UnevaluatedItemsChanges != nil {
+			if unevaluatedItems := schema.UnevaluatedItemsForRead(); unevaluatedItems != nil {
+				processSchema(changes.UnevaluatedItemsChanges, unevaluatedItems.SchemaForRead())
+			}
 		}
 
-		if len(changes.DependentSchemasChanges) > 0 && schema.DependentSchemas != nil {
+		dependentSchemas := schema.DependentSchemasForRead()
+		if len(changes.DependentSchemasChanges) > 0 && dependentSchemas != nil {
 			for k, v := range changes.DependentSchemasChanges {
-				if sc := schema.DependentSchemas.GetOrZero(k); sc != nil {
-					processSchema(v, sc.Schema)
+				if sc := dependentSchemas.GetOrZero(k); sc != nil {
+					processSchema(v, sc.SchemaForRead())
 				}
 			}
 		}
 
-		if len(changes.PatternPropertiesChanges) > 0 && schema.PatternProperties != nil {
+		patternProperties := schema.PatternPropertiesForRead()
+		if len(changes.PatternPropertiesChanges) > 0 && patternProperties != nil {
 			for k, v := range changes.PatternPropertiesChanges {
-				if sc := schema.PatternProperties.GetOrZero(k); sc != nil {
-					processSchema(v, sc.Schema)
+				if sc := patternProperties.GetOrZero(k); sc != nil {
+					processSchema(v, sc.SchemaForRead())
 				}
 			}
 		}
 
-		if len(changes.SchemaPropertyChanges) > 0 && schema.Properties != nil {
+		properties := schema.PropertiesForRead()
+		if len(changes.SchemaPropertyChanges) > 0 && properties != nil {
 			for k, v := range changes.SchemaPropertyChanges {
-				if sc := schema.Properties.GetOrZero(k); sc != nil {
-					processSchema(v, sc.Schema)
+				if sc := properties.GetOrZero(k); sc != nil {
+					processSchema(v, sc.SchemaForRead())
 				}
 			}
 		}
 
 		if changes.UnevaluatedPropertiesChanges != nil {
-			if schema.UnevaluatedProperties != nil && schema.UnevaluatedProperties.Value != nil &&
-				schema.UnevaluatedProperties.Value.IsA() {
-				processSchema(changes.UnevaluatedPropertiesChanges, schema.UnevaluatedProperties.A.Schema)
+			unevaluatedProperties := schema.UnevaluatedPropertiesForRead()
+			if unevaluatedProperties != nil && unevaluatedProperties.Value != nil &&
+				unevaluatedProperties.Value.IsA() {
+				processSchema(changes.UnevaluatedPropertiesChanges, unevaluatedProperties.A.SchemaForRead())
 			} else {
 				nCtx = context.WithValue(ctx, v3.Context, changes.UnevaluatedPropertiesChanges)
 				PushChanges(nCtx, schema, &model.SchemaChanges{})
@@ -203,8 +217,9 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 		}
 
 		if changes.ItemsChanges != nil {
-			if schema.Items != nil && schema.Items.Value != nil && schema.Items.Value.IsA() {
-				processSchema(changes.ItemsChanges, schema.Items.A.Schema)
+			items := schema.ItemsForRead()
+			if items != nil && items.Value != nil && items.Value.IsA() {
+				processSchema(changes.ItemsChanges, items.A.SchemaForRead())
 			} else {
 				nCtx = context.WithValue(ctx, v3.Context, changes.ItemsChanges)
 				PushChanges(nCtx, schema, &model.ItemsChanges{})
@@ -212,9 +227,10 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 		}
 
 		if changes.AdditionalPropertiesChanges != nil {
-			if schema.AdditionalProperties != nil && schema.AdditionalProperties.Value != nil &&
-				schema.AdditionalProperties.Value.IsA() {
-				processSchema(changes.AdditionalPropertiesChanges, schema.AdditionalProperties.A.Schema)
+			additionalProperties := schema.AdditionalPropertiesForRead()
+			if additionalProperties != nil && additionalProperties.Value != nil &&
+				additionalProperties.Value.IsA() {
+				processSchema(changes.AdditionalPropertiesChanges, additionalProperties.A.SchemaForRead())
 			} else {
 				nCtx = context.WithValue(ctx, v3.Context, changes.AdditionalPropertiesChanges)
 				PushChanges(nCtx, schema, &model.SchemaChanges{})

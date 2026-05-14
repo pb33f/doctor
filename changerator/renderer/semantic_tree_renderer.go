@@ -151,7 +151,7 @@ func buildSemanticRenderModel(root *v3.Node, allChanges []*wcModel.Change) *sema
 		return model
 	}
 
-	for _, change := range allChanges {
+	for _, change := range sortedSemanticChanges(allChanges) {
 		key := semanticChangeKey(change)
 		if key == "" {
 			continue
@@ -184,7 +184,9 @@ func buildSemanticRenderModel(root *v3.Node, allChanges []*wcModel.Change) *sema
 					continue
 				}
 				fingerprint := semanticChangeFingerprint(change)
-				if currentDepth, seen := depthByFingerprint[fingerprint]; !seen || depth > currentDepth {
+				if currentDepth, seen := depthByFingerprint[fingerprint]; !seen ||
+					depth > currentDepth ||
+					(depth == currentDepth && compareSemanticNodeIdentity(node, ownerByFingerprint[fingerprint]) < 0) {
 					ownerByFingerprint[fingerprint] = node
 					depthByFingerprint[fingerprint] = depth
 					keyByFingerprint[fingerprint] = key
@@ -208,23 +210,7 @@ func buildSemanticRenderModel(root *v3.Node, allChanges []*wcModel.Change) *sema
 	}
 
 	for key, candidates := range candidatesByKey {
-		var chosen *v3.Node
-		var chosenHits int
-		for node, hits := range candidates {
-			switch {
-			case chosen == nil:
-				chosen = node
-				chosenHits = hits
-			case hits > chosenHits:
-				chosen = node
-				chosenHits = hits
-			case hits == chosenHits && model.depthByNode[node] > model.depthByNode[chosen]:
-				chosen = node
-			case hits == chosenHits && model.depthByNode[node] == model.depthByNode[chosen] &&
-				strings.ToLower(baseNodeLabel(node)) < strings.ToLower(baseNodeLabel(chosen)):
-				chosen = node
-			}
-		}
+		chosen := bestSemanticCandidate(candidates, model.depthByNode)
 		if chosen == nil {
 			continue
 		}
@@ -242,6 +228,34 @@ func buildSemanticRenderModel(root *v3.Node, allChanges []*wcModel.Change) *sema
 
 	computeSemanticStats(root, model)
 	return model
+}
+
+func bestSemanticCandidate(candidates map[*v3.Node]int, depthByNode map[*v3.Node]int) *v3.Node {
+	var chosen *v3.Node
+	for node := range candidates {
+		if chosen == nil || compareSemanticCandidates(node, chosen, candidates, depthByNode) < 0 {
+			chosen = node
+		}
+	}
+	return chosen
+}
+
+func compareSemanticCandidates(left, right *v3.Node, hitsByNode map[*v3.Node]int, depthByNode map[*v3.Node]int) int {
+	leftHits, rightHits := hitsByNode[left], hitsByNode[right]
+	if leftHits != rightHits {
+		if leftHits > rightHits {
+			return -1
+		}
+		return 1
+	}
+	leftDepth, rightDepth := depthByNode[left], depthByNode[right]
+	if leftDepth != rightDepth {
+		if leftDepth > rightDepth {
+			return -1
+		}
+		return 1
+	}
+	return compareSemanticNodeIdentity(left, right)
 }
 
 func computeSemanticStats(node *v3.Node, model *semanticRenderModel) semanticNodeStats {
@@ -281,10 +295,19 @@ func buildSemanticLeaf(node *v3.Node, representative *wcModel.Change, rawChanges
 		label:      label,
 		text:       formatSemanticLeafText(label, representative, rawChanges, changeType),
 		changeType: changeType,
-		breaking:   representative.Breaking,
+		breaking:   semanticLeafBreaking(representative, rawChanges),
 		line:       line,
 		column:     col,
 	}
+}
+
+func semanticLeafBreaking(representative *wcModel.Change, rawChanges []*wcModel.Change) bool {
+	for _, change := range rawChanges {
+		if change != nil && change.Breaking {
+			return true
+		}
+	}
+	return representative != nil && representative.Breaking
 }
 
 func semanticChangeKey(change *wcModel.Change) string {
@@ -292,6 +315,92 @@ func semanticChangeKey(change *wcModel.Change) string {
 		return ""
 	}
 	return change.Path + ":" + change.Property
+}
+
+func sortedSemanticChanges(changes []*wcModel.Change) []*wcModel.Change {
+	if len(changes) == 0 {
+		return nil
+	}
+	items := make([]semanticChangeSortItem, len(changes))
+	for i, change := range changes {
+		items[i] = semanticChangeSortItem{
+			change: change,
+			key:    semanticChangeSortKey(change),
+		}
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[i].key < items[j].key
+	})
+	sorted := make([]*wcModel.Change, len(items))
+	for i, item := range items {
+		sorted[i] = item.change
+	}
+	return sorted
+}
+
+type semanticChangeSortItem struct {
+	change *wcModel.Change
+	key    string
+}
+
+func semanticChangeSortKey(change *wcModel.Change) string {
+	if change == nil {
+		return "1|"
+	}
+	return strings.ToLower(strings.Join([]string{
+		"0",
+		semanticChangeKey(change),
+		semanticChangeDisplayValue(change),
+		fmt.Sprint(change.ChangeType),
+		semanticChangeLocationKey(change),
+		semanticChangeFingerprint(change),
+	}, "|"))
+}
+
+func semanticChangeDisplayValue(change *wcModel.Change) string {
+	if change == nil {
+		return ""
+	}
+	switch change.ChangeType {
+	case wcModel.PropertyAdded, wcModel.ObjectAdded:
+		return firstNonEmpty(change.New, semanticChangeObjectString(change.NewObject))
+	case wcModel.PropertyRemoved, wcModel.ObjectRemoved:
+		return firstNonEmpty(change.Original, semanticChangeObjectString(change.OriginalObject))
+	default:
+		return firstNonEmpty(change.New, change.Original,
+			semanticChangeObjectString(change.NewObject),
+			semanticChangeObjectString(change.OriginalObject))
+	}
+}
+
+func semanticChangeObjectString(value any) string {
+	if value == nil {
+		return ""
+	}
+	if text, ok := value.(string); ok {
+		return text
+	}
+	return fmt.Sprintf("%T", value)
+}
+
+func semanticChangeLocationKey(change *wcModel.Change) string {
+	if change == nil || change.Context == nil {
+		return ""
+	}
+	var originalLine, originalColumn, newLine, newColumn int
+	if change.Context.OriginalLine != nil {
+		originalLine = *change.Context.OriginalLine
+	}
+	if change.Context.OriginalColumn != nil {
+		originalColumn = *change.Context.OriginalColumn
+	}
+	if change.Context.NewLine != nil {
+		newLine = *change.Context.NewLine
+	}
+	if change.Context.NewColumn != nil {
+		newColumn = *change.Context.NewColumn
+	}
+	return fmt.Sprintf("%012d:%012d:%012d:%012d", originalLine, originalColumn, newLine, newColumn)
 }
 
 func semanticChangeFingerprint(change *wcModel.Change) string {
@@ -568,8 +677,8 @@ func compareSemanticLeaves(left, right *SemanticLeaf) int {
 		}
 	}
 
-	leftKey := strings.ToLower(left.label + "|" + left.text)
-	rightKey := strings.ToLower(right.label + "|" + right.text)
+	leftKey := strings.ToLower(left.label + "|" + left.text + "|" + left.key)
+	rightKey := strings.ToLower(right.label + "|" + right.text + "|" + right.key)
 	switch {
 	case leftKey < rightKey:
 		return -1
@@ -581,11 +690,24 @@ func compareSemanticLeaves(left, right *SemanticLeaf) int {
 }
 
 func compareSemanticNodes(parent *v3.Node, left, right *v3.Node) int {
-	leftLabel := strings.ToLower(baseNodeLabel(left))
-	rightLabel := strings.ToLower(baseNodeLabel(right))
+	return compareSemanticNodesWithSortKeys(parent, semanticNodeSortKeysFor(left), semanticNodeSortKeysFor(right))
+}
 
+type semanticNodeSortKeys struct {
+	label    string
+	identity string
+}
+
+func semanticNodeSortKeysFor(node *v3.Node) semanticNodeSortKeys {
+	return semanticNodeSortKeys{
+		label:    strings.ToLower(baseNodeLabel(node)),
+		identity: semanticNodeIdentity(node),
+	}
+}
+
+func compareSemanticNodesWithSortKeys(parent *v3.Node, left, right semanticNodeSortKeys) int {
 	if parent == nil || parent.Id == "root" {
-		if leftRank, rightRank := topLevelNodeRank(leftLabel), topLevelNodeRank(rightLabel); leftRank != rightRank {
+		if leftRank, rightRank := topLevelNodeRank(left.label), topLevelNodeRank(right.label); leftRank != rightRank {
 			if leftRank < rightRank {
 				return -1
 			}
@@ -593,8 +715,8 @@ func compareSemanticNodes(parent *v3.Node, left, right *v3.Node) int {
 		}
 	}
 
-	leftIsPath := strings.HasPrefix(leftLabel, "/")
-	rightIsPath := strings.HasPrefix(rightLabel, "/")
+	leftIsPath := strings.HasPrefix(left.label, "/")
+	rightIsPath := strings.HasPrefix(right.label, "/")
 	if leftIsPath || rightIsPath {
 		if leftIsPath != rightIsPath {
 			if leftIsPath {
@@ -604,8 +726,8 @@ func compareSemanticNodes(parent *v3.Node, left, right *v3.Node) int {
 		}
 	}
 
-	leftMethod := isHTTPMethod(leftLabel)
-	rightMethod := isHTTPMethod(rightLabel)
+	leftMethod := isHTTPMethod(left.label)
+	rightMethod := isHTTPMethod(right.label)
 	if leftMethod || rightMethod {
 		if leftMethod != rightMethod {
 			if leftMethod {
@@ -613,7 +735,7 @@ func compareSemanticNodes(parent *v3.Node, left, right *v3.Node) int {
 			}
 			return 1
 		}
-		if leftRank, rightRank := httpMethodRank(leftLabel), httpMethodRank(rightLabel); leftRank != rightRank {
+		if leftRank, rightRank := httpMethodRank(left.label), httpMethodRank(right.label); leftRank != rightRank {
 			if leftRank < rightRank {
 				return -1
 			}
@@ -622,13 +744,48 @@ func compareSemanticNodes(parent *v3.Node, left, right *v3.Node) int {
 	}
 
 	switch {
-	case leftLabel < rightLabel:
+	case left.label < right.label:
 		return -1
-	case leftLabel > rightLabel:
+	case left.label > right.label:
+		return 1
+	default:
+		return compareSemanticNodeIdentityKeys(left.identity, right.identity)
+	}
+}
+
+func compareSemanticNodeIdentity(left, right *v3.Node) int {
+	switch {
+	case left == nil && right == nil:
+		return 0
+	case left == nil:
+		return 1
+	case right == nil:
+		return -1
+	}
+	return compareSemanticNodeIdentityKeys(semanticNodeIdentity(left), semanticNodeIdentity(right))
+}
+
+func compareSemanticNodeIdentityKeys(leftKey, rightKey string) int {
+	switch {
+	case leftKey < rightKey:
+		return -1
+	case leftKey > rightKey:
 		return 1
 	default:
 		return 0
 	}
+}
+
+func semanticNodeIdentity(node *v3.Node) string {
+	if node == nil {
+		return ""
+	}
+	return strings.ToLower(strings.Join([]string{
+		baseNodeLabel(node),
+		node.Type,
+		node.Id,
+		node.IdHash,
+	}, "|"))
 }
 
 func topLevelNodeRank(label string) int {
@@ -680,8 +837,13 @@ func (sr *SemanticTreeRenderer) visibleChildren(node *v3.Node) []*v3.Node {
 			children = append(children, child)
 		}
 	}
+	sortKeysByNode := make(map[*v3.Node]semanticNodeSortKeys, len(children))
+	for _, child := range children {
+		sortKeysByNode[child] = semanticNodeSortKeysFor(child)
+	}
 	sort.Slice(children, func(i, j int) bool {
-		return compareSemanticNodes(node, children[i], children[j]) < 0
+		left, right := children[i], children[j]
+		return compareSemanticNodesWithSortKeys(node, sortKeysByNode[left], sortKeysByNode[right]) < 0
 	})
 	return children
 }
@@ -877,37 +1039,55 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-var knownNonSecurityProperties = map[string]bool{
-	"servers": true, "parent": true, "kind": true, "enum": true,
-	"default": true, "description": true, "name": true, "url": true,
-	"summary": true, "title": true, "version": true, "email": true,
-	"license": true, "contact": true, "termsofservice": true,
-	"openapi": true, "info": true, "tags": true, "paths": true,
-	"components": true, "security": true, "externaldocs": true,
-	"identifier": true, "jsonschemadialect": true, "$self": true,
-	"parameters": true, "codes": true, "callbacks": true,
-	"required": true, "type": true, "properties": true,
-}
-
 func isSecurityScopeChange(change *wcModel.Change) bool {
 	if change == nil || change.Property == "" {
 		return false
 	}
-	if strings.Contains(change.Property, "/") {
+	if !isSecurityScopeContext(change) || strings.Contains(change.Property, "/") {
 		return false
 	}
-	if knownNonSecurityProperties[strings.ToLower(change.Property)] {
+	if change.Property == "security" {
 		return false
 	}
+
 	switch change.ChangeType {
-	case wcModel.ObjectAdded:
-		return change.New != "" && change.New != change.Property &&
-			!strings.Contains(change.New, "://") && !strings.Contains(change.New, "/")
-	case wcModel.ObjectRemoved:
-		return change.Original != "" && change.Original != change.Property &&
-			!strings.Contains(change.Original, "://") && !strings.Contains(change.Original, "/")
+	case wcModel.ObjectAdded, wcModel.PropertyAdded:
+		return isSecurityScopeValue(change.New, change.Property) ||
+			(change.Property == "scopes" && securityScopeObjectKey(change.NewObject) != "")
+	case wcModel.ObjectRemoved, wcModel.PropertyRemoved:
+		return isSecurityScopeValue(change.Original, change.Property) ||
+			(change.Property == "scopes" && securityScopeObjectKey(change.OriginalObject) != "")
+	default:
+		return false
 	}
-	return false
+}
+
+func isSecurityScopeContext(change *wcModel.Change) bool {
+	if change == nil {
+		return false
+	}
+	path := strings.ToLower(change.Path)
+	if change.Property == "scopes" {
+		return strings.Contains(path, "securityschemes") ||
+			strings.Contains(path, ".scopes") ||
+			strings.Contains(path, "['scopes']")
+	}
+	return strings.Contains(path, ".scopes") ||
+		strings.Contains(path, "['scopes']") ||
+		strings.HasPrefix(path, "$.security[") ||
+		strings.Contains(path, ".security[")
+}
+
+func isSecurityScopeValue(value string, property string) bool {
+	return value != "" &&
+		value != property &&
+		!strings.Contains(value, "://") &&
+		!strings.Contains(value, "/")
+}
+
+func securityScopeObjectKey(value any) string {
+	key, _ := value.(string)
+	return key
 }
 
 func formatSecurityScopeTitle(change *wcModel.Change) string {

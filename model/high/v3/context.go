@@ -7,11 +7,14 @@ import (
 	"context"
 	"log/slog"
 	"net/url"
+	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/index"
 	"go.yaml.in/yaml/v4"
 )
@@ -71,21 +74,143 @@ type DrContext struct {
 	DeterministicPaths bool            // When true, component objects return definition-site paths
 	SchemaCache        *sync.Map
 	CanonicalPathCache *sync.Map // Maps *yaml.Node pointer -> canonical JSONPath (definition site)
+	HashCache          *HashCache
 	StringCache        *sync.Map // String interning for common strings
 	StorageRoot        string
 	WorkingDirectory   string
 	Logger             *slog.Logger
 }
 
+type hashCacheKey struct {
+	rootNode *yaml.Node
+	model    low.Hashable
+}
+
+type HashCache struct {
+	mu     sync.RWMutex
+	values map[hashCacheKey]string
+}
+
+var hashCacheComparableTypes sync.Map
+
+func NewHashCache() *HashCache {
+	return &HashCache{}
+}
+
+func (c *HashCache) load(key hashCacheKey) (string, bool) {
+	if c == nil {
+		return "", false
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.values == nil {
+		return "", false
+	}
+	value, ok := c.values[key]
+	return value, ok
+}
+
+func (c *HashCache) loadOrStore(key hashCacheKey, value string) string {
+	if c == nil {
+		return value
+	}
+	c.mu.RLock()
+	if c.values != nil {
+		if cached, ok := c.values[key]; ok {
+			c.mu.RUnlock()
+			return cached
+		}
+	}
+	c.mu.RUnlock()
+
+	c.mu.Lock()
+	if c.values == nil {
+		c.values = make(map[hashCacheKey]string)
+	}
+	if cached, ok := c.values[key]; ok {
+		c.mu.Unlock()
+		return cached
+	}
+	c.values[key] = value
+	c.mu.Unlock()
+	return value
+}
+
+func hashCacheModelComparable(t reflect.Type) bool {
+	if cached, ok := hashCacheComparableTypes.Load(t); ok {
+		comparable, ok := cached.(bool)
+		return ok && comparable
+	}
+	comparable := t.Comparable()
+	actual, _ := hashCacheComparableTypes.LoadOrStore(t, comparable)
+	cachedComparable, ok := actual.(bool)
+	if !ok {
+		return comparable
+	}
+	return cachedComparable
+}
+
+func hashCacheKeyFor(model low.Hashable) (hashCacheKey, bool) {
+	key := hashCacheKey{model: model}
+	if hasRootNode, ok := model.(low.HasRootNode); ok {
+		if rootNode := hasRootNode.GetRootNode(); rootNode != nil {
+			// Low models that share a root YAML node are treated as the same
+			// hash identity; they describe the same parsed document object.
+			key.rootNode = rootNode
+			key.model = nil
+		}
+	}
+	if key.rootNode == nil && !hashCacheModelComparable(reflect.TypeOf(model)) {
+		return hashCacheKey{}, false
+	}
+	return key, true
+}
+
+func (d *DrContext) hashString(model low.Hashable) string {
+	if model == nil {
+		return ""
+	}
+	key, cacheable := hashCacheKeyFor(model)
+	if d == nil || d.HashCache == nil || !cacheable {
+		return strconv.FormatUint(model.Hash(), 16)
+	}
+
+	if cached, ok := d.HashCache.load(key); ok {
+		return cached
+	}
+
+	hash := strconv.FormatUint(model.Hash(), 16)
+	return d.HashCache.loadOrStore(key, hash)
+}
+
+func canonicalPathFromCache(cache *sync.Map, rootNode *yaml.Node) (string, bool) {
+	if cache == nil || rootNode == nil {
+		return "", false
+	}
+	canonicalPath, found := cache.Load(rootNode)
+	if !found {
+		return "", false
+	}
+	path, ok := canonicalPath.(string)
+	return path, ok
+}
+
+func (d *DrContext) canonicalPathFor(rootNode *yaml.Node) (string, bool) {
+	if d == nil || !d.DeterministicPaths {
+		return "", false
+	}
+	return canonicalPathFromCache(d.CanonicalPathCache, rootNode)
+}
+
 // internString returns a cached version of the string to reduce memory
 func (d *DrContext) internString(s string) string {
-	if d.StringCache == nil {
+	if d == nil || d.StringCache == nil {
 		return s
 	}
-	if cached, ok := d.StringCache.Load(s); ok {
-		return cached.(string)
+	actual, _ := d.StringCache.LoadOrStore(s, s)
+	if value, ok := actual.(string); ok {
+		return value
 	}
-	d.StringCache.Store(s, s)
 	return s
 }
 

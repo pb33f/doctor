@@ -17,6 +17,7 @@ func (mt *MermaidTardis) visitSchema(ctx context.Context, schema *v3.Schema) {
 	if schema == nil {
 		return
 	}
+	v3.EnsureSchemaChildrenForRead(schema)
 
 	mt.visitSchemaInternal(ctx, schema, schema.Value)
 }
@@ -85,24 +86,28 @@ func (mt *MermaidTardis) visitSchemaInternal(ctx context.Context, drSchema any, 
 	var baseSchemaRefs []string
 
 	if s, ok := drSchema.(*v3.Schema); ok {
+		v3.EnsureSchemaChildrenForRead(s)
+		oneOf := s.OneOfForRead()
+		anyOf := s.AnyOfForRead()
+		allOf := s.AllOfForRead()
 		// check for oneOf/anyOf (exclusive/inclusive unions)
-		if (s.OneOf != nil && len(s.OneOf) > 1) || (s.AnyOf != nil && len(s.AnyOf) > 1) {
+		if len(oneOf) > 1 || len(anyOf) > 1 {
 			// create polymorphic placeholder
 			class = mt.createPolymorphicPlaceholder(ctx, s, id, name, schema)
-		} else if s.AllOf != nil && len(s.AllOf) > 0 {
+		} else if len(allOf) > 0 {
 			// check if this uses allOf composition that should be flattened
 			pattern := mt.relationshipAnalyzer.DetectCompositionPattern(s, mt.getClassID)
 			if pattern == PatternExtension || pattern == PatternMixin {
 				// flatten allOf into a single class
 				class, baseSchemaRefs = mt.flattenAllOfComposition(ctx, s, id, name, schema)
 			}
-		} else if (s.OneOf != nil && len(s.OneOf) == 1) || (s.AnyOf != nil && len(s.AnyOf) == 1) {
+		} else if len(oneOf) == 1 || len(anyOf) == 1 {
 			// degenerate case: single-member oneOf/anyOf - treat as direct reference
 			var singleMember *v3.SchemaProxy
-			if s.OneOf != nil && len(s.OneOf) == 1 {
-				singleMember = s.OneOf[0]
-			} else if s.AnyOf != nil && len(s.AnyOf) == 1 {
-				singleMember = s.AnyOf[0]
+			if len(oneOf) == 1 {
+				singleMember = oneOf[0]
+			} else if len(anyOf) == 1 {
+				singleMember = anyOf[0]
 			}
 
 			if singleMember != nil {
@@ -192,8 +197,8 @@ func (mt *MermaidTardis) visitSchemaInternal(ctx context.Context, drSchema any, 
 		// we flattened allOf - show inheritance relationships to base schemas
 		for _, baseRef := range baseSchemaRefs {
 			mt.diagram.AddRelationship(&MermaidRelationship{
-				Source: baseRef,        // base schema is the source
-				Target: id,             // derived schema is the target
+				Source: baseRef,             // base schema is the source
+				Target: id,                  // derived schema is the target
 				Type:   RelationInheritance, // <|-- inheritance arrow
 				Label:  "extends",
 			})
@@ -264,6 +269,7 @@ func (mt *MermaidTardis) createCircularRefClass(schemaName string, schema *v3.Sc
 	if schema == nil || schema.Value == nil {
 		return
 	}
+	v3.EnsureSchemaChildrenForRead(schema)
 
 	class := NewMermaidClass(schemaName, schemaName)
 
@@ -423,44 +429,41 @@ func (mt *MermaidTardis) getSchemaProxyForRelationship(schema *v3.Schema, rel Re
 	if schema == nil {
 		return nil
 	}
+	v3.EnsureSchemaChildrenForRead(schema)
 
 	// map relationship label to corresponding schema field
 	switch rel.Label {
 	case "allOf":
-		if schema.AllOf != nil {
-			for _, proxy := range schema.AllOf {
-				if mt.getClassID(proxy) == rel.TargetID {
-					return proxy
-				}
+		for _, proxy := range schema.AllOfForRead() {
+			if mt.getClassID(proxy) == rel.TargetID {
+				return proxy
 			}
 		}
 	case "oneOf":
-		if schema.OneOf != nil {
-			for _, proxy := range schema.OneOf {
-				if mt.getClassID(proxy) == rel.TargetID {
-					return proxy
-				}
+		for _, proxy := range schema.OneOfForRead() {
+			if mt.getClassID(proxy) == rel.TargetID {
+				return proxy
 			}
 		}
 	case "anyOf":
-		if schema.AnyOf != nil {
-			for _, proxy := range schema.AnyOf {
-				if mt.getClassID(proxy) == rel.TargetID {
-					return proxy
-				}
+		for _, proxy := range schema.AnyOfForRead() {
+			if mt.getClassID(proxy) == rel.TargetID {
+				return proxy
 			}
 		}
 	case "not":
-		if schema.Not != nil && mt.getClassID(schema.Not) == rel.TargetID {
-			return schema.Not
+		if notSchema := schema.NotForRead(); notSchema != nil && mt.getClassID(notSchema) == rel.TargetID {
+			return notSchema
 		}
 	case "items":
-		if schema.Items != nil && schema.Items.Value != nil && schema.Items.Value.IsA() {
-			return schema.Items.A
+		items := schema.ItemsForRead()
+		if items != nil && items.Value != nil && items.Value.IsA() {
+			return items.A
 		}
 	case "additionalProperties":
-		if schema.AdditionalProperties != nil && schema.AdditionalProperties.Value != nil && schema.AdditionalProperties.Value.IsA() {
-			return schema.AdditionalProperties.A
+		additionalProperties := schema.AdditionalPropertiesForRead()
+		if additionalProperties != nil && additionalProperties.Value != nil && additionalProperties.Value.IsA() {
+			return additionalProperties.A
 		}
 	}
 

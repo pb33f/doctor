@@ -23,13 +23,9 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 	drCtx := GetDrContext(ctx)
 
 	// Check for canonical path - ensures deterministic paths for $ref'd responses
-	if drCtx.DeterministicPaths && drCtx.CanonicalPathCache != nil && response != nil {
+	if response != nil {
 		if low := response.GoLow(); low != nil && low.RootNode != nil {
-			if canonicalPath, found := drCtx.CanonicalPathCache.Load(low.RootNode); found {
-				r.JSONPathOnce.Do(func() {
-					r.JSONPath = canonicalPath.(string)
-				})
-			}
+			r.setCanonicalJSONPathFromContext(drCtx, low.RootNode)
 		}
 	}
 

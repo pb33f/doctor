@@ -24,13 +24,9 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 	drCtx := GetDrContext(ctx)
 
 	// Check for canonical path - ensures deterministic paths for $ref'd headers
-	if drCtx.DeterministicPaths && drCtx.CanonicalPathCache != nil && header != nil {
+	if header != nil {
 		if low := header.GoLow(); low != nil && low.RootNode != nil {
-			if canonicalPath, found := drCtx.CanonicalPathCache.Load(low.RootNode); found {
-				h.JSONPathOnce.Do(func() {
-					h.JSONPath = canonicalPath.(string)
-				})
-			}
+			h.setCanonicalJSONPathFromContext(drCtx, low.RootNode)
 		}
 	}
 

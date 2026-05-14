@@ -30,6 +30,7 @@ func (ia *InheritanceAnalyzer) FlattenInheritance(schema *v3.Schema, getID func(
 	if schema == nil {
 		return make(map[string]PropertySource)
 	}
+	v3.EnsureSchemaChildrenForRead(schema)
 
 	schemaID := getID(schema)
 
@@ -39,14 +40,15 @@ func (ia *InheritanceAnalyzer) FlattenInheritance(schema *v3.Schema, getID func(
 
 	sources := make(map[string]PropertySource)
 
-	if schema.AllOf == nil {
+	allOf := schema.AllOfForRead()
+	if len(allOf) == 0 {
 		ia.addLocalProperties(schema, getID, sources)
 		ia.cache.Set(schemaID, sources)
 		return sources
 	}
 
 	// walk through allOf schemas to collect inherited properties
-	for _, allOfSchema := range schema.AllOf {
+	for _, allOfSchema := range allOf {
 		if allOfSchema == nil {
 			continue
 		}
@@ -82,11 +84,12 @@ func (ia *InheritanceAnalyzer) FlattenInheritance(schema *v3.Schema, getID func(
 }
 
 func (ia *InheritanceAnalyzer) processAllOfSchema(allOfSchema *v3.SchemaProxy, getID func(any) string, sources map[string]PropertySource) {
-	if allOfSchema.Schema == nil || allOfSchema.Schema.Value == nil {
+	schema := v3.SchemaFromProxyForRead(allOfSchema)
+	if schema == nil || schema.Value == nil {
 		return
 	}
 
-	props := allOfSchema.Schema.Value.Properties
+	props := schema.Value.Properties
 	if props == nil {
 		return
 	}
@@ -112,6 +115,7 @@ func (ia *InheritanceAnalyzer) processAllOfSchema(allOfSchema *v3.SchemaProxy, g
 }
 
 func (ia *InheritanceAnalyzer) addLocalProperties(schema *v3.Schema, getID func(any) string, sources map[string]PropertySource) {
+	v3.EnsureSchemaChildrenForRead(schema)
 	if schema.Value == nil || schema.Value.Properties == nil {
 		return
 	}

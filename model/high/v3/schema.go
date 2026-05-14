@@ -39,8 +39,20 @@ type Schema struct {
 	AdditionalProperties  *DynamicValue[*base.SchemaProxy, bool, *SchemaProxy, bool]
 	XML                   *XML
 	ExternalDocs          *ExternalDoc
-	Walked                bool
-	mu                    sync.RWMutex
+	// Definition points at the canonical schema for render-cache aliases.
+	// It remains exported for compatibility; external callers should treat it
+	// as read-only and use the alias-safe *ForRead helpers instead of assigning
+	// it directly.
+	// Alias child fields are populated lazily via the *ForRead helpers. The
+	// canonical schema is treated as immutable after cache publication; alias
+	// Hash and Walked values are snapshots from that build phase.
+	Definition *Schema
+	// Walked remains true for render-cache aliases because their canonical
+	// definition has already been walked.
+	Walked              bool
+	aliasCanonicalPaths bool      // render-cache aliases use definition-site paths when deterministic paths are enabled
+	aliasChildrenOnce   sync.Once // ensures concurrent readers build alias children only once
+	mu                  sync.RWMutex
 	Foundation
 }
 
@@ -73,14 +85,9 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	// Check for canonical path early - if DeterministicPaths is enabled and this schema
 	// has a canonical path (defined in components.schemas), use it to ensure determinism
-	if drCtx.DeterministicPaths && drCtx.CanonicalPathCache != nil && schema != nil {
+	if schema != nil {
 		if lowSchema := schema.GoLow(); lowSchema != nil && lowSchema.RootNode != nil {
-			if canonicalPath, found := drCtx.CanonicalPathCache.Load(lowSchema.RootNode); found {
-				// Pre-set the JSONPath using sync.Once to ensure deterministic path
-				s.JSONPathOnce.Do(func() {
-					s.JSONPath = canonicalPath.(string)
-				})
-			}
+			s.setCanonicalJSONPathFromContext(drCtx, lowSchema.RootNode)
 		}
 	}
 

@@ -106,7 +106,64 @@ describe('pp-nav', () => {
       type: 'ppress:export',
       format: 'zip',
       diagnostics: false,
+      llm: false,
     }, 'https://host.example');
+  });
+
+  it('sends the llm archive option when AI docs are included', async () => {
+    const el = document.createElement('pp-nav');
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    window.dispatchEvent(new MessageEvent('message', {
+      data: {type: 'doctor:archive-controls', enabled: true},
+      origin: 'https://host.example',
+      source: window.parent,
+    }));
+    await el.updateComplete;
+
+    const checkboxes = Array.from(el.shadowRoot?.querySelectorAll('sl-checkbox') || []);
+    const aiDocs = checkboxes.find((checkbox) => checkbox.textContent?.trim() === 'AI docs?') as
+      | (HTMLElement & {checked: boolean})
+      | undefined;
+    expect(aiDocs).toBeTruthy();
+    if (!aiDocs) {
+      return;
+    }
+    aiDocs.checked = true;
+    aiDocs.dispatchEvent(new Event('sl-change'));
+    await el.updateComplete;
+
+    const postMessage = vi.spyOn(window.parent, 'postMessage').mockImplementation(() => {});
+    const button = el.shadowRoot?.querySelector('.archive-download-button') as HTMLElement | null;
+    button?.click();
+
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'ppress:export',
+      format: 'zip',
+      diagnostics: false,
+      llm: true,
+    }, 'https://host.example');
+  });
+
+  it('renders archive option labels with explanatory tooltips', async () => {
+    const el = document.createElement('pp-nav');
+    el.setAttribute('data-archive-export-url', '/_printing-press/export');
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const title = el.shadowRoot?.querySelector('.host-archive-controls-title');
+    expect(title?.textContent?.trim()).toBe('export documentation');
+
+    const tooltips = Array.from(el.shadowRoot?.querySelectorAll('sl-tooltip.archive-option-tooltip') || []);
+    expect(tooltips.map((tooltip) => tooltip.getAttribute('content'))).toEqual([
+      'INCLUDE QUALITY DIAGNOSTICS IN GENERATED DOCS',
+      'INCLUDE llms.txt & AGENTIC READY VERSION OF DOCUMENTATION',
+    ]);
+
+    const labels = Array.from(el.shadowRoot?.querySelectorAll('sl-checkbox') || [])
+      .map((checkbox) => checkbox.textContent?.trim());
+    expect(labels).toEqual(['diagnostics?', 'AI docs?']);
   });
 
   it('renders archive controls when a direct export URL is configured', async () => {

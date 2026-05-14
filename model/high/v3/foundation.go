@@ -287,7 +287,7 @@ func (f *Foundation) ProcessNodesAndEdges(ctx context.Context, label, nodeType s
 		if model != nil {
 			n.Instance = model
 			if lowModel, ok := model.GoLowUntyped().(low.Hashable); ok {
-				n.Hash = fmt.Sprintf("%x", lowModel.Hash())
+				n.Hash = drCtx.hashString(lowModel)
 			}
 		}
 		// hash this id. This is used to identify the node in the graph in a DOM friendly way.
@@ -481,6 +481,33 @@ func (f *Foundation) SetPathSegment(segment string) {
 	f.PathSegmentMutex.Lock()
 	defer f.PathSegmentMutex.Unlock()
 	f.PathSegment = segment
+}
+
+// setCanonicalJSONPath records a definition-site path before lazy path
+// generation runs, then consumes JSONPathOnce so later callers cannot replace it.
+func (f *Foundation) setCanonicalJSONPath(path string) {
+	if f == nil || path == "" {
+		return
+	}
+	f.JSONPathOnce.Do(func() {
+		f.JSONPath = path
+	})
+}
+
+func (f *Foundation) setCanonicalJSONPathFromCache(canonicalPathCache *sync.Map, rootNode *yaml.Node) {
+	path, ok := canonicalPathFromCache(canonicalPathCache, rootNode)
+	if !ok {
+		return
+	}
+	f.setCanonicalJSONPath(path)
+}
+
+func (f *Foundation) setCanonicalJSONPathFromContext(drCtx *DrContext, rootNode *yaml.Node) {
+	path, ok := drCtx.canonicalPathFor(rootNode)
+	if !ok {
+		return
+	}
+	f.setCanonicalJSONPath(path)
 }
 
 func (f *Foundation) GenerateJSONPath() string {
