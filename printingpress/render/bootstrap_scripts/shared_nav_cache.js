@@ -80,6 +80,45 @@
     return document.body && document.body.dataset && document.body.dataset.ppDeveloperMode === 'true';
   }
 
+  function archiveExportURLForPreview(navAttrs) {
+    const archiveExportURL = navAttrs && navAttrs['data-archive-export-url'];
+    if (typeof archiveExportURL === 'string' && archiveExportURL.trim() !== '') {
+      return archiveExportURL;
+    }
+    if (navEl && typeof navEl.getAttribute === 'function') {
+      const liveArchiveExportURL = navEl.getAttribute('data-archive-export-url');
+      if (typeof liveArchiveExportURL === 'string' && liveArchiveExportURL.trim() !== '') {
+        return liveArchiveExportURL;
+      }
+    }
+    return '';
+  }
+
+  function renderArchiveControlsPreview(navAttrs) {
+    if (archiveExportURLForPreview(navAttrs) === '') {
+      return '';
+    }
+    return (
+      "<div class='host-archive-controls pp-nav-fallback-archive'>" +
+      "<div class='host-archive-controls-title'>EXPORT DOCUMENTATION</div>" +
+      "<div class='host-archive-control-row'>" +
+      "<div class='pp-nav-fallback-archive-option'><span class='pp-nav-fallback-checkbox'></span><span>DIAGNOSTICS?</span></div>" +
+      "<div class='pp-nav-fallback-archive-option'><span class='pp-nav-fallback-checkbox'></span><span>AI DOCS?</span></div>" +
+      "<div class='pp-nav-fallback-archive-select'>ZIP</div>" +
+      "<div class='pp-nav-fallback-archive-button'>EXPORT</div>" +
+      '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderPreviewChevron(open) {
+    return (
+      "<span class='pp-nav-preview-chevron pp-nav-preview-chevron-" +
+      (open ? 'down' : 'right') +
+      "' aria-hidden='true'></span>"
+    );
+  }
+
   function operationHref(slug) {
     return docHref('operations/' + slug + '.html');
   }
@@ -198,9 +237,9 @@
     let html =
       "<div class='" +
       headerClasses.join(' ') +
-      "'><span class='pp-nav-preview-chevron'>" +
-      (open ? '▾' : '>') +
-      "</span><span class='tag-name'>" +
+      "'>" +
+      renderPreviewChevron(open) +
+      "<span class='tag-name'>" +
       escapeHtml(tag.summary || tag.name || 'Untitled') +
       '</span></div>';
     if (!open) {
@@ -239,9 +278,9 @@
     let html =
       "<div class='" +
       headerClasses.join(' ') +
-      "'><span class='pp-nav-preview-chevron'>" +
-      (open ? '▾' : '▸') +
-      "</span><span class='group-name'>" +
+      "'>" +
+      renderPreviewChevron(open) +
+      "<span class='group-name'>" +
       escapeHtml(group.name || 'Untitled') +
       '</span></div>';
     if (!open) {
@@ -286,18 +325,20 @@
       return '';
     }
     let html =
-      "<div class='pp-nav-fallback pp-nav-preview'><a class='nav-home" +
+      "<div class='pp-nav-fallback pp-nav-preview'>" +
+      renderArchiveControlsPreview(navAttrs) +
+      "<a class='nav-home" +
       (!activeSlug ? ' active' : '') +
       "' href='" +
       escapeHtml(overviewHref()) +
-      "'><span class='nav-home-chevron'>›</span>API OVERVIEW</a>";
+      "'><span class='nav-home-chevron' aria-hidden='true'></span>API OVERVIEW</a>";
     if (developerMode()) {
       html +=
         "<a class='nav-home diagnostics" +
         (activeSlug === 'diagnostics' ? ' active' : '') +
         "' href='" +
         escapeHtml(docHref('diagnostics.html')) +
-        "'><span class='nav-home-chevron'>›</span>DIAGNOSTICS</a>";
+        "'><span class='nav-home-chevron' aria-hidden='true'></span>DIAGNOSTICS</a>";
     }
     if (tags.length) {
       html += "<div class='nav-section nav-operations-section'><h4>Operations</h4>";

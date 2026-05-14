@@ -163,7 +163,7 @@ func LayoutPage(params LayoutPageParams, content templ.Component) templ.Componen
 		if _, err := io.WriteString(w, `>`); err != nil {
 			return err
 		}
-		if _, err := io.WriteString(w, navFallbackHTML(params.DocsExpiresAt, params.DeveloperMode)); err != nil {
+		if _, err := io.WriteString(w, navFallbackHTML(params.DocsExpiresAt, params.DeveloperMode, params.ArchiveExportURL)); err != nil {
 			return err
 		}
 		if err := BootstrapSharedNavCacheScript(params.AssetBaseURL, params.SharedDataBase, params.SharedDataHash).Render(ctx, w); err != nil {
@@ -201,7 +201,7 @@ const (
 
 const embeddedReadyScript = `<script>(()=>{if(!window.parent||window.parent===window)return;var targetOrigin;try{targetOrigin=document.referrer?new URL(document.referrer).origin:location.origin}catch(e){targetOrigin=location.origin}var posted=false;var post=function(){if(posted)return;posted=true;try{window.parent.postMessage({type:"ppress:ready"},targetOrigin)}catch(e){}};var nextFrame=function(){return new Promise(function(resolve){requestAnimationFrame(function(){requestAnimationFrame(resolve)})})};var waitForHydration=function(){if(document.body&&document.body.dataset.ppHydrated==="true")return Promise.resolve();return new Promise(function(resolve){var finish=function(){document.removeEventListener("pp:hydrated",finish);resolve()};document.addEventListener("pp:hydrated",finish,{once:true})})};var waitForLayout=function(){var el=document.querySelector("pp-layout");if(!el||!window.customElements||!customElements.whenDefined)return Promise.resolve();return customElements.whenDefined("pp-layout").then(function(){el=document.querySelector("pp-layout");var p=el&&el.updateComplete;if(p&&typeof p.then==="function")return p.catch(function(){})}).catch(function(){})};var ready=function(){Promise.all([waitForHydration(),waitForLayout()]).then(nextFrame).then(post,post)};if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",ready,{once:true})}else{ready()}})();</script>`
 
-func navFallbackHTML(docsExpiresAt string, developerMode bool) string {
+func navFallbackHTML(docsExpiresAt string, developerMode bool, archiveExportURL string) string {
 	expiry := ""
 	if strings.TrimSpace(docsExpiresAt) != "" {
 		expiry = `<div class="docs-expiry" aria-live="polite">docs expire</div>`
@@ -210,7 +210,23 @@ func navFallbackHTML(docsExpiresAt string, developerMode bool) string {
 	if developerMode {
 		diagnostics = `<div class="pp-nav-fallback-home diagnostics">DIAGNOSTICS</div>`
 	}
-	return `<div class="pp-nav-fallback" aria-hidden="true">` + expiry + `<div class="pp-nav-fallback-home">API OVERVIEW</div>` + diagnostics + `<div class="pp-nav-fallback-section"><h4>Operations</h4><div class="pp-nav-fallback-list"><div class="pp-nav-fallback-row" style="width:100%;"></div><div class="pp-nav-fallback-row" style="width:92%;"></div><div class="pp-nav-fallback-row" style="width:84%;"></div><div class="pp-nav-fallback-row" style="width:78%;"></div><div class="pp-nav-fallback-row" style="width:88%;"></div><div class="pp-nav-fallback-row" style="width:74%;"></div></div></div><div class="pp-nav-fallback-section"><h4>Models</h4><div class="pp-nav-fallback-list"><div class="pp-nav-fallback-row" style="width:96%;"></div><div class="pp-nav-fallback-row" style="width:86%;"></div><div class="pp-nav-fallback-row" style="width:82%;"></div><div class="pp-nav-fallback-row" style="width:90%;"></div><div class="pp-nav-fallback-row" style="width:76%;"></div><div class="pp-nav-fallback-row" style="width:88%;"></div><div class="pp-nav-fallback-row" style="width:80%;"></div><div class="pp-nav-fallback-row" style="width:72%;"></div></div></div></div></pp-nav>`
+	archiveControls := ""
+	if strings.TrimSpace(archiveExportURL) != "" {
+		archiveControls = navFallbackArchiveControlsHTML()
+	}
+	return `<div class="pp-nav-fallback" aria-hidden="true">` + archiveControls + expiry + `<div class="pp-nav-fallback-home">API OVERVIEW</div>` + diagnostics + `<div class="pp-nav-fallback-section"><h4>Operations</h4><div class="pp-nav-fallback-list"><div class="pp-nav-fallback-row" style="width:100%;"></div><div class="pp-nav-fallback-row" style="width:92%;"></div><div class="pp-nav-fallback-row" style="width:84%;"></div><div class="pp-nav-fallback-row" style="width:78%;"></div><div class="pp-nav-fallback-row" style="width:88%;"></div><div class="pp-nav-fallback-row" style="width:74%;"></div></div></div><div class="pp-nav-fallback-section"><h4>Models</h4><div class="pp-nav-fallback-list"><div class="pp-nav-fallback-row" style="width:96%;"></div><div class="pp-nav-fallback-row" style="width:86%;"></div><div class="pp-nav-fallback-row" style="width:82%;"></div><div class="pp-nav-fallback-row" style="width:90%;"></div><div class="pp-nav-fallback-row" style="width:76%;"></div><div class="pp-nav-fallback-row" style="width:88%;"></div><div class="pp-nav-fallback-row" style="width:80%;"></div><div class="pp-nav-fallback-row" style="width:72%;"></div></div></div></div></pp-nav>`
+}
+
+func navFallbackArchiveControlsHTML() string {
+	return `<div class="host-archive-controls pp-nav-fallback-archive">` +
+		`<div class="host-archive-controls-title">EXPORT DOCUMENTATION</div>` +
+		`<div class="host-archive-control-row">` +
+		`<div class="pp-nav-fallback-archive-option"><span class="pp-nav-fallback-checkbox"></span><span>DIAGNOSTICS?</span></div>` +
+		`<div class="pp-nav-fallback-archive-option"><span class="pp-nav-fallback-checkbox"></span><span>AI DOCS?</span></div>` +
+		`<div class="pp-nav-fallback-archive-select">ZIP</div>` +
+		`<div class="pp-nav-fallback-archive-button">EXPORT</div>` +
+		`</div>` +
+		`</div>`
 }
 
 // WriteFooter renders the configured pb33f footer. A nil config means the

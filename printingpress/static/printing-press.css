@@ -151,6 +151,109 @@ pp-nav > .pp-nav-fallback .docs-expiry {
     white-space: nowrap;
 }
 
+pp-nav > .pp-nav-fallback .host-archive-controls {
+    container-type: inline-size;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    margin: 0 0 var(--global-padding) 0;
+    padding: 0;
+    border: 1px solid var(--secondary-color);
+    background: var(--background-color);
+}
+
+pp-nav > .pp-nav-fallback .host-archive-controls-title {
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--global-padding);
+    background: var(--secondary-color-lowalpha);
+    color: var(--font-color);
+    font-family: var(--font-stack), monospace;
+    font-size: inherit;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+pp-nav > .pp-nav-fallback .host-archive-control-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--global-padding);
+    align-items: center;
+    min-width: 0;
+    padding: var(--global-padding);
+}
+
+pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 1.25rem;
+    min-width: 0;
+    color: var(--font-color);
+    font-family: var(--font-stack), monospace;
+    font-size: inherit;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+pp-nav > .pp-nav-fallback .pp-nav-fallback-checkbox {
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: var(--sl-toggle-size-medium, 1.125rem);
+    height: var(--sl-toggle-size-medium, 1.125rem);
+    border: 2px solid var(--secondary-color);
+    background: var(--background-color);
+}
+
+pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-select,
+pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--sl-input-height-small, 1.875rem);
+    min-width: 0;
+    padding: 0 var(--global-padding);
+    border: 1px solid var(--primary-color);
+    background: var(--background-color);
+    color: var(--primary-color);
+    font-family: var(--font-stack), monospace;
+    font-size: var(--sl-button-font-size-small, var(--sl-font-size-x-small, 0.75rem));
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-button {
+    border-color: var(--warn-color, var(--warning-color));
+    color: var(--warn-color, var(--warning-color));
+}
+
+@container (min-width: 22rem) {
+    pp-nav > .pp-nav-fallback .host-archive-control-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: var(--global-padding-double);
+    }
+
+    pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-select,
+    pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-button {
+        grid-column: 1 / -1;
+    }
+}
+
+@container (min-width: 34rem) {
+    pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-select {
+        grid-column: 1;
+    }
+
+    pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-button {
+        grid-column: 2;
+    }
+}
+
 pp-nav > .pp-nav-fallback .pp-nav-fallback-home {
     padding: var(--global-padding) 0;
     color: var(--font-color);
@@ -201,11 +304,29 @@ pp-nav > .pp-nav-preview .nav-home {
 }
 
 pp-nav > .pp-nav-preview .nav-home-chevron {
+    position: relative;
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 0.7rem;
+    height: 0.7rem;
     color: var(--secondary-color);
     margin-right: var(--global-padding);
     padding-left: var(--global-padding);
-    font-size: 1.1rem;
     line-height: 1;
+}
+
+pp-nav > .pp-nav-preview .nav-home-chevron::before,
+pp-nav > .pp-nav-preview .pp-nav-preview-chevron::before {
+    content: "";
+    position: absolute;
+    left: var(--global-padding);
+    top: 50%;
+    width: 0.42rem;
+    height: 0.42rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: translateY(-50%) rotate(-45deg);
+    transform-origin: center;
 }
 
 pp-nav > .pp-nav-preview .nav-home:hover {
@@ -270,11 +391,19 @@ pp-nav > .pp-nav-preview .group-header.active {
 }
 
 pp-nav > .pp-nav-preview .pp-nav-preview-chevron {
+    position: relative;
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 0.7rem;
+    height: 0.7rem;
     color: var(--secondary-color);
     margin-right: calc(var(--global-padding) + 6px);
     padding-left: var(--global-padding);
-    font-size: 1rem;
     line-height: 1;
+}
+
+pp-nav > .pp-nav-preview .pp-nav-preview-chevron-down::before {
+    transform: translateY(-65%) rotate(45deg);
 }
 
 pp-nav > .pp-nav-preview .tag-header:hover .pp-nav-preview-chevron,
