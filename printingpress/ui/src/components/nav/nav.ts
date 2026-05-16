@@ -6,6 +6,7 @@ import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/checkbox/checkbox.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
+import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import navCss from './nav.css.js';
 import tooltipCss from '../../styles/tooltip.css.js';
@@ -63,7 +64,10 @@ export class PpNav extends LitElement {
     @state() private archiveFormat: 'zip' | 'tar.gz' = 'zip';
     @state() private includeDiagnostics = false;
     @state() private includeAIDocs = false;
+    @state() private archiveExporting = false;
     private archiveExportTargetOrigin = '';
+    private archiveExportRequestId = 0;
+    private activeArchiveExportRequestId = 0;
     private expiryTimer?: number;
     private loggedEmptyState = false;
     private loggedContentState = false;
@@ -199,10 +203,11 @@ export class PpNav extends LitElement {
                     </sl-dropdown>
                     <sl-button
                         class="archive-download-button"
-                        size="small"
+                        ?disabled=${this.archiveExporting}
+                        aria-busy=${this.archiveExporting ? 'true' : 'false'}
                         @click=${this.requestArchiveExport}
-                        aria-label="Download documentation archive">
-                        export
+                        aria-label=${this.archiveExporting ? 'Exporting documentation archive' : 'Download documentation archive'}>
+                        ${this.archiveExporting ? html`<sl-spinner></sl-spinner>` : 'export'}
                     </sl-button>
                 </div>
             </div>
@@ -232,38 +237,116 @@ export class PpNav extends LitElement {
         return Boolean(window.parent && window.parent !== window);
     }
 
-    private postHostedArchiveExport() {
+    private postHostedArchiveExport(requestId: number) {
         if (!this.canRequestHostedArchiveExport()) {
-            return;
+            return false;
         }
         window.parent.postMessage({
             type: 'ppress:export',
+            requestId,
             format: this.archiveFormat,
             diagnostics: this.includeDiagnostics,
             llm: this.includeAIDocs,
         }, this.archiveExportTargetOrigin);
+        return true;
     }
 
-    private requestDirectArchiveExport(directExportURL: string) {
+    private archiveExportURL(directExportURL: string): URL {
         const url = new URL(directExportURL, window.location.href);
         url.searchParams.set('format', this.archiveFormat);
         if (this.includeDiagnostics) {
-            url.searchParams.set('diagnostics', 'true');
+            url.searchParams.set('diagnostics', '1');
         }
         if (this.includeAIDocs) {
-            url.searchParams.set('llm', 'true');
+            url.searchParams.set('llm', '1');
         }
-        window.location.assign(url.toString());
+        return url;
     }
 
-    private requestArchiveExport() {
+    private archiveFilenameFromResponse(response: Response, format: 'zip' | 'tar.gz'): string {
+        const disposition = response.headers.get('content-disposition') || '';
+        const encodedMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+        if (encodedMatch?.[1]) {
+            try {
+                return decodeURIComponent(encodedMatch[1].replace(/^"|"$/g, ''));
+            } catch {
+                return encodedMatch[1].replace(/^"|"$/g, '');
+            }
+        }
+        const filenameMatch = disposition.match(/filename="?([^";]+)"?/i);
+        if (filenameMatch?.[1]) {
+            return filenameMatch[1];
+        }
+        return `printing-press-docs.${format}`;
+    }
+
+    private async archiveErrorFromResponse(response: Response): Promise<unknown> {
+        const body = await response.text();
+        try {
+            return JSON.parse(body);
+        } catch {
+            return new Error(body || response.statusText || 'Unable to export documentation archive.');
+        }
+    }
+
+    private downloadArchiveBlob(blob: Blob, filename: string) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 500);
+    }
+
+    private async requestDirectArchiveExport(directExportURL: string) {
+        const format = this.archiveFormat;
+        const url = this.archiveExportURL(directExportURL);
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            credentials: 'include',
+        });
+        if (!response.ok) {
+            throw await this.archiveErrorFromResponse(response);
+        }
+        const blob = await response.blob();
+        this.downloadArchiveBlob(blob, this.archiveFilenameFromResponse(response, format));
+    }
+
+    private beginArchiveExport(): number {
+        this.archiveExporting = true;
+        this.activeArchiveExportRequestId = ++this.archiveExportRequestId;
+        return this.activeArchiveExportRequestId;
+    }
+
+    private completeArchiveExport(requestId?: number) {
+        if (requestId !== undefined && this.activeArchiveExportRequestId !== requestId) {
+            return;
+        }
+        this.archiveExporting = false;
+        this.activeArchiveExportRequestId = 0;
+    }
+
+    private async requestArchiveExport() {
+        if (this.archiveExporting) {
+            return;
+        }
         if (this.canRequestHostedArchiveExport()) {
-            this.postHostedArchiveExport();
+            const requestId = this.beginArchiveExport();
+            if (!this.postHostedArchiveExport(requestId)) {
+                this.completeArchiveExport(requestId);
+            }
             return;
         }
         const directExportURL = this.archiveExportUrl.trim();
         if (directExportURL && !this.isEmbeddedInHost()) {
-            this.requestDirectArchiveExport(directExportURL);
+            const requestId = this.beginArchiveExport();
+            try {
+                await this.requestDirectArchiveExport(directExportURL);
+            } catch (error) {
+                console.error('Unable to export documentation archive:', error);
+            } finally {
+                this.completeArchiveExport(requestId);
+            }
         }
     }
 
@@ -271,12 +354,24 @@ export class PpNav extends LitElement {
         if (event.source !== window.parent) {
             return;
         }
-        const data = event.data as { type?: string; enabled?: boolean } | null;
-        if (!data || typeof data !== 'object' || data.type !== 'doctor:archive-controls') {
+        const data = event.data as { type?: string; enabled?: boolean; requestId?: number; message?: string } | null;
+        if (!data || typeof data !== 'object') {
             return;
         }
-        this.hostedArchiveControls = data.enabled === true;
-        this.archiveExportTargetOrigin = this.hostedArchiveControls ? event.origin : '';
+        if (data.type === 'doctor:archive-controls') {
+            this.hostedArchiveControls = data.enabled === true;
+            this.archiveExportTargetOrigin = this.hostedArchiveControls ? event.origin : '';
+            return;
+        }
+        if (data.type === 'doctor:archive-export-complete' || data.type === 'doctor:archive-export-error') {
+            if (this.archiveExportTargetOrigin && event.origin !== this.archiveExportTargetOrigin) {
+                return;
+            }
+            this.completeArchiveExport(typeof data.requestId === 'number' ? data.requestId : undefined);
+            if (data.type === 'doctor:archive-export-error' && data.message) {
+                console.error('Unable to export documentation archive:', data.message);
+            }
+        }
     }
 
     private renderFallbackNav() {
