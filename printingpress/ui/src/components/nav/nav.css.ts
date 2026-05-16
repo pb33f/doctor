@@ -155,6 +155,16 @@ export default css`
         color: var(--background-color);
     }
 
+    .host-archive-controls .archive-download-button sl-spinner {
+        font-size: 0.75rem;
+        --indicator-color: var(--warn-color);
+        --track-color: transparent;
+    }
+
+    .host-archive-controls .archive-download-button:hover sl-spinner {
+        --indicator-color: var(--background-color);
+    }
+
     .host-archive-controls sl-menu {
         border: 1px solid var(--primary-color);
         border-radius: 0;
