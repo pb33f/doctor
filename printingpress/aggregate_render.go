@@ -385,6 +385,9 @@ func prepareAggregateEntryOutputDir(entryOutput string, selection aggregateOutpu
 			if err := removeAggregateEntryArtifacts(entryOutput, llmEntryRootFiles(), ".md"); err != nil {
 				return err
 			}
+			if err := removeLLMShardFiles(entryOutput); err != nil {
+				return err
+			}
 		}
 		if selection.json {
 			if err := removeAggregateEntryArtifacts(entryOutput, jsonEntryRootFiles(), ".json"); err != nil {

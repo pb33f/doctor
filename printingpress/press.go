@@ -26,30 +26,42 @@ import (
 )
 
 type pressEngineConfig struct {
-	DrDoc              *doctormodel.DrDocument
-	Origins            bundler.ComponentOriginMap
-	OutputDir          string
-	BaseURL            string
-	AssetMode          string
-	Embedded           bool
-	SharedAssetBaseURL string
-	Title              string
-	Logger             *slog.Logger
-	SpecFormat         string // "yaml" or "json" — caller should set based on input format
-	SpecRoot           string // root directory of the spec; absolute paths are made relative to this
-	SpecPath           string // absolute local path to the root spec file when known
-	SpecLocation       string // display path of the root spec file relative to SpecRoot when possible
-	SpecURL            string // optional published source URL for the root spec file
-	NoMermaid          bool   // skip mermaid class diagram generation on model pages
-	NoExplorer         bool   // skip dependency explorer on model pages
-	BuildWarnings      []*BuildWarning
-	BuildErrors        []error // errors from libopenapi model building (surfaced as warnings on index page)
-	DeveloperMode      bool
-	DocsExpiresAt      string
-	ArchiveExportURL   string
-	LintResults        []*v3.RuleFunctionResult
-	OrphanResults      []*v3.RuleFunctionResult
-	Footer             *FooterConfig
+	DrDoc                   *doctormodel.DrDocument
+	Origins                 bundler.ComponentOriginMap
+	OutputDir               string
+	BaseURL                 string
+	AssetMode               string
+	Embedded                bool
+	SharedAssetBaseURL      string
+	Title                   string
+	Logger                  *slog.Logger
+	SpecFormat              string // "yaml" or "json" — caller should set based on input format
+	SpecRoot                string // root directory of the spec; absolute paths are made relative to this
+	SpecPath                string // absolute local path to the root spec file when known
+	SpecLocation            string // display path of the root spec file relative to SpecRoot when possible
+	SpecURL                 string // optional published source URL for the root spec file
+	SourceSizeBytes         int64  // size of the root source bytes when known
+	NoMermaid               bool   // skip mermaid class diagram generation on model pages
+	NoExplorer              bool   // skip dependency explorer on model pages
+	BuildWarnings           []*BuildWarning
+	BuildErrors             []error // errors from libopenapi model building (surfaced as warnings on index page)
+	DeveloperMode           bool
+	DocsExpiresAt           string
+	ArchiveExportURL        string
+	LintResults             []*v3.RuleFunctionResult
+	OrphanResults           []*v3.RuleFunctionResult
+	Footer                  *FooterConfig
+	MaxPatternRepeatBudget  int
+	MaxGeneratedStringBytes int
+	MaxGeneratedMockBytes   int
+	MaxMockDepth            int
+	MaxMockNodes            int
+	MaxMockProperties       int
+	MaxMockRefExpansions    int
+	MaxMockBytes            int
+	LLMAggregateSpecSizeThresholdBytes int64
+	LLMMaxAggregateFileBytes           int64
+	LLMGenerateMonoliths               string
 	// SyntheticTagFallback reuses untagged path grouping when operation tags are too coarse.
 	SyntheticTagFallback *SyntheticTagFallbackConfig
 }
@@ -106,11 +118,31 @@ func (pp *PrintingPress) initEngine(config *pressEngineConfig) {
 	if config.Logger == nil {
 		config.Logger = slog.Default()
 	}
+	limits := mockGenerationLimitsFromConfig(config)
+	config.MaxPatternRepeatBudget = limits.MaxPatternRepeatBudget
+	config.MaxGeneratedStringBytes = limits.MaxGeneratedStringBytes
+	config.MaxGeneratedMockBytes = limits.MaxGeneratedMockBytes
+	config.MaxMockDepth = limits.MaxMockDepth
+	config.MaxMockNodes = limits.MaxMockNodes
+	config.MaxMockProperties = limits.MaxMockProperties
+	config.MaxMockRefExpansions = limits.MaxMockRefExpansions
+	config.MaxMockBytes = limits.MaxMockBytes
+	llmOptions, _ := resolveLLMOutputOptions(
+		config.LLMAggregateSpecSizeThresholdBytes,
+		config.LLMMaxAggregateFileBytes,
+		config.LLMGenerateMonoliths,
+	)
+	config.LLMAggregateSpecSizeThresholdBytes = llmOptions.AggregateSpecSizeThresholdBytes
+	config.LLMMaxAggregateFileBytes = llmOptions.MaxAggregateFileBytes
+	config.LLMGenerateMonoliths = llmOptions.GenerateMonoliths
+
 	mg := renderer.NewMockGenerator(renderer.JSON)
+	applyMockGenerationLimits(mg, limits)
 	mg.SetPretty()
 	mg.DisableRequiredCheck()
 
 	mgYAML := renderer.NewMockGenerator(renderer.YAML)
+	applyMockGenerationLimits(mgYAML, limits)
 	mgYAML.SetPretty()
 	mgYAML.DisableRequiredCheck()
 
@@ -130,6 +162,8 @@ func (pp *PrintingPress) initEngine(config *pressEngineConfig) {
 		Models:             make(map[string][]*ModelPage),
 		Embedded:           config.Embedded,
 		SharedAssetBaseURL: config.SharedAssetBaseURL,
+		SourceSizeBytes:    config.SourceSizeBytes,
+		LLM:                llmOptions.siteConfig(),
 		DeveloperMode:      config.DeveloperMode,
 		DocsExpiresAt:      config.DocsExpiresAt,
 		ArchiveExportURL:   config.ArchiveExportURL,

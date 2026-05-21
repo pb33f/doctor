@@ -438,21 +438,43 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 		return ""
 	}
 	payload := struct {
-		BaseURL              string                  `json:"baseURL,omitempty"`
-		AssetMode            string                  `json:"assetMode,omitempty"`
-		NoiseSegments        []string                `json:"noiseSegments,omitempty"`
-		ServiceOverrides     []AggregatePathOverride `json:"serviceOverrides,omitempty"`
-		DisplayNameOverrides []AggregatePathOverride `json:"displayNameOverrides,omitempty"`
-		VersionOverrides     []AggregatePathOverride `json:"versionOverrides,omitempty"`
-		Footer               *ppmodel.FooterConfig   `json:"footer,omitempty"`
+		BaseURL                            string                  `json:"baseURL,omitempty"`
+		AssetMode                          string                  `json:"assetMode,omitempty"`
+		NoiseSegments                      []string                `json:"noiseSegments,omitempty"`
+		ServiceOverrides                   []AggregatePathOverride `json:"serviceOverrides,omitempty"`
+		DisplayNameOverrides               []AggregatePathOverride `json:"displayNameOverrides,omitempty"`
+		VersionOverrides                   []AggregatePathOverride `json:"versionOverrides,omitempty"`
+		Footer                             *ppmodel.FooterConfig   `json:"footer,omitempty"`
+		MaxPatternRepeatBudget             int                     `json:"maxPatternRepeatBudget,omitempty"`
+		MaxGeneratedStringBytes            int                     `json:"maxGeneratedStringBytes,omitempty"`
+		MaxGeneratedMockBytes              int                     `json:"maxGeneratedMockBytes,omitempty"`
+		MaxMockDepth                       int                     `json:"maxMockDepth,omitempty"`
+		MaxMockNodes                       int                     `json:"maxMockNodes,omitempty"`
+		MaxMockProperties                  int                     `json:"maxMockProperties,omitempty"`
+		MaxMockRefExpansions               int                     `json:"maxMockRefExpansions,omitempty"`
+		MaxMockBytes                       int                     `json:"maxMockBytes,omitempty"`
+		LLMAggregateSpecSizeThresholdBytes int64                   `json:"llmAggregateSpecSizeThresholdBytes,omitempty"`
+		LLMMaxAggregateFileBytes           int64                   `json:"llmMaxAggregateFileBytes,omitempty"`
+		LLMGenerateMonoliths               string                  `json:"llmGenerateMonoliths,omitempty"`
 	}{
-		BaseURL:              config.BaseURL,
-		AssetMode:            config.AssetMode,
-		NoiseSegments:        append([]string(nil), config.NoiseSegments...),
-		ServiceOverrides:     append([]AggregatePathOverride(nil), config.ServiceOverrides...),
-		DisplayNameOverrides: append([]AggregatePathOverride(nil), config.DisplayNameOverrides...),
-		VersionOverrides:     append([]AggregatePathOverride(nil), config.VersionOverrides...),
-		Footer:               cloneFooterConfig(config.Footer),
+		BaseURL:                            config.BaseURL,
+		AssetMode:                          config.AssetMode,
+		NoiseSegments:                      append([]string(nil), config.NoiseSegments...),
+		ServiceOverrides:                   append([]AggregatePathOverride(nil), config.ServiceOverrides...),
+		DisplayNameOverrides:               append([]AggregatePathOverride(nil), config.DisplayNameOverrides...),
+		VersionOverrides:                   append([]AggregatePathOverride(nil), config.VersionOverrides...),
+		Footer:                             cloneFooterConfig(config.Footer),
+		MaxPatternRepeatBudget:             config.MaxPatternRepeatBudget,
+		MaxGeneratedStringBytes:            config.MaxGeneratedStringBytes,
+		MaxGeneratedMockBytes:              config.MaxGeneratedMockBytes,
+		MaxMockDepth:                       config.MaxMockDepth,
+		MaxMockNodes:                       config.MaxMockNodes,
+		MaxMockProperties:                  config.MaxMockProperties,
+		MaxMockRefExpansions:               config.MaxMockRefExpansions,
+		MaxMockBytes:                       config.MaxMockBytes,
+		LLMAggregateSpecSizeThresholdBytes: config.LLMAggregateSpecSizeThresholdBytes,
+		LLMMaxAggregateFileBytes:           config.LLMMaxAggregateFileBytes,
+		LLMGenerateMonoliths:               config.LLMGenerateMonoliths,
 	}
 	b, err := json.Marshal(payload)
 	if err != nil {

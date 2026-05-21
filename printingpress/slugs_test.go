@@ -5,6 +5,7 @@
 package printingpress
 
 import (
+	"strings"
 	"testing"
 
 	slugpkg "github.com/pb33f/doctor/printingpress/slug"
@@ -35,6 +36,17 @@ func TestSanitizeSlug(t *testing.T) {
 	}
 }
 
+func TestSanitizeSlug_BoundsLongInput(t *testing.T) {
+	long := strings.Repeat("identity-governance-entitlement-management-", 8) + "resource"
+
+	got := slugpkg.Sanitize(long)
+	other := slugpkg.Sanitize(long + "-other")
+
+	assert.LessOrEqual(t, len(got), slugpkg.MaxSlugLength)
+	assert.Regexp(t, `[a-f0-9]{12}$`, got)
+	assert.NotEqual(t, got, other)
+}
+
 func TestSlugRegistry_Register(t *testing.T) {
 	r := slugpkg.NewSlugRegistry()
 
@@ -49,6 +61,19 @@ func TestSlugRegistry_Register(t *testing.T) {
 
 	// Different category allows same slug
 	assert.Equal(t, "user", r.Register("responses", "user"))
+}
+
+func TestSlugRegistry_RegisterBoundsLongCollisions(t *testing.T) {
+	r := slugpkg.NewSlugRegistry()
+	long := strings.Repeat("access-package-resource-scope-", 10) + "environment"
+
+	first := r.Register("operations", long)
+	second := r.Register("operations", long)
+
+	assert.LessOrEqual(t, len(first), slugpkg.MaxSlugLength)
+	assert.LessOrEqual(t, len(second), slugpkg.MaxSlugLength)
+	assert.NotEqual(t, first, second)
+	assert.True(t, strings.HasSuffix(second, "-2"))
 }
 
 func TestOperationSlug(t *testing.T) {

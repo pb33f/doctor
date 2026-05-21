@@ -17,6 +17,7 @@ type MermaidTardis struct {
 	doctor                v3.Doctor
 	document              *v3.Document // store document reference for component lookups
 	visited               map[string]bool
+	schemaVisits          *schemaVisitGuard
 	circularRefs          map[string]bool // pre-computed circular reference paths from index
 	depth                 int
 	entryPoint            v3.Foundational // tracks the entry schema to avoid skipping it
@@ -37,6 +38,7 @@ func NewMermaidTardis(config *MermaidConfig) *MermaidTardis {
 	return &MermaidTardis{
 		diagram:               NewMermaidDiagram(config),
 		visited:               make(map[string]bool),
+		schemaVisits:          newSchemaVisitGuard(),
 		depth:                 0,
 		relationshipAnalyzer:  NewRelationshipAnalyzer(50),
 		discriminatorAnalyzer: NewDiscriminatorAnalyzer(),

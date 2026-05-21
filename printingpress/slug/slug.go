@@ -5,9 +5,17 @@
 package slug
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"regexp"
 	"strings"
+)
+
+const (
+	// MaxSlugLength keeps generated URL and filename segments safely under common filesystem limits.
+	MaxSlugLength = 180
+	slugHashBytes = 6
 )
 
 var (
@@ -29,7 +37,22 @@ func Sanitize(input string) string {
 	if s == "" {
 		s = "unnamed"
 	}
-	return s
+	return Bound(s)
+}
+
+// Bound returns slug capped to MaxSlugLength with a deterministic hash suffix when needed.
+func Bound(slug string) string {
+	slug = strings.Trim(slug, "-")
+	if slug == "" {
+		slug = "unnamed"
+	}
+	if len(slug) <= MaxSlugLength {
+		return slug
+	}
+	hash := slugHash(slug)
+	prefixLimit := MaxSlugLength - len(hash) - 1
+	prefix := strings.Trim(slug[:prefixLimit], "-")
+	return prefix + "-" + hash
 }
 
 // SlugRegistry tracks used slugs per category to prevent collisions.
@@ -46,6 +69,7 @@ func NewSlugRegistry() *SlugRegistry {
 
 // Register returns the preferred slug if available, otherwise appends -2, -3, etc.
 func (r *SlugRegistry) Register(category, preferred string) string {
+	preferred = Bound(preferred)
 	if _, ok := r.used[category]; !ok {
 		r.used[category] = make(map[string]int)
 	}
@@ -55,7 +79,7 @@ func (r *SlugRegistry) Register(category, preferred string) string {
 		return preferred
 	}
 	cat[preferred]++
-	slug := fmt.Sprintf("%s-%d", preferred, cat[preferred])
+	slug := appendSlugSuffix(preferred, cat[preferred])
 	// ensure the suffixed slug itself isn't taken
 	for {
 		if _, exists := cat[slug]; !exists {
@@ -63,7 +87,7 @@ func (r *SlugRegistry) Register(category, preferred string) string {
 			return slug
 		}
 		cat[preferred]++
-		slug = fmt.Sprintf("%s-%d", preferred, cat[preferred])
+		slug = appendSlugSuffix(preferred, cat[preferred])
 	}
 }
 
@@ -78,4 +102,17 @@ func OperationSlug(method, path, operationID string) string {
 // ComponentKey returns the canonical cross-reference key for a component.
 func ComponentKey(componentType, name string) string {
 	return fmt.Sprintf("#/components/%s/%s", componentType, name)
+}
+
+func appendSlugSuffix(slug string, count int) string {
+	suffix := fmt.Sprintf("-%d", count)
+	if len(slug)+len(suffix) <= MaxSlugLength {
+		return slug + suffix
+	}
+	return strings.Trim(slug[:MaxSlugLength-len(suffix)], "-") + suffix
+}
+
+func slugHash(slug string) string {
+	sum := sha256.Sum256([]byte(slug))
+	return hex.EncodeToString(sum[:slugHashBytes])
 }

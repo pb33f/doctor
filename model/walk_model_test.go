@@ -259,7 +259,8 @@ func TestWalker_TestAsana(t *testing.T) {
 		walker = NewDrDocument(v3Docs)
 	})
 
-	assert.Equal(t, 974, len(walker.Schemas))
+	// Includes sibling-ref schemas surfaced by libopenapi's unified sibling-ref handling.
+	assert.Equal(t, 993, len(walker.Schemas))
 	assert.Equal(t, 0, len(walker.SkippedSchemas))
 
 }
