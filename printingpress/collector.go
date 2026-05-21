@@ -7,6 +7,7 @@ package printingpress
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/url"
@@ -910,7 +911,7 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 			pp.captureRawData(schema.Value, name,
 				&page.RawYAML, &page.SchemaJSON, nil)
 			if isComplexSchema(schema.Value) {
-				page.MockJSON = pp.generateMock(schema.Value)
+				page.MockJSON = pp.generateMockWithLabel(schema.Value, "schemas/"+name)
 				if mermaidCfg != nil {
 					diagram := diagramatron.Mermaidify(context.Background(), sp, mermaidCfg)
 					if len(diagram.Relationships) > 0 {
@@ -1592,10 +1593,14 @@ func computeNavModelGroupCardMinWidth(pages []*ModelPage) int {
 
 // generateMock produces a pretty-printed JSON mock from any mockable object.
 func (pp *PrintingPress) generateMock(mockable any) string {
+	return pp.generateMockWithLabel(mockable, "")
+}
+
+func (pp *PrintingPress) generateMockWithLabel(mockable any, label string) string {
 	if schema, ok := mockable.(*highbase.Schema); ok {
-		return pp.generateSchemaMockAs(schema, "json")
+		return pp.generateSchemaMockAsWithLabel(schema, "json", label)
 	}
-	mock, err := pp.safeGenerateMock(pp.mockGen, mockable, "")
+	mock, err := pp.safeGenerateMock(pp.mockGen, mockable, label)
 	if err != nil || mock == nil {
 		return ""
 	}
@@ -1604,8 +1609,12 @@ func (pp *PrintingPress) generateMock(mockable any) string {
 
 // generateMockAs produces a mock in the specified language format.
 func (pp *PrintingPress) generateMockAs(mockable any, lang string) string {
+	return pp.generateMockAsWithLabel(mockable, lang, "")
+}
+
+func (pp *PrintingPress) generateMockAsWithLabel(mockable any, lang string, label string) string {
 	if schema, ok := mockable.(*highbase.Schema); ok {
-		return pp.generateSchemaMockAs(schema, lang)
+		return pp.generateSchemaMockAsWithLabel(schema, lang, label)
 	}
 	var gen *renderer.MockGenerator
 	switch lang {
@@ -1619,7 +1628,7 @@ func (pp *PrintingPress) generateMockAs(mockable any, lang string) string {
 	if gen == nil {
 		return ""
 	}
-	mock, err := pp.safeGenerateMock(gen, mockable, "")
+	mock, err := pp.safeGenerateMock(gen, mockable, label)
 	if err != nil || mock == nil {
 		return ""
 	}
@@ -1633,6 +1642,10 @@ type schemaMockable struct {
 }
 
 func (pp *PrintingPress) generateSchemaMockAs(schema *highbase.Schema, lang string) string {
+	return pp.generateSchemaMockAsWithLabel(schema, lang, "")
+}
+
+func (pp *PrintingPress) generateSchemaMockAsWithLabel(schema *highbase.Schema, lang string, label string) string {
 	if schema == nil {
 		return ""
 	}
@@ -1666,7 +1679,7 @@ func (pp *PrintingPress) generateSchemaMockAs(schema *highbase.Schema, lang stri
 	if gen == nil {
 		return ""
 	}
-	mock, err := pp.safeGenerateMock(gen, mockable, "")
+	mock, err := pp.safeGenerateMock(gen, mockable, label)
 	if err != nil || mock == nil {
 		return ""
 	}
@@ -1686,7 +1699,28 @@ func (pp *PrintingPress) safeGenerateMock(gen *renderer.MockGenerator, mockable 
 			mock = nil
 		}
 	}()
-	return gen.GenerateMock(mockable, "")
+	mock, err = gen.GenerateMock(mockable, "")
+	if err != nil {
+		if pp != nil && errors.Is(err, renderer.ErrMockGenerationBudgetExceeded) {
+			pp.warn("generated mock exceeded work budget; omitting generated mock", label, err)
+		}
+		return nil, err
+	}
+	if mock == nil {
+		return mock, err
+	}
+	var config *pressEngineConfig
+	if pp != nil {
+		config = pp.engineConfig
+	}
+	limits := mockGenerationLimitsFromConfig(config)
+	if limits.exceedsMockBytes(mock) {
+		if pp != nil {
+			pp.warn("generated mock exceeded byte limit; omitting generated mock", label, limits.mockBytesLimitError(len(mock)))
+		}
+		return nil, nil
+	}
+	return mock, nil
 }
 
 // yamlNodeToJSON converts a *yaml.Node to a JSON string.

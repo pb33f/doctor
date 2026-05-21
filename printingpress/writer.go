@@ -107,8 +107,10 @@ func resolveWriterOutputDir(site *ppmodel.Site, outputDir string) (string, error
 	return "", ErrNoOutputDir
 }
 
+// writeJSONFile writes compact JSON artifacts because large catalogs emit many
+// machine-read files, and whitespace materially increases write pressure.
 func writeJSONFile(path string, data any) error {
-	b, err := json.MarshalIndent(data, "", "  ")
+	b, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}

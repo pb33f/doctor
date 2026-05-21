@@ -487,6 +487,35 @@ func TestCreatePrintingPress_ValidationRejectsInvalidAssetMode(t *testing.T) {
 	assert.Contains(t, validationErr.Error(), "asset mode")
 }
 
+func TestCreatePrintingPress_ValidationRejectsInvalidLLMMonolithMode(t *testing.T) {
+	_, err := CreatePrintingPressFromBytes([]byte("openapi: 3.1.0\ninfo:\n  title: x\n  version: 1\npaths: {}\n"), &PrintingPressConfig{
+		LLMGenerateMonoliths: "sometimes",
+	})
+	require.Error(t, err)
+
+	var validationErr *ValidationError
+	require.ErrorAs(t, err, &validationErr)
+	assert.Contains(t, validationErr.Error(), "llmGenerateMonoliths")
+	assert.Contains(t, validationErr.Error(), "invalid LLM monolith mode")
+}
+
+func TestCreatePrintingPress_NormalizesLLMOutputOptions(t *testing.T) {
+	pp, err := CreatePrintingPressFromBytes([]byte("openapi: 3.1.0\ninfo:\n  title: x\n  version: 1\npaths: {}\n"), &PrintingPressConfig{
+		LLMAggregateSpecSizeThresholdBytes: 1024,
+		LLMMaxAggregateFileBytes:           2048,
+		LLMGenerateMonoliths:               "ALWAYS",
+		OutputDir:                          t.TempDir(),
+	})
+	require.NoError(t, err)
+
+	site, err := pp.PressModel()
+	require.NoError(t, err)
+	assert.Equal(t, int64(1024), site.LLM.AggregateSpecSizeThresholdBytes)
+	assert.Equal(t, int64(2048), site.LLM.MaxAggregateFileBytes)
+	assert.Equal(t, LLMGenerateMonolithsAlways, site.LLM.GenerateMonoliths)
+	assert.Greater(t, site.SourceSizeBytes, int64(0))
+}
+
 func TestCreatePrintingPress_ValidationRejectsRelativeBaseURL(t *testing.T) {
 	_, err := CreatePrintingPressFromBytes([]byte("openapi: 3.1.0\ninfo:\n  title: x\n  version: 1\npaths: {}\n"), &PrintingPressConfig{
 		BaseURL: "docs",

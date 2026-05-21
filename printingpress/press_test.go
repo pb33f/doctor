@@ -311,6 +311,33 @@ func TestPrintingPress_PrintJSONArtifacts_BundleAndManifest(t *testing.T) {
 	assert.Equal(t, "model", artifactsByPath["models/schemas/"+site.Models["schemas"][0].Slug+".json"].Kind)
 }
 
+func TestWriteJSONFileWritesCompactArtifacts(t *testing.T) {
+	outputPath := filepath.Join(t.TempDir(), "nested", "artifact.json")
+
+	err := writeJSONFile(outputPath, map[string]any{
+		"alpha":  "beta",
+		"nested": map[string]any{"count": 1},
+	})
+	require.NoError(t, err)
+
+	body, err := os.ReadFile(outputPath)
+	require.NoError(t, err)
+	assert.Equal(t, `{"alpha":"beta","nested":{"count":1}}`, string(body))
+}
+
+func TestWriteJSONFileReportsMarshalAndDirectoryErrors(t *testing.T) {
+	err := writeJSONFile(filepath.Join(t.TempDir(), "bad.json"), map[string]any{
+		"bad": func() {},
+	})
+	require.Error(t, err)
+
+	notDir := filepath.Join(t.TempDir(), "not-dir")
+	require.NoError(t, os.WriteFile(notDir, []byte("file"), 0o644))
+
+	err = writeJSONFile(filepath.Join(notDir, "artifact.json"), map[string]string{"ok": "yes"})
+	require.Error(t, err)
+}
+
 func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
 	require.NoError(t, err)

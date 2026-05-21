@@ -148,6 +148,7 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogAndEntrySites(t *testing
 	assert.Contains(t, string(rootHTML), "Current account lifecycle endpoints.")
 	assert.Contains(t, string(rootHTML), `v2 (latest)`)
 	assert.Contains(t, string(rootHTML), `value="services/users/versions/v2/specs/users-api/index.html"`)
+	assert.FileExists(t, filepath.Join(outputDir, "static", "printing-press.js"))
 	assert.NotContains(t, string(rootHTML), "pp-catalog-eyebrow")
 	assert.NotContains(t, string(rootHTML), "Browse Versions")
 	assert.NotContains(t, string(rootHTML), "Open Service")
@@ -161,7 +162,27 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogAndEntrySites(t *testing
 	assert.Contains(t, string(entryHTML), `data-pp-versions=`)
 	assert.Contains(t, string(entryHTML), `data-pp-catalog-href="../../../../../../index.html"`)
 	assert.Contains(t, string(entryHTML), `data-pp-overview-href="index.html"`)
+	assert.Contains(t, string(entryHTML), `href="../../../../../../static/printing-press.css"`)
+	assert.Contains(t, string(entryHTML), `src="../../../../../../static/printing-press.js"`)
+	assert.NoFileExists(t, filepath.Join(filepath.Dir(entryIndex), "static", "printing-press.js"))
 	assert.NotContains(t, string(entryHTML), `data-pp-versions-href=`)
+}
+
+func TestAggregateEntrySharedAssetBaseURL(t *testing.T) {
+	assert.Empty(t, (*AggregatePrintingPress)(nil).entrySharedAssetBaseURL(&aggregateDiscoveredSpec{}))
+	assert.Empty(t, (&AggregatePrintingPress{}).entrySharedAssetBaseURL(&aggregateDiscoveredSpec{}))
+	assert.Empty(t, (&AggregatePrintingPress{config: &AggregatePrintingPressConfig{}}).entrySharedAssetBaseURL(nil))
+
+	ap := &AggregatePrintingPress{config: &AggregatePrintingPressConfig{}}
+	assert.Equal(t, "static", ap.entrySharedAssetBaseURL(&aggregateDiscoveredSpec{}))
+	assert.Equal(t, "../../static", ap.entrySharedAssetBaseURL(&aggregateDiscoveredSpec{OutputSubdir: "services/users"}))
+	assert.Equal(t, "../../../static", ap.entrySharedAssetBaseURL(&aggregateDiscoveredSpec{OutputSubdir: "/services/users/v1/"}))
+
+	hosted := &AggregatePrintingPress{config: &AggregatePrintingPressConfig{BaseURL: "/docs/"}}
+	assert.Equal(t, "/docs/static", hosted.entrySharedAssetBaseURL(&aggregateDiscoveredSpec{OutputSubdir: "services/users"}))
+
+	invalidHosted := &AggregatePrintingPress{config: &AggregatePrintingPressConfig{BaseURL: "docs"}}
+	assert.Equal(t, "../static", invalidHosted.entrySharedAssetBaseURL(&aggregateDiscoveredSpec{OutputSubdir: "users"}))
 }
 
 func TestAggregatePrintingPress_PrintHTML_HidesSingleVersionSwitchersAndFallsBackToDescription(t *testing.T) {
@@ -837,6 +858,33 @@ func TestBuildAggregateRenderPools_BalancesBySize(t *testing.T) {
 	assert.Len(t, pools[1].specs, 2)
 }
 
+func TestAggregateEntryConfigHashIncludesEntryOutputOptions(t *testing.T) {
+	baseHash := normalizedAggregateEntryConfigHash(t, &AggregatePrintingPressConfig{})
+
+	cases := []struct {
+		name   string
+		config *AggregatePrintingPressConfig
+	}{
+		{name: "mock pattern repeat budget", config: &AggregatePrintingPressConfig{MaxPatternRepeatBudget: 123}},
+		{name: "generated string bytes", config: &AggregatePrintingPressConfig{MaxGeneratedStringBytes: 456}},
+		{name: "generated mock bytes", config: &AggregatePrintingPressConfig{MaxGeneratedMockBytes: 789}},
+		{name: "mock depth", config: &AggregatePrintingPressConfig{MaxMockDepth: 12}},
+		{name: "mock nodes", config: &AggregatePrintingPressConfig{MaxMockNodes: 345}},
+		{name: "mock properties", config: &AggregatePrintingPressConfig{MaxMockProperties: 67}},
+		{name: "mock ref expansions", config: &AggregatePrintingPressConfig{MaxMockRefExpansions: 89}},
+		{name: "mock bytes", config: &AggregatePrintingPressConfig{MaxMockBytes: 987}},
+		{name: "llm aggregate threshold", config: &AggregatePrintingPressConfig{LLMAggregateSpecSizeThresholdBytes: 4096}},
+		{name: "llm shard size", config: &AggregatePrintingPressConfig{LLMMaxAggregateFileBytes: 8192}},
+		{name: "llm monolith mode", config: &AggregatePrintingPressConfig{LLMGenerateMonoliths: LLMGenerateMonolithsNever}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.NotEqual(t, baseHash, normalizedAggregateEntryConfigHash(t, tc.config))
+		})
+	}
+}
+
 func TestSQLiteSpecStateStore_RoundTripsRecords(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "state.db")
 	store, err := NewSQLiteSpecStateStore(dbPath)
@@ -931,6 +979,16 @@ func TestCatalogStylesheet_UsesSharedBackgroundSurface(t *testing.T) {
 	assert.Contains(t, css, `margin-top: calc(var(--global-padding-double) * 2);`)
 	assert.NotContains(t, css, `radial-gradient(`)
 	assert.NotContains(t, css, `var(--terminal-background)`)
+}
+
+func normalizedAggregateEntryConfigHash(t *testing.T, config *AggregatePrintingPressConfig) string {
+	t.Helper()
+	normalized, store, err := validateAndNormalizeAggregateConfig(t.TempDir(), config)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, store.Close())
+	})
+	return aggregateEntryConfigHash(normalized)
 }
 
 func writeAggregateSpec(t *testing.T, root, relPath, title, version string) string {

@@ -5,46 +5,78 @@
 package printingpress
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	. "github.com/pb33f/doctor/printingpress/model"
 )
 
 type llmRenderContext struct {
-	site                *Site
-	operationLinkPrefix string
-	modelLinkPrefix     string
+	site                  *Site
+	operationLinkPrefix   string
+	modelLinkPrefix       string
+	cache                 *llmRenderCache
+	relatedOperationIndex *llmRelatedOperationIndex
+}
+
+type llmRenderCache struct {
+	mu              sync.RWMutex
+	schemaMaps      map[string]map[string]any
+	schemaSummaries map[llmSchemaSummaryKey]string
+	rawSchemaNeeds  map[string]bool
+}
+
+type llmSchemaSummaryKey struct {
+	schemaJSON string
+	schemaRef  string
+	itemsRef   string
+}
+
+func newLLMRenderCache() *llmRenderCache {
+	return &llmRenderCache{
+		schemaMaps:      make(map[string]map[string]any),
+		schemaSummaries: make(map[llmSchemaSummaryKey]string),
+		rawSchemaNeeds:  make(map[string]bool),
+	}
+}
+
+func newLLMRenderContext(site *Site, operationLinkPrefix, modelLinkPrefix string, cache *llmRenderCache) llmRenderContext {
+	if cache == nil {
+		cache = newLLMRenderCache()
+	}
+	return llmRenderContext{
+		site:                site,
+		operationLinkPrefix: operationLinkPrefix,
+		modelLinkPrefix:     modelLinkPrefix,
+		cache:               cache,
+	}
+}
+
+func withRelatedOperationIndex(ctx llmRenderContext, index *llmRelatedOperationIndex) llmRenderContext {
+	ctx.relatedOperationIndex = index
+	return ctx
 }
 
 func rootLLMRenderContext(site *Site) llmRenderContext {
-	return llmRenderContext{
-		site:                site,
-		operationLinkPrefix: pppaths.DirOperations + "/",
-		modelLinkPrefix:     pppaths.DirModels + "/",
-	}
+	return newLLMRenderContext(site, pppaths.DirOperations+"/", pppaths.DirModels+"/", nil)
 }
 
 func operationFileRenderContext(site *Site) llmRenderContext {
-	return llmRenderContext{
-		site:                site,
-		operationLinkPrefix: "",
-		modelLinkPrefix:     "../" + pppaths.DirModels + "/",
-	}
+	return newLLMRenderContext(site, "", "../"+pppaths.DirModels+"/", nil)
 }
 
 func modelFileRenderContext(site *Site) llmRenderContext {
-	return llmRenderContext{
-		site:                site,
-		operationLinkPrefix: "../../" + pppaths.DirOperations + "/",
-		modelLinkPrefix:     "../../" + pppaths.DirModels + "/",
-	}
+	return newLLMRenderContext(site, "../../"+pppaths.DirOperations+"/", "../../"+pppaths.DirModels+"/", nil)
 }
 
 // WriteLLMSite writes LLM-oriented markdown docs to disk.
@@ -57,6 +89,27 @@ func WriteLLMSite(site *Site, outputDir string) error {
 	}
 	_, err := writeLLMSiteDetailed(site, outputDir, nil)
 	return err
+}
+
+type llmWritePlan struct {
+	options               llmOutputOptions
+	generateMonoliths     bool
+	monolithOmittedReason string
+	operationShards       []string
+	modelShards           []string
+}
+
+func newLLMWritePlan(site *Site) llmWritePlan {
+	options := llmOutputOptionsFromSite(site)
+	sourceSizeBytes := int64(0)
+	if site != nil {
+		sourceSizeBytes = site.SourceSizeBytes
+	}
+	return llmWritePlan{
+		options:               options,
+		generateMonoliths:     options.shouldGenerateMonoliths(sourceSizeBytes),
+		monolithOmittedReason: options.monolithOmittedReason(sourceSizeBytes),
+	}
 }
 
 func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFunc) ([]string, error) {
@@ -72,6 +125,8 @@ func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFu
 		return nil, fmt.Errorf("creating output directory: %w", err)
 	}
 
+	plan := newLLMWritePlan(site)
+	relatedOperationIndex := newLLMRelatedOperationIndex(site)
 	written := make([]string, 0)
 	step := 0
 	total := 5 + len(site.Operations) + len(site.Webhooks)
@@ -79,55 +134,75 @@ func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFu
 		total += len(site.Models[group.TypeSlug])
 	}
 
-	if err := writeLLMFull(site, resolvedOutputDir); err != nil {
-		return nil, fmt.Errorf("writing llms-full.txt: %w", err)
+	if err := removeLLMShardFiles(resolvedOutputDir); err != nil {
+		return nil, fmt.Errorf("removing stale llm shard files: %w", err)
 	}
-	written = append(written, filepath.Join(resolvedOutputDir, pppaths.FileLLMFull))
+
+	if plan.generateMonoliths {
+		if err := writeLLMAggregateFilesWithRelated(site, resolvedOutputDir, relatedOperationIndex); err != nil {
+			return nil, fmt.Errorf("writing llm aggregate files: %w", err)
+		}
+		written = append(written,
+			filepath.Join(resolvedOutputDir, pppaths.FileLLMFull),
+			filepath.Join(resolvedOutputDir, pppaths.FileLLMOperations),
+			filepath.Join(resolvedOutputDir, pppaths.FileLLMModels),
+		)
+	} else if err := removeLLMMonolithFiles(resolvedOutputDir); err != nil {
+		return nil, fmt.Errorf("removing omitted llm aggregate files: %w", err)
+	}
 	step++
 	if progress != nil {
-		progress("writing llm files", step, total)
+		progress("writing llm aggregate files", step, total)
 	}
-	if err := writeLLMAgentsGuide(site, resolvedOutputDir); err != nil {
+
+	operationShards, err := writeLLMOperationShardsWithRelated(site, resolvedOutputDir, plan.options.MaxAggregateFileBytes, relatedOperationIndex)
+	if err != nil {
+		return nil, fmt.Errorf("writing llm operation shards: %w", err)
+	}
+	plan.operationShards = operationShards
+	written = append(written, absoluteLLMShardPaths(resolvedOutputDir, operationShards)...)
+	step++
+	if progress != nil {
+		progress("writing llm operation shards", step, total)
+	}
+
+	modelShards, err := writeLLMModelShards(site, resolvedOutputDir, plan.options.MaxAggregateFileBytes)
+	if err != nil {
+		return nil, fmt.Errorf("writing llm model shards: %w", err)
+	}
+	plan.modelShards = modelShards
+	written = append(written, absoluteLLMShardPaths(resolvedOutputDir, modelShards)...)
+	step++
+	if progress != nil {
+		progress("writing llm model shards", step, total)
+	}
+
+	if err := writeLLMAgentsGuide(site, resolvedOutputDir, plan); err != nil {
 		return nil, fmt.Errorf("writing AGENTS.md: %w", err)
 	}
 	written = append(written, filepath.Join(resolvedOutputDir, pppaths.FileAgentsGuide))
 	step++
 	if progress != nil {
-		progress("writing llm files", step, total)
+		progress("writing AGENTS.md", step, total)
 	}
-	if err := writeLLMIndex(site, resolvedOutputDir); err != nil {
+
+	if err := writeLLMIndex(site, resolvedOutputDir, plan); err != nil {
 		return nil, fmt.Errorf("writing llms.txt: %w", err)
 	}
 	written = append(written, filepath.Join(resolvedOutputDir, pppaths.FileLLMIndex))
 	step++
 	if progress != nil {
-		progress("writing llm files", step, total)
-	}
-	if err := writeLLMOperationsSlice(site, resolvedOutputDir); err != nil {
-		return nil, fmt.Errorf("writing llms-operations.txt: %w", err)
-	}
-	written = append(written, filepath.Join(resolvedOutputDir, pppaths.FileLLMOperations))
-	step++
-	if progress != nil {
-		progress("writing llm files", step, total)
-	}
-	if err := writeLLMModelsSlice(site, resolvedOutputDir); err != nil {
-		return nil, fmt.Errorf("writing llms-models.txt: %w", err)
-	}
-	written = append(written, filepath.Join(resolvedOutputDir, pppaths.FileLLMModels))
-	step++
-	if progress != nil {
-		progress("writing llm files", step, total)
+		progress("writing llms.txt", step, total)
 	}
 
-	operationFiles, err := writeLLMOperationFiles(site, resolvedOutputDir)
+	operationFiles, err := writeLLMOperationFilesWithRelated(site, resolvedOutputDir, relatedOperationIndex)
 	if err != nil {
 		return nil, fmt.Errorf("writing operation .md files: %w", err)
 	}
 	written = append(written, operationFiles...)
 	step += len(operationFiles)
 	if progress != nil {
-		progress("writing llm files", step, total)
+		progress("writing llm operation markdown", step, total)
 	}
 
 	modelFiles, err := writeLLMModelFiles(site, resolvedOutputDir)
@@ -137,83 +212,355 @@ func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFu
 	written = append(written, modelFiles...)
 	step += len(modelFiles)
 	if progress != nil {
-		progress("writing llm files", step, total)
+		progress("writing llm model markdown", step, total)
 	}
 
 	return written, nil
 }
 
-func writeLLMAgentsGuide(site *Site, outputDir string) error {
-	var b strings.Builder
+func writeLLMAgentsGuide(site *Site, outputDir string, plan llmWritePlan) error {
+	return writeBufferedTextFile(filepath.Join(outputDir, pppaths.FileAgentsGuide), func(w io.StringWriter) error {
+		title := "API Documentation"
+		if site.Root != nil && site.Root.Title != "" {
+			title = site.Root.Title
+		}
+		if err := writeString(w, "# "+title+"\n\n"); err != nil {
+			return err
+		}
 
-	title := "API Documentation"
-	if site.Root != nil && site.Root.Title != "" {
-		title = site.Root.Title
-	}
-	b.WriteString("# " + title + "\n\n")
+		if site.Root != nil && site.Root.Description != "" {
+			if err := writeString(w, "> "+truncateDesc(site.Root.Description, 240)+"\n\n"); err != nil {
+				return err
+			}
+		}
+		if src := renderSiteSourceMetadata(site.Source); src != "" {
+			if err := writeString(w, src); err != nil {
+				return err
+			}
+		}
 
-	if site.Root != nil && site.Root.Description != "" {
-		b.WriteString("> " + truncateDesc(site.Root.Description, 240) + "\n\n")
-	}
-	if src := renderSiteSourceMetadata(site.Source); src != "" {
-		b.WriteString(src)
-	}
-
-	b.WriteString(renderAgentsGuide(site))
-
-	return os.WriteFile(filepath.Join(outputDir, pppaths.FileAgentsGuide), []byte(b.String()), 0o644)
+		return writeString(w, renderAgentsGuide(site, plan))
+	})
 }
 
 // writeLLMFull generates the primary llms-full.txt with complete API documentation.
 func writeLLMFull(site *Site, outputDir string) error {
-	var b strings.Builder
 	ctx := rootLLMRenderContext(site)
+	return writeBufferedTextFile(filepath.Join(outputDir, pppaths.FileLLMFull), func(w io.StringWriter) error {
+		if err := writeLLMFullPreamble(ctx, w); err != nil {
+			return err
+		}
+		if _, err := writeOperationsSection(ctx, w); err != nil {
+			return err
+		}
+		if _, err := writeWebhooksSection(ctx, w); err != nil {
+			return err
+		}
+		if _, err := writeModelsSection(ctx, w); err != nil {
+			return err
+		}
+		return nil
+	})
+}
 
+func writeLLMFullPreamble(ctx llmRenderContext, w io.StringWriter) error {
+	site := ctx.site
 	title := "API Documentation"
 	if site.Root != nil && site.Root.Title != "" {
 		title = site.Root.Title
 	}
-	b.WriteString("# " + title + "\n\n")
+	if err := writeString(w, "# "+title+"\n\n"); err != nil {
+		return err
+	}
 
 	if site.Root != nil && site.Root.Description != "" {
-		b.WriteString("> " + singleLine(site.Root.Description) + "\n\n")
+		if err := writeString(w, "> "+singleLine(site.Root.Description)+"\n\n"); err != nil {
+			return err
+		}
 	}
 	if site.Root != nil && site.Root.Version != "" {
-		b.WriteString("**Version:** " + site.Root.Version + "\n\n")
+		if err := writeString(w, "**Version:** "+site.Root.Version+"\n\n"); err != nil {
+			return err
+		}
 	}
 	if src := renderSiteSourceMetadata(site.Source); src != "" {
-		b.WriteString(src)
+		if err := writeString(w, src); err != nil {
+			return err
+		}
 	}
 
-	// How to Use section
 	howTo := renderHowToUse(site)
 	if howTo != "" {
-		b.WriteString(howTo)
+		if err := writeString(w, howTo); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeLLMAggregateFiles(site *Site, outputDir string) error {
+	return writeLLMAggregateFilesWithRelated(site, outputDir, newLLMRelatedOperationIndex(site))
+}
+
+func writeLLMAggregateFilesWithRelated(site *Site, outputDir string, relatedOperationIndex *llmRelatedOperationIndex) error {
+	ctx := withRelatedOperationIndex(rootLLMRenderContext(site), relatedOperationIndex)
+
+	full, err := openBufferedTextFile(filepath.Join(outputDir, pppaths.FileLLMFull))
+	if err != nil {
+		return fmt.Errorf("opening llms-full.txt: %w", err)
+	}
+	operations, err := openBufferedTextFile(filepath.Join(outputDir, pppaths.FileLLMOperations))
+	if err != nil {
+		_ = full.closeDiscard()
+		return fmt.Errorf("opening llms-operations.txt: %w", err)
+	}
+	models, err := openBufferedTextFile(filepath.Join(outputDir, pppaths.FileLLMModels))
+	if err != nil {
+		_ = full.closeDiscard()
+		_ = operations.closeDiscard()
+		return fmt.Errorf("opening llms-models.txt: %w", err)
 	}
 
-	// Operations section
-	opsContent := renderOperationsSection(ctx)
-	if opsContent != "" {
-		b.WriteString(opsContent)
+	success := false
+	defer func() {
+		if !success {
+			_ = full.closeDiscard()
+			_ = operations.closeDiscard()
+			_ = models.closeDiscard()
+		}
+	}()
+
+	if err := writeLLMFullPreamble(ctx, full.writer); err != nil {
+		return err
 	}
 
-	// Webhooks section
-	whContent := renderWebhooksSection(ctx)
-	if whContent != "" {
-		b.WriteString(whContent)
+	operationWriters := multiStringWriter{full.writer, operations.writer}
+	wroteOperations, err := writeOperationsSection(ctx, operationWriters)
+	if err != nil {
+		return err
+	}
+	wroteWebhooks, err := writeWebhooksSection(ctx, operationWriters)
+	if err != nil {
+		return err
+	}
+	if !wroteOperations && !wroteWebhooks {
+		if err := writeString(operations.writer, "# Operations\n\nNo operations defined.\n"); err != nil {
+			return err
+		}
 	}
 
-	// Models sections
-	modelsContent := renderModelsSection(ctx)
-	if modelsContent != "" {
-		b.WriteString(modelsContent)
+	wroteModels, err := writeModelsSection(ctx, multiStringWriter{full.writer, models.writer})
+	if err != nil {
+		return err
+	}
+	if !wroteModels {
+		if err := writeString(models.writer, "# Models\n\nNo models defined.\n"); err != nil {
+			return err
+		}
 	}
 
-	return os.WriteFile(filepath.Join(outputDir, pppaths.FileLLMFull), []byte(b.String()), 0o644)
+	success = true
+	return closeBufferedTextFiles(full, operations, models)
+}
+
+func writeLLMOperationShards(site *Site, outputDir string, maxBytes int64) ([]string, error) {
+	return writeLLMOperationShardsWithRelated(site, outputDir, maxBytes, newLLMRelatedOperationIndex(site))
+}
+
+func writeLLMOperationShardsWithRelated(site *Site, outputDir string, maxBytes int64, relatedOperationIndex *llmRelatedOperationIndex) ([]string, error) {
+	ctx := withRelatedOperationIndex(rootLLMRenderContext(site), relatedOperationIndex)
+	writer := newLLMShardWriter(outputDir, "llms-operations", "Operations", maxBytes)
+	success := false
+	defer func() {
+		if !success {
+			_ = writer.closeDiscard()
+		}
+	}()
+
+	wrote := false
+	for _, op := range site.Operations {
+		if err := writer.writeBlock(renderOperationMD(ctx, op) + "\n---\n\n"); err != nil {
+			return nil, err
+		}
+		wrote = true
+	}
+	for _, wh := range site.Webhooks {
+		if err := writer.writeBlock(renderOperationMD(ctx, wh) + "\n---\n\n"); err != nil {
+			return nil, err
+		}
+		wrote = true
+	}
+	if !wrote {
+		if err := writer.writeBlock("# Operations\n\nNo operations defined.\n"); err != nil {
+			return nil, err
+		}
+	}
+
+	success = true
+	return writer.close()
+}
+
+func writeLLMModelShards(site *Site, outputDir string, maxBytes int64) ([]string, error) {
+	ctx := rootLLMRenderContext(site)
+	writer := newLLMShardWriter(outputDir, "llms-models", "Models", maxBytes)
+	success := false
+	defer func() {
+		if !success {
+			_ = writer.closeDiscard()
+		}
+	}()
+
+	wrote := false
+	for _, group := range site.NavModelGroups {
+		pages := site.Models[group.TypeSlug]
+		for _, page := range pages {
+			block := "## " + group.Name + "\n\n" + renderModelMD(ctx, page) + "\n---\n\n"
+			if err := writer.writeBlock(block); err != nil {
+				return nil, err
+			}
+			wrote = true
+		}
+	}
+	if !wrote {
+		if err := writer.writeBlock("# Models\n\nNo models defined.\n"); err != nil {
+			return nil, err
+		}
+	}
+
+	success = true
+	return writer.close()
+}
+
+type llmShardWriter struct {
+	outputDir    string
+	namePrefix   string
+	title        string
+	maxBytes     int64
+	shardIndex   int
+	current      *bufferedTextFile
+	currentBytes int64
+	names        []string
+}
+
+func newLLMShardWriter(outputDir, namePrefix, title string, maxBytes int64) *llmShardWriter {
+	if maxBytes <= 0 {
+		maxBytes = DefaultLLMMaxAggregateFileBytes
+	}
+	return &llmShardWriter{
+		outputDir:  outputDir,
+		namePrefix: namePrefix,
+		title:      title,
+		maxBytes:   maxBytes,
+	}
+}
+
+func (w *llmShardWriter) writeBlock(block string) error {
+	if w.current == nil || (w.currentBytes > 0 && w.currentBytes+int64(len(block)) > w.maxBytes) {
+		if err := w.rotate(); err != nil {
+			return err
+		}
+	}
+	if _, err := w.current.writer.WriteString(block); err != nil {
+		return err
+	}
+	w.currentBytes += int64(len(block))
+	return nil
+}
+
+func (w *llmShardWriter) rotate() error {
+	if w.current != nil {
+		if err := w.current.close(); err != nil {
+			return err
+		}
+	}
+	w.shardIndex++
+	name := fmt.Sprintf("%s-%04d.txt", w.namePrefix, w.shardIndex)
+	file, err := openBufferedTextFile(filepath.Join(w.outputDir, name))
+	if err != nil {
+		return err
+	}
+	w.current = file
+	w.names = append(w.names, name)
+	header := fmt.Sprintf("# %s shard %04d\n\n", w.title, w.shardIndex)
+	if _, err := w.current.writer.WriteString(header); err != nil {
+		_ = w.current.closeDiscard()
+		return err
+	}
+	w.currentBytes = int64(len(header))
+	return nil
+}
+
+func (w *llmShardWriter) close() ([]string, error) {
+	if w.current == nil {
+		return nil, nil
+	}
+	if err := w.current.close(); err != nil {
+		return nil, err
+	}
+	w.current = nil
+	return append([]string(nil), w.names...), nil
+}
+
+func (w *llmShardWriter) closeDiscard() error {
+	if w.current == nil {
+		return nil
+	}
+	err := w.current.closeDiscard()
+	w.current = nil
+	return err
+}
+
+func absoluteLLMShardPaths(outputDir string, shardNames []string) []string {
+	if len(shardNames) == 0 {
+		return nil
+	}
+	paths := make([]string, 0, len(shardNames))
+	for _, shardName := range shardNames {
+		paths = append(paths, filepath.Join(outputDir, filepath.FromSlash(shardName)))
+	}
+	return paths
+}
+
+func removeLLMMonolithFiles(outputDir string) error {
+	for _, name := range []string{pppaths.FileLLMFull, pppaths.FileLLMOperations, pppaths.FileLLMModels} {
+		if err := os.Remove(filepath.Join(outputDir, name)); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+func removeLLMShardFiles(outputDir string) error {
+	entries, err := os.ReadDir(outputDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, pattern := range []string{"llms-operations-*.txt", "llms-models-*.txt"} {
+		for _, entry := range entries {
+			match, err := filepath.Match(pattern, entry.Name())
+			if err != nil {
+				return err
+			}
+			if !match {
+				continue
+			}
+			if err := os.Remove(filepath.Join(outputDir, entry.Name())); err != nil && !os.IsNotExist(err) {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // writeLLMIndex generates the llms.txt discovery index.
-func writeLLMIndex(site *Site, outputDir string) error {
+func writeLLMIndex(site *Site, outputDir string, plans ...llmWritePlan) error {
+	plan := newLLMWritePlan(site)
+	if len(plans) > 0 {
+		plan = plans[0]
+	}
 	var b strings.Builder
 
 	title := "API Documentation"
@@ -230,10 +577,7 @@ func writeLLMIndex(site *Site, outputDir string) error {
 	}
 
 	b.WriteString("## Files\n\n")
-	b.WriteString("- [AGENTS.md](AGENTS.md) — Start-here guide for agents: artifact map and recommended workflow\n")
-	b.WriteString("- [llms-full.txt](llms-full.txt) — Complete API documentation in one file\n")
-	b.WriteString("- [llms-operations.txt](llms-operations.txt) — All operations only\n")
-	b.WriteString("- [llms-models.txt](llms-models.txt) — All models/components only\n\n")
+	writeLLMFileMap(&b, plan)
 
 	// Quick Start section
 	quickStart := renderQuickStart(site)
@@ -282,7 +626,11 @@ func writeLLMIndex(site *Site, outputDir string) error {
 	return os.WriteFile(filepath.Join(outputDir, pppaths.FileLLMIndex), []byte(b.String()), 0o644)
 }
 
-func renderAgentsGuide(site *Site) string {
+func renderAgentsGuide(site *Site, plans ...llmWritePlan) string {
+	plan := newLLMWritePlan(site)
+	if len(plans) > 0 {
+		plan = plans[0]
+	}
 	var b strings.Builder
 
 	b.WriteString("## Start Here\n\n")
@@ -294,22 +642,23 @@ func renderAgentsGuide(site *Site) string {
 	}
 
 	b.WriteString("## Artifact Map\n\n")
-	b.WriteString("- [llms.txt](llms.txt) — Compact discovery index for tags, operations, and model groups.\n")
-	b.WriteString("- [llms-full.txt](llms-full.txt) — Complete API documentation in one file when you need a single retrieval surface.\n")
-	b.WriteString("- [llms-operations.txt](llms-operations.txt) — Operations and webhooks only.\n")
-	b.WriteString("- [llms-models.txt](llms-models.txt) — Models and components only.\n")
-	b.WriteString("- `operations/*.md` — One Markdown page per operation or webhook with parameters, security, request/response details, and related links.\n")
-	b.WriteString("- `operations/*.json` — One machine-readable JSON artifact per operation or webhook for structured traversal and code generation.\n")
-	b.WriteString("- `models/<type>/*.md` — One Markdown page per model or component with schema summaries and cross-links.\n")
-	b.WriteString("- `models/<type>/*.json` — One machine-readable JSON artifact per model or component.\n")
-	b.WriteString("- `bundle.json`, `index.json`, `nav.json`, `manifest.json` — Top-level machine-readable artifacts for structured traversal of the rendered docs set.\n")
-	b.WriteString("- `index.html`, `operations/*.html`, `models/**/*.html` — Optional human-oriented browsing surfaces; use them last for LLM work.\n\n")
+	writeLLMFileMap(&b, plan)
+	b.WriteString("- `operations/*.md` - One Markdown page per operation or webhook with parameters, security, request/response details, and related links.\n")
+	b.WriteString("- `operations/*.json` - One machine-readable JSON artifact per operation or webhook for structured traversal and code generation.\n")
+	b.WriteString("- `models/<type>/*.md` - One Markdown page per model or component with schema summaries and cross-links.\n")
+	b.WriteString("- `models/<type>/*.json` - One machine-readable JSON artifact per model or component.\n")
+	b.WriteString("- `bundle.json`, `index.json`, `nav.json`, `manifest.json` - Top-level machine-readable artifacts for structured traversal of the rendered docs set.\n")
+	b.WriteString("- `index.html`, `operations/*.html`, `models/**/*.html` - Optional human-oriented browsing surfaces; use them last for LLM work.\n\n")
 
 	b.WriteString("## Recommended Workflow\n\n")
 	b.WriteString("1. Read [llms.txt](llms.txt) to find the most relevant tag, operation, or model family.\n")
 	b.WriteString("2. Open the matching `operations/<slug>.md` page for concrete endpoint details and usage guidance.\n")
 	b.WriteString("3. Follow links into `models/<type>/<slug>.md` for request and response shapes.\n")
-	b.WriteString("4. Use [llms-full.txt](llms-full.txt) only when you need broad one-file retrieval or cross-cutting summaries.\n")
+	if plan.generateMonoliths {
+		b.WriteString("4. Use [llms-full.txt](llms-full.txt) only when you need broad one-file retrieval or cross-cutting summaries.\n")
+	} else {
+		b.WriteString("4. Use the sharded LLM aggregate files when you need broad retrieval without loading every detailed page.\n")
+	}
 	b.WriteString("5. Fall back to source links or optional JSON artifacts when you need exact provenance or structured traversal.\n\n")
 
 	b.WriteString("## Notes\n\n")
@@ -320,93 +669,268 @@ func renderAgentsGuide(site *Site) string {
 	return b.String()
 }
 
+func writeLLMFileMap(b *strings.Builder, plan llmWritePlan) {
+	b.WriteString("- [AGENTS.md](AGENTS.md) - Start-here guide for agents: artifact map and recommended workflow\n")
+	b.WriteString("- [llms.txt](llms.txt) - Compact discovery index for tags, operations, and model groups\n")
+	if plan.generateMonoliths {
+		b.WriteString("- [llms-full.txt](llms-full.txt) - Complete API documentation in one file\n")
+		b.WriteString("- [llms-operations.txt](llms-operations.txt) - All operations only\n")
+		b.WriteString("- [llms-models.txt](llms-models.txt) - All models/components only\n")
+	} else if plan.monolithOmittedReason != "" {
+		b.WriteString("- Monolithic LLM aggregate files were omitted because " + plan.monolithOmittedReason + ".\n")
+	}
+	writeLLMShardMap(b, "Operation shard", plan.operationShards)
+	writeLLMShardMap(b, "Model shard", plan.modelShards)
+	b.WriteString("\n")
+}
+
+func writeLLMShardMap(b *strings.Builder, title string, shardNames []string) {
+	if len(shardNames) == 0 {
+		return
+	}
+	for i, shardName := range shardNames {
+		b.WriteString(fmt.Sprintf("- [%s](%s) - %s %d\n", shardName, shardName, title, i+1))
+	}
+}
+
 // writeLLMOperationsSlice generates llms-operations.txt with all operations and webhooks.
 func writeLLMOperationsSlice(site *Site, outputDir string) error {
-	var b strings.Builder
-	ctx := rootLLMRenderContext(site)
+	return writeLLMOperationsSliceWithRelated(site, outputDir, newLLMRelatedOperationIndex(site))
+}
 
-	opsContent := renderOperationsSection(ctx)
-	if opsContent != "" {
-		b.WriteString(opsContent)
-	}
+func writeLLMOperationsSliceWithRelated(site *Site, outputDir string, relatedOperationIndex *llmRelatedOperationIndex) error {
+	ctx := withRelatedOperationIndex(rootLLMRenderContext(site), relatedOperationIndex)
+	return writeBufferedTextFile(filepath.Join(outputDir, pppaths.FileLLMOperations), func(w io.StringWriter) error {
+		wroteOperations, err := writeOperationsSection(ctx, w)
+		if err != nil {
+			return err
+		}
 
-	whContent := renderWebhooksSection(ctx)
-	if whContent != "" {
-		b.WriteString(whContent)
-	}
+		wroteWebhooks, err := writeWebhooksSection(ctx, w)
+		if err != nil {
+			return err
+		}
 
-	if b.Len() == 0 {
-		b.WriteString("# Operations\n\nNo operations defined.\n")
-	}
+		if !wroteOperations && !wroteWebhooks {
+			return writeString(w, "# Operations\n\nNo operations defined.\n")
+		}
 
-	return os.WriteFile(filepath.Join(outputDir, pppaths.FileLLMOperations), []byte(b.String()), 0o644)
+		return nil
+	})
 }
 
 // writeLLMModelsSlice generates llms-models.txt with all model/component sections.
 func writeLLMModelsSlice(site *Site, outputDir string) error {
-	var b strings.Builder
 	ctx := rootLLMRenderContext(site)
+	return writeBufferedTextFile(filepath.Join(outputDir, pppaths.FileLLMModels), func(w io.StringWriter) error {
+		wroteModels, err := writeModelsSection(ctx, w)
+		if err != nil {
+			return err
+		}
 
-	modelsContent := renderModelsSection(ctx)
-	if modelsContent != "" {
-		b.WriteString(modelsContent)
-	}
+		if !wroteModels {
+			return writeString(w, "# Models\n\nNo models defined.\n")
+		}
 
-	if b.Len() == 0 {
-		b.WriteString("# Models\n\nNo models defined.\n")
-	}
-
-	return os.WriteFile(filepath.Join(outputDir, pppaths.FileLLMModels), []byte(b.String()), 0o644)
+		return nil
+	})
 }
 
 // writeLLMOperationFiles writes individual .md files for each operation and webhook.
 func writeLLMOperationFiles(site *Site, outputDir string) ([]string, error) {
-	var written []string
-	ctx := operationFileRenderContext(site)
+	return writeLLMOperationFilesWithRelated(site, outputDir, newLLMRelatedOperationIndex(site))
+}
+
+func writeLLMOperationFilesWithRelated(site *Site, outputDir string, relatedOperationIndex *llmRelatedOperationIndex) ([]string, error) {
+	ctx := withRelatedOperationIndex(operationFileRenderContext(site), relatedOperationIndex)
+	tasks := make([]llmMarkdownFileTask, 0, len(site.Operations)+len(site.Webhooks))
 	for _, op := range site.Operations {
-		content := renderOperationMD(ctx, op)
 		path := filepath.Join(outputDir, filepath.FromSlash(pppaths.OperationMarkdown(op.Slug)))
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return nil, err
-		}
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-			return nil, fmt.Errorf("writing operation %s: %w", op.Slug, err)
-		}
-		written = append(written, path)
+		op := op
+		tasks = append(tasks, llmMarkdownFileTask{
+			path:  path,
+			label: "operation " + op.Slug,
+			render: func() string {
+				return renderOperationMD(ctx, op)
+			},
+		})
 	}
 	for _, wh := range site.Webhooks {
-		content := renderOperationMD(ctx, wh)
 		path := filepath.Join(outputDir, filepath.FromSlash(pppaths.OperationMarkdown(wh.Slug)))
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return nil, err
-		}
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-			return nil, fmt.Errorf("writing webhook %s: %w", wh.Slug, err)
-		}
-		written = append(written, path)
+		wh := wh
+		tasks = append(tasks, llmMarkdownFileTask{
+			path:  path,
+			label: "webhook " + wh.Slug,
+			render: func() string {
+				return renderOperationMD(ctx, wh)
+			},
+		})
 	}
-	return written, nil
+	return writeLLMMarkdownFiles(tasks)
 }
 
 // writeLLMModelFiles writes individual .md files for each model.
 func writeLLMModelFiles(site *Site, outputDir string) ([]string, error) {
-	var written []string
 	ctx := modelFileRenderContext(site)
+	var tasks []llmMarkdownFileTask
 	for _, group := range site.NavModelGroups {
 		pages := site.Models[group.TypeSlug]
 		for _, page := range pages {
-			content := renderModelMD(ctx, page)
 			path := filepath.Join(outputDir, filepath.FromSlash(pppaths.ModelMarkdown(group.TypeSlug, page.Slug)))
-			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-				return nil, err
+			page := page
+			groupSlug := group.TypeSlug
+			tasks = append(tasks, llmMarkdownFileTask{
+				path:  path,
+				label: "model " + groupSlug + "/" + page.Slug,
+				render: func() string {
+					return renderModelMD(ctx, page)
+				},
+			})
+		}
+	}
+	return writeLLMMarkdownFiles(tasks)
+}
+
+type bufferedTextFile struct {
+	file   *os.File
+	writer *bufio.Writer
+}
+
+func openBufferedTextFile(path string) (*bufferedTextFile, error) {
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		return nil, err
+	}
+	return &bufferedTextFile{
+		file:   file,
+		writer: bufio.NewWriterSize(file, 256*1024),
+	}, nil
+}
+
+func writeBufferedTextFile(path string, write func(io.StringWriter) error) (err error) {
+	file, err := openBufferedTextFile(path)
+	if err != nil {
+		return err
+	}
+	success := false
+	defer func() {
+		if !success {
+			_ = file.closeDiscard()
+		}
+	}()
+	if err = write(file.writer); err != nil {
+		return err
+	}
+	if err = file.close(); err != nil {
+		return err
+	}
+	success = true
+	return nil
+}
+
+func closeBufferedTextFiles(files ...*bufferedTextFile) error {
+	var firstErr error
+	for _, file := range files {
+		if err := file.close(); err != nil {
+			if firstErr == nil {
+				firstErr = err
 			}
-			if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-				return nil, fmt.Errorf("writing model %s/%s: %w", group.TypeSlug, page.Slug, err)
+		}
+	}
+	return firstErr
+}
+
+func (f *bufferedTextFile) close() error {
+	if err := f.writer.Flush(); err != nil {
+		_ = f.file.Close()
+		return err
+	}
+	return f.file.Close()
+}
+
+func (f *bufferedTextFile) closeDiscard() error {
+	_ = f.writer.Flush()
+	return f.file.Close()
+}
+
+func writeString(w io.StringWriter, s string) error {
+	_, err := w.WriteString(s)
+	return err
+}
+
+type multiStringWriter []io.StringWriter
+
+func (w multiStringWriter) WriteString(s string) (int, error) {
+	for _, writer := range w {
+		if _, err := writer.WriteString(s); err != nil {
+			return 0, err
+		}
+	}
+	return len(s), nil
+}
+
+type llmMarkdownFileTask struct {
+	path   string
+	label  string
+	render func() string
+}
+
+func writeLLMMarkdownFiles(tasks []llmMarkdownFileTask) ([]string, error) {
+	if len(tasks) == 0 {
+		return nil, nil
+	}
+
+	workers := llmMarkdownFileWorkers(len(tasks))
+	jobs := make(chan int)
+	taskErrors := make([]error, len(tasks))
+	written := make([]string, len(tasks))
+
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for taskIndex := range jobs {
+				task := tasks[taskIndex]
+				if err := os.MkdirAll(filepath.Dir(task.path), 0o755); err != nil {
+					taskErrors[taskIndex] = fmt.Errorf("creating directory for %s: %w", task.label, err)
+					continue
+				}
+				if err := os.WriteFile(task.path, []byte(task.render()), 0o644); err != nil {
+					taskErrors[taskIndex] = fmt.Errorf("writing %s: %w", task.label, err)
+					continue
+				}
+				written[taskIndex] = task.path
 			}
-			written = append(written, path)
+		}()
+	}
+
+	for i := range tasks {
+		jobs <- i
+	}
+	close(jobs)
+	wg.Wait()
+
+	for _, err := range taskErrors {
+		if err != nil {
+			return nil, err
 		}
 	}
 	return written, nil
+}
+
+func llmMarkdownFileWorkers(taskCount int) int {
+	if taskCount <= 1 {
+		return taskCount
+	}
+	workers := runtime.GOMAXPROCS(0)
+	if workers > 8 {
+		workers = 8
+	}
+	if workers > taskCount {
+		workers = taskCount
+	}
+	return workers
 }
 
 // renderQuickStart builds a compact Quick Start section for the llms.txt index.
@@ -674,13 +1198,20 @@ func detectErrorModel(site *Site) *ModelPage {
 
 // renderOperationsSection renders the full "## Operations" section grouped by tags.
 func renderOperationsSection(ctx llmRenderContext) string {
+	var b strings.Builder
+	_, _ = writeOperationsSection(ctx, &b)
+	return b.String()
+}
+
+func writeOperationsSection(ctx llmRenderContext, w io.StringWriter) (bool, error) {
 	site := ctx.site
 	if len(site.Operations) == 0 {
-		return ""
+		return false, nil
 	}
 
-	var b strings.Builder
-	b.WriteString("## Operations\n\n")
+	if err := writeString(w, "## Operations\n\n"); err != nil {
+		return false, err
+	}
 
 	// Build slug→OperationPage lookup
 	opLookup := make(map[string]*OperationPage)
@@ -691,16 +1222,21 @@ func renderOperationsSection(ctx llmRenderContext) string {
 	seen := make(map[string]bool)
 
 	// Walk tags tree to render operations grouped by tag
-	var walkTags func(tags []*NavTag, depth int)
-	walkTags = func(tags []*NavTag, depth int) {
+	wrote := false
+	var walkTags func(tags []*NavTag, depth int) error
+	walkTags = func(tags []*NavTag, depth int) error {
 		for _, tag := range tags {
 			if len(tag.Operations) == 0 && len(tag.Children) == 0 {
 				continue
 			}
 			heading := strings.Repeat("#", depth+2)
-			b.WriteString(heading + " " + tag.Name + "\n\n")
+			if err := writeString(w, heading+" "+tag.Name+"\n\n"); err != nil {
+				return err
+			}
 			if tag.Summary != "" {
-				b.WriteString(tag.Summary + "\n\n")
+				if err := writeString(w, tag.Summary+"\n\n"); err != nil {
+					return err
+				}
 			}
 			for _, navOp := range tag.Operations {
 				if seen[navOp.Slug] {
@@ -708,14 +1244,24 @@ func renderOperationsSection(ctx llmRenderContext) string {
 				}
 				seen[navOp.Slug] = true
 				if op, ok := opLookup[navOp.Slug]; ok {
-					b.WriteString(renderOperationMD(ctx, op))
-					b.WriteString("\n---\n\n")
+					if err := writeString(w, renderOperationMD(ctx, op)); err != nil {
+						return err
+					}
+					if err := writeString(w, "\n---\n\n"); err != nil {
+						return err
+					}
+					wrote = true
 				}
 			}
-			walkTags(tag.Children, depth+1)
+			if err := walkTags(tag.Children, depth+1); err != nil {
+				return err
+			}
 		}
+		return nil
 	}
-	walkTags(site.NavTags, 1)
+	if err := walkTags(site.NavTags, 1); err != nil {
+		return false, err
+	}
 
 	// Render untagged operations
 	var untagged []*OperationPage
@@ -725,56 +1271,87 @@ func renderOperationsSection(ctx llmRenderContext) string {
 		}
 	}
 	if len(untagged) > 0 {
-		b.WriteString("### Untagged Operations\n\n")
+		if err := writeString(w, "### Untagged Operations\n\n"); err != nil {
+			return false, err
+		}
 		for _, op := range untagged {
-			b.WriteString(renderOperationMD(ctx, op))
-			b.WriteString("\n---\n\n")
+			if err := writeString(w, renderOperationMD(ctx, op)); err != nil {
+				return false, err
+			}
+			if err := writeString(w, "\n---\n\n"); err != nil {
+				return false, err
+			}
+			wrote = true
 		}
 	}
 
-	return b.String()
+	return wrote, nil
 }
 
 // renderWebhooksSection renders the "## Webhooks" section.
 func renderWebhooksSection(ctx llmRenderContext) string {
+	var b strings.Builder
+	_, _ = writeWebhooksSection(ctx, &b)
+	return b.String()
+}
+
+func writeWebhooksSection(ctx llmRenderContext, w io.StringWriter) (bool, error) {
 	site := ctx.site
 	if len(site.Webhooks) == 0 {
-		return ""
+		return false, nil
 	}
 
-	var b strings.Builder
-	b.WriteString("## Webhooks\n\n")
+	if err := writeString(w, "## Webhooks\n\n"); err != nil {
+		return false, err
+	}
 
 	for _, wh := range site.Webhooks {
-		b.WriteString(renderOperationMD(ctx, wh))
-		b.WriteString("\n---\n\n")
+		if err := writeString(w, renderOperationMD(ctx, wh)); err != nil {
+			return false, err
+		}
+		if err := writeString(w, "\n---\n\n"); err != nil {
+			return false, err
+		}
 	}
 
-	return b.String()
+	return true, nil
 }
 
 // renderModelsSection renders all model/component group sections.
 func renderModelsSection(ctx llmRenderContext) string {
+	var b strings.Builder
+	_, _ = writeModelsSection(ctx, &b)
+	return b.String()
+}
+
+func writeModelsSection(ctx llmRenderContext, w io.StringWriter) (bool, error) {
 	site := ctx.site
 	if len(site.NavModelGroups) == 0 {
-		return ""
+		return false, nil
 	}
 
-	var b strings.Builder
+	wrote := false
 
 	for _, group := range site.NavModelGroups {
 		pages := site.Models[group.TypeSlug]
 		if len(pages) == 0 {
 			continue
 		}
-		b.WriteString("## " + group.Name + "\n\n")
+		if err := writeString(w, "## "+group.Name+"\n\n"); err != nil {
+			return false, err
+		}
 		for _, page := range pages {
-			b.WriteString(renderModelMD(ctx, page))
-			b.WriteString("\n---\n\n")
+			if err := writeString(w, renderModelMD(ctx, page)); err != nil {
+				return false, err
+			}
+			if err := writeString(w, "\n---\n\n"); err != nil {
+				return false, err
+			}
+			wrote = true
 		}
 	}
 
-	return b.String()
+	return wrote, nil
 }
 
 // renderOperationMD renders a single operation as markdown.
@@ -880,12 +1457,13 @@ func renderModelMD(ctx llmRenderContext, page *ModelPage) string {
 		b.WriteString("\n")
 	}
 
-	if summary := renderSchemaSummaryMD(ctx, page.SchemaJSON, nil, nil); summary != "" {
+	summary := renderSchemaSummaryMD(ctx, page.SchemaJSON, nil, nil)
+	if summary != "" {
 		b.WriteString("#### Schema Summary\n\n")
 		b.WriteString(summary)
 	}
 
-	if shouldRenderRawSchema(page.SchemaJSON, page.SchemaJSON != "" && renderSchemaSummaryMD(ctx, page.SchemaJSON, nil, nil) != "", false, modelHasLinkedRefs(page)) {
+	if shouldRenderRawSchemaWithContext(ctx, page.SchemaJSON, summary != "", false, modelHasLinkedRefs(page)) {
 		b.WriteString(renderSchemaBlock(page.SchemaJSON))
 		b.WriteString("\n")
 	}
@@ -1069,7 +1647,7 @@ func renderRequestBodyMD(ctx llmRenderContext, op *OperationPage, rb *RequestBod
 		if summary != "" {
 			b.WriteString(summary)
 		}
-		if shouldRenderRawSchema(mt.SchemaJSON, summary != "", requestMediaTypeHasExample(op, mt), requestMediaTypeHasLinkedRefs(mt)) {
+		if shouldRenderRawSchemaWithContext(ctx, mt.SchemaJSON, summary != "", requestMediaTypeHasExample(op, mt), requestMediaTypeHasLinkedRefs(mt)) {
 			b.WriteString(renderSchemaBlock(mt.SchemaJSON))
 			b.WriteString("\n")
 		}
@@ -1112,7 +1690,7 @@ func renderResponsesMD(ctx llmRenderContext, responses []*ResponseInfo) string {
 				if summary != "" {
 					b.WriteString(summary)
 				}
-				if shouldRenderRawSchema(mt.SchemaJSON, summary != "", mediaTypeHasExample(mt), mediaTypeHasLinkedRefs(mt)) {
+				if shouldRenderRawSchemaWithContext(ctx, mt.SchemaJSON, summary != "", mediaTypeHasExample(mt), mediaTypeHasLinkedRefs(mt)) {
 					if firstCode, seen := seenSchemas[mt.SchemaJSON]; seen {
 						b.WriteString(fmt.Sprintf("*Same schema as %s response.*\n\n", firstCode))
 					} else {
@@ -1341,7 +1919,7 @@ func renderRelatedOperationsMD(ctx llmRenderContext, op *OperationPage) string {
 	if ctx.site == nil || op == nil {
 		return ""
 	}
-	related := collectRelatedOperations(ctx.site, op)
+	related := collectRelatedOperationsWithIndex(ctx.site, op, ctx.relatedOperationIndex)
 	if len(related) == 0 {
 		return ""
 	}
@@ -1359,62 +1937,7 @@ func renderRelatedOperationsMD(ctx llmRenderContext, op *OperationPage) string {
 }
 
 func collectRelatedOperations(site *Site, op *OperationPage) []*OperationPage {
-	if site == nil || op == nil {
-		return nil
-	}
-	type candidate struct {
-		op    *OperationPage
-		score int
-	}
-	var candidates []candidate
-	seen := make(map[string]bool)
-	for _, other := range site.Operations {
-		if other == nil || other.Slug == op.Slug {
-			continue
-		}
-		score := 0
-		if other.Path == op.Path {
-			score += 100
-		}
-		if operationHasResourceOperationID(op, other.OperationID) {
-			score += 50
-		}
-		if shareTag(op, other) {
-			score += 2
-		}
-		if prefix := sharedPathPrefix(op.Path, other.Path); prefix != "" {
-			score += strings.Count(prefix, "/")
-		}
-		if sharedPathPrefix(op.Path, other.Path) != "" && isComplementaryMethod(op.Method, other.Method) {
-			score += 8
-		}
-		if strings.Contains(other.Path, "/object-mappings/") && strings.Contains(op.Path, "/object-mappings/") {
-			score += 4
-		}
-		if score <= 0 {
-			continue
-		}
-		if seen[other.Slug] {
-			continue
-		}
-		seen[other.Slug] = true
-		candidates = append(candidates, candidate{op: other, score: score})
-	}
-	sort.SliceStable(candidates, func(i, j int) bool {
-		if candidates[i].score == candidates[j].score {
-			return candidates[i].op.Path < candidates[j].op.Path
-		}
-		return candidates[i].score > candidates[j].score
-	})
-	limit := 4
-	if len(candidates) < limit {
-		limit = len(candidates)
-	}
-	result := make([]*OperationPage, 0, limit)
-	for i := 0; i < limit; i++ {
-		result = append(result, candidates[i].op)
-	}
-	return result
+	return collectRelatedOperationsWithIndex(site, op, nil)
 }
 
 func operationHasResourceOperationID(op *OperationPage, operationID string) bool {
@@ -1555,28 +2078,48 @@ func modelHasLinkedRefs(page *ModelPage) bool {
 }
 
 func shouldRenderRawSchema(schemaJSON string, hasSummary, hasExample, hasLinkedRefs bool) bool {
+	return shouldRenderRawSchemaWithContext(llmRenderContext{}, schemaJSON, hasSummary, hasExample, hasLinkedRefs)
+}
+
+func shouldRenderRawSchemaWithContext(ctx llmRenderContext, schemaJSON string, hasSummary, hasExample, hasLinkedRefs bool) bool {
 	if strings.TrimSpace(schemaJSON) == "" {
 		return false
 	}
 	if !hasSummary {
 		return true
 	}
-	if schemaNeedsRawBlock(schemaJSON) {
+	if schemaNeedsRawBlockWithContext(ctx, schemaJSON) {
 		return true
 	}
 	return !hasExample && !hasLinkedRefs
 }
 
 func schemaNeedsRawBlock(schemaJSON string) bool {
-	schema := parseJSONMap(schemaJSON)
+	return schemaNeedsRawBlockWithContext(llmRenderContext{}, schemaJSON)
+}
+
+func schemaNeedsRawBlockWithContext(ctx llmRenderContext, schemaJSON string) bool {
+	if ctx.cache != nil {
+		ctx.cache.mu.RLock()
+		needs, ok := ctx.cache.rawSchemaNeeds[schemaJSON]
+		ctx.cache.mu.RUnlock()
+		if ok {
+			return needs
+		}
+	}
+
+	schema := parseJSONMapWithContext(ctx, schemaJSON)
 	if schema == nil {
+		cacheRawSchemaNeeds(ctx, schemaJSON, true)
 		return true
 	}
 	for _, key := range []string{"allOf", "oneOf", "anyOf"} {
 		if len(arrayAny(schema[key])) > 0 {
+			cacheRawSchemaNeeds(ctx, schemaJSON, true)
 			return true
 		}
 	}
+	cacheRawSchemaNeeds(ctx, schemaJSON, false)
 	return false
 }
 
@@ -1584,14 +2127,38 @@ func renderSchemaSummaryMD(ctx llmRenderContext, schemaJSON string, schemaRef, i
 	if schemaJSON == "" {
 		return ""
 	}
-	schema := parseJSONMap(schemaJSON)
+
+	schemaRefLabel := ""
+	if schemaRef != nil {
+		schemaRefLabel = componentLinkLabel(ctx, schemaRef)
+	}
+	itemsRefLabel := ""
+	if itemsRef != nil {
+		itemsRefLabel = componentLinkLabel(ctx, itemsRef)
+	}
+	key := llmSchemaSummaryKey{
+		schemaJSON: schemaJSON,
+		schemaRef:  schemaRefLabel,
+		itemsRef:   itemsRefLabel,
+	}
+	if ctx.cache != nil {
+		ctx.cache.mu.RLock()
+		summary, ok := ctx.cache.schemaSummaries[key]
+		ctx.cache.mu.RUnlock()
+		if ok {
+			return summary
+		}
+	}
+
+	schema := parseJSONMapWithContext(ctx, schemaJSON)
 	if schema == nil {
+		cacheSchemaSummary(ctx, key, "")
 		return ""
 	}
 
 	var b strings.Builder
-	if schemaRef != nil {
-		b.WriteString("- Reference: " + componentLinkLabel(ctx, schemaRef) + "\n")
+	if schemaRefLabel != "" {
+		b.WriteString("- Reference: " + schemaRefLabel + "\n")
 	}
 	if ref := stringValue(schema["$ref"]); ref != "" {
 		b.WriteString("- Reference path: `" + ref + "`\n")
@@ -1622,8 +2189,8 @@ func renderSchemaSummaryMD(ctx llmRenderContext, schemaJSON string, schemaRef, i
 		}
 	}
 	if items := nestedObject(schema, "items"); items != nil {
-		if itemsRef != nil {
-			b.WriteString("- Items model: " + componentLinkLabel(ctx, itemsRef) + "\n")
+		if itemsRefLabel != "" {
+			b.WriteString("- Items model: " + itemsRefLabel + "\n")
 		} else if itemsType := formatSchemaTypeLine(items); itemsType != "" {
 			b.WriteString("- Items type: " + itemsType + "\n")
 		}
@@ -1675,10 +2242,13 @@ func renderSchemaSummaryMD(ctx llmRenderContext, schemaJSON string, schemaRef, i
 	}
 
 	if b.Len() == 0 {
+		cacheSchemaSummary(ctx, key, "")
 		return ""
 	}
 	b.WriteString("\n")
-	return b.String()
+	summary := b.String()
+	cacheSchemaSummary(ctx, key, summary)
+	return summary
 }
 
 func renderPatchablePathsMD(op *OperationPage, mt *MediaTypeInfo) string {
@@ -2045,6 +2615,43 @@ func parseJSONMap(schemaJSON string) map[string]any {
 	return data
 }
 
+func parseJSONMapWithContext(ctx llmRenderContext, schemaJSON string) map[string]any {
+	if ctx.cache == nil {
+		return parseJSONMap(schemaJSON)
+	}
+
+	ctx.cache.mu.RLock()
+	schema, ok := ctx.cache.schemaMaps[schemaJSON]
+	ctx.cache.mu.RUnlock()
+	if ok {
+		return schema
+	}
+
+	schema = parseJSONMap(schemaJSON)
+	ctx.cache.mu.Lock()
+	ctx.cache.schemaMaps[schemaJSON] = schema
+	ctx.cache.mu.Unlock()
+	return schema
+}
+
+func cacheSchemaSummary(ctx llmRenderContext, key llmSchemaSummaryKey, summary string) {
+	if ctx.cache == nil {
+		return
+	}
+	ctx.cache.mu.Lock()
+	ctx.cache.schemaSummaries[key] = summary
+	ctx.cache.mu.Unlock()
+}
+
+func cacheRawSchemaNeeds(ctx llmRenderContext, schemaJSON string, needs bool) {
+	if ctx.cache == nil {
+		return
+	}
+	ctx.cache.mu.Lock()
+	ctx.cache.rawSchemaNeeds[schemaJSON] = needs
+	ctx.cache.mu.Unlock()
+}
+
 func objectAny(value any) map[string]any {
 	m, _ := value.(map[string]any)
 	return m
@@ -2206,26 +2813,13 @@ func shareTag(a, b *OperationPage) bool {
 }
 
 func sharedPathPrefix(a, b string) string {
-	if a == "" || b == "" {
+	segA := operationPathSegments(a)
+	segB := operationPathSegments(b)
+	shared := sharedPathSegmentCount(segA, segB)
+	if shared == 0 {
 		return ""
 	}
-	segA := strings.Split(strings.Trim(a, "/"), "/")
-	segB := strings.Split(strings.Trim(b, "/"), "/")
-	n := len(segA)
-	if len(segB) < n {
-		n = len(segB)
-	}
-	var shared []string
-	for i := 0; i < n; i++ {
-		if segA[i] != segB[i] {
-			break
-		}
-		shared = append(shared, segA[i])
-	}
-	if len(shared) == 0 {
-		return ""
-	}
-	return "/" + strings.Join(shared, "/")
+	return "/" + strings.Join(segA[:shared], "/")
 }
 
 // renderSchemaBlock pretty-prints a JSON schema string as a fenced code block.

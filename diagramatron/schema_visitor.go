@@ -17,6 +17,15 @@ func (mt *MermaidTardis) visitSchema(ctx context.Context, schema *v3.Schema) {
 	if schema == nil {
 		return
 	}
+	if mt.schemaVisits == nil {
+		mt.schemaVisits = newSchemaVisitGuard()
+	}
+	visitKey := schemaVisitKey(schema)
+	if !mt.schemaVisits.begin(visitKey) {
+		return
+	}
+	defer mt.schemaVisits.finish(visitKey)
+
 	v3.EnsureSchemaChildrenForRead(schema)
 
 	mt.visitSchemaInternal(ctx, schema, schema.Value)

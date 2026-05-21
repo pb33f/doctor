@@ -66,11 +66,23 @@ func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, 
 	}
 	entryOutput := filepath.Join(ap.config.OutputDir, filepath.FromSlash(spec.OutputSubdir))
 	config := &PrintingPressConfig{
-		BasePath:  filepath.Dir(spec.AbsolutePath),
-		SpecPath:  spec.AbsolutePath,
-		OutputDir: entryOutput,
-		AssetMode: ap.config.AssetMode,
-		Footer:    cloneFooterConfig(ap.config.Footer),
+		BasePath:                           filepath.Dir(spec.AbsolutePath),
+		SpecPath:                           spec.AbsolutePath,
+		OutputDir:                          entryOutput,
+		AssetMode:                          ap.config.AssetMode,
+		SharedAssetBaseURL:                 ap.entrySharedAssetBaseURL(spec),
+		Footer:                             cloneFooterConfig(ap.config.Footer),
+		MaxPatternRepeatBudget:             ap.config.MaxPatternRepeatBudget,
+		MaxGeneratedStringBytes:            ap.config.MaxGeneratedStringBytes,
+		MaxGeneratedMockBytes:              ap.config.MaxGeneratedMockBytes,
+		MaxMockDepth:                       ap.config.MaxMockDepth,
+		MaxMockNodes:                       ap.config.MaxMockNodes,
+		MaxMockProperties:                  ap.config.MaxMockProperties,
+		MaxMockRefExpansions:               ap.config.MaxMockRefExpansions,
+		MaxMockBytes:                       ap.config.MaxMockBytes,
+		LLMAggregateSpecSizeThresholdBytes: ap.config.LLMAggregateSpecSizeThresholdBytes,
+		LLMMaxAggregateFileBytes:           ap.config.LLMMaxAggregateFileBytes,
+		LLMGenerateMonoliths:               ap.config.LLMGenerateMonoliths,
 	}
 	if ap.config.BaseURL != "" {
 		if joined, err := joinBaseURLPath(ap.config.BaseURL, spec.OutputSubdir); err == nil {
@@ -88,6 +100,28 @@ func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, 
 	site.HeaderContext = entry.HeaderContext
 	site.Source = entry.Source
 	return site, nil
+}
+
+func (ap *AggregatePrintingPress) entrySharedAssetBaseURL(spec *aggregateDiscoveredSpec) string {
+	if ap == nil || ap.config == nil || spec == nil {
+		return ""
+	}
+	if ap.config.BaseURL != "" {
+		assetBase, err := joinBaseURLPath(ap.config.BaseURL, pppaths.DirStatic)
+		if err == nil {
+			return strings.TrimRight(assetBase, "/")
+		}
+	}
+	return relativeSharedAssetBase(spec.OutputSubdir)
+}
+
+func relativeSharedAssetBase(outputSubdir string) string {
+	clean := path.Clean(strings.Trim(filepath.ToSlash(outputSubdir), "/"))
+	if clean == "." || clean == "" {
+		return pppaths.DirStatic
+	}
+	depth := len(strings.Split(clean, "/"))
+	return strings.Repeat("../", depth) + pppaths.DirStatic
 }
 
 func (ap *AggregatePrintingPress) pruneObsoleteOutputs(plan *aggregateBuildPlan, clearChangedOutputs bool) error {

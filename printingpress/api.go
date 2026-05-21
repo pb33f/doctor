@@ -40,6 +40,43 @@ type PrintingPressConfig struct {
 	Footer           *ppmodel.FooterConfig
 	Artifact         *ArtifactManifestConfig
 
+	// MaxPatternRepeatBudget limits regex repeat work for generated mock strings.
+	// A zero or negative value uses DefaultMaxPatternRepeatBudget.
+	MaxPatternRepeatBudget int
+	// MaxGeneratedStringBytes limits each generated mock string value.
+	// A zero or negative value uses DefaultMaxGeneratedStringBytes.
+	MaxGeneratedStringBytes int
+	// MaxGeneratedMockBytes limits each serialized generated mock payload.
+	// Generated mocks over this cap are omitted with a warning. A zero or negative
+	// value uses DefaultMaxGeneratedMockBytes.
+	MaxGeneratedMockBytes int
+	// MaxMockDepth limits recursive schema depth while building generated mocks.
+	// A zero or negative value uses DefaultMaxMockDepth.
+	MaxMockDepth int
+	// MaxMockNodes limits schema nodes visited while building generated mocks.
+	// A zero or negative value uses DefaultMaxMockNodes.
+	MaxMockNodes int
+	// MaxMockProperties limits object properties rendered while building generated mocks.
+	// A zero or negative value uses DefaultMaxMockProperties.
+	MaxMockProperties int
+	// MaxMockRefExpansions limits $ref schema expansions while building generated mocks.
+	// A zero or negative value uses DefaultMaxMockRefExpansions.
+	MaxMockRefExpansions int
+	// MaxMockBytes limits approximate generated mock structure size before serialization.
+	// The default matches MaxGeneratedMockBytes to avoid generating work that the
+	// serialized mock cap will discard. A zero or negative value uses DefaultMaxMockBytes.
+	MaxMockBytes int
+	// LLMAggregateSpecSizeThresholdBytes controls when monolithic LLM aggregate
+	// files are skipped in auto mode. A zero or negative value uses
+	// DefaultLLMAggregateSpecSizeThresholdBytes.
+	LLMAggregateSpecSizeThresholdBytes int64
+	// LLMMaxAggregateFileBytes controls the target maximum size of sharded LLM
+	// aggregate files. A zero or negative value uses DefaultLLMMaxAggregateFileBytes.
+	LLMMaxAggregateFileBytes int64
+	// LLMGenerateMonoliths controls whether llms-full.txt, llms-operations.txt,
+	// and llms-models.txt are generated. Supported values are auto, always, and never.
+	LLMGenerateMonoliths string
+
 	// SharedAssetBaseURL, when set, instructs the renderer to:
 	//   1. skip writing embedded shared assets (JS bundle, CSS, fonts, icons)
 	//      into OutputDir
@@ -327,19 +364,30 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 	}
 
 	cfg := &pressEngineConfig{
-		OutputDir:          outputDir,
-		BaseURL:            pp.config.BaseURL,
-		AssetMode:          pp.config.AssetMode,
-		Embedded:           pp.config.Embedded,
-		SharedAssetBaseURL: pp.config.SharedAssetBaseURL,
-		Title:              pp.config.Title,
-		SpecURL:            pp.config.SpecURL,
-		Logger:             slog.Default(),
-		DeveloperMode:      pp.config.DeveloperMode,
-		DocsExpiresAt:      printingPressExpiryString(pp.config.ExpiresAt),
-		ArchiveExportURL:   pp.config.ArchiveExportURL,
-		LintResults:        pp.config.LintResults,
-		Footer:             cloneFooterConfig(pp.config.Footer),
+		OutputDir:                          outputDir,
+		BaseURL:                            pp.config.BaseURL,
+		AssetMode:                          pp.config.AssetMode,
+		Embedded:                           pp.config.Embedded,
+		SharedAssetBaseURL:                 pp.config.SharedAssetBaseURL,
+		Title:                              pp.config.Title,
+		SpecURL:                            pp.config.SpecURL,
+		Logger:                             slog.Default(),
+		DeveloperMode:                      pp.config.DeveloperMode,
+		DocsExpiresAt:                      printingPressExpiryString(pp.config.ExpiresAt),
+		ArchiveExportURL:                   pp.config.ArchiveExportURL,
+		LintResults:                        pp.config.LintResults,
+		Footer:                             cloneFooterConfig(pp.config.Footer),
+		MaxPatternRepeatBudget:             pp.config.MaxPatternRepeatBudget,
+		MaxGeneratedStringBytes:            pp.config.MaxGeneratedStringBytes,
+		MaxGeneratedMockBytes:              pp.config.MaxGeneratedMockBytes,
+		MaxMockDepth:                       pp.config.MaxMockDepth,
+		MaxMockNodes:                       pp.config.MaxMockNodes,
+		MaxMockProperties:                  pp.config.MaxMockProperties,
+		MaxMockRefExpansions:               pp.config.MaxMockRefExpansions,
+		MaxMockBytes:                       pp.config.MaxMockBytes,
+		LLMAggregateSpecSizeThresholdBytes: pp.config.LLMAggregateSpecSizeThresholdBytes,
+		LLMMaxAggregateFileBytes:           pp.config.LLMMaxAggregateFileBytes,
+		LLMGenerateMonoliths:               pp.config.LLMGenerateMonoliths,
 		SyntheticTagFallback: &SyntheticTagFallbackConfig{
 			Enabled:         true,
 			MaxDistinctTags: 2,
@@ -357,6 +405,7 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 		job.snapshot("doctor model built", 1, 1, 0)
 	case len(pp.source.specBytes) > 0:
 		specBytes := pp.source.specBytes
+		cfg.SourceSizeBytes = int64(len(specBytes))
 		cfg.SpecFormat = DetectSpecFormat(specBytes)
 		basePath, err := pp.resolveBasePath()
 		if err != nil {
@@ -520,7 +569,40 @@ func validateAndNormalizeConfig(config *PrintingPressConfig, source pressSource)
 	normalized.ExpiresAt = cloneTime(config.ExpiresAt)
 	normalized.Footer = cloneFooterConfig(config.Footer)
 	normalized.Artifact = cloneArtifactManifestConfig(config.Artifact)
+	limits := resolveMockGenerationLimits(
+		normalized.MaxPatternRepeatBudget,
+		normalized.MaxGeneratedStringBytes,
+		normalized.MaxGeneratedMockBytes,
+		normalized.MaxMockDepth,
+		normalized.MaxMockNodes,
+		normalized.MaxMockProperties,
+		normalized.MaxMockRefExpansions,
+		normalized.MaxMockBytes,
+	)
+	normalized.MaxPatternRepeatBudget = limits.MaxPatternRepeatBudget
+	normalized.MaxGeneratedStringBytes = limits.MaxGeneratedStringBytes
+	normalized.MaxGeneratedMockBytes = limits.MaxGeneratedMockBytes
+	normalized.MaxMockDepth = limits.MaxMockDepth
+	normalized.MaxMockNodes = limits.MaxMockNodes
+	normalized.MaxMockProperties = limits.MaxMockProperties
+	normalized.MaxMockRefExpansions = limits.MaxMockRefExpansions
+	normalized.MaxMockBytes = limits.MaxMockBytes
 	var issues []ValidationIssue
+	if llmOptions, err := resolveLLMOutputOptions(
+		normalized.LLMAggregateSpecSizeThresholdBytes,
+		normalized.LLMMaxAggregateFileBytes,
+		normalized.LLMGenerateMonoliths,
+	); err != nil {
+		issues = append(issues, ValidationIssue{
+			Field:   "llmGenerateMonoliths",
+			Err:     err,
+			Message: err.Error(),
+		})
+	} else {
+		normalized.LLMAggregateSpecSizeThresholdBytes = llmOptions.AggregateSpecSizeThresholdBytes
+		normalized.LLMMaxAggregateFileBytes = llmOptions.MaxAggregateFileBytes
+		normalized.LLMGenerateMonoliths = llmOptions.GenerateMonoliths
+	}
 
 	switch normalized.AssetMode {
 	case "", HTMLAssetModePortable:

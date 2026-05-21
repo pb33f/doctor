@@ -39,9 +39,18 @@ type Site struct {
 	BaseURL            string                          `json:"-"` // default HTML base URL from config
 	AssetMode          string                          `json:"-"` // html hydration asset mode: portable or served
 	SharedAssetBaseURL string                          `json:"-"` // when set, shared assets are referenced at this URL prefix and not copied into the artifact
+	SourceSizeBytes    int64                           `json:"-"` // root source size used for large-spec LLM aggregate policy
+	LLM                LLMOutputConfig                 `json:"-"` // resolved LLM writer policy
 	Footer             *FooterConfig                   `json:"footer,omitempty"`
 	Source             *SourceRef                      `json:"source,omitempty"`
 	HeaderContext      *SiteHeaderContext              `json:"headerContext,omitempty"`
+}
+
+// LLMOutputConfig controls LLM-oriented aggregate text artifacts for a site.
+type LLMOutputConfig struct {
+	AggregateSpecSizeThresholdBytes int64
+	MaxAggregateFileBytes           int64
+	GenerateMonoliths               string
 }
 
 // FooterConfig controls the optional pb33f footer rendered at the bottom of

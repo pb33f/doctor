@@ -52,6 +52,44 @@ type AggregatePrintingPressConfig struct {
 	MaxPools                int
 	WorkersPerPool          int
 	Footer                  *ppmodel.FooterConfig
+	// MaxPatternRepeatBudget limits regex repeat work for generated mock strings.
+	// A zero or negative value uses DefaultMaxPatternRepeatBudget.
+	MaxPatternRepeatBudget int
+	// MaxGeneratedStringBytes limits each generated mock string value.
+	// A zero or negative value uses DefaultMaxGeneratedStringBytes.
+	MaxGeneratedStringBytes int
+	// MaxGeneratedMockBytes limits each serialized generated mock payload.
+	// Generated mocks over this cap are omitted with a warning. A zero or negative
+	// value uses DefaultMaxGeneratedMockBytes.
+	MaxGeneratedMockBytes int
+	// MaxMockDepth limits recursive schema depth while building generated mocks.
+	// A zero or negative value uses DefaultMaxMockDepth.
+	MaxMockDepth int
+	// MaxMockNodes limits schema nodes visited while building generated mocks.
+	// A zero or negative value uses DefaultMaxMockNodes.
+	MaxMockNodes int
+	// MaxMockProperties limits object properties rendered while building generated mocks.
+	// A zero or negative value uses DefaultMaxMockProperties.
+	MaxMockProperties int
+	// MaxMockRefExpansions limits $ref schema expansions while building generated mocks.
+	// A zero or negative value uses DefaultMaxMockRefExpansions.
+	MaxMockRefExpansions int
+	// MaxMockBytes limits approximate generated mock structure size before serialization.
+	// The default matches MaxGeneratedMockBytes to avoid generating work that the
+	// serialized mock cap will discard. A zero or negative value uses DefaultMaxMockBytes.
+	MaxMockBytes int
+	// LLMAggregateSpecSizeThresholdBytes controls when monolithic LLM aggregate
+	// files are generated for each entry. A zero or negative value uses
+	// DefaultLLMAggregateSpecSizeThresholdBytes.
+	LLMAggregateSpecSizeThresholdBytes int64
+	// LLMMaxAggregateFileBytes controls the target maximum size of sharded LLM
+	// aggregate files for each entry. A zero or negative value uses
+	// DefaultLLMMaxAggregateFileBytes.
+	LLMMaxAggregateFileBytes int64
+	// LLMGenerateMonoliths controls whether llms-full.txt, llms-operations.txt,
+	// and llms-models.txt are generated for each entry. Supported values are
+	// "auto", "always", and "never".
+	LLMGenerateMonoliths string
 }
 
 // AggregatePressStatistics reports the outcome of an aggregate print run.
@@ -158,6 +196,35 @@ func validateAndNormalizeAggregateConfig(scanRoot string, config *AggregatePrint
 	if normalized.Logger == nil {
 		normalized.Logger = slog.Default()
 	}
+	limits := resolveMockGenerationLimits(
+		normalized.MaxPatternRepeatBudget,
+		normalized.MaxGeneratedStringBytes,
+		normalized.MaxGeneratedMockBytes,
+		normalized.MaxMockDepth,
+		normalized.MaxMockNodes,
+		normalized.MaxMockProperties,
+		normalized.MaxMockRefExpansions,
+		normalized.MaxMockBytes,
+	)
+	normalized.MaxPatternRepeatBudget = limits.MaxPatternRepeatBudget
+	normalized.MaxGeneratedStringBytes = limits.MaxGeneratedStringBytes
+	normalized.MaxGeneratedMockBytes = limits.MaxGeneratedMockBytes
+	normalized.MaxMockDepth = limits.MaxMockDepth
+	normalized.MaxMockNodes = limits.MaxMockNodes
+	normalized.MaxMockProperties = limits.MaxMockProperties
+	normalized.MaxMockRefExpansions = limits.MaxMockRefExpansions
+	normalized.MaxMockBytes = limits.MaxMockBytes
+	llmOptions, err := resolveLLMOutputOptions(
+		normalized.LLMAggregateSpecSizeThresholdBytes,
+		normalized.LLMMaxAggregateFileBytes,
+		normalized.LLMGenerateMonoliths,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	normalized.LLMAggregateSpecSizeThresholdBytes = llmOptions.AggregateSpecSizeThresholdBytes
+	normalized.LLMMaxAggregateFileBytes = llmOptions.MaxAggregateFileBytes
+	normalized.LLMGenerateMonoliths = llmOptions.GenerateMonoliths
 	if normalized.MaxPools <= 0 {
 		normalized.MaxPools = 3
 	}

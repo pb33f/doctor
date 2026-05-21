@@ -5,9 +5,13 @@
 package printingpress
 
 import (
+	"bufio"
 	"encoding/json"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -164,6 +168,258 @@ func TestWriteLLMSite_UsesConfigOutputDir(t *testing.T) {
 	assert.FileExists(t, filepath.Join(outputDir, "llms-full.txt"))
 }
 
+func TestWriteLLMSite_OmitsMonolithsForLargeSource(t *testing.T) {
+	site := buildTestSite(t, "../test_specs/burgershop.openapi.yaml")
+	site.SourceSizeBytes = DefaultLLMAggregateSpecSizeThresholdBytes + 1
+	outputDir := t.TempDir()
+
+	err := WriteLLMSite(site, outputDir)
+	require.NoError(t, err)
+
+	assert.NoFileExists(t, filepath.Join(outputDir, "llms-full.txt"))
+	assert.NoFileExists(t, filepath.Join(outputDir, "llms-operations.txt"))
+	assert.NoFileExists(t, filepath.Join(outputDir, "llms-models.txt"))
+	assert.FileExists(t, filepath.Join(outputDir, "llms-operations-0001.txt"))
+	assert.FileExists(t, filepath.Join(outputDir, "llms-models-0001.txt"))
+
+	indexBytes, err := os.ReadFile(filepath.Join(outputDir, "llms.txt"))
+	require.NoError(t, err)
+	index := string(indexBytes)
+	assert.Contains(t, index, "Monolithic LLM aggregate files were omitted")
+	assert.Contains(t, index, "above the 20 MiB monolithic LLM threshold")
+	assert.Contains(t, index, "llms-operations-0001.txt")
+	assert.Contains(t, index, "llms-models-0001.txt")
+	assert.NotContains(t, index, "[llms-full.txt]")
+
+	agentsBytes, err := os.ReadFile(filepath.Join(outputDir, "AGENTS.md"))
+	require.NoError(t, err)
+	agents := string(agentsBytes)
+	assert.Contains(t, agents, "Use the sharded LLM aggregate files")
+	assert.NotContains(t, agents, "[llms-full.txt]")
+}
+
+func TestWriteLLMSite_AlwaysWritesMonolithsForLargeSource(t *testing.T) {
+	site := buildTestSite(t, "../test_specs/burgershop.openapi.yaml")
+	site.SourceSizeBytes = DefaultLLMAggregateSpecSizeThresholdBytes + 1
+	site.LLM = LLMOutputConfig{GenerateMonoliths: LLMGenerateMonolithsAlways}
+	outputDir := t.TempDir()
+
+	err := WriteLLMSite(site, outputDir)
+	require.NoError(t, err)
+
+	assert.FileExists(t, filepath.Join(outputDir, "llms-full.txt"))
+	assert.FileExists(t, filepath.Join(outputDir, "llms-operations.txt"))
+	assert.FileExists(t, filepath.Join(outputDir, "llms-models.txt"))
+	assert.FileExists(t, filepath.Join(outputDir, "llms-operations-0001.txt"))
+	assert.FileExists(t, filepath.Join(outputDir, "llms-models-0001.txt"))
+}
+
+func TestWriteLLMSite_NeverWritesMonolithsForSmallSource(t *testing.T) {
+	site := buildTestSite(t, "../test_specs/burgershop.openapi.yaml")
+	site.SourceSizeBytes = 512
+	site.LLM = LLMOutputConfig{GenerateMonoliths: LLMGenerateMonolithsNever}
+	outputDir := t.TempDir()
+
+	err := WriteLLMSite(site, outputDir)
+	require.NoError(t, err)
+
+	assert.NoFileExists(t, filepath.Join(outputDir, "llms-full.txt"))
+	assert.NoFileExists(t, filepath.Join(outputDir, "llms-operations.txt"))
+	assert.NoFileExists(t, filepath.Join(outputDir, "llms-models.txt"))
+	indexBytes, err := os.ReadFile(filepath.Join(outputDir, "llms.txt"))
+	require.NoError(t, err)
+	assert.Contains(t, string(indexBytes), "disabled by configuration")
+}
+
+func TestWriteLLMSite_SplitsAggregateShardsAndRemovesStaleFiles(t *testing.T) {
+	site := llmShardTestSite()
+	site.LLM = LLMOutputConfig{
+		MaxAggregateFileBytes: 150,
+		GenerateMonoliths:     LLMGenerateMonolithsNever,
+	}
+	outputDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "llms-full.txt"), []byte("stale"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "llms-operations-9999.txt"), []byte("stale"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(outputDir, "llms-models-9999.txt"), []byte("stale"), 0o644))
+
+	err := WriteLLMSite(site, outputDir)
+	require.NoError(t, err)
+
+	assert.NoFileExists(t, filepath.Join(outputDir, "llms-full.txt"))
+	assert.NoFileExists(t, filepath.Join(outputDir, "llms-operations-9999.txt"))
+	assert.NoFileExists(t, filepath.Join(outputDir, "llms-models-9999.txt"))
+	assert.FileExists(t, filepath.Join(outputDir, "llms-operations-0001.txt"))
+	assert.FileExists(t, filepath.Join(outputDir, "llms-operations-0002.txt"))
+	assert.FileExists(t, filepath.Join(outputDir, "llms-models-0001.txt"))
+	assert.FileExists(t, filepath.Join(outputDir, "llms-models-0002.txt"))
+
+	indexBytes, err := os.ReadFile(filepath.Join(outputDir, "llms.txt"))
+	require.NoError(t, err)
+	index := string(indexBytes)
+	assert.Less(t, strings.Index(index, "llms-operations-0001.txt"), strings.Index(index, "llms-operations-0002.txt"))
+	assert.Less(t, strings.Index(index, "llms-models-0001.txt"), strings.Index(index, "llms-models-0002.txt"))
+}
+
+func TestWriteLLMSiteProgressReachesTotal(t *testing.T) {
+	site := llmShardTestSite()
+	var lastCompleted, lastTotal int
+
+	_, err := writeLLMSiteDetailed(site, t.TempDir(), func(_ string, completed, total int) {
+		lastCompleted = completed
+		lastTotal = total
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, lastTotal, lastCompleted)
+	assert.Equal(t, 5+len(site.Operations)+len(site.Webhooks)+len(site.Models["schemas"]), lastTotal)
+}
+
+func TestWriteLLMSite_EmptySiteWritesFallbackShards(t *testing.T) {
+	site := &Site{Root: &RootPage{Title: "Empty API"}, Models: map[string][]*ModelPage{}}
+	outputDir := t.TempDir()
+
+	err := WriteLLMSite(site, outputDir)
+	require.NoError(t, err)
+
+	operations, err := os.ReadFile(filepath.Join(outputDir, "llms-operations-0001.txt"))
+	require.NoError(t, err)
+	assert.Contains(t, string(operations), "No operations defined.")
+
+	models, err := os.ReadFile(filepath.Join(outputDir, "llms-models-0001.txt"))
+	require.NoError(t, err)
+	assert.Contains(t, string(models), "No models defined.")
+}
+
+func TestWriteLLMOperationShards_OpenError(t *testing.T) {
+	_, err := writeLLMOperationShards(llmShardTestSite(), filepath.Join(t.TempDir(), "missing"), 128)
+
+	require.Error(t, err)
+}
+
+func TestWriteLLMModelShards_OpenError(t *testing.T) {
+	_, err := writeLLMModelShards(llmShardTestSite(), filepath.Join(t.TempDir(), "missing"), 128)
+
+	require.Error(t, err)
+}
+
+func TestLLMWritePlanNilSiteUsesDefaults(t *testing.T) {
+	plan := newLLMWritePlan(nil)
+
+	assert.True(t, plan.generateMonoliths)
+	assert.Empty(t, plan.monolithOmittedReason)
+	assert.Equal(t, DefaultLLMMaxAggregateFileBytes, plan.options.MaxAggregateFileBytes)
+}
+
+func TestLLMShardWriterHelpers(t *testing.T) {
+	outputDir := t.TempDir()
+	writer := newLLMShardWriter(outputDir, "test-shard", "Test", 0)
+	assert.Equal(t, DefaultLLMMaxAggregateFileBytes, writer.maxBytes)
+	require.NoError(t, writer.writeBlock("first\n"))
+	require.NoError(t, writer.writeBlock("second\n"))
+
+	names, err := writer.close()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"test-shard-0001.txt"}, names)
+	assert.Equal(t, []string{filepath.Join(outputDir, "test-shard-0001.txt")}, absoluteLLMShardPaths(outputDir, names))
+	assert.Nil(t, absoluteLLMShardPaths(outputDir, nil))
+
+	closed, err := writer.close()
+	require.NoError(t, err)
+	assert.Nil(t, closed)
+
+	discard := newLLMShardWriter(outputDir, "discard-shard", "Discard", 32)
+	require.NoError(t, discard.closeDiscard())
+	require.NoError(t, discard.writeBlock("discard\n"))
+	require.NoError(t, discard.closeDiscard())
+}
+
+func TestLLMShardWriterReportsCloseError(t *testing.T) {
+	writer := newLLMShardWriter(t.TempDir(), "close-error", "Close Error", 64)
+	require.NoError(t, writer.writeBlock("body\n"))
+	require.NoError(t, writer.current.file.Close())
+
+	_, err := writer.close()
+
+	require.Error(t, err)
+}
+
+func TestLLMShardWriterReportsRotateCloseError(t *testing.T) {
+	writer := newLLMShardWriter(t.TempDir(), "rotate-error", "Rotate Error", 64)
+	require.NoError(t, writer.writeBlock("body\n"))
+	require.NoError(t, writer.current.file.Close())
+
+	err := writer.rotate()
+
+	require.Error(t, err)
+}
+
+func TestLLMShardWriterReportsLargeBlockWriteError(t *testing.T) {
+	writer := newLLMShardWriter(t.TempDir(), "block-error", "Block Error", 512*1024)
+	require.NoError(t, writer.rotate())
+	require.NoError(t, writer.current.file.Close())
+
+	err := writer.writeBlock(strings.Repeat("x", 300*1024))
+
+	require.Error(t, err)
+}
+
+func TestRemoveLLMFilesIgnoresMissingFiles(t *testing.T) {
+	outputDir := t.TempDir()
+
+	require.NoError(t, removeLLMMonolithFiles(outputDir))
+	require.NoError(t, removeLLMShardFiles(outputDir))
+}
+
+func TestRemoveLLMShardFilesMatchesBasenamesInLiteralOutputDir(t *testing.T) {
+	root := t.TempDir()
+	outputDir := filepath.Join(root, "api[1]")
+	siblingDir := filepath.Join(root, "api1")
+	require.NoError(t, os.Mkdir(outputDir, 0o755))
+	require.NoError(t, os.Mkdir(siblingDir, 0o755))
+	selectedShard := filepath.Join(outputDir, "llms-operations-0001.txt")
+	siblingShard := filepath.Join(siblingDir, "llms-operations-0001.txt")
+	require.NoError(t, os.WriteFile(selectedShard, []byte("stale"), 0o644))
+	require.NoError(t, os.WriteFile(siblingShard, []byte("keep"), 0o644))
+
+	require.NoError(t, removeLLMShardFiles(outputDir))
+
+	assert.NoFileExists(t, selectedShard)
+	assert.FileExists(t, siblingShard)
+}
+
+func TestRemoveLLMFilesReportsRemoveError(t *testing.T) {
+	outputDir := t.TempDir()
+	blockedMonolith := filepath.Join(outputDir, "llms-full.txt")
+	require.NoError(t, os.Mkdir(blockedMonolith, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(blockedMonolith, "child"), []byte("blocked"), 0o644))
+	blockedShard := filepath.Join(outputDir, "llms-operations-0001.txt")
+	require.NoError(t, os.Mkdir(blockedShard, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(blockedShard, "child"), []byte("blocked"), 0o644))
+
+	assert.Error(t, removeLLMMonolithFiles(outputDir))
+	assert.Error(t, removeLLMShardFiles(outputDir))
+}
+
+func llmShardTestSite() *Site {
+	return &Site{
+		Root: &RootPage{Title: "Shard API"},
+		Operations: []*OperationPage{
+			{Method: "GET", Path: "/alpha", Slug: "get-alpha", Summary: strings.Repeat("alpha ", 20)},
+			{Method: "POST", Path: "/beta", Slug: "post-beta", Summary: strings.Repeat("beta ", 20)},
+			{Method: "DELETE", Path: "/gamma", Slug: "delete-gamma", Summary: strings.Repeat("gamma ", 20)},
+		},
+		Models: map[string][]*ModelPage{
+			"schemas": {
+				{Name: "Alpha", Slug: "alpha", TypeSlug: "schemas", Description: strings.Repeat("alpha model ", 20)},
+				{Name: "Beta", Slug: "beta", TypeSlug: "schemas", Description: strings.Repeat("beta model ", 20)},
+			},
+		},
+		NavModelGroups: []*NavModelGroup{
+			{Name: "Schemas", TypeSlug: "schemas"},
+		},
+	}
+}
+
 func TestRenderOperationMD(t *testing.T) {
 	site := &Site{}
 	op := &OperationPage{
@@ -285,6 +541,292 @@ func TestDeterministicOutput(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, string(b1), string(b2), "non-deterministic output in %s", name)
 	}
+}
+
+func TestWriteLLMAggregateFiles_MatchesStandaloneOutputs(t *testing.T) {
+	site := buildTestSite(t, "../test_specs/burgershop.openapi.yaml")
+	separateDir := t.TempDir()
+	combinedDir := t.TempDir()
+
+	require.NoError(t, writeLLMFull(site, separateDir))
+	require.NoError(t, writeLLMOperationsSlice(site, separateDir))
+	require.NoError(t, writeLLMModelsSlice(site, separateDir))
+	require.NoError(t, writeLLMAggregateFiles(site, combinedDir))
+
+	for _, name := range []string{"llms-full.txt", "llms-operations.txt", "llms-models.txt"} {
+		separate, err := os.ReadFile(filepath.Join(separateDir, name))
+		require.NoError(t, err)
+		combined, err := os.ReadFile(filepath.Join(combinedDir, name))
+		require.NoError(t, err)
+		assert.Equal(t, string(separate), string(combined), name)
+	}
+}
+
+func TestWriteLLMAggregateFiles_EmptySiteFallbacks(t *testing.T) {
+	site := &Site{Root: &RootPage{Title: "Empty API"}}
+	outputDir := t.TempDir()
+
+	require.NoError(t, writeLLMAggregateFiles(site, outputDir))
+
+	full, err := os.ReadFile(filepath.Join(outputDir, "llms-full.txt"))
+	require.NoError(t, err)
+	assert.Contains(t, string(full), "# Empty API")
+	assert.NotContains(t, string(full), "No operations defined.")
+	assert.NotContains(t, string(full), "No models defined.")
+
+	operations, err := os.ReadFile(filepath.Join(outputDir, "llms-operations.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "# Operations\n\nNo operations defined.\n", string(operations))
+
+	models, err := os.ReadFile(filepath.Join(outputDir, "llms-models.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "# Models\n\nNo models defined.\n", string(models))
+}
+
+func TestWriteLLMAggregateFiles_OpenError(t *testing.T) {
+	outputDir := filepath.Join(t.TempDir(), "missing")
+
+	err := writeLLMAggregateFiles(&Site{}, outputDir)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "opening llms-full.txt")
+}
+
+func TestWriteLLMFullPreamble(t *testing.T) {
+	site := &Site{
+		Root: &RootPage{
+			Title:       "Preamble API",
+			Description: "Useful API",
+			Version:     "1.2.3",
+			Servers:     []*ServerInfo{{URL: "https://api.example.com"}},
+		},
+		Source: &SourceRef{Path: "openapi.yaml", Line: 7},
+	}
+	var builder strings.Builder
+
+	require.NoError(t, writeLLMFullPreamble(rootLLMRenderContext(site), &builder))
+
+	got := builder.String()
+	assert.Contains(t, got, "# Preamble API")
+	assert.Contains(t, got, "> Useful API")
+	assert.Contains(t, got, "**Version:** 1.2.3")
+	assert.Contains(t, got, "openapi.yaml")
+	assert.Contains(t, got, "## How to Use This API")
+}
+
+func TestWriteLLMFullPreamble_DefaultTitle(t *testing.T) {
+	var builder strings.Builder
+
+	require.NoError(t, writeLLMFullPreamble(rootLLMRenderContext(&Site{}), &builder))
+
+	assert.Equal(t, "# API Documentation\n\n", builder.String())
+}
+
+func TestWriteBufferedTextFile_PropagatesWriteError(t *testing.T) {
+	expected := errors.New("stop")
+
+	err := writeBufferedTextFile(filepath.Join(t.TempDir(), "out.txt"), func(w io.StringWriter) error {
+		require.NoError(t, writeString(w, "before error"))
+		return expected
+	})
+
+	require.ErrorIs(t, err, expected)
+}
+
+func TestBufferedTextFileCloseFlushError(t *testing.T) {
+	file, err := os.CreateTemp(t.TempDir(), "closed")
+	require.NoError(t, err)
+	writer := bufio.NewWriter(file)
+	_, err = writer.WriteString("content")
+	require.NoError(t, err)
+	require.NoError(t, file.Close())
+
+	err = (&bufferedTextFile{file: file, writer: writer}).close()
+
+	require.Error(t, err)
+}
+
+func TestCloseBufferedTextFilesReturnsFirstError(t *testing.T) {
+	badFile, err := os.CreateTemp(t.TempDir(), "bad")
+	require.NoError(t, err)
+	badWriter := bufio.NewWriter(badFile)
+	_, err = badWriter.WriteString("bad")
+	require.NoError(t, err)
+	require.NoError(t, badFile.Close())
+
+	goodFile, err := openBufferedTextFile(filepath.Join(t.TempDir(), "good.txt"))
+	require.NoError(t, err)
+	require.NoError(t, writeString(goodFile.writer, "good"))
+
+	err = closeBufferedTextFiles(&bufferedTextFile{file: badFile, writer: badWriter}, goodFile)
+
+	require.Error(t, err)
+}
+
+func TestMultiStringWriter_PropagatesError(t *testing.T) {
+	expected := errors.New("write failed")
+	writer := multiStringWriter{&strings.Builder{}, errStringWriter{err: expected}}
+
+	_, err := writer.WriteString("content")
+
+	require.ErrorIs(t, err, expected)
+}
+
+func TestWriteLLMMarkdownFiles_DeterministicOrder(t *testing.T) {
+	outputDir := t.TempDir()
+	firstPath := filepath.Join(outputDir, "first.md")
+	secondPath := filepath.Join(outputDir, "nested", "second.md")
+
+	written, err := writeLLMMarkdownFiles([]llmMarkdownFileTask{
+		{
+			path:  firstPath,
+			label: "first",
+			render: func() string {
+				return "first"
+			},
+		},
+		{
+			path:  secondPath,
+			label: "second",
+			render: func() string {
+				return "second"
+			},
+		},
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{firstPath, secondPath}, written)
+	assert.FileExists(t, firstPath)
+	assert.FileExists(t, secondPath)
+
+	first, err := os.ReadFile(firstPath)
+	require.NoError(t, err)
+	assert.Equal(t, "first", string(first))
+	second, err := os.ReadFile(secondPath)
+	require.NoError(t, err)
+	assert.Equal(t, "second", string(second))
+}
+
+func TestWriteLLMMarkdownFiles_Empty(t *testing.T) {
+	written, err := writeLLMMarkdownFiles(nil)
+
+	require.NoError(t, err)
+	assert.Nil(t, written)
+}
+
+func TestWriteLLMMarkdownFiles_ReturnsFirstTaskError(t *testing.T) {
+	outputDir := t.TempDir()
+	blockedDir := filepath.Join(outputDir, "blocked")
+	require.NoError(t, os.WriteFile(blockedDir, []byte("not a directory"), 0o644))
+
+	_, err := writeLLMMarkdownFiles([]llmMarkdownFileTask{
+		{
+			path:  filepath.Join(blockedDir, "first.md"),
+			label: "first",
+			render: func() string {
+				return "first"
+			},
+		},
+		{
+			path:  filepath.Join(outputDir, "second.md"),
+			label: "second",
+			render: func() string {
+				return "second"
+			},
+		},
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "first")
+}
+
+func TestWriteLLMSectionsNoContent(t *testing.T) {
+	ctx := rootLLMRenderContext(&Site{})
+	var builder strings.Builder
+
+	wroteOperations, err := writeOperationsSection(ctx, &builder)
+	require.NoError(t, err)
+	assert.False(t, wroteOperations)
+	wroteWebhooks, err := writeWebhooksSection(ctx, &builder)
+	require.NoError(t, err)
+	assert.False(t, wroteWebhooks)
+	wroteModels, err := writeModelsSection(ctx, &builder)
+	require.NoError(t, err)
+	assert.False(t, wroteModels)
+	assert.Empty(t, builder.String())
+}
+
+func TestWriteLLMSectionsPropagateWriterErrors(t *testing.T) {
+	expected := errors.New("write failed")
+	writer := errStringWriter{err: expected}
+
+	_, err := writeOperationsSection(rootLLMRenderContext(&Site{
+		Operations: []*OperationPage{{Method: "GET", Path: "/items", Slug: "get-items"}},
+	}), writer)
+	require.ErrorIs(t, err, expected)
+
+	_, err = writeWebhooksSection(rootLLMRenderContext(&Site{
+		Webhooks: []*OperationPage{{Method: "POST", Path: "/hooks", Slug: "post-hooks"}},
+	}), writer)
+	require.ErrorIs(t, err, expected)
+
+	_, err = writeModelsSection(rootLLMRenderContext(&Site{
+		NavModelGroups: []*NavModelGroup{{Name: "Schemas", TypeSlug: "schemas"}},
+		Models: map[string][]*ModelPage{
+			"schemas": []*ModelPage{{Name: "Item", Slug: "item", TypeSlug: "schemas"}},
+		},
+	}), writer)
+	require.ErrorIs(t, err, expected)
+}
+
+func TestLLMMarkdownFileWorkers(t *testing.T) {
+	assert.Equal(t, 0, llmMarkdownFileWorkers(0))
+	assert.Equal(t, 1, llmMarkdownFileWorkers(1))
+
+	want := runtime.GOMAXPROCS(0)
+	if want > 8 {
+		want = 8
+	}
+	assert.Equal(t, want, llmMarkdownFileWorkers(64))
+}
+
+func TestLLMRenderContextCachesSchemaWork(t *testing.T) {
+	cache := newLLMRenderCache()
+	ctx := newLLMRenderContext(&Site{}, "", "models/", cache)
+	schema := `{"type":"object","properties":{"id":{"type":"string"}}}`
+
+	first := renderSchemaSummaryMD(ctx, schema, nil, nil)
+	second := renderSchemaSummaryMD(ctx, schema, nil, nil)
+	assert.Equal(t, first, second)
+	assert.NotEmpty(t, first)
+
+	assert.False(t, schemaNeedsRawBlockWithContext(ctx, schema))
+	assert.False(t, schemaNeedsRawBlockWithContext(ctx, schema))
+
+	cache.mu.RLock()
+	defer cache.mu.RUnlock()
+	assert.Len(t, cache.schemaMaps, 1)
+	assert.Len(t, cache.schemaSummaries, 1)
+	assert.Contains(t, cache.rawSchemaNeeds, schema)
+}
+
+func TestSchemaCacheHelpersIgnoreMissingCache(t *testing.T) {
+	ctx := llmRenderContext{}
+	key := llmSchemaSummaryKey{schemaJSON: `{"type":"string"}`}
+
+	cacheSchemaSummary(ctx, key, "ignored")
+	cacheRawSchemaNeeds(ctx, key.schemaJSON, true)
+
+	assert.Equal(t, map[string]any{"type": "string"}, parseJSONMapWithContext(ctx, key.schemaJSON))
+	assert.False(t, schemaNeedsRawBlockWithContext(ctx, key.schemaJSON))
+}
+
+type errStringWriter struct {
+	err error
+}
+
+func (w errStringWriter) WriteString(string) (int, error) {
+	return 0, w.err
 }
 
 func TestBuildCrossRefs_BurgerShop(t *testing.T) {
