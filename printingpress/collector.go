@@ -1358,19 +1358,44 @@ func (pp *PrintingPress) shouldUseSyntheticTagFallback() bool {
 		return false
 	}
 
+	tagLookup := pp.navTagLookup()
 	distinctTags := make(map[string]struct{})
 	for _, op := range pp.site.Operations {
-		for _, tagName := range op.Tags {
-			if tagName == "" {
-				continue
-			}
-			distinctTags[tagName] = struct{}{}
-			if len(distinctTags) > pp.syntheticTags.MaxDistinctTags {
-				return false
-			}
+		tag, ok := firstMatchingNavTag(op.Tags, tagLookup)
+		if !ok {
+			continue
+		}
+		distinctTags[tag.Name] = struct{}{}
+		if len(distinctTags) > pp.syntheticTags.MaxDistinctTags {
+			return false
 		}
 	}
 	return len(distinctTags) > 0 && len(distinctTags) <= pp.syntheticTags.MaxDistinctTags
+}
+
+func (pp *PrintingPress) navTagLookup() map[string]*NavTag {
+	tagLookup := make(map[string]*NavTag)
+	var walk func([]*NavTag)
+	walk = func(tags []*NavTag) {
+		for _, tag := range tags {
+			tagLookup[tag.Name] = tag
+			walk(tag.Children)
+		}
+	}
+	walk(pp.site.NavTags)
+	return tagLookup
+}
+
+func firstMatchingNavTag(tagNames []string, tagLookup map[string]*NavTag) (*NavTag, bool) {
+	for _, tagName := range tagNames {
+		if tagName == "" {
+			continue
+		}
+		if tag, ok := tagLookup[tagName]; ok {
+			return tag, true
+		}
+	}
+	return nil, false
 }
 
 func (pp *PrintingPress) pruneEmptyTagGroups() {
@@ -1403,7 +1428,7 @@ func pruneEmptyNavTags(tags []*NavTag) []*NavTag {
 	return pruned
 }
 
-// assignOperationsToTags distributes operations into the NavTag tree by matching tag names.
+// assignOperationsToTags distributes operations into the NavTag tree by the first matching tag name.
 func (pp *PrintingPress) assignOperationsToTags(forceSynthetic bool) {
 	pp.site.Root.UntaggedOperations = nil
 	if forceSynthetic {
@@ -1422,15 +1447,7 @@ func (pp *PrintingPress) assignOperationsToTags(forceSynthetic bool) {
 		return
 	}
 
-	tagLookup := make(map[string]*NavTag)
-	var walk func([]*NavTag)
-	walk = func(tags []*NavTag) {
-		for _, tag := range tags {
-			tagLookup[tag.Name] = tag
-			walk(tag.Children)
-		}
-	}
-	walk(pp.site.NavTags)
+	tagLookup := pp.navTagLookup()
 
 	for _, op := range pp.site.Operations {
 		navOp := &NavOperation{
@@ -1445,14 +1462,9 @@ func (pp *PrintingPress) assignOperationsToTags(forceSynthetic bool) {
 			pp.site.Root.UntaggedOperations = append(pp.site.Root.UntaggedOperations, navOp)
 			continue
 		}
-		matched := false
-		for _, tagName := range op.Tags {
-			if nt, ok := tagLookup[tagName]; ok {
-				nt.Operations = append(nt.Operations, navOp)
-				matched = true
-			}
-		}
-		if !matched {
+		if tag, ok := firstMatchingNavTag(op.Tags, tagLookup); ok {
+			tag.Operations = append(tag.Operations, navOp)
+		} else {
 			pp.site.Root.UntaggedOperations = append(pp.site.Root.UntaggedOperations, navOp)
 		}
 	}
