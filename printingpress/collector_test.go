@@ -116,6 +116,63 @@ func buildSyntheticFallbackSpec(operationCount int, usedTags []string, declaredT
 	return builder.String()
 }
 
+func buildSyntheticFallbackMultiTagSpec(operationCount int, firstTag string, secondaryTags []string) string {
+	methods := []string{"get", "post", "put", "patch", "delete"}
+	pathPrefixes := []string{"accounts", "institutions", "reports", "transactions", "users", "wallets"}
+	type operationSpec struct {
+		Method       string
+		ID           string
+		Summary      string
+		SecondaryTag string
+	}
+	pathOperations := make(map[string][]operationSpec)
+	pathOrder := make([]string, 0, len(pathPrefixes))
+
+	var builder strings.Builder
+	builder.WriteString("openapi: \"3.1.0\"\n")
+	builder.WriteString("info:\n")
+	builder.WriteString("  title: Synthetic Fallback Multi Tag Test\n")
+	builder.WriteString("  version: \"1.0\"\n")
+	builder.WriteString("tags:\n")
+	builder.WriteString(fmt.Sprintf("  - name: %s\n", firstTag))
+	for _, tag := range secondaryTags {
+		builder.WriteString(fmt.Sprintf("  - name: %s\n", tag))
+	}
+	builder.WriteString("paths:\n")
+
+	for i := 0; i < operationCount; i++ {
+		pathPrefix := pathPrefixes[(i/len(methods))%len(pathPrefixes)]
+		method := methods[i%len(methods)]
+		path := "/" + pathPrefix
+		if _, exists := pathOperations[path]; !exists {
+			pathOrder = append(pathOrder, path)
+		}
+		pathOperations[path] = append(pathOperations[path], operationSpec{
+			Method:       method,
+			ID:           fmt.Sprintf("op-%d", i),
+			Summary:      fmt.Sprintf("Operation %d", i),
+			SecondaryTag: secondaryTags[i%len(secondaryTags)],
+		})
+	}
+
+	for _, path := range pathOrder {
+		builder.WriteString(fmt.Sprintf("  %s:\n", path))
+		for _, op := range pathOperations[path] {
+			builder.WriteString(fmt.Sprintf("    %s:\n", op.Method))
+			builder.WriteString(fmt.Sprintf("      operationId: %s\n", op.ID))
+			builder.WriteString(fmt.Sprintf("      summary: %s\n", op.Summary))
+			builder.WriteString("      tags:\n")
+			builder.WriteString(fmt.Sprintf("        - %s\n", firstTag))
+			builder.WriteString(fmt.Sprintf("        - %s\n", op.SecondaryTag))
+			builder.WriteString("      responses:\n")
+			builder.WriteString("        '200':\n")
+			builder.WriteString("          description: ok\n")
+		}
+	}
+
+	return builder.String()
+}
+
 func navTagNames(tags []*NavTag) []string {
 	names := make([]string, 0, len(tags))
 	for _, tag := range tags {
@@ -530,6 +587,66 @@ paths:
 	assert.Nil(t, findNavTag(site.NavTags, "Region"))
 }
 
+func TestAssignOperationsToTags_UsesFirstMatchingTagForNavPlacement(t *testing.T) {
+	spec := `openapi: "3.1.0"
+info:
+  title: Multi Tag
+  version: "1.0"
+tags:
+  - name: Primary
+  - name: Secondary
+paths:
+  /items:
+    get:
+      operationId: listItems
+      tags: [Primary, Secondary]
+      responses:
+        '200':
+          description: ok
+`
+
+	site := pressFromSpec(t, spec)
+
+	require.Len(t, site.Operations, 1)
+	assert.Equal(t, []string{"Primary", "Secondary"}, site.Operations[0].Tags)
+	require.Len(t, site.NavTags, 1)
+	assert.Equal(t, []string{"Primary"}, navTagNames(site.NavTags))
+	require.Len(t, site.NavTags[0].Operations, 1)
+	assert.Equal(t, "list-items", site.NavTags[0].Operations[0].Slug)
+	assert.Nil(t, findNavTag(site.NavTags, "Secondary"))
+	assert.Empty(t, site.Root.UntaggedOperations)
+}
+
+func TestAssignOperationsToTags_UsesFirstDeclaredTagThatExists(t *testing.T) {
+	spec := `openapi: "3.1.0"
+info:
+  title: Multi Tag Unknown First
+  version: "1.0"
+tags:
+  - name: Primary
+  - name: Secondary
+paths:
+  /items:
+    get:
+      operationId: listItems
+      tags: [Unknown, Primary, Secondary]
+      responses:
+        '200':
+          description: ok
+`
+
+	site := pressFromSpec(t, spec)
+
+	require.Len(t, site.Operations, 1)
+	assert.Equal(t, []string{"Unknown", "Primary", "Secondary"}, site.Operations[0].Tags)
+	require.Len(t, site.NavTags, 1)
+	assert.Equal(t, []string{"Primary"}, navTagNames(site.NavTags))
+	require.Len(t, site.NavTags[0].Operations, 1)
+	assert.Equal(t, "list-items", site.NavTags[0].Operations[0].Slug)
+	assert.Nil(t, findNavTag(site.NavTags, "Secondary"))
+	assert.Empty(t, site.Root.UntaggedOperations)
+}
+
 func TestAssignOperationsToTags_UsesSyntheticFallbackForLargeSingleTagSpecs(t *testing.T) {
 	spec := buildSyntheticFallbackSpec(25, []string{"plaid"}, []string{"plaid"})
 
@@ -570,6 +687,18 @@ func TestAssignOperationsToTags_SyntheticFallbackCountsOnlyUsedTags(t *testing.T
 
 	require.Len(t, site.Operations, 25)
 	assert.Equal(t, []string{"accounts", "institutions", "reports", "transactions", "users"}, navTagNames(site.NavTags))
+}
+
+func TestAssignOperationsToTags_SyntheticFallbackCountsFirstMatchingTagOnly(t *testing.T) {
+	spec := buildSyntheticFallbackMultiTagSpec(25, "plaid", []string{"accounts", "institutions", "reports", "transactions", "users"})
+
+	site := pressFromSpec(t, spec)
+
+	require.Len(t, site.Operations, 25)
+	assert.Equal(t, []string{"accounts", "institutions", "reports", "transactions", "users"}, navTagNames(site.NavTags))
+	assert.Nil(t, findNavTag(site.NavTags, "plaid"))
+	assert.Equal(t, []string{"accounts"}, site.Operations[0].Tags)
+	assert.Equal(t, []string{"Accounts"}, site.Operations[0].TagPath)
 }
 
 func TestAssignOperationsToTags_SyntheticFallbackCanBeDisabled(t *testing.T) {
