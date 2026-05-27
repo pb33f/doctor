@@ -265,5 +265,11 @@ func skipServedArchiveFile(rel string, includeDiagnostics bool) bool {
 	base := path.Base(clean)
 	return base == "diagnostics.html" ||
 		base == "diagnostics-orphans.json" ||
-		strings.HasPrefix(clean, "data/pages/diagnostics")
+		servedArchiveDiagnosticsPayload(clean)
+}
+
+func servedArchiveDiagnosticsPayload(clean string) bool {
+	const marker = "data/pages/diagnostics"
+	return strings.HasPrefix(clean, marker) ||
+		strings.Contains(clean, "/"+marker)
 }
