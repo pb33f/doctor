@@ -77,6 +77,75 @@ func TestDebugActivityRendererLogsLiveUpdates(t *testing.T) {
 	require.Contains(t, output.String(), "percent")
 }
 
+func TestConfigureBuildLoggerUsesPrettyLogger(t *testing.T) {
+	var stderr bytes.Buffer
+	session := ConfigureBuildLogger(&stderr, PaletteForTheme(ThemeDark), ActivityRenderModePlain)
+	defer session.Finish(nil)
+
+	slog.Warn("source bundling failed", slog.String("context", "/tmp/spec.yaml"))
+
+	require.Contains(t, stderr.String(), "source bundling failed")
+	require.Contains(t, stderr.String(), "context")
+	require.Contains(t, stderr.String(), "└─")
+}
+
+func TestConfigureBuildLoggerDebugModeStreamsInfoImmediately(t *testing.T) {
+	var stderr bytes.Buffer
+	session := ConfigureBuildLogger(&stderr, PaletteForTheme(ThemeDark), ActivityRenderModeDebug)
+	defer session.Finish(nil)
+
+	slog.Info("building libopenapi document", slog.String("stage", "HTML"))
+
+	require.Contains(t, stderr.String(), "building libopenapi document")
+	require.Contains(t, stderr.String(), "stage")
+}
+
+func TestBuildLoggerSessionFlushesBufferedLogsOnError(t *testing.T) {
+	var stderr bytes.Buffer
+	session := ConfigureBuildLogger(&stderr, PaletteForTheme(ThemeDark), ActivityRenderModeProgress)
+
+	slog.Warn("source bundling failed", slog.String("context", "/tmp/spec.yaml"))
+
+	session.Finish(errors.New("boom"))
+
+	require.Contains(t, stderr.String(), "source bundling failed")
+	require.Contains(t, stderr.String(), "context")
+}
+
+func TestRunWithActivityTimesOutWhenRendererDoesNotExit(t *testing.T) {
+	pp, err := printingpress.CreatePrintingPressFromBytes([]byte(`openapi: 3.1.0
+info:
+  title: Burger API
+  version: 1.0.0
+paths: {}
+`), nil)
+	require.NoError(t, err)
+
+	previousTimeout := ActivityRenderWaitTimeout
+	ActivityRenderWaitTimeout = 10 * time.Millisecond
+	t.Cleanup(func() {
+		ActivityRenderWaitTimeout = previousTimeout
+	})
+
+	renderer := &blockingActivityRenderer{
+		release: make(chan struct{}),
+		done:    make(chan struct{}),
+	}
+	start := time.Now()
+
+	result, err := RunWithActivity(pp, renderer, func() (int, error) {
+		return 42, nil
+	})
+
+	elapsed := time.Since(start)
+	close(renderer.release)
+	<-renderer.done
+
+	require.NoError(t, err)
+	require.Equal(t, 42, result)
+	require.Less(t, elapsed, 80*time.Millisecond)
+}
+
 func TestAggregatePoolModelViewRendersRuntimeMetrics(t *testing.T) {
 	model := newAggregatePoolModel(PaletteForTheme(ThemeDark))
 
@@ -218,3 +287,18 @@ func TestAggregatePoolModelViewUsesGradientProgressBar(t *testing.T) {
 	require.Contains(t, view, "APIs/example.com/v1/openapi.yaml")
 	require.True(t, strings.Contains(view, "\x1b["), "expected ANSI-styled gradient bar output")
 }
+
+type blockingActivityRenderer struct {
+	release chan struct{}
+	done    chan struct{}
+}
+
+func (r *blockingActivityRenderer) RenderActivity(sub *printingpress.ActivitySubscription) {
+	defer close(r.done)
+	<-r.release
+}
+
+func (r *blockingActivityRenderer) UpdateManual(stage, task, status string, percent float64, elapsed time.Duration, err error) {
+}
+
+func (r *blockingActivityRenderer) Close() {}
