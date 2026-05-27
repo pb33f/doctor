@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/a-h/templ"
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
@@ -46,6 +47,7 @@ type htmlProgressTracker struct {
 	progress  writeProgressFunc
 	total     int
 	completed int64
+	mu        sync.Mutex
 }
 
 func newHTMLProgressTracker(site *ppmodel.Site, progress writeProgressFunc) *htmlProgressTracker {
@@ -63,6 +65,8 @@ func (t *htmlProgressTracker) report(task string) {
 	if t == nil || t.progress == nil {
 		return
 	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.progress(task, int(t.completed), t.total)
 }
 
@@ -70,7 +74,10 @@ func (t *htmlProgressTracker) advance(task string) {
 	if t == nil || t.progress == nil {
 		return
 	}
-	completed := int(atomicAddInt64(&t.completed, 1))
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.completed++
+	completed := int(t.completed)
 	if completed > t.total {
 		completed = t.total
 	}
