@@ -6,6 +6,7 @@ package printingpress
 
 import (
 	"errors"
+	"path/filepath"
 	"testing"
 
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
@@ -15,9 +16,10 @@ import (
 
 func TestYAMLSliceHydrationCacheReadsFileOnceForRepeatedSlices(t *testing.T) {
 	readCount := 0
+	expectedPath := filepath.Clean("/tmp/openapi.yaml")
 	cache := newYAMLSliceHydrationCacheWithReader(func(path string) ([]byte, error) {
 		readCount++
-		assert.Equal(t, "/tmp/openapi.yaml", path)
+		assert.Equal(t, expectedPath, path)
 		return []byte("line1: value\nline2: value\nline3: value\nline4: value\n"), nil
 	})
 	defer cache.Close()
