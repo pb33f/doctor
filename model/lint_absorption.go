@@ -174,9 +174,9 @@ func lintPathScore(candidatePath, resultPath string) int {
 	switch {
 	case candidatePath == resultPath:
 		return 10000 + len(candidatePath)
-	case strings.HasPrefix(resultPath, candidatePath+".") || strings.HasPrefix(resultPath, candidatePath+"["):
+	case jsonPathHasAncestor(resultPath, candidatePath):
 		return 9000 + len(candidatePath)
-	case strings.HasPrefix(candidatePath, resultPath+".") || strings.HasPrefix(candidatePath, resultPath+"["):
+	case jsonPathHasAncestor(candidatePath, resultPath):
 		return 8000 + len(resultPath)
 	default:
 		return commonPrefixLen(candidatePath, resultPath)
@@ -305,7 +305,7 @@ func chooseLintAncestorCandidate(candidates []lintPathCandidate, resultPath stri
 		if candidate.candidate == nil || candidate.path == "" {
 			continue
 		}
-		if strings.HasPrefix(resultPath, candidate.path+".") || strings.HasPrefix(resultPath, candidate.path+"[") {
+		if jsonPathHasAncestor(resultPath, candidate.path) {
 			return candidate.candidate
 		}
 	}
@@ -335,10 +335,23 @@ func lintPathMatchesCandidate(candidatePath, resultPath string) bool {
 		return false
 	}
 	return candidatePath == resultPath ||
-		strings.HasPrefix(resultPath, candidatePath+".") ||
-		strings.HasPrefix(resultPath, candidatePath+"[") ||
-		strings.HasPrefix(candidatePath, resultPath+".") ||
-		strings.HasPrefix(candidatePath, resultPath+"[")
+		jsonPathHasAncestor(resultPath, candidatePath) ||
+		jsonPathHasAncestor(candidatePath, resultPath)
+}
+
+func jsonPathHasAncestor(path, ancestor string) bool {
+	if path == "" || ancestor == "" || len(path) <= len(ancestor) {
+		return false
+	}
+	if !strings.HasPrefix(path, ancestor) {
+		return false
+	}
+	switch path[len(ancestor)] {
+	case '.', '[':
+		return true
+	default:
+		return false
+	}
 }
 
 func (d *DrDocument) allFoundationalPathCandidates() ([]lintPathCandidate, []lintPathCandidate, map[string][]lintPathCandidate, map[drV3.Foundational]lintPathCandidate) {

@@ -140,6 +140,28 @@ func TestCommonPrefixLenDoesNotAllocateSubstring(t *testing.T) {
 	assert.Equal(t, 0, commonPrefixLen("$.info", "openapi"))
 }
 
+func TestJSONPathHasAncestorMatchesOnlyPathBoundaries(t *testing.T) {
+	assert.True(t, jsonPathHasAncestor("$.info.description", "$.info"))
+	assert.True(t, jsonPathHasAncestor("$.paths['/pets']", "$.paths"))
+	assert.True(t, jsonPathHasAncestor("$.items[0]", "$.items"))
+
+	assert.False(t, jsonPathHasAncestor("$.info", "$.info"))
+	assert.False(t, jsonPathHasAncestor("$.information", "$.info"))
+	assert.False(t, jsonPathHasAncestor("$.itemsExtra", "$.items"))
+	assert.False(t, jsonPathHasAncestor("$.info", ""))
+	assert.False(t, jsonPathHasAncestor("", "$.info"))
+}
+
+func TestJSONPathHasAncestorDoesNotAllocate(t *testing.T) {
+	allocs := testing.AllocsPerRun(1000, func() {
+		if !jsonPathHasAncestor("$.info.description", "$.info") {
+			t.Fatal("expected ancestor match")
+		}
+	})
+
+	assert.Zero(t, allocs)
+}
+
 func buildLintAbsorptionTestDocument(t *testing.T) *DrDocument {
 	t.Helper()
 
