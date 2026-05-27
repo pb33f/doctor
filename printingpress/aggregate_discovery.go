@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash/v2"
+	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	slugpkg "github.com/pb33f/doctor/printingpress/slug"
@@ -125,7 +126,7 @@ func (ap *AggregatePrintingPress) buildPlan() (*aggregateBuildPlan, error) {
 func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRecord) ([]*aggregateDiscoveredSpec, error) {
 	root := ap.config.ScanRoot
 	outputDir := ap.config.OutputDir
-	configHash := aggregateEntryConfigHash(ap.config)
+	baseConfigHash := aggregateEntryConfigHash(ap.config)
 	noise := make(map[string]struct{}, len(ap.config.NoiseSegments))
 	for _, segment := range ap.config.NoiseSegments {
 		noise[strings.ToLower(strings.TrimSpace(segment))] = struct{}{}
@@ -187,6 +188,7 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 			return nil
 		}
 
+		configHash := aggregateEntryRenderConfigHash(baseConfigHash, ap.developerMode, ap.specLintResults[relPath])
 		serviceKey := ap.resolveServiceKey(relPath, metadata.Title, noise)
 		displayName := ap.resolveDisplayName(relPath, serviceKey, metadata.Title)
 		version := ap.resolveVersion(relPath, metadata.Version)
@@ -440,6 +442,7 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 	payload := struct {
 		BaseURL                            string                  `json:"baseURL,omitempty"`
 		AssetMode                          string                  `json:"assetMode,omitempty"`
+		EntryConfigFingerprint             string                  `json:"entryConfigFingerprint,omitempty"`
 		NoiseSegments                      []string                `json:"noiseSegments,omitempty"`
 		ServiceOverrides                   []AggregatePathOverride `json:"serviceOverrides,omitempty"`
 		DisplayNameOverrides               []AggregatePathOverride `json:"displayNameOverrides,omitempty"`
@@ -459,6 +462,7 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 	}{
 		BaseURL:                            config.BaseURL,
 		AssetMode:                          config.AssetMode,
+		EntryConfigFingerprint:             config.EntryConfigFingerprint,
 		NoiseSegments:                      append([]string(nil), config.NoiseSegments...),
 		ServiceOverrides:                   append([]AggregatePathOverride(nil), config.ServiceOverrides...),
 		DisplayNameOverrides:               append([]AggregatePathOverride(nil), config.DisplayNameOverrides...),
@@ -481,6 +485,106 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 		return ""
 	}
 	return fmt.Sprintf("%x", xxhash.Sum64(b))
+}
+
+func aggregateEntryRenderConfigHash(baseConfigHash string, developerMode bool, lintResults []*drV3.RuleFunctionResult) string {
+	if !developerMode {
+		return baseConfigHash
+	}
+	payload := struct {
+		BaseConfigHash string                           `json:"baseConfigHash"`
+		DeveloperMode  bool                             `json:"developerMode"`
+		LintResults    []aggregateLintResultFingerprint `json:"lintResults,omitempty"`
+	}{
+		BaseConfigHash: baseConfigHash,
+		DeveloperMode:  developerMode,
+		LintResults:    aggregateLintResultFingerprints(lintResults),
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return baseConfigHash
+	}
+	return fmt.Sprintf("%x", xxhash.Sum64(b))
+}
+
+type aggregateLintResultFingerprint struct {
+	Message      string                     `json:"message,omitempty"`
+	Path         string                     `json:"path,omitempty"`
+	RuleID       string                     `json:"ruleId,omitempty"`
+	RuleSeverity string                     `json:"ruleSeverity,omitempty"`
+	Origin       *aggregateLintOriginHash   `json:"origin,omitempty"`
+	Rule         *aggregateLintRuleHash     `json:"rule,omitempty"`
+	StartNode    *aggregateLintYAMLNodeHash `json:"startNode,omitempty"`
+	EndNode      *aggregateLintYAMLNodeHash `json:"endNode,omitempty"`
+}
+
+type aggregateLintOriginHash struct {
+	Line                  int    `json:"line,omitempty"`
+	Column                int    `json:"column,omitempty"`
+	LineValue             int    `json:"lineValue,omitempty"`
+	ColumnValue           int    `json:"columnValue,omitempty"`
+	AbsoluteLocation      string `json:"absoluteLocation,omitempty"`
+	AbsoluteLocationValue string `json:"absoluteLocationValue,omitempty"`
+}
+
+type aggregateLintRuleHash struct {
+	ID       string `json:"id,omitempty"`
+	Message  string `json:"message,omitempty"`
+	Severity string `json:"severity,omitempty"`
+}
+
+type aggregateLintYAMLNodeHash struct {
+	Line   int `json:"line,omitempty"`
+	Column int `json:"column,omitempty"`
+}
+
+func aggregateLintResultFingerprints(results []*drV3.RuleFunctionResult) []aggregateLintResultFingerprint {
+	if len(results) == 0 {
+		return nil
+	}
+	fingerprints := make([]aggregateLintResultFingerprint, 0, len(results))
+	for _, result := range results {
+		if result == nil {
+			continue
+		}
+		fingerprint := aggregateLintResultFingerprint{
+			Message:      result.Message,
+			Path:         result.Path,
+			RuleID:       result.RuleId,
+			RuleSeverity: result.RuleSeverity,
+		}
+		if result.Origin != nil {
+			fingerprint.Origin = &aggregateLintOriginHash{
+				Line:                  result.Origin.Line,
+				Column:                result.Origin.Column,
+				LineValue:             result.Origin.LineValue,
+				ColumnValue:           result.Origin.ColumnValue,
+				AbsoluteLocation:      result.Origin.AbsoluteLocation,
+				AbsoluteLocationValue: result.Origin.AbsoluteLocationValue,
+			}
+		}
+		if result.Rule != nil {
+			fingerprint.Rule = &aggregateLintRuleHash{
+				ID:       result.Rule.Id,
+				Message:  result.Rule.Message,
+				Severity: result.Rule.Severity,
+			}
+		}
+		if result.StartNode != nil {
+			fingerprint.StartNode = &aggregateLintYAMLNodeHash{
+				Line:   result.StartNode.Line,
+				Column: result.StartNode.Column,
+			}
+		}
+		if result.EndNode != nil {
+			fingerprint.EndNode = &aggregateLintYAMLNodeHash{
+				Line:   result.EndNode.Line,
+				Column: result.EndNode.Column,
+			}
+		}
+		fingerprints = append(fingerprints, fingerprint)
+	}
+	return fingerprints
 }
 
 func aggregateRemovedRecords(existing map[string]*SpecStateRecord, discovered []*aggregateDiscoveredSpec) []*SpecStateRecord {

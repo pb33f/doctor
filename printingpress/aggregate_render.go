@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 )
@@ -32,6 +33,8 @@ type AggregateRenderOptions struct {
 	LLM              bool
 	JSON             bool
 	ProgressReporter AggregateProgressReporter
+	DeveloperMode    bool
+	SpecLintResults  map[string][]*v3.RuleFunctionResult
 }
 
 // AggregateProgressReporter receives live aggregate pool progress updates.
@@ -110,6 +113,9 @@ var aggregateRenderResultPool = sync.Pool{
 func (ap *AggregatePrintingPress) PrintSelectedOutputs(options AggregateRenderOptions) (*AggregatePressStatistics, error) {
 	ap.mu.Lock()
 	defer ap.mu.Unlock()
+
+	ap.developerMode = options.DeveloperMode
+	ap.specLintResults = cloneAggregateLintResultsMap(options.SpecLintResults)
 
 	totalStart := time.Now()
 	selection := aggregateOutputSelection{
@@ -199,6 +205,17 @@ func (ap *AggregatePrintingPress) PrintSelectedOutputs(options AggregateRenderOp
 	stats.WorkersPerPool = ap.config.WorkersPerPool
 	stats.AvailableCores = max(1, runtime.GOMAXPROCS(0))
 	return stats, nil
+}
+
+func cloneAggregateLintResultsMap(results map[string][]*v3.RuleFunctionResult) map[string][]*v3.RuleFunctionResult {
+	if len(results) == 0 {
+		return nil
+	}
+	cloned := make(map[string][]*v3.RuleFunctionResult, len(results))
+	for path, pathResults := range results {
+		cloned[path] = append([]*v3.RuleFunctionResult(nil), pathResults...)
+	}
+	return cloned
 }
 
 func (ap *AggregatePrintingPress) renderSelectedOutputsInPools(plan *aggregateBuildPlan, entryIndex map[string]*ppmodel.CatalogSpecEntry, pools []*aggregateRenderPool, selection aggregateOutputSelection, reporter AggregateProgressReporter) ([]string, error) {

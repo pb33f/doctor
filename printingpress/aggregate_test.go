@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	drV3 "github.com/pb33f/doctor/model/high/v3"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -343,6 +344,84 @@ func TestAggregatePrintingPress_FastMode_RebuildsOnlyChangedSpecsAndRemovesStale
 	require.NoError(t, err)
 	assert.Equal(t, 0, fourthStats.Specs)
 	require.NoFileExists(t, newIndex)
+}
+
+func TestAggregatePrintingPress_FastMode_RebuildsWhenDiagnosticsRenderOptionsChange(t *testing.T) {
+	root := t.TempDir()
+	relPath := "services/users/src/specs/users.yaml"
+	writeAggregateSpec(t, root, relPath, "Users API", "v1")
+	outputDir := filepath.Join(root, "site")
+	store := NewMemorySpecStateStore()
+
+	full, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	catalog, err := full.PressModel()
+	require.NoError(t, err)
+	users := findCatalogService(t, catalog, "users")
+	entryDir := filepath.Join(outputDir, filepath.Dir(filepath.FromSlash(users.LatestVersion.Entries[0].OverviewHref)))
+
+	firstStats, err := full.PrintSelectedOutputs(AggregateRenderOptions{HTML: true})
+	require.NoError(t, err)
+	assert.Equal(t, 1, firstStats.ChangedSpecs)
+	require.NoFileExists(t, filepath.Join(entryDir, "diagnostics.html"))
+
+	fastDiagnostics, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	diagnosticResults := map[string][]*drV3.RuleFunctionResult{
+		relPath: {aggregateTestLintResult("first diagnostic message")},
+	}
+	secondStats, err := fastDiagnostics.PrintSelectedOutputs(AggregateRenderOptions{
+		HTML:            true,
+		DeveloperMode:   true,
+		SpecLintResults: diagnosticResults,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, secondStats.ChangedSpecs)
+	require.FileExists(t, filepath.Join(entryDir, "diagnostics.html"))
+	firstPayload := readAggregateDiagnosticsPayload(t, entryDir)
+	assert.Contains(t, firstPayload, "first diagnostic message")
+
+	fastSameDiagnostics, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	thirdStats, err := fastSameDiagnostics.PrintSelectedOutputs(AggregateRenderOptions{
+		HTML:            true,
+		DeveloperMode:   true,
+		SpecLintResults: diagnosticResults,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 0, thirdStats.ChangedSpecs)
+
+	fastChangedDiagnostics, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	changedResults := map[string][]*drV3.RuleFunctionResult{
+		relPath: {aggregateTestLintResult("second diagnostic message")},
+	}
+	fourthStats, err := fastChangedDiagnostics.PrintSelectedOutputs(AggregateRenderOptions{
+		HTML:            true,
+		DeveloperMode:   true,
+		SpecLintResults: changedResults,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, fourthStats.ChangedSpecs)
+	changedPayload := readAggregateDiagnosticsPayload(t, entryDir)
+	assert.Contains(t, changedPayload, "second diagnostic message")
+	assert.NotContains(t, changedPayload, "first diagnostic message")
 }
 
 func TestAggregatePrintingPress_FastMode_RemovesStaleAggregateServiceAndVersionArtifacts(t *testing.T) {
@@ -876,6 +955,7 @@ func TestAggregateEntryConfigHashIncludesEntryOutputOptions(t *testing.T) {
 		{name: "llm aggregate threshold", config: &AggregatePrintingPressConfig{LLMAggregateSpecSizeThresholdBytes: 4096}},
 		{name: "llm shard size", config: &AggregatePrintingPressConfig{LLMMaxAggregateFileBytes: 8192}},
 		{name: "llm monolith mode", config: &AggregatePrintingPressConfig{LLMGenerateMonoliths: LLMGenerateMonolithsNever}},
+		{name: "entry config fingerprint", config: &AggregatePrintingPressConfig{EntryConfigFingerprint: "diagnostics-v1"}},
 	}
 
 	for _, tc := range cases {
@@ -883,6 +963,46 @@ func TestAggregateEntryConfigHashIncludesEntryOutputOptions(t *testing.T) {
 			assert.NotEqual(t, baseHash, normalizedAggregateEntryConfigHash(t, tc.config))
 		})
 	}
+}
+
+func TestAggregatePrintingPress_BuildEntrySiteUsesSpecLintResults(t *testing.T) {
+	root := t.TempDir()
+	relPath := "services/users/openapi.yaml"
+	writeAggregateSpec(t, root, relPath, "Users API", "v1")
+	outputDir := filepath.Join(root, "site")
+
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: NewMemorySpecStateStore(),
+	})
+	require.NoError(t, err)
+
+	catalog, err := ap.PressModel()
+	require.NoError(t, err)
+	require.NotNil(t, catalog)
+	require.NotNil(t, ap.plan)
+	require.Len(t, ap.plan.discovered, 1)
+	entry := catalog.Services[0].Versions[0].Entries[0]
+
+	ap.developerMode = true
+	ap.specLintResults = map[string][]*drV3.RuleFunctionResult{
+		relPath: {
+			{
+				Message:      "operation id is not useful",
+				Path:         "$.paths['/health'].get.operationId",
+				RuleId:       "test-operation-id",
+				RuleSeverity: "warn",
+				Rule:         &drV3.Rule{Id: "test-operation-id", Severity: "warn"},
+			},
+		},
+	}
+
+	site, err := ap.buildEntrySite(ap.plan.discovered[0], entry)
+	require.NoError(t, err)
+	require.NotNil(t, site.Diagnostics)
+	assert.True(t, site.DeveloperMode)
+	assert.NotEmpty(t, site.Diagnostics.Problems)
 }
 
 func TestSQLiteSpecStateStore_RoundTripsRecords(t *testing.T) {
@@ -989,6 +1109,23 @@ func normalizedAggregateEntryConfigHash(t *testing.T, config *AggregatePrintingP
 		require.NoError(t, store.Close())
 	})
 	return aggregateEntryConfigHash(normalized)
+}
+
+func aggregateTestLintResult(message string) *drV3.RuleFunctionResult {
+	return &drV3.RuleFunctionResult{
+		Message:      message,
+		Path:         "$.paths['/health'].get.operationId",
+		RuleId:       "test-operation-id",
+		RuleSeverity: "warn",
+		Rule:         &drV3.Rule{Id: "test-operation-id", Severity: "warn"},
+	}
+}
+
+func readAggregateDiagnosticsPayload(t *testing.T, entryDir string) string {
+	t.Helper()
+	payload, err := os.ReadFile(filepath.Join(entryDir, "data", "pages", "diagnostics.js"))
+	require.NoError(t, err)
+	return string(payload)
 }
 
 func writeAggregateSpec(t *testing.T, root, relPath, title, version string) string {

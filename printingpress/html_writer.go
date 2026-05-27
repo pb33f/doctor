@@ -42,6 +42,95 @@ type htmlHydrationJob struct {
 
 type writeProgressFunc func(task string, completed, total int)
 
+type htmlProgressTracker struct {
+	progress  writeProgressFunc
+	total     int
+	completed int64
+}
+
+func newHTMLProgressTracker(site *ppmodel.Site, progress writeProgressFunc) *htmlProgressTracker {
+	total := estimateHTMLProgressWork(site)
+	if total < 1 {
+		total = 1
+	}
+	return &htmlProgressTracker{
+		progress: progress,
+		total:    total,
+	}
+}
+
+func (t *htmlProgressTracker) report(task string) {
+	if t == nil || t.progress == nil {
+		return
+	}
+	t.progress(task, int(t.completed), t.total)
+}
+
+func (t *htmlProgressTracker) advance(task string) {
+	if t == nil || t.progress == nil {
+		return
+	}
+	completed := int(atomicAddInt64(&t.completed, 1))
+	if completed > t.total {
+		completed = t.total
+	}
+	t.progress(task, completed, t.total)
+}
+
+func estimateHTMLProgressWork(site *ppmodel.Site) int {
+	if site == nil {
+		return 1
+	}
+	total := 2 + estimateHTMLPageJobs(site) // cleanup + shared hydration
+	if site.SharedAssetBaseURL == "" {
+		total++
+	}
+	if site.DeveloperMode && site.Diagnostics != nil && len(site.OrphanResults) > 0 {
+		total++
+	}
+	total += estimateHTMLPageJobs(site) // final page writes
+	return total
+}
+
+func estimateHTMLPageJobs(site *ppmodel.Site) int {
+	if site == nil {
+		return 0
+	}
+	total := 0
+	if site.Root != nil {
+		total++
+	}
+	total += len(site.Operations)
+	for typeSlug, pages := range site.Models {
+		if typeSlug == typeSlugPathItems {
+			continue
+		}
+		total += len(pages)
+	}
+	total++ // models index
+	total += len(site.NavModelGroups)
+	if site.DeveloperMode && site.Diagnostics != nil {
+		total++
+	}
+	total += countRenderableTagPages(site.NavTags)
+	total += len(site.Webhooks)
+	return total
+}
+
+func countRenderableTagPages(tags []*ppmodel.NavTag) int {
+	total := 0
+	for _, tag := range tags {
+		if tag == nil {
+			continue
+		}
+		if !(tag.IsNavOnly && len(tag.Operations) == 0 && len(tag.Children) == 0 && tag.DescHTML == "") {
+			total++
+		}
+		total += countRenderableTagPages(tag.Children)
+	}
+	return total
+}
+
 func appendHydratedHTMLJob(
 	outputDir string,
 	staticPaths []string,
@@ -82,6 +171,12 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	if site == nil {
 		return nil, ErrNilSite
 	}
+	sourceCache := newYAMLSliceHydrationCache()
+	defer sourceCache.Close()
+
+	progressTracker := newHTMLProgressTracker(site, progress)
+	progressTracker.report("preparing html output")
+
 	resolvedOutputDir, err := resolveWriterOutputDir(site, outputDir)
 	if err != nil {
 		return nil, err
@@ -97,6 +192,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	if err := cleanGeneratedHydrationAssets(resolvedOutputDir, site.SharedAssetBaseURL != ""); err != nil {
 		return nil, fmt.Errorf("cleaning generated hydration assets: %w", err)
 	}
+	progressTracker.advance("cleaning old html artifacts")
 
 	// only materialize the embedded static asset tree when the host has not
 	// taken responsibility for serving it. when SharedAssetBaseURL is set the
@@ -114,6 +210,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			return nil, fmt.Errorf("copying static assets: %w", copyErr)
 		}
 		staticPaths = copied
+		progressTracker.advance("copying static assets")
 	}
 	assetMode := resolveHTMLAssetMode(site)
 	sharedPayload := buildSharedHydrationPayload(site)
@@ -126,6 +223,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		return nil, fmt.Errorf("writing shared hydration assets: %w", err)
 	}
 	staticPaths = append(staticPaths, sharedAssetPaths...)
+	progressTracker.advance("preparing shared navigation data")
 
 	title := ""
 	if site.Root != nil {
@@ -163,7 +261,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			hydration = htmlHydrationJob{
 				dataBase: pppaths.RootPageDataBase(),
 				context:  "root",
-				payload:  buildRootHydrationPayload(site.Root),
+				payload:  buildRootHydrationPayload(site.Root, sourceCache),
 			}
 		}
 		rootContent := render.RootPageTempl(site.Root, p.BaseURL)
@@ -175,6 +273,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		if err != nil {
 			return nil, err
 		}
+		progressTracker.advance("preparing overview page")
 	}
 
 	// Write operation pages (1 level deep: operations/)
@@ -188,7 +287,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		staticPaths, jobs, err = appendHydratedHTMLJob(resolvedOutputDir, staticPaths, jobs, assetMode, p, htmlHydrationJob{
 			dataBase: pppaths.OperationPageDataBase(op.Slug),
 			context:  fmt.Sprintf("operation %s", op.Slug),
-			payload:  buildOperationHydrationPayload(op),
+			payload:  buildOperationHydrationPayload(op, sourceCache),
 		}, htmlWriteJob{
 			path:       path,
 			pageTitle:  pageTitle,
@@ -198,6 +297,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		if err != nil {
 			return nil, err
 		}
+		progressTracker.advance("preparing operation pages")
 	}
 
 	// Write model pages (2 levels deep: models/{type}/)
@@ -239,7 +339,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			staticPaths, jobs, err = appendHydratedHTMLJob(resolvedOutputDir, staticPaths, jobs, assetMode, p, htmlHydrationJob{
 				dataBase: modelDataBase,
 				context:  fmt.Sprintf("model %s/%s", typeSlug, page.Slug),
-				payload:  buildModelHydrationPayload(page),
+				payload:  buildModelHydrationPayload(page, sourceCache),
 			}, htmlWriteJob{
 				path:       path,
 				pageTitle:  pageTitle,
@@ -249,6 +349,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			if err != nil {
 				return nil, err
 			}
+			progressTracker.advance("preparing model pages")
 		}
 	}
 
@@ -264,6 +365,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			params:    p,
 			content:   indexContent,
 		})
+		progressTracker.advance("preparing models index")
 	}
 
 	// Write model type index pages (2 levels deep: models/{typeSlug}/)
@@ -281,6 +383,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			params:    p,
 			content:   content,
 		})
+		progressTracker.advance("preparing model type indexes")
 	}
 
 	// Write developer diagnostics page.
@@ -291,7 +394,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		staticPaths, jobs, err = appendHydratedHTMLJob(resolvedOutputDir, staticPaths, jobs, assetMode, p, htmlHydrationJob{
 			dataBase: pppaths.DiagnosticsPageDataBase(),
 			context:  "diagnostics",
-			payload:  buildDiagnosticsHydrationPayload(site.Diagnostics),
+			payload:  buildDiagnosticsHydrationPayload(site.Diagnostics, sourceCache),
 		}, htmlWriteJob{
 			path:       filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.DiagnosticsHTMLPath())),
 			pageTitle:  "Diagnostics - " + title,
@@ -301,6 +404,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		if err != nil {
 			return nil, err
 		}
+		progressTracker.advance("preparing diagnostics page")
 		if len(site.OrphanResults) > 0 {
 			orphansPath := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.OrphansJSONPath))
 			encoded, err := json.MarshalIndent(site.OrphanResults, "", "  ")
@@ -311,6 +415,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 				return nil, fmt.Errorf("writing diagnostics orphans: %w", err)
 			}
 			staticPaths = append(staticPaths, orphansPath)
+			progressTracker.advance("writing diagnostics orphan results")
 		}
 	}
 
@@ -335,6 +440,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 				params:    p,
 				content:   content,
 			})
+			progressTracker.advance("preparing tag pages")
 			collectTagJobs(tag.Children)
 		}
 	}
@@ -351,7 +457,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		staticPaths, jobs, err = appendHydratedHTMLJob(resolvedOutputDir, staticPaths, jobs, assetMode, p, htmlHydrationJob{
 			dataBase: pppaths.OperationPageDataBase(wh.Slug),
 			context:  fmt.Sprintf("webhook %s", wh.Slug),
-			payload:  buildOperationHydrationPayload(wh),
+			payload:  buildOperationHydrationPayload(wh, sourceCache),
 		}, htmlWriteJob{
 			path:       path,
 			pageTitle:  pageTitle,
@@ -361,27 +467,27 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		if err != nil {
 			return nil, err
 		}
+		progressTracker.advance("preparing webhook pages")
 	}
 
 	var g errgroup.Group
 	g.SetLimit(printingPressParallelism())
 	totalJobs := len(jobs)
-	var completed int64
 	for _, job := range jobs {
 		job := job
 		g.Go(func() error {
 			if err := writeTemplPage(job.path, job.pageTitle, job.activeSlug, &job.params, job.content); err != nil {
 				return fmt.Errorf("writing %s: %w", job.path, err)
 			}
-			if progress != nil {
-				done := int(atomicAddInt64(&completed, 1))
-				progress("writing html pages", done, totalJobs)
-			}
+			progressTracker.advance("writing html pages")
 			return nil
 		})
 	}
 	if err := g.Wait(); err != nil {
 		return nil, err
+	}
+	if totalJobs == 0 {
+		progressTracker.advance("writing html pages")
 	}
 
 	written := make([]string, 0, len(staticPaths)+len(jobs))
