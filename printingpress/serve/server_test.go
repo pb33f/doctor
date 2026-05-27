@@ -44,6 +44,49 @@ func TestStaticServerServesZipArchiveExport(t *testing.T) {
 	assert.NotContains(t, names, "diagnostics.html")
 }
 
+func TestStaticServerArchiveExportSkipsNestedDiagnosticsPayloads(t *testing.T) {
+	dir := t.TempDir()
+	writeArchiveTestFile(t, dir, "index.html", "catalog")
+	writeArchiveTestFile(t, dir, "services/users/versions/v1/specs/users-api/index.html", "entry")
+	writeArchiveTestFile(t, dir, "services/users/versions/v1/specs/users-api/diagnostics.html", "diagnostics")
+	writeArchiveTestFile(t, dir, "services/users/versions/v1/specs/users-api/data/pages/diagnostics.js", "globalThis.__PP_PAGE_DATA__ = {};")
+	writeArchiveTestFile(t, dir, "services/users/versions/v1/specs/users-api/data/pages/diagnostics.json", "{}")
+	writeArchiveTestFile(t, dir, "services/users/versions/v1/specs/users-api/data/pages/root.js", "globalThis.__PP_PAGE_DATA__ = {};")
+
+	server := httptest.NewServer(NewStaticServer(dir, ""))
+	defer server.Close()
+
+	resp, err := server.Client().Get(server.URL + ArchiveExportEndpoint)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	require.NoError(t, err)
+
+	names := zipArchiveNames(zr)
+	assert.Contains(t, names, "services/users/versions/v1/specs/users-api/index.html")
+	assert.Contains(t, names, "services/users/versions/v1/specs/users-api/data/pages/root.js")
+	assert.NotContains(t, names, "services/users/versions/v1/specs/users-api/diagnostics.html")
+	assert.NotContains(t, names, "services/users/versions/v1/specs/users-api/data/pages/diagnostics.js")
+	assert.NotContains(t, names, "services/users/versions/v1/specs/users-api/data/pages/diagnostics.json")
+
+	diagnosticsResp, err := server.Client().Get(server.URL + ArchiveExportEndpoint + "?diagnostics=1")
+	require.NoError(t, err)
+	defer diagnosticsResp.Body.Close()
+	require.Equal(t, http.StatusOK, diagnosticsResp.StatusCode)
+	diagnosticsBody, err := io.ReadAll(diagnosticsResp.Body)
+	require.NoError(t, err)
+	diagnosticsZip, err := zip.NewReader(bytes.NewReader(diagnosticsBody), int64(len(diagnosticsBody)))
+	require.NoError(t, err)
+
+	diagnosticsNames := zipArchiveNames(diagnosticsZip)
+	assert.Contains(t, diagnosticsNames, "services/users/versions/v1/specs/users-api/diagnostics.html")
+	assert.Contains(t, diagnosticsNames, "services/users/versions/v1/specs/users-api/data/pages/diagnostics.js")
+	assert.Contains(t, diagnosticsNames, "services/users/versions/v1/specs/users-api/data/pages/diagnostics.json")
+}
+
 func TestStaticServerArchiveExportUsesPortableArchiveDir(t *testing.T) {
 	servedDir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(servedDir, "index.html"), []byte("served"), 0o644))
@@ -185,12 +228,19 @@ func TestArchiveWritersReturnCloseErrors(t *testing.T) {
 func writeArchiveExportTestDir(t *testing.T, index string, includeDiagnostics bool) string {
 	t.Helper()
 	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "index.html"), []byte(index), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "llms.txt"), []byte("llm"), 0o644))
+	writeArchiveTestFile(t, dir, "index.html", index)
+	writeArchiveTestFile(t, dir, "llms.txt", "llm")
 	if includeDiagnostics {
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "diagnostics.html"), []byte("diagnostics"), 0o644))
+		writeArchiveTestFile(t, dir, "diagnostics.html", "diagnostics")
 	}
 	return dir
+}
+
+func writeArchiveTestFile(t *testing.T, root, rel, body string) {
+	t.Helper()
+	abs := filepath.Join(root, filepath.FromSlash(rel))
+	require.NoError(t, os.MkdirAll(filepath.Dir(abs), 0o755))
+	require.NoError(t, os.WriteFile(abs, []byte(body), 0o644))
 }
 
 var errArchiveWriter = errors.New("archive writer failed")
