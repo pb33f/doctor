@@ -83,6 +83,8 @@ func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, 
 		LLMAggregateSpecSizeThresholdBytes: ap.config.LLMAggregateSpecSizeThresholdBytes,
 		LLMMaxAggregateFileBytes:           ap.config.LLMMaxAggregateFileBytes,
 		LLMGenerateMonoliths:               ap.config.LLMGenerateMonoliths,
+		DeveloperMode:                      ap.developerMode,
+		LintResults:                        ap.specLintResults[spec.RelativePath],
 	}
 	if ap.config.BaseURL != "" {
 		if joined, err := joinBaseURLPath(ap.config.BaseURL, spec.OutputSubdir); err == nil {

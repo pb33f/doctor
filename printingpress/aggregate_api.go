@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 )
@@ -48,6 +49,7 @@ type AggregatePrintingPressConfig struct {
 	StateNamespace          string
 	StateSQLitePath         string
 	StateStore              SpecStateStore
+	EntryConfigFingerprint  string
 	Logger                  *slog.Logger
 	MaxPools                int
 	WorkersPerPool          int
@@ -139,11 +141,13 @@ type SpecStateRecord struct {
 
 // AggregatePrintingPress discovers and renders a multi-spec documentation catalog.
 type AggregatePrintingPress struct {
-	mu         sync.Mutex
-	config     *AggregatePrintingPressConfig
-	stateStore SpecStateStore
-	plan       *aggregateBuildPlan
-	catalog    *ppmodel.CatalogSite
+	mu              sync.Mutex
+	config          *AggregatePrintingPressConfig
+	stateStore      SpecStateStore
+	plan            *aggregateBuildPlan
+	catalog         *ppmodel.CatalogSite
+	developerMode   bool
+	specLintResults map[string][]*v3.RuleFunctionResult
 }
 
 // CreateAggregatePrintingPressFromPath creates a multi-spec printing press rooted at scanRoot.

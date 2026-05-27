@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/pb33f/doctor/model"
@@ -536,6 +537,52 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 		assert.Contains(t, string(graphAssetJS), "pp-graph-data")
 		assert.NotContains(t, string(graphAssetJS), "pp-mermaid-data")
 	}
+}
+
+func TestPrintingPress_WriteHTMLSiteProgressReportsPreparationAndWrites(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+
+	doc, err := libopenapi.NewDocument(specBytes)
+	require.NoError(t, err)
+
+	v3Model, buildErr := doc.BuildV3Model()
+	require.NoError(t, buildErr)
+
+	drDoc := model.NewDrDocument(v3Model)
+	pp := newPressEngine(&pressEngineConfig{DrDoc: drDoc, Title: "Burger Shop"})
+	site, err := pp.pressSite()
+	require.NoError(t, err)
+
+	type progressUpdate struct {
+		task      string
+		completed int
+		total     int
+	}
+	var (
+		mu      sync.Mutex
+		updates []progressUpdate
+	)
+	_, err = writeHTMLSiteDetailed(site, t.TempDir(), "", func(task string, completed, total int) {
+		mu.Lock()
+		defer mu.Unlock()
+		updates = append(updates, progressUpdate{task: task, completed: completed, total: total})
+	})
+	require.NoError(t, err)
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.NotEmpty(t, updates)
+
+	tasks := make([]string, 0, len(updates))
+	for _, update := range updates {
+		tasks = append(tasks, update.task)
+	}
+	last := updates[len(updates)-1]
+	assert.Equal(t, last.total, last.completed)
+	assert.Contains(t, tasks, "preparing shared navigation data")
+	assert.Contains(t, tasks, "preparing model pages")
+	assert.Contains(t, tasks, "writing html pages")
 }
 
 func TestPrintingPress_WriteHTMLSite_ConfiguresFooter(t *testing.T) {

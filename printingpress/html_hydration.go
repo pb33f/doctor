@@ -151,7 +151,7 @@ func buildSharedHydrationPayload(site *ppmodel.Site) *htmlHydrationPayload {
 	}
 }
 
-func buildModelHydrationPayload(page *ppmodel.ModelPage) *htmlHydrationPayload {
+func buildModelHydrationPayload(page *ppmodel.ModelPage, sourceCache *yamlSliceHydrationCache) *htmlHydrationPayload {
 	payload := &htmlHydrationPayload{
 		Attributes: make(map[string]map[string]string),
 		Children:   make(map[string][]htmlHydrationChild),
@@ -178,7 +178,7 @@ func buildModelHydrationPayload(page *ppmodel.ModelPage) *htmlHydrationPayload {
 			SchemaRawJSON: page.SchemaRawJSON,
 		}
 	}
-	payload.Developer = buildDeveloperHydrationPayload(page.Counts, page.Problems, page.Slices, ppmodel.ViolationCounts{}, 0)
+	payload.Developer = buildDeveloperHydrationPayloadWithCache(page.Counts, page.Problems, page.Slices, ppmodel.ViolationCounts{}, 0, sourceCache)
 
 	if len(payload.Attributes) == 0 {
 		payload.Attributes = nil
@@ -186,7 +186,7 @@ func buildModelHydrationPayload(page *ppmodel.ModelPage) *htmlHydrationPayload {
 	return payload
 }
 
-func buildOperationHydrationPayload(page *ppmodel.OperationPage) *htmlHydrationPayload {
+func buildOperationHydrationPayload(page *ppmodel.OperationPage, sourceCache *yamlSliceHydrationCache) *htmlHydrationPayload {
 	payload := &htmlHydrationPayload{
 		Attributes: make(map[string]map[string]string),
 	}
@@ -240,7 +240,7 @@ func buildOperationHydrationPayload(page *ppmodel.OperationPage) *htmlHydrationP
 			"callbacks-json": page.CallbacksJSON,
 		}
 	}
-	payload.Developer = buildDeveloperHydrationPayload(page.Counts, page.Problems, page.Slices, ppmodel.ViolationCounts{}, 0)
+	payload.Developer = buildDeveloperHydrationPayloadWithCache(page.Counts, page.Problems, page.Slices, ppmodel.ViolationCounts{}, 0, sourceCache)
 
 	if len(payload.Attributes) == 0 {
 		payload.Attributes = nil
@@ -248,20 +248,20 @@ func buildOperationHydrationPayload(page *ppmodel.OperationPage) *htmlHydrationP
 	return payload
 }
 
-func buildRootHydrationPayload(page *ppmodel.RootPage) *htmlHydrationPayload {
+func buildRootHydrationPayload(page *ppmodel.RootPage, sourceCache *yamlSliceHydrationCache) *htmlHydrationPayload {
 	if page == nil {
 		return nil
 	}
 	return &htmlHydrationPayload{
-		Developer: buildDeveloperHydrationPayload(page.Counts, page.Problems, page.Slices, ppmodel.ViolationCounts{}, 0),
+		Developer: buildDeveloperHydrationPayloadWithCache(page.Counts, page.Problems, page.Slices, ppmodel.ViolationCounts{}, 0, sourceCache),
 	}
 }
 
-func buildDiagnosticsHydrationPayload(page *ppmodel.DiagnosticsPage) *htmlHydrationPayload {
+func buildDiagnosticsHydrationPayload(page *ppmodel.DiagnosticsPage, sourceCache *yamlSliceHydrationCache) *htmlHydrationPayload {
 	if page == nil {
 		return nil
 	}
-	developer := buildDeveloperHydrationPayload(page.SiteCounts, page.Problems, nil, page.SiteCounts, page.OrphanCount)
+	developer := buildDeveloperHydrationPayloadWithCache(page.SiteCounts, page.Problems, nil, page.SiteCounts, page.OrphanCount, sourceCache)
 	if developer == nil {
 		developer = &htmlDeveloperPayload{
 			Counts:      page.SiteCounts,
@@ -281,6 +281,19 @@ func buildDeveloperHydrationPayload(
 	slices map[string]*ppmodel.YamlSlice,
 	siteCounts ppmodel.ViolationCounts,
 	orphanCount int,
+) *htmlDeveloperPayload {
+	cache := newYAMLSliceHydrationCache()
+	defer cache.Close()
+	return buildDeveloperHydrationPayloadWithCache(counts, problems, slices, siteCounts, orphanCount, cache)
+}
+
+func buildDeveloperHydrationPayloadWithCache(
+	counts ppmodel.ViolationCounts,
+	problems []*ppmodel.PageProblem,
+	slices map[string]*ppmodel.YamlSlice,
+	siteCounts ppmodel.ViolationCounts,
+	orphanCount int,
+	sourceCache *yamlSliceHydrationCache,
 ) *htmlDeveloperPayload {
 	if counts.Total() == 0 && len(problems) == 0 && len(slices) == 0 && siteCounts.Total() == 0 && orphanCount == 0 {
 		return nil
@@ -308,13 +321,19 @@ func buildDeveloperHydrationPayload(
 		Counts:      counts,
 		SiteCounts:  siteCounts,
 		Problems:    problems,
-		Slices:      hydrateYamlSlices(slices),
+		Slices:      hydrateYamlSlicesWithCache(slices, sourceCache),
 		Metadata:    metadata,
 		OrphanCount: orphanCount,
 	}
 }
 
 func hydrateYamlSlices(slices map[string]*ppmodel.YamlSlice) map[string]*ppmodel.YamlSlice {
+	cache := newYAMLSliceHydrationCache()
+	defer cache.Close()
+	return hydrateYamlSlicesWithCache(slices, cache)
+}
+
+func hydrateYamlSlicesWithCache(slices map[string]*ppmodel.YamlSlice, sourceCache *yamlSliceHydrationCache) map[string]*ppmodel.YamlSlice {
 	if len(slices) == 0 {
 		return nil
 	}
@@ -325,7 +344,7 @@ func hydrateYamlSlices(slices map[string]*ppmodel.YamlSlice) map[string]*ppmodel
 		}
 		cp := *slice
 		if cp.Source == "" {
-			cp.Source = readYamlSliceSource(&cp)
+			cp.Source = readYamlSliceSourceWithCache(&cp, sourceCache)
 		}
 		hydrated[key] = &cp
 	}
@@ -336,21 +355,20 @@ func hydrateYamlSlices(slices map[string]*ppmodel.YamlSlice) map[string]*ppmodel
 }
 
 func readYamlSliceSource(slice *ppmodel.YamlSlice) string {
+	cache := newYAMLSliceHydrationCache()
+	defer cache.Close()
+	return readYamlSliceSourceWithCache(slice, cache)
+}
+
+func readYamlSliceSourceWithCache(slice *ppmodel.YamlSlice, sourceCache *yamlSliceHydrationCache) string {
 	if slice == nil || slice.FirstLine <= 0 || slice.LastLine < slice.FirstLine {
 		return ""
 	}
-	file := strings.TrimSpace(slice.ResolvedFile)
-	if file == "" {
-		file = strings.TrimSpace(slice.File)
+	if sourceCache == nil {
+		sourceCache = newYAMLSliceHydrationCache()
+		defer sourceCache.Close()
 	}
-	if file == "" || strings.Contains(file, "://") {
-		return ""
-	}
-	source, err := os.ReadFile(file)
-	if err != nil {
-		return ""
-	}
-	return sourceLineRange(source, slice.FirstLine, slice.LastLine)
+	return sourceCache.sourceForSlice(slice)
 }
 
 func sourceLineRange(source []byte, firstLine, lastLine int) string {
