@@ -146,16 +146,16 @@ func (pp *PrintingPress) initEngine(config *pressEngineConfig) {
 	mgYAML.SetPretty()
 	mgYAML.DisableRequiredCheck()
 
-	// TODO: XML mock generator awaiting renderer.XML support in libopenapi
-	// mgXML := renderer.NewMockGenerator(renderer.XML)
-	// mgXML.SetPretty()
-	// mgXML.DisableRequiredCheck()
+	mgXML := renderer.NewMockGenerator(renderer.XML)
+	applyMockGenerationLimits(mgXML, limits)
+	mgXML.SetPretty()
+	mgXML.DisableRequiredCheck()
 
 	pp.engineConfig = config
 	pp.slugs = slugpkg.NewSlugRegistry()
 	pp.mockGen = mg
 	pp.mockGenYAML = mgYAML
-	pp.mockGenXML = nil
+	pp.mockGenXML = mgXML
 	pp.rawArtifacts = newRawArtifactCache()
 	pp.schemaArtifacts = newSchemaArtifactCache()
 	pp.site = &Site{

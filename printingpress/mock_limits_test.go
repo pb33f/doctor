@@ -256,14 +256,14 @@ func TestGenerateMockWrappers(t *testing.T) {
 	assert.NotEmpty(t, pp.generateMockAsWithLabel(mockable, "json", "mockable"))
 	assert.NotEmpty(t, pp.generateMockAsWithLabel(schema, "json", "schema"))
 	assert.NotEmpty(t, pp.generateMockAsWithLabel(mockable, "yaml", "mockable"))
+	assert.NotEmpty(t, pp.generateMockAsWithLabel(mockable, "xml", "mockable"))
 	assert.NotEmpty(t, pp.generateSchemaMockAs(schema, "json"))
 	assert.NotEmpty(t, pp.generateSchemaMockAsWithLabel(schema, "yaml", "schema"))
+	assert.NotEmpty(t, pp.generateSchemaMockAsWithLabel(schema, "xml", "schema"))
 	assert.Empty(t, pp.generateSchemaMockAsWithLabel(schemaWithNilExample, "json", "schema"))
 	assert.Empty(t, pp.generateMockWithLabel(&struct{}{}, "bad-mockable"))
 	assert.Empty(t, pp.generateMockAsWithLabel(&struct{}{}, "json", "bad-mockable"))
-	assert.Empty(t, pp.generateMockAsWithLabel(mockable, "xml", "mockable"))
 	assert.Empty(t, pp.generateSchemaMockAs(nil, "json"))
-	assert.Empty(t, pp.generateSchemaMockAsWithLabel(schema, "xml", "schema"))
 }
 
 func TestSafeGenerateMock_EdgeCases(t *testing.T) {
