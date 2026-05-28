@@ -539,6 +539,113 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	}
 }
 
+func TestPrintingPress_WriteHTMLSite_RendersCodeSamplesSection(t *testing.T) {
+	spec := `openapi: "3.1.0"
+info:
+  title: Code Samples
+  version: "1.0"
+paths:
+  /bookings:
+    post:
+      operationId: createBooking
+      summary: Create booking
+      x-codeSamples:
+        - lang: typescript
+          label: create-booking_json
+          source: |
+            const client = new TrainTravelSDK();
+            await client.bookings.create({ tripId: "abc" });
+        - lang: Python
+          source: |
+            client.bookings.create({"tripId": "abc"})
+        - |
+          const raw = await fetch("/bookings", {
+            method: "POST",
+            body: JSON.stringify({ tripId: "abc" })
+          });
+      responses:
+        '201':
+          description: Created
+`
+	site := pressFromSpec(t, spec)
+	require.Len(t, site.Operations, 1)
+
+	outputDir := t.TempDir()
+	require.NoError(t, WriteHTMLSite(site, outputDir, ""))
+
+	op := site.Operations[0]
+	operationHTML, err := os.ReadFile(filepath.Join(outputDir, "operations", op.Slug+".html"))
+	require.NoError(t, err)
+	html := string(operationHTML)
+	assert.Contains(t, html, `id="section-code-samples" data-nav-label="Code Samples"`)
+	assert.Contains(t, html, `<sl-tab-group class="pp-code-samples-tabs">`)
+	assert.Contains(t, html, `<sl-tab slot="nav" panel="code-sample-0" active>typescript</sl-tab>`)
+	assert.Contains(t, html, `<sl-tab slot="nav" panel="code-sample-1">Python</sl-tab>`)
+	assert.Contains(t, html, `<sl-tab slot="nav" panel="code-sample-2">Sample 3</sl-tab>`)
+	assert.Contains(t, html, `<sl-tab-panel name="code-sample-0" active>`)
+	assert.Contains(t, html, `<sl-tab-panel name="code-sample-1">`)
+	assert.Contains(t, html, `<sl-tab-panel name="code-sample-2">`)
+	assert.Contains(t, html, `<h4 class="pp-code-sample-label">create-booking_json</h4>`)
+	assert.Contains(t, html, `<pre class="chroma pp-code-sample-code"><code>`)
+	assert.Contains(t, html, "TrainTravelSDK")
+	assert.Contains(t, html, "bookings")
+	assert.Contains(t, html, "create")
+	assert.Contains(t, html, "fetch")
+}
+
+func TestPrintingPress_WriteHTMLSite_RendersCodeSamplesFromSourceRefs(t *testing.T) {
+	fixtureRoot := filepath.Join("fixtures", "testdata", "ref-code-samples")
+	specPath := filepath.Join(fixtureRoot, "openapi.yaml")
+	specBytes, err := os.ReadFile(specPath)
+	require.NoError(t, err)
+
+	outputDir := t.TempDir()
+	pp, err := CreatePrintingPressFromBytes(specBytes, &PrintingPressConfig{
+		BasePath:  fixtureRoot,
+		SpecPath:  specPath,
+		OutputDir: outputDir,
+	})
+	require.NoError(t, err)
+
+	site, err := pp.PressModel()
+	require.NoError(t, err)
+	require.Len(t, site.Operations, 1)
+	op := site.Operations[0]
+	require.Len(t, op.CodeSamples, 5)
+	assert.Equal(t, "snippets/create-booking-json.ts", op.CodeSamples[0].SourceRef)
+	assert.Equal(t, "snippets/create-booking-raw.ts", op.CodeSamples[1].SourceRef)
+	assert.Equal(t, "snippets/create-booking.go", op.CodeSamples[2].SourceRef)
+	assert.Equal(t, "snippets/create-booking.py", op.CodeSamples[3].SourceRef)
+	assert.Equal(t, "snippets/create-booking.cpp", op.CodeSamples[4].SourceRef)
+	assert.Contains(t, op.CodeSamples[0].Source, "createJson")
+	assert.Contains(t, op.CodeSamples[1].Source, "bytesToStream")
+	assert.Contains(t, op.CodeSamples[2].Source, "traintravel.NewClient")
+	assert.Contains(t, op.CodeSamples[3].Source, "TrainTravelClient")
+	assert.Contains(t, op.CodeSamples[4].Source, "train_travel::Client")
+	assert.Empty(t, op.CodeSamples[0].HighlightedHTML)
+
+	_, err = pp.PrintHTML()
+	require.NoError(t, err)
+	assert.NotEmpty(t, op.CodeSamples[0].HighlightedHTML)
+
+	operationHTML, err := os.ReadFile(filepath.Join(outputDir, "operations", op.Slug+".html"))
+	require.NoError(t, err)
+	html := string(operationHTML)
+	assert.Contains(t, html, `<sl-tab slot="nav" panel="code-sample-0" active>typescript</sl-tab>`)
+	assert.Contains(t, html, `<sl-tab slot="nav" panel="code-sample-1">typescript</sl-tab>`)
+	assert.Contains(t, html, `<sl-tab slot="nav" panel="code-sample-2">go</sl-tab>`)
+	assert.Contains(t, html, `<sl-tab slot="nav" panel="code-sample-3">python</sl-tab>`)
+	assert.Contains(t, html, `<sl-tab slot="nav" panel="code-sample-4">c++</sl-tab>`)
+	assert.Contains(t, html, `<h4 class="pp-code-sample-label">create-booking_go</h4>`)
+	assert.Contains(t, html, `<h4 class="pp-code-sample-label">create-booking_python</h4>`)
+	assert.Contains(t, html, `<h4 class="pp-code-sample-label">create-booking_cpp</h4>`)
+	assert.Contains(t, html, "train-travel-go")
+	assert.Contains(t, html, "TrainTravelClient")
+	assert.Contains(t, html, "train_travel")
+	assert.Contains(t, html, "TrainTravelSDK")
+	assert.Contains(t, html, "bytesToStream")
+}
+
 func TestPrintingPress_WriteHTMLSiteProgressReportsPreparationAndWrites(t *testing.T) {
 	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
 	require.NoError(t, err)

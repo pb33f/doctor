@@ -9,8 +9,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/url"
+	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -30,7 +32,12 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
-const typeSlugPathItems = "path-items"
+const (
+	typeSlugPathItems          = "path-items"
+	codeSamplesExtensionKey    = "x-codeSamples"
+	maxCodeSampleSourceBytes   = 1 << 20
+	codeSampleSourceLimitLabel = "1MiB"
+)
 
 // refSegmentToTypeSlug maps OpenAPI $ref component segments to URL type slugs.
 var refSegmentToTypeSlug = map[string]string{
@@ -434,8 +441,13 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 		}
 	}
 
+	operationContext := fmt.Sprintf("%s %s", strings.ToUpper(method), path)
+
+	// Code samples
+	page.CodeSamples = pp.collectCodeSamples(val.Extensions, pp.operationSourceFile(piOrigin), operationContext)
+
 	// Extensions
-	page.Extensions = collectExtensions(val.Extensions)
+	page.Extensions = collectExtensionsExcept(val.Extensions, codeSamplesExtensionKey)
 	if page.Extensions != nil {
 		page.ExtensionsJSON = render.MustJSON(page.Extensions)
 	}
@@ -457,7 +469,7 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 	}
 
 	// Serialize full operation to YAML + JSON for cowboy-components and raw viewer
-	pp.captureRawData(val, fmt.Sprintf("%s %s", method, path),
+	pp.captureRawData(val, operationContext,
 		&page.RawYAML, &page.SchemaJSON, nil)
 
 	// Use ValueNode line only for single-file specs; for multi-file bundled specs
@@ -2000,16 +2012,281 @@ func (pp *PrintingPress) resolveSecurityRequirement(name string, scopes []string
 	return req
 }
 
+func (pp *PrintingPress) collectCodeSamples(extensions *orderedmap.Map[string, *yaml.Node], baseFile, context string) []*CodeSample {
+	if extensions == nil || extensions.Len() == 0 {
+		return nil
+	}
+	root := extensions.GetOrZero(codeSamplesExtensionKey)
+	if root == nil {
+		return nil
+	}
+	if root.Kind != yaml.SequenceNode {
+		pp.warn("x-codeSamples must be a sequence; skipping code samples", context, nil)
+		return nil
+	}
+
+	samples := make([]*CodeSample, 0, len(root.Content))
+	for i, item := range root.Content {
+		sampleContext := fmt.Sprintf("%s x-codeSamples[%d]", context, i)
+		sample := pp.collectCodeSample(item, baseFile, sampleContext)
+		if sample != nil {
+			samples = append(samples, sample)
+		}
+	}
+	if len(samples) == 0 {
+		return nil
+	}
+	return samples
+}
+
+func (pp *PrintingPress) collectCodeSample(node *yaml.Node, baseFile, context string) *CodeSample {
+	if node == nil {
+		pp.warn("x-codeSamples entry must be an object or string; skipping code sample", context, nil)
+		return nil
+	}
+
+	switch node.Kind {
+	case yaml.ScalarNode:
+		source, _, ok := pp.collectCodeSampleSource(node, baseFile, context)
+		if !ok {
+			return nil
+		}
+		return &CodeSample{Source: source}
+	case yaml.MappingNode:
+		source, sourceRef, ok := pp.collectCodeSampleSource(yamlMappingValue(node, "source"), baseFile, context)
+		if !ok {
+			return nil
+		}
+		sample := &CodeSample{
+			Lang:      yamlScalarString(yamlMappingValue(node, "lang")),
+			Label:     yamlScalarString(yamlMappingValue(node, "label")),
+			Source:    source,
+			SourceRef: sourceRef,
+		}
+		return sample
+	default:
+		pp.warn("x-codeSamples entry must be an object or string; skipping code sample", context, nil)
+		return nil
+	}
+}
+
+func codeSampleHighlightLanguage(sample *CodeSample) string {
+	if sample == nil {
+		return ""
+	}
+	if sample.Lang != "" {
+		return sample.Lang
+	}
+	return sample.Label
+}
+
+func (pp *PrintingPress) collectCodeSampleSource(sourceNode *yaml.Node, baseFile, context string) (string, string, bool) {
+	if sourceNode == nil {
+		pp.warn("x-codeSamples source is missing; skipping code sample", context, nil)
+		return "", "", false
+	}
+
+	switch sourceNode.Kind {
+	case yaml.ScalarNode:
+		if sourceNode.Value == "" {
+			pp.warn("x-codeSamples source is empty; skipping code sample", context, nil)
+			return "", "", false
+		}
+		if len(sourceNode.Value) > maxCodeSampleSourceBytes {
+			pp.warn("x-codeSamples source exceeds "+codeSampleSourceLimitLabel+"; skipping code sample", context, nil)
+			return "", "", false
+		}
+		return sourceNode.Value, "", true
+	case yaml.MappingNode:
+		ref := yamlScalarString(yamlMappingValue(sourceNode, "$ref"))
+		if ref == "" {
+			pp.warn("x-codeSamples source $ref is missing; skipping code sample", context, nil)
+			return "", "", false
+		}
+		if refURL, err := url.Parse(ref); err == nil && refURL.Scheme != "" && refURL.Host != "" {
+			pp.warn("x-codeSamples source $ref is remote; skipping code sample", ref, nil)
+			return "", ref, false
+		}
+		resolvedPath, ok := pp.resolveCodeSampleRefPath(ref, baseFile)
+		if !ok {
+			pp.warn("x-codeSamples source $ref resolves outside the spec root; skipping code sample", ref, nil)
+			return "", ref, false
+		}
+		file, err := os.Open(resolvedPath)
+		if err != nil {
+			pp.warn("x-codeSamples source $ref could not be read; skipping code sample", ref, nil)
+			return "", ref, false
+		}
+		defer func() {
+			_ = file.Close()
+		}()
+		info, err := file.Stat()
+		if err != nil {
+			pp.warn("x-codeSamples source $ref could not be read; skipping code sample", ref, nil)
+			return "", ref, false
+		}
+		if !info.Mode().IsRegular() {
+			pp.warn("x-codeSamples source $ref is not a regular file; skipping code sample", ref, nil)
+			return "", ref, false
+		}
+		if info.Size() > maxCodeSampleSourceBytes {
+			pp.warn("x-codeSamples source $ref exceeds "+codeSampleSourceLimitLabel+"; skipping code sample", ref, nil)
+			return "", ref, false
+		}
+		data, err := io.ReadAll(io.LimitReader(file, maxCodeSampleSourceBytes+1))
+		if err != nil {
+			pp.warn("x-codeSamples source $ref could not be read; skipping code sample", ref, nil)
+			return "", ref, false
+		}
+		if len(data) > maxCodeSampleSourceBytes {
+			pp.warn("x-codeSamples source $ref exceeds "+codeSampleSourceLimitLabel+"; skipping code sample", ref, nil)
+			return "", ref, false
+		}
+		if len(data) == 0 {
+			pp.warn("x-codeSamples source $ref is empty; skipping code sample", ref, nil)
+			return "", ref, false
+		}
+		return string(data), ref, true
+	default:
+		pp.warn("x-codeSamples source must be a string or $ref object; skipping code sample", context, nil)
+		return "", "", false
+	}
+}
+
+func (pp *PrintingPress) operationSourceFile(origin *bundler.ComponentOrigin) string {
+	if origin != nil && origin.OriginalFile != "" {
+		if filepath.IsAbs(origin.OriginalFile) {
+			return origin.OriginalFile
+		}
+		if pp.engineConfig != nil && pp.engineConfig.SpecRoot != "" {
+			return filepath.Join(pp.engineConfig.SpecRoot, filepath.FromSlash(origin.OriginalFile))
+		}
+		return origin.OriginalFile
+	}
+	if pp.engineConfig == nil {
+		return ""
+	}
+	if pp.engineConfig.SpecPath != "" {
+		return pp.engineConfig.SpecPath
+	}
+	if pp.engineConfig.SpecRoot != "" && pp.engineConfig.SpecLocation != "" {
+		return filepath.Join(pp.engineConfig.SpecRoot, filepath.FromSlash(pp.engineConfig.SpecLocation))
+	}
+	return pp.engineConfig.SpecLocation
+}
+
+func (pp *PrintingPress) resolveCodeSampleRefPath(ref, baseFile string) (string, bool) {
+	cleanRef := filepath.FromSlash(ref)
+	var candidate string
+	if baseFile != "" {
+		candidate = filepath.Join(filepath.Dir(baseFile), cleanRef)
+	} else if pp.engineConfig != nil && pp.engineConfig.SpecRoot != "" {
+		candidate = filepath.Join(pp.engineConfig.SpecRoot, cleanRef)
+	} else {
+		candidate = cleanRef
+	}
+	if filepath.IsAbs(cleanRef) {
+		candidate = cleanRef
+	}
+	absCandidate, err := filepath.Abs(filepath.Clean(candidate))
+	if err != nil {
+		return "", false
+	}
+	allowedRoot, ok := pp.codeSampleAllowedRoot(baseFile)
+	if !ok || !pathWithinRoot(absCandidate, allowedRoot) {
+		return "", false
+	}
+	if evaluated, err := filepath.EvalSymlinks(absCandidate); err == nil {
+		evaluatedRoot := allowedRoot
+		if root, rootErr := filepath.EvalSymlinks(allowedRoot); rootErr == nil {
+			evaluatedRoot = root
+		}
+		if !pathWithinRoot(evaluated, evaluatedRoot) {
+			return "", false
+		}
+	}
+	return absCandidate, true
+}
+
+func (pp *PrintingPress) codeSampleAllowedRoot(baseFile string) (string, bool) {
+	root := ""
+	if pp.engineConfig != nil {
+		if pp.engineConfig.SpecRoot != "" {
+			root = pp.engineConfig.SpecRoot
+		} else if pp.engineConfig.SpecPath != "" {
+			root = filepath.Dir(pp.engineConfig.SpecPath)
+		}
+	}
+	if root == "" && baseFile != "" {
+		root = filepath.Dir(baseFile)
+	}
+	if root == "" {
+		return "", false
+	}
+	absRoot, err := filepath.Abs(filepath.Clean(root))
+	if err != nil {
+		return "", false
+	}
+	return absRoot, true
+}
+
+func pathWithinRoot(path, root string) bool {
+	absPath, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return false
+	}
+	absRoot, err := filepath.Abs(filepath.Clean(root))
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(absRoot, absPath)
+	if err != nil {
+		return false
+	}
+	return rel == "." || rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator))
+}
+
+func yamlMappingValue(node *yaml.Node, key string) *yaml.Node {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		k := node.Content[i]
+		if k != nil && k.Value == key {
+			return node.Content[i+1]
+		}
+	}
+	return nil
+}
+
+func yamlScalarString(node *yaml.Node) string {
+	if node == nil || node.Kind != yaml.ScalarNode {
+		return ""
+	}
+	return strings.TrimSpace(node.Value)
+}
+
 // collectExtensions converts an orderedmap of extension yaml.Nodes to an ordered slice.
 // Returns nil when there are no extensions (so omitempty works).
 // The "x-" prefix is stripped from keys for cleaner documentation display.
 func collectExtensions(extensions *orderedmap.Map[string, *yaml.Node]) []*ExtensionEntry {
+	return collectExtensionsExcept(extensions)
+}
+
+func collectExtensionsExcept(extensions *orderedmap.Map[string, *yaml.Node], excludedKeys ...string) []*ExtensionEntry {
 	if extensions == nil || extensions.Len() == 0 {
 		return nil
+	}
+	excluded := make(map[string]struct{}, len(excludedKeys))
+	for _, key := range excludedKeys {
+		excluded[key] = struct{}{}
 	}
 	result := make([]*ExtensionEntry, 0, extensions.Len())
 	for pair := extensions.First(); pair != nil; pair = pair.Next() {
 		if pair.Value() == nil {
+			continue
+		}
+		if _, skip := excluded[pair.Key()]; skip {
 			continue
 		}
 		var decoded any
@@ -2019,6 +2296,9 @@ func collectExtensions(extensions *orderedmap.Map[string, *yaml.Node]) []*Extens
 				Value: decoded,
 			})
 		}
+	}
+	if len(result) == 0 {
+		return nil
 	}
 	return result
 }

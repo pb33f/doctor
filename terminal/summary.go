@@ -43,7 +43,7 @@ func PrintSummary(writer io.Writer, palette Palette, site *ppmodel.Site, htmlSta
 	}
 
 	fmt.Fprintln(writer)
-	fmt.Fprintln(writer, withPrintingPressGutterBlock(renderWarningsSummary(palette, site.Warnings)))
+	fmt.Fprintln(writer, withPrintingPressGutterBlock(renderIssuesSummary(palette, site.Warnings)))
 }
 
 func PrintAggregateSummary(writer io.Writer, palette Palette, catalog *ppmodel.CatalogSite, htmlStats, jsonStats, llmStats *printingpress.AggregatePressStatistics, totalDuration time.Duration, fileCount int, totalBytes int64) {
@@ -62,7 +62,7 @@ func PrintAggregateSummary(writer io.Writer, palette Palette, catalog *ppmodel.C
 	}
 
 	fmt.Fprintln(writer)
-	fmt.Fprintln(writer, withPrintingPressGutterBlock(renderWarningsSummary(palette, catalog.Warnings)))
+	fmt.Fprintln(writer, withPrintingPressGutterBlock(renderIssuesSummary(palette, catalog.Warnings)))
 }
 
 func buildSummaryRows(site *ppmodel.Site, htmlStats, llmStats *printingpress.PressStatistics, totalDuration time.Duration, fileCount int, totalBytes int64) []summaryRow {
@@ -89,7 +89,7 @@ func buildSummaryRows(site *ppmodel.Site, htmlStats, llmStats *printingpress.Pre
 		operationCount = len(site.Operations) + len(site.Webhooks)
 		classDiagramCount = countClassDiagrams(site)
 		dependencyDiagramCount = countDependencyGraphs(site)
-		warningCount = len(site.Warnings)
+		warningCount = countWarnings(site.Warnings)
 		errorCount = countWarningErrors(site.Warnings)
 	}
 	if contentStats != nil {
@@ -159,7 +159,7 @@ func buildAggregateSummaryRows(catalog *ppmodel.CatalogSite, htmlStats, jsonStat
 
 	if catalog != nil {
 		outputDir = catalog.OutputDir
-		warningCount = len(catalog.Warnings)
+		warningCount = countWarnings(catalog.Warnings)
 		errorCount = countWarningErrors(catalog.Warnings)
 	}
 	if stats != nil {
@@ -258,6 +258,27 @@ func countWarningErrors(warnings []*ppmodel.BuildWarning) int {
 	return total
 }
 
+func countWarnings(warnings []*ppmodel.BuildWarning) int {
+	total := 0
+	for _, warning := range warnings {
+		if warning != nil && warning.Err == nil {
+			total++
+		}
+	}
+	return total
+}
+
+func renderIssuesSummary(palette Palette, warnings []*ppmodel.BuildWarning) string {
+	sections := make([]string, 0, 2)
+	if warningSection := renderWarningsSummary(palette, warnings); warningSection != "" {
+		sections = append(sections, warningSection)
+	}
+	if errorSection := renderErrorsSummary(palette, warnings); errorSection != "" {
+		sections = append(sections, errorSection)
+	}
+	return strings.Join(sections, "\n\n")
+}
+
 func renderWarningsSummary(palette Palette, warnings []*ppmodel.BuildWarning) string {
 	titleStyle := styleWithForeground(palette.Modification).Bold(true)
 	badgeStyle := lipgloss.NewStyle().
@@ -268,7 +289,7 @@ func renderWarningsSummary(palette Palette, warnings []*ppmodel.BuildWarning) st
 
 	blocks := make([]string, 0, len(warnings))
 	for _, warning := range warnings {
-		if warning == nil {
+		if warning == nil || warning.Err != nil {
 			continue
 		}
 		blocks = append(blocks, renderWarningBlock(palette, badgeStyle, warning))
@@ -282,25 +303,83 @@ func renderWarningsSummary(palette Palette, warnings []*ppmodel.BuildWarning) st
 
 func renderWarningBlock(palette Palette, badgeStyle lipgloss.Style, warning *ppmodel.BuildWarning) string {
 	messageStyle := styleWithForeground(palette.Modification)
-	keyStyle := lipgloss.NewStyle().Bold(true)
 	valueStyle := styleWithForeground(palette.Modification)
 	treeStyle := styleWithForeground(palette.Muted)
 
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("%s %s\n", badgeStyle.Render("WRN"), messageStyle.Render(warning.Message)))
-
-	type attr struct {
-		key   string
-		value string
-	}
-	attrs := make([]attr, 0, 2)
+	attrs := make([]issueBlockAttr, 0, 1)
 	if warning.Context != "" {
-		attrs = append(attrs, attr{key: "context", value: warning.Context})
+		attrs = append(attrs, issueBlockAttr{key: "context", value: warning.Context, valueStyle: valueStyle})
 	}
-	if warning.Err != nil {
-		attrs = append(attrs, attr{key: "error", value: warning.Err.Error()})
+	return renderIssueBlock(badgeStyle, "WRN", warning.Message, "unknown warning", messageStyle, treeStyle, attrs)
+}
+
+func renderErrorsSummary(palette Palette, warnings []*ppmodel.BuildWarning) string {
+	titleStyle := styleWithForeground(palette.Breaking).Bold(true)
+	badgeStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("0")).
+		Background(summaryColorValue(palette.Breaking, "9")).
+		Padding(0, 1)
+
+	blocks := make([]string, 0, len(warnings))
+	for _, warning := range warnings {
+		if warning == nil || warning.Err == nil {
+			continue
+		}
+		blocks = append(blocks, renderErrorBlock(palette, badgeStyle, warning))
+	}
+	if len(blocks) == 0 {
+		return ""
 	}
 
+	return titleStyle.Render(fmt.Sprintf("errors (%d)", len(blocks))) + "\n\n" + strings.Join(blocks, "\n\n")
+}
+
+func renderErrorBlock(palette Palette, badgeStyle lipgloss.Style, warning *ppmodel.BuildWarning) string {
+	messageStyle := styleWithForeground(palette.Breaking)
+	valueStyle := styleWithForeground(palette.Breaking)
+	warningValueStyle := styleWithForeground(palette.Modification)
+	treeStyle := styleWithForeground(palette.Muted)
+
+	attrs := make([]issueBlockAttr, 0, 2)
+	if warning.Context != "" {
+		attrs = append(attrs, issueBlockAttr{key: "context", value: warning.Context, valueStyle: valueStyle})
+	}
+	if warning.Message != "" {
+		attrs = append(attrs, issueBlockAttr{key: "warning", value: warning.Message, valueStyle: warningValueStyle})
+	}
+	return renderIssueBlock(badgeStyle, "ERR", warning.Err.Error(), "unknown error", messageStyle, treeStyle, attrs)
+}
+
+type issueBlockAttr struct {
+	key        string
+	value      string
+	valueStyle lipgloss.Style
+}
+
+func renderIssueBlock(
+	badgeStyle lipgloss.Style,
+	badge string,
+	headline string,
+	fallbackHeadline string,
+	headlineStyle lipgloss.Style,
+	treeStyle lipgloss.Style,
+	attrs []issueBlockAttr,
+) string {
+	headlineLines := splitWarningLines(headline)
+	if len(headlineLines) == 0 {
+		headlineLines = []string{fallbackHeadline}
+	}
+
+	keyStyle := lipgloss.NewStyle().Bold(true)
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("%s %s\n", badgeStyle.Render(badge), headlineStyle.Render(headlineLines[0])))
+	for _, line := range headlineLines[1:] {
+		b.WriteString(summaryTreeSpace)
+		b.WriteString("  ")
+		b.WriteString(headlineStyle.Render(line))
+		b.WriteByte('\n')
+	}
 	for i, item := range attrs {
 		lines := splitWarningLines(item.value)
 		if len(lines) == 0 {
@@ -317,12 +396,12 @@ func renderWarningBlock(palette Palette, badgeStyle lipgloss.Style, warning *ppm
 		b.WriteString(" ")
 		b.WriteString(keyStyle.Render(item.key))
 		b.WriteString(": ")
-		b.WriteString(valueStyle.Render(lines[0]))
+		b.WriteString(item.valueStyle.Render(lines[0]))
 		b.WriteByte('\n')
 		for _, line := range lines[1:] {
 			b.WriteString(treeStyle.Render(childPrefix))
 			b.WriteString("  ")
-			b.WriteString(valueStyle.Render(line))
+			b.WriteString(item.valueStyle.Render(line))
 			b.WriteByte('\n')
 		}
 	}

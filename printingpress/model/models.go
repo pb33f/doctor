@@ -6,6 +6,7 @@ package model
 
 import (
 	"fmt"
+	"strings"
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/bundler"
@@ -273,6 +274,7 @@ type OperationPage struct {
 	Servers               []*ServerInfo
 	ExternalDoc           *ExternalDocInfo
 	CurlJSON              string            `json:"curlJson,omitempty"`
+	CodeSamples           []*CodeSample     `json:"codeSamples,omitempty"`
 	Extensions            []*ExtensionEntry `json:"extensions,omitempty"`
 	ExtensionsJSON        string            `json:"-"` // pre-serialized for Lit component
 	PathExtensions        []*ExtensionEntry `json:"pathExtensions,omitempty"`
@@ -481,6 +483,34 @@ type CurlVariant struct {
 	ServerDescription string `json:"serverDescription,omitempty"`
 	SecurityLabel     string `json:"securityLabel,omitempty"`
 	Command           string `json:"command"`
+}
+
+// CodeSample holds a first-class operation code sample from x-codeSamples.
+type CodeSample struct {
+	Lang            string `json:"lang,omitempty"`
+	Label           string `json:"label,omitempty"`
+	Source          string `json:"source"`
+	SourceRef       string `json:"sourceRef,omitempty"`
+	HighlightedHTML string `json:"-"`
+}
+
+// DisplayLabel returns the primary user-facing sample name, preferring lang over label.
+func (c *CodeSample) DisplayLabel(index int) string {
+	if c != nil {
+		if lang := codeSampleInlineText(c.Lang); lang != "" {
+			return lang
+		}
+		if label := codeSampleInlineText(c.Label); label != "" {
+			return label
+		}
+	}
+	return fmt.Sprintf("Sample %d", index+1)
+}
+
+func codeSampleInlineText(value string) string {
+	value = strings.ReplaceAll(value, "\r\n", " ")
+	value = strings.ReplaceAll(value, "\n", " ")
+	return strings.TrimSpace(value)
 }
 
 // SecurityRequirement holds a resolved security scheme with type info and model link.

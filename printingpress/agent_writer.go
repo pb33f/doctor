@@ -1397,6 +1397,10 @@ func renderOperationMD(ctx llmRenderContext, op *OperationPage) string {
 		b.WriteString(curl)
 	}
 
+	if codeSamples := renderCodeSamplesMD(op.CodeSamples); codeSamples != "" {
+		b.WriteString(codeSamples)
+	}
+
 	if idGuidance := renderOperationIDGuidanceMD(ctx, op); idGuidance != "" {
 		b.WriteString(idGuidance)
 	}
@@ -1894,6 +1898,61 @@ func renderCurlMD(op *OperationPage) string {
 			b.WriteString("- " + label + "\n")
 		}
 		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+func renderCodeSamplesMD(samples []*CodeSample) string {
+	if len(samples) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for i, sample := range samples {
+		if sample == nil || strings.TrimSpace(sample.Source) == "" {
+			continue
+		}
+		if b.Len() == 0 {
+			b.WriteString("#### Code Samples\n\n")
+		}
+		b.WriteString("**" + codeSampleMarkdownLabel(sample, i) + "**\n\n")
+		fence := markdownCodeFence(sample.Source)
+		language := markdownFenceLanguage(sample.Lang)
+		b.WriteString(fence + language + "\n")
+		b.WriteString(strings.TrimRight(sample.Source, "\n"))
+		b.WriteString("\n" + fence + "\n\n")
+	}
+	return b.String()
+}
+
+func codeSampleMarkdownLabel(sample *CodeSample, index int) string {
+	// Markdown has no separate tab label and panel heading, so preserve both names when they differ.
+	if sample.Lang != "" && sample.Label != "" && sample.Label != sample.Lang {
+		return singleLine(sample.Lang + " - " + sample.Label)
+	}
+	return sample.DisplayLabel(index)
+}
+
+func markdownCodeFence(source string) string {
+	fence := "```"
+	for strings.Contains(source, fence) {
+		fence += "`"
+	}
+	return fence
+}
+
+func markdownFenceLanguage(language string) string {
+	language = strings.TrimSpace(language)
+	if language == "" {
+		return ""
+	}
+	var b strings.Builder
+	for _, r := range language {
+		if r >= 'a' && r <= 'z' ||
+			r >= 'A' && r <= 'Z' ||
+			r >= '0' && r <= '9' ||
+			r == '-' || r == '_' || r == '+' || r == '#' || r == '.' {
+			b.WriteRune(r)
+		}
 	}
 	return b.String()
 }

@@ -16,3 +16,53 @@ h1 {
     scroll-margin-top: var(--scroll-margin);
     font-weight: normal;
 }
+
+.pp-code-samples {
+    display: block;
+    width: 100%;
+}
+
+.pp-code-samples-tabs::part(tabs) {
+    border-bottom: 1px dashed var(--hrcolor);
+}
+
+.pp-code-samples-tabs::part(body) {
+    padding-top: var(--global-padding);
+}
+
+.pp-code-samples-tabs sl-tab::part(base) {
+    font-family: var(--font-stack-bold), monospace;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.pp-code-samples-tabs sl-tab[active]::part(base) {
+    color: var(--primary-color);
+}
+
+.pp-code-sample {
+    min-width: 0;
+}
+
+.pp-code-sample-label {
+    border-bottom: none;
+    color: var(--secondary-color);
+    font-family: var(--font-stack-bold), monospace;
+    font-weight: 700;
+    margin: 0;
+    padding-bottom: var(--global-padding);
+    word-break: break-word;
+}
+
+pre.pp-code-sample-code {
+    margin-bottom: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+    white-space: pre-wrap;
+    width: auto;
+}
+
+.pp-code-sample-code code {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}

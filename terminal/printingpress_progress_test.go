@@ -218,11 +218,17 @@ func TestPrintSummaryRendersStatsAndWarnings(t *testing.T) {
 			"schemas": {{Name: "Burger", MermaidDiagram: "graph TD", GraphJSON: "{}"}},
 		},
 		Operations: []*ppmodel.OperationPage{{OperationID: "listBurgers"}},
-		Warnings: []*ppmodel.BuildWarning{{
-			Message: "source bundling failed; falling back to single-file parse, multi-file output may be incomplete",
-			Context: "/tmp/specs",
-			Err:     errors.New("invalid model\ninfinite circular reference detected: payment_intent"),
-		}},
+		Warnings: []*ppmodel.BuildWarning{
+			{
+				Message: "x-codeSamples source $ref could not be read; skipping code sample",
+				Context: "snippets/missing.py",
+			},
+			{
+				Message: "source bundling failed; falling back to single-file parse, multi-file output may be incomplete",
+				Context: "/tmp/specs",
+				Err:     errors.New("invalid model\ninfinite circular reference detected: payment_intent"),
+			},
+		},
 	}
 	htmlStats := &printingpress.PressStatistics{
 		Pages:            2676,
@@ -247,7 +253,12 @@ func TestPrintSummaryRendersStatsAndWarnings(t *testing.T) {
 	require.Contains(t, output, "2,087")
 	require.Contains(t, output, "13,708 files, 2.0 MiB")
 	require.Contains(t, output, "warnings (1)")
+	require.Contains(t, output, "errors (1)")
+	require.Contains(t, output, "WRN")
+	require.Contains(t, output, "ERR")
+	require.Contains(t, output, "x-codeSamples source $ref could not be read; skipping code sample")
 	require.Contains(t, output, "infinite circular reference detected: payment_intent")
+	require.Equal(t, 1, strings.Count(output, "source bundling failed; falling back to single-file parse, multi-file output may be incomplete"))
 	require.Contains(t, output, "├─")
 	require.Contains(t, output, "└─")
 }

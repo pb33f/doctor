@@ -7,6 +7,7 @@ package printingpress
 import (
 	"bytes"
 	"html"
+	"strings"
 
 	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
@@ -17,7 +18,16 @@ import (
 // highlightJSON renders JSON as syntax-highlighted HTML with chroma CSS classes.
 // Falls back to HTML-escaped plain text on error (never returns empty).
 func highlightJSON(code string) (string, bool) {
-	lexer := lexers.Get("json")
+	return highlightCode(code, "json")
+}
+
+// highlightCode renders source code as syntax-highlighted HTML with chroma CSS classes.
+// Falls back to HTML-escaped plain text on error (never returns empty).
+func highlightCode(code, language string) (string, bool) {
+	lexer := lexers.Get(strings.TrimSpace(language))
+	if lexer == nil {
+		lexer = lexers.Analyse(code)
+	}
 	if lexer == nil {
 		return html.EscapeString(code), false
 	}
