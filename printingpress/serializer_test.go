@@ -93,6 +93,58 @@ func TestMockLanguageForMediaType(t *testing.T) {
 	}
 }
 
+func TestCollectMediaType_GeneratesXMLMock(t *testing.T) {
+	spec := `openapi: "3.1.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /bookings:
+    post:
+      requestBody:
+        content:
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/Booking'
+      responses:
+        '200':
+          description: ok
+components:
+  schemas:
+    Booking:
+      type: object
+      xml:
+        name: booking
+      properties:
+        id:
+          type: string
+          example: booking-123
+        passenger_name:
+          type: string
+          example: John Doe
+`
+	doc, err := libopenapi.NewDocument([]byte(spec))
+	require.NoError(t, err)
+	v3Doc, buildErr := doc.BuildV3Model()
+	require.NoError(t, buildErr)
+	drDoc := model.NewDrDocument(v3Doc)
+	pp := newPressEngine(&pressEngineConfig{DrDoc: drDoc})
+
+	pathItem := drDoc.V3Document.Paths.PathItems.GetOrZero("/bookings")
+	require.NotNil(t, pathItem)
+	require.NotNil(t, pathItem.Post)
+	require.NotNil(t, pathItem.Post.RequestBody)
+	content := pathItem.Post.RequestBody.Content.GetOrZero("application/xml")
+	require.NotNil(t, content)
+
+	mediaType := pp.collectMediaType("application/xml", content)
+	require.NotNil(t, mediaType)
+	require.NotEmpty(t, mediaType.MockXML)
+	assert.Contains(t, mediaType.MockXML, "<booking>")
+	assert.Contains(t, mediaType.MockXML, "<id>booking-123</id>")
+	assert.Contains(t, mediaType.MockXML, "<passenger_name>John Doe</passenger_name>")
+}
+
 func TestCaptureSchemaArtifacts_CachesJSONAndHighlight(t *testing.T) {
 	spec := `openapi: "3.1.0"
 info:

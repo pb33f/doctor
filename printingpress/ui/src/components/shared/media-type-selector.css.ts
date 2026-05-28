@@ -10,7 +10,11 @@ export default [dropdownCss, css`
         display: flex;
         align-items: center;
         gap: var(--global-padding-double);
-        padding: 0 0 var(--global-padding);
+        padding: var(--global-padding-double) 0 var(--global-padding);
+    }
+
+    .media-type-ref sl-dropdown {
+        margin-top: 0;
     }
 
     .media-type-label {

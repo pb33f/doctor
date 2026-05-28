@@ -1068,7 +1068,9 @@ li {
     margin-bottom: 2rem;
 }
 
-.pp-model-card {
+.pp-model-card,
+.pp-model-card:visited,
+.pp-model-card:active {
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -1095,6 +1097,7 @@ li {
 
 .pp-model-card strong {
     display: block;
+    color: var(--primary-color);
     min-width: 0;
     line-height: 1.25;
     overflow-wrap: anywhere;
