@@ -1,0 +1,33 @@
+openapi: "3.1.0"
+info:
+  title: Ref Code Samples
+  version: "1.0"
+paths:
+  /bookings:
+    post:
+      operationId: createBooking
+      summary: Create booking
+      x-codeSamples:
+        - lang: typescript
+          label: create-booking_json
+          source:
+            $ref: snippets/create-booking-json.ts
+        - lang: typescript
+          label: create-booking_raw
+          source:
+            $ref: snippets/create-booking-raw.ts
+        - lang: go
+          label: create-booking_go
+          source:
+            $ref: snippets/create-booking.go
+        - lang: python
+          label: create-booking_python
+          source:
+            $ref: snippets/create-booking.py
+        - lang: c++
+          label: create-booking_cpp
+          source:
+            $ref: snippets/create-booking.cpp
+      responses:
+        '201':
+          description: Created

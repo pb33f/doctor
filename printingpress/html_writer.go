@@ -288,6 +288,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressOperationCSS)}
+		highlightCodeSamplesForHTML(op)
 		opContent := render.OperationPageTempl(op, p.BaseURL)
 		pageTitle := fmt.Sprintf("%s %s - %s", op.Method, op.Path, title)
 		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.OperationHTML(op.Slug)))
@@ -458,6 +459,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressOperationCSS)}
+		highlightCodeSamplesForHTML(wh)
 		whContent := render.OperationPageTempl(wh, p.BaseURL)
 		pageTitle := fmt.Sprintf("Webhook: %s %s - %s", wh.Method, wh.Path, title)
 		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.OperationHTML(wh.Slug)))
@@ -695,6 +697,18 @@ func resolveHTMLAssetMode(site *ppmodel.Site) string {
 		return HTMLAssetModePortable
 	}
 	return site.AssetMode
+}
+
+func highlightCodeSamplesForHTML(op *ppmodel.OperationPage) {
+	if op == nil {
+		return
+	}
+	for _, sample := range op.CodeSamples {
+		if sample == nil || sample.Source == "" || sample.HighlightedHTML != "" {
+			continue
+		}
+		sample.HighlightedHTML, _ = highlightCode(sample.Source, codeSampleHighlightLanguage(sample))
+	}
 }
 
 // resolveBase returns the base href for a page at the given directory depth.

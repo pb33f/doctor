@@ -162,6 +162,12 @@ templ OperationPageTempl(page *ppmodel.OperationPage, baseURL string) {
 				<pp-curl-command id="pp-operation-curl" style="display:block;min-height:156px;"></pp-curl-command>
 			</sl-details>
 		}
+		if len(page.CodeSamples) > 0 {
+			<sl-details class="pp-details" id="section-code-samples" data-nav-label="Code Samples" style="display:block;min-height:64px;">
+				<span slot="summary" class="pp-details-summary"><h3>Code Samples</h3></span>
+				@CodeSamplesSection(page.CodeSamples)
+			</sl-details>
+		}
 		if page.ExtensionsJSON != "" {
             <sl-details class="pp-details" id="section-extensions" data-nav-label="Extensions" style="display:block;min-height:64px;">
                 <span slot="summary" class="pp-details-summary"><h3>Operation Extensions</h3></span>
@@ -199,6 +205,40 @@ templ OperationPageTempl(page *ppmodel.OperationPage, baseURL string) {
 			</div>
 		}
 	</div>
+}
+
+templ CodeSamplesSection(samples []*ppmodel.CodeSample) {
+	<div class="pp-code-samples">
+		if len(samples) == 1 {
+			@CodeSamplePanel(samples[0])
+		} else {
+			<sl-tab-group class="pp-code-samples-tabs">
+				for i, sample := range samples {
+					<sl-tab slot="nav" panel={ fmt.Sprintf("code-sample-%d", i) } if i == 0 {
+						active
+					}>{ codeSampleTabLabel(sample, i) }</sl-tab>
+				}
+				for i, sample := range samples {
+					<sl-tab-panel name={ fmt.Sprintf("code-sample-%d", i) } if i == 0 {
+						active
+					}>
+						@CodeSamplePanel(sample)
+					</sl-tab-panel>
+				}
+			</sl-tab-group>
+		}
+	</div>
+}
+
+templ CodeSamplePanel(sample *ppmodel.CodeSample) {
+	if sample != nil {
+		<div class="pp-code-sample">
+			if sample.Label != "" && sample.Label != sample.Lang {
+				<h4 class="pp-code-sample-label">{ sample.Label }</h4>
+			}
+			<pre class="chroma pp-code-sample-code"><code>@templ.Raw(codeSampleHighlightedHTML(sample))</code></pre>
+		</div>
+	}
 }
 
 templ RequestBodySection(rb *ppmodel.RequestBodyInfo, baseURL string) {

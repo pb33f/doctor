@@ -5,6 +5,7 @@
 package render
 
 import (
+	"html"
 	"net/url"
 	"strings"
 	"unicode"
@@ -205,6 +206,9 @@ func operationNavSections(page *ppmodel.OperationPage) string {
 	if page.CurlJSON != "" {
 		sections = append(sections, navSection{"cURL", "section-curl"})
 	}
+	if len(page.CodeSamples) > 0 {
+		sections = append(sections, navSection{"Code Samples", "section-code-samples"})
+	}
 	if page.ExtensionsJSON != "" {
 		sections = append(sections, navSection{"Extensions", "section-extensions"})
 	}
@@ -218,6 +222,20 @@ func operationNavSections(page *ppmodel.OperationPage) string {
 		sections = append(sections, navSection{"External Docs", "section-external-docs"})
 	}
 	return MustJSON(sections)
+}
+
+func codeSampleTabLabel(sample *ppmodel.CodeSample, index int) string {
+	return sample.DisplayLabel(index)
+}
+
+func codeSampleHighlightedHTML(sample *ppmodel.CodeSample) string {
+	if sample == nil {
+		return ""
+	}
+	if sample.HighlightedHTML != "" {
+		return sample.HighlightedHTML
+	}
+	return html.EscapeString(sample.Source)
 }
 
 func truncateDesc(desc string, maxLen int) string {

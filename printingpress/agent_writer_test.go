@@ -1117,6 +1117,42 @@ func TestRenderOperationMD_CurlRelatedOpsGuidanceAndScopeDedup(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(md, "sp:config-object-mapping:manage"))
 }
 
+func TestRenderOperationMD_CodeSamples(t *testing.T) {
+	curlVariants := []*CurlVariant{
+		{Label: "Default", Command: "curl https://api.example.com/bookings"},
+	}
+	curlJSON, err := json.Marshal(curlVariants)
+	require.NoError(t, err)
+
+	op := &OperationPage{
+		Method:   "POST",
+		Path:     "/bookings",
+		Summary:  "Create booking",
+		CurlJSON: string(curlJSON),
+		CodeSamples: []*CodeSample{
+			{
+				Lang:   "typescript",
+				Label:  "create-booking_json",
+				Source: "const client = new TrainTravelSDK();\nawait client.bookings.create({ tripId: \"abc\" });\n",
+			},
+			{
+				Label:  "python-sdk",
+				Source: "client.bookings.create({\"tripId\": \"abc\"})\n",
+			},
+		},
+	}
+
+	md := renderOperationMD(rootLLMRenderContext(&Site{}), op)
+
+	assert.Contains(t, md, "#### cURL")
+	assert.Contains(t, md, "#### Code Samples")
+	assert.Contains(t, md, "**typescript - create-booking_json**")
+	assert.Contains(t, md, "```typescript\nconst client = new TrainTravelSDK();")
+	assert.Contains(t, md, "**python-sdk**")
+	assert.Contains(t, md, "```\nclient.bookings.create")
+	assert.Less(t, strings.Index(md, "#### cURL"), strings.Index(md, "#### Code Samples"))
+}
+
 func TestRenderOperationMD_CurlSuppressesDuplicateVariants(t *testing.T) {
 	curlVariants := []*CurlVariant{
 		{Label: "Default", Command: "curl https://api.example.com/items"},

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -15,7 +16,9 @@ import (
 	. "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/bundler"
+	"github.com/pb33f/libopenapi/datamodel"
 	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v4"
@@ -39,15 +42,21 @@ func pressFromSpec(t *testing.T, spec string) *Site {
 
 func pressSiteFromSpecWithConfig(t *testing.T, spec string, configure func(*pressEngineConfig)) *Site {
 	t.Helper()
-	doc, err := libopenapi.NewDocument([]byte(spec))
-	require.NoError(t, err)
-	v3, buildErr := doc.BuildV3Model()
-	require.NoError(t, buildErr)
-	drDoc := model.NewDrDocument(v3)
-	cfg := &pressEngineConfig{DrDoc: drDoc}
+	cfg := &pressEngineConfig{}
 	if configure != nil {
 		configure(cfg)
 	}
+	docConfig := datamodel.NewDocumentConfiguration()
+	docConfig.ExcludeExtensionRefs = true
+	if cfg.SpecRoot != "" {
+		docConfig.AllowFileReferences = true
+		docConfig.BasePath = cfg.SpecRoot
+	}
+	doc, err := libopenapi.NewDocumentWithConfiguration([]byte(spec), docConfig)
+	require.NoError(t, err)
+	v3, buildErr := doc.BuildV3Model()
+	require.NoError(t, buildErr)
+	cfg.DrDoc = model.NewDrDocument(v3)
 	pp := newPressEngine(cfg)
 	site, err := pp.pressSite()
 	require.NoError(t, err)
@@ -1201,6 +1210,280 @@ paths:
 func TestCollectExtensions_NilMap(t *testing.T) {
 	result := collectExtensions(nil)
 	assert.Nil(t, result)
+}
+
+func TestCollectCodeSamples_FirstClassAndFiltersOperationExtensions(t *testing.T) {
+	spec := `openapi: "3.1.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /bookings:
+    post:
+      operationId: createBooking
+      summary: Create booking
+      x-beta: true
+      x-codeSamples:
+        - lang: typescript
+          label: create-booking_json
+          source: |
+            const client = new TrainTravelSDK();
+            await client.bookings.create({ tripId: "abc" });
+        - label: python-sdk
+          source: |
+            client.bookings.create({"tripId": "abc"})
+      responses:
+        '201':
+          description: Created
+`
+	site := pressFromSpec(t, spec)
+	require.Len(t, site.Operations, 1)
+	op := site.Operations[0]
+
+	require.Len(t, op.CodeSamples, 2)
+	assert.Equal(t, "typescript", op.CodeSamples[0].Lang)
+	assert.Equal(t, "create-booking_json", op.CodeSamples[0].Label)
+	assert.Contains(t, op.CodeSamples[0].Source, "TrainTravelSDK")
+	assert.Empty(t, op.CodeSamples[0].HighlightedHTML)
+	assert.Empty(t, op.CodeSamples[1].Lang)
+	assert.Equal(t, "python-sdk", op.CodeSamples[1].Label)
+
+	require.Len(t, op.Extensions, 1)
+	assert.Equal(t, "beta", op.Extensions[0].Key)
+	assert.NotContains(t, op.ExtensionsJSON, "codeSamples")
+
+	jsonBytes, err := json.Marshal(op)
+	require.NoError(t, err)
+	jsonDoc := string(jsonBytes)
+	assert.Contains(t, jsonDoc, `"codeSamples"`)
+	assert.Contains(t, jsonDoc, `"source":"const client = new TrainTravelSDK()`)
+	assert.NotContains(t, jsonDoc, "HighlightedHTML")
+}
+
+func TestCollectCodeSamples_AcceptsScalarBlockEntries(t *testing.T) {
+	spec := `openapi: "3.1.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /bookings:
+    post:
+      operationId: createBooking
+      x-codeSamples:
+        - |
+          const client = createClient();
+          await client.bookings.create({ tripId: "abc" });
+        - |
+          package main
+
+          func main() {
+            client.Bookings.Create("abc")
+          }
+      responses:
+        '201':
+          description: Created
+`
+	site := pressFromSpec(t, spec)
+	require.Len(t, site.Operations, 1)
+	op := site.Operations[0]
+	require.Len(t, op.CodeSamples, 2)
+	assert.Empty(t, op.CodeSamples[0].Lang)
+	assert.Empty(t, op.CodeSamples[0].Label)
+	assert.Empty(t, op.CodeSamples[0].SourceRef)
+	assert.Contains(t, op.CodeSamples[0].Source, "createClient")
+	assert.Contains(t, op.CodeSamples[1].Source, "package main")
+	assert.Empty(t, site.Warnings)
+}
+
+func TestCollectCodeSamples_ResolvesSourceRefRelativeToSpecPath(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "code_samples"), 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(dir, "code_samples", "python.py"),
+		[]byte("client.bookings.create({'tripId': 'abc'})\n"),
+		0o644,
+	))
+	spec := `openapi: "3.1.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /bookings:
+    post:
+      operationId: createBooking
+      x-codeSamples:
+        - lang: Python
+          source:
+            $ref: code_samples/python.py
+      responses:
+        '201':
+          description: Created
+`
+	site := pressSiteFromSpecWithConfig(t, spec, func(cfg *pressEngineConfig) {
+		cfg.SpecRoot = dir
+		cfg.SpecPath = filepath.Join(dir, "openapi.yaml")
+		cfg.SpecLocation = "openapi.yaml"
+	})
+	require.Len(t, site.Operations, 1)
+	op := site.Operations[0]
+	require.Len(t, op.CodeSamples, 1)
+	assert.Equal(t, "Python", op.CodeSamples[0].Lang)
+	assert.Equal(t, "code_samples/python.py", op.CodeSamples[0].SourceRef)
+	assert.Contains(t, op.CodeSamples[0].Source, "client.bookings.create")
+	assert.Empty(t, site.Warnings)
+}
+
+func TestCollectCodeSamples_MissingSourceRefWarnsAndSkips(t *testing.T) {
+	dir := t.TempDir()
+	spec := `openapi: "3.1.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /bookings:
+    post:
+      operationId: createBooking
+      x-codeSamples:
+        - lang: Python
+          source:
+            $ref: code_samples/missing.py
+      responses:
+        '201':
+          description: Created
+`
+	site := pressSiteFromSpecWithConfig(t, spec, func(cfg *pressEngineConfig) {
+		cfg.SpecRoot = dir
+		cfg.SpecPath = filepath.Join(dir, "openapi.yaml")
+		cfg.SpecLocation = "openapi.yaml"
+	})
+	require.Len(t, site.Operations, 1)
+	assert.Nil(t, site.Operations[0].CodeSamples)
+	require.NotEmpty(t, site.Warnings)
+	assert.Equal(t, "x-codeSamples source $ref could not be read; skipping code sample", site.Warnings[0].Message)
+	assert.Equal(t, "code_samples/missing.py", site.Warnings[0].Context)
+	assert.NoError(t, site.Warnings[0].Err)
+}
+
+func TestCollectCodeSamples_SourceRefOutsideSpecRootWarnsAndSkips(t *testing.T) {
+	baseDir := t.TempDir()
+	specRoot := filepath.Join(baseDir, "spec")
+	outsideDir := filepath.Join(baseDir, "outside")
+	require.NoError(t, os.MkdirAll(specRoot, 0o755))
+	require.NoError(t, os.MkdirAll(outsideDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(outsideDir, "secret.py"), []byte("print('secret')\n"), 0o644))
+
+	spec := `openapi: "3.1.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /bookings:
+    post:
+      operationId: createBooking
+      x-codeSamples:
+        - lang: Python
+          source:
+            $ref: ../outside/secret.py
+      responses:
+        '201':
+          description: Created
+`
+	site := pressSiteFromSpecWithConfig(t, spec, func(cfg *pressEngineConfig) {
+		cfg.SpecRoot = specRoot
+		cfg.SpecPath = filepath.Join(specRoot, "openapi.yaml")
+		cfg.SpecLocation = "openapi.yaml"
+	})
+	require.Len(t, site.Operations, 1)
+	assert.Nil(t, site.Operations[0].CodeSamples)
+	require.NotEmpty(t, site.Warnings)
+	assert.Equal(t, "x-codeSamples source $ref resolves outside the spec root; skipping code sample", site.Warnings[0].Message)
+	assert.Equal(t, "../outside/secret.py", site.Warnings[0].Context)
+	assert.NoError(t, site.Warnings[0].Err)
+}
+
+func TestCollectCodeSamples_SourceRefOverLimitWarnsAndSkips(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "code_samples"), 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(dir, "code_samples", "large.py"),
+		[]byte(strings.Repeat("a", maxCodeSampleSourceBytes+1)),
+		0o644,
+	))
+
+	spec := `openapi: "3.1.0"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /bookings:
+    post:
+      operationId: createBooking
+      x-codeSamples:
+        - lang: Python
+          source:
+            $ref: code_samples/large.py
+      responses:
+        '201':
+          description: Created
+`
+	site := pressSiteFromSpecWithConfig(t, spec, func(cfg *pressEngineConfig) {
+		cfg.SpecRoot = dir
+		cfg.SpecPath = filepath.Join(dir, "openapi.yaml")
+		cfg.SpecLocation = "openapi.yaml"
+	})
+	require.Len(t, site.Operations, 1)
+	assert.Nil(t, site.Operations[0].CodeSamples)
+	require.NotEmpty(t, site.Warnings)
+	assert.Equal(t, "x-codeSamples source $ref exceeds "+codeSampleSourceLimitLabel+"; skipping code sample", site.Warnings[0].Message)
+	assert.Equal(t, "code_samples/large.py", site.Warnings[0].Context)
+	assert.NoError(t, site.Warnings[0].Err)
+}
+
+func TestCollectCodeSamples_ResolvesSourceRefRelativeToOperationOrigin(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "paths", "code_samples"), 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(dir, "paths", "code_samples", "go.go"),
+		[]byte("client.Bookings.Create(\"abc\")\n"),
+		0o644,
+	))
+
+	pp := &PrintingPress{engineConfig: &pressEngineConfig{
+		SpecRoot: dir,
+		SpecPath: filepath.Join(dir, "openapi.yaml"),
+	}}
+	baseFile := pp.operationSourceFile(&bundler.ComponentOrigin{
+		OriginalFile: filepath.Join(dir, "paths", "bookings.yaml"),
+	})
+	samples := pp.collectCodeSamples(codeSampleExtensionsFromYAML(t, `x-codeSamples:
+  - lang: go
+    source:
+      $ref: code_samples/go.go
+`), baseFile, "POST /bookings")
+
+	require.Len(t, samples, 1)
+	assert.Equal(t, "go", samples[0].Lang)
+	assert.Equal(t, "code_samples/go.go", samples[0].SourceRef)
+	assert.Contains(t, samples[0].Source, "client.Bookings.Create")
+	assert.Empty(t, pp.warnings)
+}
+
+func codeSampleExtensionsFromYAML(t *testing.T, source string) *orderedmap.Map[string, *yaml.Node] {
+	t.Helper()
+	var root yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(source), &root))
+	require.NotEmpty(t, root.Content)
+	mapping := root.Content[0]
+	require.Equal(t, yaml.MappingNode, mapping.Kind)
+	extensions := orderedmap.New[string, *yaml.Node]()
+	for i := 0; i+1 < len(mapping.Content); i += 2 {
+		key := mapping.Content[i]
+		value := mapping.Content[i+1]
+		if key != nil {
+			extensions.Set(key.Value, value)
+		}
+	}
+	return extensions
 }
 
 func TestModelExtensions(t *testing.T) {
