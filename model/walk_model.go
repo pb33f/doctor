@@ -223,11 +223,8 @@ func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drV3.Fo
 					}
 				}
 			}
-			sort.Slice(filteredObjects, func(i, j int) bool {
-				return filteredObjects[i].GenerateJSONPath() < filteredObjects[j].GenerateJSONPath()
-			})
 			if len(filteredObjects) > 0 {
-				return filteredObjects, nil
+				return stableLocatedModels(filteredObjects), nil
 			}
 		}
 		return nil, fmt.Errorf("model not found at line %d", origin.LineValue)
@@ -275,14 +272,8 @@ func (w *DrDocument) LocateModelsByKeyAndValue(key, value *yaml.Node) ([]drV3.Fo
 					}
 				}
 			}
-			foLen := len(filteredObjects)
-			if foLen > 0 {
-				sort.Slice(filteredObjects, func(i, j int) bool {
-					return filteredObjects[i].GenerateJSONPath() < filteredObjects[j].GenerateJSONPath()
-				})
-			}
-			if foLen > 0 {
-				return filteredObjects, nil
+			if len(filteredObjects) > 0 {
+				return stableLocatedModels(filteredObjects), nil
 			}
 		}
 	}
@@ -311,7 +302,7 @@ func (w *DrDocument) LocateModel(node *yaml.Node) ([]drV3.Foundational, error) {
 				result = append(result, f)
 			}
 		}
-		return result, nil
+		return stableLocatedModels(result), nil
 	}
 	return nil, fmt.Errorf("model not found at line %d", node.Line)
 }
@@ -335,21 +326,67 @@ func (w *DrDocument) LocateModelByLine(line int) ([]drV3.Foundational, error) {
 				result = append(result, f)
 			}
 		}
-		// order by line number
-		sort.Slice(result, func(i, j int) bool {
-			knA := result[i].GetKeyNode()
-			knB := result[j].GetKeyNode()
-			if knA != nil && knB != nil {
-				return result[i].GetKeyNode().Line < result[j].GetKeyNode().Line
-			}
-			if knA == nil && knB != nil {
-				return false
-			}
-			return true
-		})
-		return result, nil
+		return stableLocatedModels(result), nil
 	}
 	return nil, fmt.Errorf("model not found at line %d", line)
+}
+
+func stableLocatedModels(models []drV3.Foundational) []drV3.Foundational {
+	if len(models) < 2 {
+		return models
+	}
+
+	seen := make(map[string]struct{}, len(models))
+	stable := make([]drV3.Foundational, 0, len(models))
+	for _, model := range models {
+		if model == nil {
+			continue
+		}
+		path := model.GenerateJSONPath()
+		if path != "" {
+			if _, ok := seen[path]; ok {
+				continue
+			}
+			seen[path] = struct{}{}
+		}
+		stable = append(stable, model)
+	}
+
+	sort.Slice(stable, func(i, j int) bool {
+		return locatedModelSortKey(stable[i]) < locatedModelSortKey(stable[j])
+	})
+	return stable
+}
+
+func locatedModelSortKey(model drV3.Foundational) string {
+	if model == nil {
+		return ""
+	}
+	path := model.GenerateJSONPath()
+	keyNode := model.GetKeyNode()
+	valueNode := model.GetValueNode()
+	return fmt.Sprintf("%s|%08d:%08d|%08d:%08d|%T",
+		path,
+		nodeLine(keyNode),
+		nodeColumn(keyNode),
+		nodeLine(valueNode),
+		nodeColumn(valueNode),
+		model,
+	)
+}
+
+func nodeLine(node *yaml.Node) int {
+	if node == nil {
+		return 0
+	}
+	return node.Line
+}
+
+func nodeColumn(node *yaml.Node) int {
+	if node == nil {
+		return 0
+	}
+	return node.Column
 }
 
 // BuildObjectLocationMap builds a map of line numbers to models in the document.

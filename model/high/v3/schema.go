@@ -115,6 +115,7 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 				// Restore original NodeParent after potential corruption
 				s.NodeParent = originalNodeParent
 				drCtx.ObjectChan <- s
+				s.publishHydratedChildren(drCtx)
 				return
 			}
 		}

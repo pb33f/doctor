@@ -430,6 +430,91 @@ func (s *Schema) hydrateMaterializedFromCache(cached *Schema, drCtx *DrContext) 
 	s.ExternalDocs = copyExternalDoc(cached.ExternalDocs, s)
 }
 
+func (s *Schema) publishHydratedChildren(drCtx *DrContext) {
+	if s == nil || drCtx == nil || drCtx.ObjectChan == nil {
+		return
+	}
+	visited := map[*Schema]struct{}{s: {}}
+	s.publishChildSchemas(drCtx, visited)
+}
+
+func (s *Schema) publishChildSchemas(drCtx *DrContext, visited map[*Schema]struct{}) {
+	if s == nil {
+		return
+	}
+	if s.XML != nil {
+		drCtx.ObjectChan <- s.XML
+	}
+	if s.ExternalDocs != nil {
+		drCtx.ObjectChan <- s.ExternalDocs
+	}
+
+	publishProxy := func(proxy *SchemaProxy) {
+		publishSchemaProxy(proxy, drCtx, visited)
+	}
+	for _, proxy := range s.AllOf {
+		publishProxy(proxy)
+	}
+	for _, proxy := range s.OneOf {
+		publishProxy(proxy)
+	}
+	for _, proxy := range s.AnyOf {
+		publishProxy(proxy)
+	}
+	for _, proxy := range s.PrefixItems {
+		publishProxy(proxy)
+	}
+	publishProxy(s.Contains)
+	publishProxy(s.If)
+	publishProxy(s.Else)
+	publishProxy(s.Then)
+	publishProxy(s.PropertyNames)
+	publishProxy(s.Not)
+
+	if s.DependentSchemas != nil {
+		for pair := s.DependentSchemas.First(); pair != nil; pair = pair.Next() {
+			publishProxy(pair.Value())
+		}
+	}
+	if s.PatternProperties != nil {
+		for pair := s.PatternProperties.First(); pair != nil; pair = pair.Next() {
+			publishProxy(pair.Value())
+		}
+	}
+	if s.Properties != nil {
+		for pair := s.Properties.First(); pair != nil; pair = pair.Next() {
+			publishProxy(pair.Value())
+		}
+	}
+	publishDynamicSchemaProxy(s.UnevaluatedProperties, drCtx, visited)
+	publishDynamicSchemaProxy(s.Items, drCtx, visited)
+	publishDynamicSchemaProxy(s.AdditionalProperties, drCtx, visited)
+}
+
+func publishDynamicSchemaProxy(
+	value *DynamicValue[*base.SchemaProxy, bool, *SchemaProxy, bool],
+	drCtx *DrContext,
+	visited map[*Schema]struct{},
+) {
+	if value == nil {
+		return
+	}
+	publishSchemaProxy(value.A, drCtx, visited)
+}
+
+func publishSchemaProxy(proxy *SchemaProxy, drCtx *DrContext, visited map[*Schema]struct{}) {
+	if proxy == nil || proxy.Schema == nil {
+		return
+	}
+	schema := proxy.Schema
+	if _, ok := visited[schema]; ok {
+		return
+	}
+	visited[schema] = struct{}{}
+	drCtx.ObjectChan <- schema
+	schema.publishChildSchemas(drCtx, visited)
+}
+
 func schemaFromCache(cached *Schema, parent any, nodeParent any, options schemaCacheCopyOptions) *Schema {
 	if cached == nil {
 		return nil
