@@ -184,7 +184,7 @@ export default css`
   }
 
   .problem.info .severity-icon {
-    color: var(--secondary-color);
+    color: var(--primary-color);
   }
 
   .message {

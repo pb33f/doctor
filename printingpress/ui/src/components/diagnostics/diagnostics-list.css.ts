@@ -134,7 +134,7 @@ export default css`
 
     .stat.info sl-icon,
     .stat.info span {
-        color: var(--secondary-color);
+        color: var(--primary-color);
     }
 
   .list {
@@ -234,7 +234,7 @@ export default css`
     }
 
     .row.info .severity-icon {
-        color: var(--secondary-color);
+        color: var(--primary-color);
     }
 
     .location {

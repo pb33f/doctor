@@ -46,6 +46,7 @@ type CatalogService struct {
 	LatestVersion   *CatalogVersion   `json:"latestVersion,omitempty"`
 	Versions        []*CatalogVersion `json:"versions,omitempty"`
 	CollisionGroups []string          `json:"collisionGroups,omitempty"`
+	Counts          *ViolationCounts  `json:"counts,omitempty"`
 }
 
 // CatalogVersion groups one or more spec entries under the same service version.
@@ -57,6 +58,7 @@ type CatalogVersion struct {
 	SpecCount    int                 `json:"specCount"`
 	IsLatest     bool                `json:"isLatest,omitempty"`
 	Entries      []*CatalogSpecEntry `json:"entries,omitempty"`
+	Counts       *ViolationCounts    `json:"counts,omitempty"`
 }
 
 // CatalogSpecEntry is one discovered root specification rendered within the catalog.
@@ -78,4 +80,5 @@ type CatalogSpecEntry struct {
 	Warnings      []string           `json:"warnings,omitempty"`
 	Source        *SourceRef         `json:"source,omitempty"`
 	HeaderContext *SiteHeaderContext `json:"headerContext,omitempty"`
+	Counts        *ViolationCounts   `json:"counts,omitempty"`
 }

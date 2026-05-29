@@ -138,8 +138,8 @@ export default css`
     }
 
     .violation-badge.info::part(base) {
-        border-color: var(--secondary-color);
-        color: var(--secondary-color);
+        border-color: var(--primary-color);
+        color: var(--primary-color);
     }
 
     .sr-only {

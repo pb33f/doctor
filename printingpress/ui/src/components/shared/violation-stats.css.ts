@@ -55,7 +55,7 @@ export default css`
 
     .info sl-icon,
     .info span {
-        color: var(--secondary-color);
+        color: var(--primary-color);
     }
 
     .details-button {

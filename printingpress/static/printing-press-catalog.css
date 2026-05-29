@@ -237,6 +237,87 @@ pb33f-header {
     text-decoration: underline;
 }
 
+.pp-catalog-diagnostics,
+.pp-catalog-diagnostics:visited,
+.pp-catalog-diagnostics:active {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 34px;
+    box-sizing: border-box;
+    margin: auto -1rem -1rem;
+    padding: 9px 1rem 10px;
+    border-top: 1px dotted color-mix(in srgb, var(--tertiary-color) 38%, transparent);
+    background: color-mix(in srgb, var(--tertiary-color) 8%, transparent);
+    color: var(--font-color-sub1);
+    font-family: var(--font-stack), monospace;
+    text-decoration: none;
+}
+
+.version-picker--card + .pp-catalog-diagnostics {
+    margin-top: 0;
+}
+
+a.pp-catalog-diagnostics:hover {
+    color: var(--font-color);
+    text-decoration: none;
+    background: color-mix(in srgb, var(--tertiary-color) 13%, transparent);
+}
+
+.pp-catalog-diagnostics-title {
+    margin-right: 2px;
+    color: var(--font-color-sub1);
+    font-size: 0.68rem;
+    letter-spacing: var(--label-spacing);
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.pp-catalog-diagnostic-count {
+    display: inline-grid;
+    grid-template-columns: auto auto;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.78rem;
+    line-height: 1;
+}
+
+.pp-catalog-diagnostic-count sl-icon {
+    width: 0.95rem;
+    height: 0.95rem;
+    font-size: 0.95rem;
+}
+
+.pp-catalog-diagnostic-number {
+    font-family: var(--font-stack-bold), monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+.pp-catalog-diagnostic-count.err {
+    color: var(--error-color);
+}
+
+.pp-catalog-diagnostic-count.warn {
+    color: var(--warn-color);
+}
+
+.pp-catalog-diagnostic-count.info {
+    color: var(--primary-color);
+}
+
+.pp-catalog-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 .pp-catalog-card-title {
     margin: 0;
     padding: 0;

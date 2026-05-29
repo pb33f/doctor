@@ -143,7 +143,7 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogAndEntrySites(t *testing
 	assert.Contains(t, string(rootHTML), "static/printing-press.css")
 	assert.Contains(t, string(rootHTML), "pp-catalog-card-summary")
 	assert.Contains(t, string(rootHTML), "pp-catalog-contact-grid")
-	assert.Contains(t, string(rootHTML), `<dt>Name</dt><dd>API Support</dd>`)
+	assert.Contains(t, string(rootHTML), `<dt>Contact:</dt><dd>API Support</dd>`)
 	assert.Contains(t, string(rootHTML), `<dt>Email</dt><dd><a href="mailto:support@example.com">support@example.com</a></dd>`)
 	assert.Contains(t, string(rootHTML), "pp-model-card")
 	assert.Contains(t, string(rootHTML), "Current account lifecycle endpoints.")
@@ -167,6 +167,56 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogAndEntrySites(t *testing
 	assert.Contains(t, string(entryHTML), `src="../../../../../../static/printing-press.js"`)
 	assert.NoFileExists(t, filepath.Join(filepath.Dir(entryIndex), "static", "printing-press.js"))
 	assert.NotContains(t, string(entryHTML), `data-pp-versions-href=`)
+}
+
+func TestAggregatePrintingPress_PrintHTML_RendersCatalogDiagnosticsCounts(t *testing.T) {
+	root := t.TempDir()
+	usersRel := "services/users/src/specs/users.yaml"
+	writeAggregateSpec(t, root, usersRel, "Users API", "v1")
+	writeAggregateSpec(t, root, "services/clean/src/specs/clean.yaml", "Clean API", "v1")
+
+	outputDir := filepath.Join(root, "site")
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: NewMemorySpecStateStore(),
+	})
+	require.NoError(t, err)
+
+	_, err = ap.PrintSelectedOutputs(AggregateRenderOptions{
+		HTML:          true,
+		DeveloperMode: true,
+		SpecLintResults: map[string][]*drV3.RuleFunctionResult{
+			usersRel: {
+				aggregateTestLintResultWithSeverity("error diagnostic", "error"),
+				aggregateTestLintResultWithSeverity("warning diagnostic", "warn"),
+				aggregateTestLintResultWithSeverity("info diagnostic", "info"),
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	catalog, err := ap.PressModel()
+	require.NoError(t, err)
+	users := findCatalogService(t, catalog, "users")
+	require.NotNil(t, users.Counts)
+	assert.Equal(t, &ppmodel.ViolationCounts{Errors: 1, Warns: 1, Infos: 1}, users.Counts)
+	require.NotNil(t, users.LatestVersion.Counts)
+	assert.Equal(t, &ppmodel.ViolationCounts{Errors: 1, Warns: 1, Infos: 1}, users.LatestVersion.Counts)
+	require.NotNil(t, users.LatestVersion.Entries[0].Counts)
+	assert.Equal(t, &ppmodel.ViolationCounts{Errors: 1, Warns: 1, Infos: 1}, users.LatestVersion.Entries[0].Counts)
+	clean := findCatalogService(t, catalog, "clean")
+	assert.Nil(t, clean.Counts)
+
+	rootHTML, err := os.ReadFile(filepath.Join(outputDir, "index.html"))
+	require.NoError(t, err)
+	rootRendered := string(rootHTML)
+	assert.Equal(t, 1, strings.Count(rootRendered, `class="pp-catalog-diagnostics"`))
+	assert.Contains(t, rootRendered, `href="services/users/versions/v1/specs/users-api/diagnostics.html"`)
+	assert.Contains(t, rootRendered, `aria-label="Diagnostics: 1 error, 1 warning, 1 info"`)
+	assert.Contains(t, rootRendered, `<sl-icon name="exclamation-square" aria-hidden="true"></sl-icon><span class="pp-catalog-diagnostic-number">1</span>`)
+	assert.Contains(t, rootRendered, `<sl-icon name="exclamation-triangle" aria-hidden="true"></sl-icon><span class="pp-catalog-diagnostic-number">1</span>`)
+	assert.Contains(t, rootRendered, `<sl-icon name="info-square" aria-hidden="true"></sl-icon><span class="pp-catalog-diagnostic-number">1</span>`)
 }
 
 func TestAggregateEntrySharedAssetBaseURL(t *testing.T) {
@@ -1097,6 +1147,9 @@ func TestCatalogStylesheet_UsesSharedBackgroundSurface(t *testing.T) {
 	assert.Contains(t, css, `background: var(--background-color);`)
 	assert.Contains(t, css, `.pp-catalog-shell pb33f-footer`)
 	assert.Contains(t, css, `margin-top: calc(var(--global-padding-double) * 2);`)
+	assert.Contains(t, css, `.pp-catalog-diagnostics`)
+	assert.Contains(t, css, `border-top: 1px dotted color-mix(in srgb, var(--tertiary-color) 38%, transparent);`)
+	assert.Contains(t, css, `background: color-mix(in srgb, var(--tertiary-color) 8%, transparent);`)
 	assert.NotContains(t, css, `radial-gradient(`)
 	assert.NotContains(t, css, `var(--terminal-background)`)
 }
@@ -1112,12 +1165,16 @@ func normalizedAggregateEntryConfigHash(t *testing.T, config *AggregatePrintingP
 }
 
 func aggregateTestLintResult(message string) *drV3.RuleFunctionResult {
+	return aggregateTestLintResultWithSeverity(message, "warn")
+}
+
+func aggregateTestLintResultWithSeverity(message, severity string) *drV3.RuleFunctionResult {
 	return &drV3.RuleFunctionResult{
 		Message:      message,
 		Path:         "$.paths['/health'].get.operationId",
 		RuleId:       "test-operation-id",
-		RuleSeverity: "warn",
-		Rule:         &drV3.Rule{Id: "test-operation-id", Severity: "warn"},
+		RuleSeverity: severity,
+		Rule:         &drV3.Rule{Id: "test-operation-id", Severity: severity},
 	}
 }
 
