@@ -334,6 +334,7 @@ func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscovered
 					OverviewHref: pppaths.AggregateSpecIndexHTML(group.slug, versionGroup.slug, spec.EntrySlug),
 					Warnings:     append([]string(nil), spec.Warnings...),
 					Source:       spec.Source,
+					Counts:       aggregateLintResultCounts(ap.specLintResults[spec.RelativePath]),
 				})
 				versionModel.SpecCount++
 				serviceModel.SpecCount++
@@ -368,6 +369,7 @@ func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscovered
 
 func (ap *AggregatePrintingPress) finalizeCatalog(catalog *ppmodel.CatalogSite) {
 	ap.refreshCatalogLatestState(catalog)
+	ap.refreshCatalogDiagnosticCounts(catalog)
 	ap.populateHeaderContexts(catalog)
 }
 
@@ -395,6 +397,67 @@ func (ap *AggregatePrintingPress) refreshCatalogLatestState(catalog *ppmodel.Cat
 		service.LatestVersion.IsLatest = true
 		service.Summary = service.LatestVersion.Summary
 	}
+}
+
+func (ap *AggregatePrintingPress) refreshCatalogDiagnosticCounts(catalog *ppmodel.CatalogSite) {
+	if catalog == nil {
+		return
+	}
+	for _, service := range catalog.Services {
+		if service == nil {
+			continue
+		}
+		var serviceCounts ppmodel.ViolationCounts
+		for _, version := range service.Versions {
+			if version == nil {
+				continue
+			}
+			var versionCounts ppmodel.ViolationCounts
+			for _, entry := range visibleCatalogEntries(version) {
+				versionCounts = addViolationCounts(versionCounts, entry.Counts)
+			}
+			version.Counts = violationCountsPointer(versionCounts)
+			serviceCounts = addViolationCounts(serviceCounts, version.Counts)
+		}
+		service.Counts = violationCountsPointer(serviceCounts)
+	}
+}
+
+func aggregateLintResultCounts(results []*drV3.RuleFunctionResult) *ppmodel.ViolationCounts {
+	var counts ppmodel.ViolationCounts
+	for _, result := range results {
+		severity, ok := monacoSeverity(resultSeverity(result))
+		if !ok {
+			continue
+		}
+		switch severity {
+		case 8:
+			counts.Errors++
+		case 4:
+			counts.Warns++
+		case 2:
+			counts.Infos++
+		}
+	}
+	return violationCountsPointer(counts)
+}
+
+func addViolationCounts(counts ppmodel.ViolationCounts, next *ppmodel.ViolationCounts) ppmodel.ViolationCounts {
+	if next == nil {
+		return counts
+	}
+	counts.Errors += next.Errors
+	counts.Warns += next.Warns
+	counts.Infos += next.Infos
+	return counts
+}
+
+func violationCountsPointer(counts ppmodel.ViolationCounts) *ppmodel.ViolationCounts {
+	if counts.Total() == 0 {
+		return nil
+	}
+	cp := counts
+	return &cp
 }
 
 func (ap *AggregatePrintingPress) populateHeaderContexts(catalog *ppmodel.CatalogSite) {

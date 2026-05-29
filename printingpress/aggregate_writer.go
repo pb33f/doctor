@@ -816,6 +816,9 @@ func catalogRootContent(catalog *ppmodel.CatalogSite, disableSkippedRendering bo
 					return err
 				}
 			}
+			if _, err := io.WriteString(w, catalogDiagnosticsHTML(service.Counts, catalogServiceDiagnosticsHref(".", service))); err != nil {
+				return err
+			}
 			if _, err := io.WriteString(w, `</article>`); err != nil {
 				return err
 			}
@@ -838,8 +841,10 @@ func catalogVersionContent(service *ppmodel.CatalogService, version *ppmodel.Cat
 		if version == nil || len(visibleCatalogEntries(version)) == 0 {
 			return nil
 		}
-		if _, err := io.WriteString(w, `<section class="pp-catalog-section"><article class="pp-catalog-card pp-model-card"><h2 class="pp-catalog-card-title"><a href="`+templ.EscapeString(relativeCatalogHref(path.Dir(version.OverviewHref), catalogVersionPrimaryHref(version)))+`">`+templ.EscapeString(version.Label)+`</a></h2>`+
+		fromDir := path.Dir(version.OverviewHref)
+		if _, err := io.WriteString(w, `<section class="pp-catalog-section"><article class="pp-catalog-card pp-model-card"><h2 class="pp-catalog-card-title"><a href="`+templ.EscapeString(relativeCatalogHref(fromDir, catalogVersionPrimaryHref(version)))+`">`+templ.EscapeString(version.Label)+`</a></h2>`+
 			catalogSummaryHTML(version.Summary)+
+			catalogDiagnosticsHTML(version.Counts, catalogVersionDiagnosticsHref(fromDir, version))+
 			`</article></section>`); err != nil {
 			return err
 		}
@@ -872,6 +877,9 @@ func catalogVersionEntriesContent(service *ppmodel.CatalogService, version *ppmo
 				return err
 			}
 			if _, err := io.WriteString(w, catalogContactHTML(entry.Contact)); err != nil {
+				return err
+			}
+			if _, err := io.WriteString(w, catalogDiagnosticsHTML(entry.Counts, catalogEntryDiagnosticsHref(path.Dir(version.OverviewHref), entry))); err != nil {
 				return err
 			}
 			if _, err := io.WriteString(w, `</article>`); err != nil {
@@ -1053,6 +1061,17 @@ func catalogServiceContact(service *ppmodel.CatalogService) *ppmodel.ContactInfo
 	return entries[0].Contact
 }
 
+func visibleCatalogServiceEntries(service *ppmodel.CatalogService) []*ppmodel.CatalogSpecEntry {
+	if service == nil {
+		return nil
+	}
+	var entries []*ppmodel.CatalogSpecEntry
+	for _, version := range visibleCatalogVersions(service) {
+		entries = append(entries, visibleCatalogEntries(version)...)
+	}
+	return entries
+}
+
 func catalogSummaryHTML(value string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -1067,6 +1086,102 @@ func catalogSummaryHTML(value string) string {
 	return builder.String()
 }
 
+func catalogServiceDiagnosticsHref(fromDir string, service *ppmodel.CatalogService) string {
+	entries := visibleCatalogServiceEntries(service)
+	if len(entries) != 1 {
+		return ""
+	}
+	return catalogEntryDiagnosticsHref(fromDir, entries[0])
+}
+
+func catalogVersionDiagnosticsHref(fromDir string, version *ppmodel.CatalogVersion) string {
+	entries := visibleCatalogEntries(version)
+	if len(entries) != 1 {
+		return ""
+	}
+	return catalogEntryDiagnosticsHref(fromDir, entries[0])
+}
+
+func catalogEntryDiagnosticsHref(fromDir string, entry *ppmodel.CatalogSpecEntry) string {
+	if entry == nil || strings.TrimSpace(entry.OverviewHref) == "" {
+		return ""
+	}
+	diagnosticsPath := path.Join(path.Dir(entry.OverviewHref), pppaths.FileDiagnosticsHTML)
+	return relativeCatalogHref(fromDir, diagnosticsPath)
+}
+
+func catalogDiagnosticsHTML(counts *ppmodel.ViolationCounts, href string) string {
+	if counts == nil || counts.Total() == 0 {
+		return ""
+	}
+	var builder strings.Builder
+	tag := "div"
+	if strings.TrimSpace(href) != "" {
+		tag = "a"
+	}
+	builder.WriteString(`<`)
+	builder.WriteString(tag)
+	builder.WriteString(` class="pp-catalog-diagnostics"`)
+	if tag == "a" {
+		builder.WriteString(` href="`)
+		builder.WriteString(templ.EscapeString(href))
+		builder.WriteString(`"`)
+	}
+	builder.WriteString(` aria-label="`)
+	builder.WriteString(templ.EscapeString(catalogDiagnosticsLabel(counts)))
+	builder.WriteString(`">`)
+	builder.WriteString(`<span class="pp-catalog-diagnostics-title">Diagnostics</span>`)
+	builder.WriteString(catalogDiagnosticCountHTML("err", "exclamation-square", counts.Errors, "error", "errors"))
+	builder.WriteString(catalogDiagnosticCountHTML("warn", "exclamation-triangle", counts.Warns, "warning", "warnings"))
+	builder.WriteString(catalogDiagnosticCountHTML("info", "info-square", counts.Infos, "info", "infos"))
+	builder.WriteString(`</`)
+	builder.WriteString(tag)
+	builder.WriteString(`>`)
+	return builder.String()
+}
+
+func catalogDiagnosticCountHTML(className, icon string, count int, singular, plural string) string {
+	if count <= 0 {
+		return ""
+	}
+	noun := plural
+	if count == 1 {
+		noun = singular
+	}
+	var builder strings.Builder
+	builder.WriteString(`<span class="pp-catalog-diagnostic-count `)
+	builder.WriteString(templ.EscapeString(className))
+	builder.WriteString(`"><sl-icon name="`)
+	builder.WriteString(templ.EscapeString(icon))
+	builder.WriteString(`" aria-hidden="true"></sl-icon><span class="pp-catalog-diagnostic-number">`)
+	builder.WriteString(templ.EscapeString(fmt.Sprintf("%d", count)))
+	builder.WriteString(`</span><span class="pp-catalog-sr-only"> `)
+	builder.WriteString(templ.EscapeString(noun))
+	builder.WriteString(`</span></span>`)
+	return builder.String()
+}
+
+func catalogDiagnosticsLabel(counts *ppmodel.ViolationCounts) string {
+	if counts == nil || counts.Total() == 0 {
+		return "Diagnostics"
+	}
+	parts := make([]string, 0, 3)
+	appendPart := func(count int, singular, plural string) {
+		if count <= 0 {
+			return
+		}
+		noun := plural
+		if count == 1 {
+			noun = singular
+		}
+		parts = append(parts, fmt.Sprintf("%d %s", count, noun))
+	}
+	appendPart(counts.Errors, "error", "errors")
+	appendPart(counts.Warns, "warning", "warnings")
+	appendPart(counts.Infos, "info", "infos")
+	return "Diagnostics: " + strings.Join(parts, ", ")
+}
+
 func catalogContactHTML(contact *ppmodel.ContactInfo) string {
 	name := catalogContactName(contact)
 	email := catalogContactEmail(contact)
@@ -1076,7 +1191,7 @@ func catalogContactHTML(contact *ppmodel.ContactInfo) string {
 	var builder strings.Builder
 	builder.WriteString(`<dl class="pp-catalog-contact-grid">`)
 	if name != "" {
-		builder.WriteString(`<dt>Name</dt><dd>`)
+		builder.WriteString(`<dt>Contact:</dt><dd>`)
 		builder.WriteString(templ.EscapeString(name))
 		builder.WriteString(`</dd>`)
 	}
