@@ -5,6 +5,7 @@
 package render
 
 import (
+	"fmt"
 	"html"
 	"net/url"
 	"strings"
@@ -26,6 +27,13 @@ func modelBreadcrumb(page *ppmodel.ModelPage) []BreadcrumbItem {
 		{Label: "MODELS", Href: pppaths.ModelsIndexHTML()},
 		{Label: strings.ToUpper(slugToTitle(page.TypeSlug)), Href: pppaths.ModelTypeIndexHTML(page.TypeSlug)},
 	}
+}
+
+func modelExtensionsSummary(page *ppmodel.ModelPage) string {
+	if len(page.Extensions) <= 1 {
+		return "Extensions"
+	}
+	return fmt.Sprintf("Extensions (%d)", len(page.Extensions))
 }
 
 func operationBreadcrumb(page *ppmodel.OperationPage) []BreadcrumbItem {

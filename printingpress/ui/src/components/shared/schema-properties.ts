@@ -16,6 +16,28 @@ import {renderConstraints, renderSchemaType} from '../../utils/render-helpers.js
 import {getCachedSchemaModelByRef, getSchemaEntryByRef, preloadSchemaReferences} from '../../utils/schema-registry.js';
 import './ref-popover.js';
 
+const DEFAULT_COMPACT_NAME_WIDTH_PX = 200;
+const MIN_COMPACT_NAME_WIDTH_PX = 180;
+const REQUIRED_BADGE_SLOT_WIDTH_PX = 52;
+const REQUIRED_BADGE_GAP_PX = 10;
+const NAME_COLUMN_TRAILING_PADDING_PX = 20;
+const PROPERTY_NAME_CHAR_WIDTH_PX = 10.5;
+const DEFAULT_FONT_SIZE_PX = 16;
+
+const POLYMORPHIC_CONSTRAINED_LEFT_WIDTH_FALLBACK_PX = 224;
+const POLYMORPHIC_TAB_RAIL_MIN_WIDTH_PX = 160;
+const POLYMORPHIC_TAB_RAIL_CONDENSED_MAX_WIDTH_PX = 260;
+const POLYMORPHIC_TAB_RAIL_MAX_WIDTH_PX = 340;
+const POLYMORPHIC_TAB_LABEL_BASE_WIDTH_PX = 56;
+const POLYMORPHIC_TAB_LABEL_CHAR_WIDTH_PX = 9.5;
+const POLYMORPHIC_CONSTRAINED_BODY_MIN_WIDTH_PX = 32;
+const POLYMORPHIC_BODY_MIN_WIDTH_PX = 340;
+const POLYMORPHIC_CONSTRAINED_LAYOUT_PADDING_PX = 40;
+const POLYMORPHIC_LAYOUT_PADDING_PX = 72;
+const POLYMORPHIC_TAB_RAIL_WIDTH_FALLBACK_PX = 250;
+const POLYMORPHIC_CONDENSED_TAB_RAIL_WIDTH_FALLBACK_PX = 170;
+const POLYMORPHIC_COMPACT_TAB_RAIL_WIDTH_FALLBACK_PX = 208;
+
 @customElement('pp-schema-properties')
 export class PpSchemaProperties extends LitElement {
     static styles = [constraintsCss, markdownCss, ...schemaPropertiesCss];
@@ -23,17 +45,53 @@ export class PpSchemaProperties extends LitElement {
     @property({attribute: 'schema-json'}) schemaJson = '';
     @property({type: Boolean, reflect: true}) compact = false;
     @property({type: Boolean, reflect: true}) condensed = false;
+    @property({type: Boolean, reflect: true}) constrained = false;
+    @property({attribute: 'popover-context', type: Boolean, reflect: true}) popoverContext = false;
     @state() private schema: any = null;
+    @state() private availableWidth = 0;
+    @state() private polymorphicSelections: Record<string, number> = {};
+
+    private resizeObserver: ResizeObserver | null = null;
+
+    connectedCallback() {
+        super.connectedCallback();
+        this.updateAvailableWidth();
+        if (typeof ResizeObserver === 'undefined') return;
+        this.resizeObserver = new ResizeObserver((entries) => {
+            const width = entries[0]?.contentRect?.width ?? this.getBoundingClientRect().width;
+            this.setAvailableWidth(width);
+        });
+        this.resizeObserver.observe(this);
+    }
+
+    disconnectedCallback() {
+        super.disconnectedCallback();
+        this.resizeObserver?.disconnect();
+        this.resizeObserver = null;
+    }
 
     willUpdate(changed: Map<string, unknown>) {
         if (changed.has('schemaJson') && this.schemaJson) {
             try {
                 this.schema = JSON.parse(this.schemaJson);
+                this.polymorphicSelections = {};
                 this.computeNameColumnWidth();
                 void this.primeReferencedSchemas(this.schema);
             } catch {
                 this.schema = null;
             }
+        }
+    }
+
+    private updateAvailableWidth() {
+        this.setAvailableWidth(this.getBoundingClientRect().width);
+    }
+
+    private setAvailableWidth(width: number) {
+        if (!Number.isFinite(width)) return;
+        const next = Math.round(width);
+        if (next !== this.availableWidth) {
+            this.availableWidth = next;
         }
     }
 
@@ -85,6 +143,7 @@ export class PpSchemaProperties extends LitElement {
             if (!Array.isArray(entries)) continue;
             for (const entry of entries) {
                 if (entry?.$ref) {
+                    if (key !== 'allOf') continue;
                     const referencedSchema = this.parseRegistrySchema(entry.$ref, visited);
                     if (!referencedSchema) continue;
                     const nested = this.collectRenderedNameMetrics(referencedSchema, visited);
@@ -120,14 +179,11 @@ export class PpSchemaProperties extends LitElement {
     private computeNameColumnWidth() {
         if (!this.schema) return;
         const {maxLen} = this.collectRenderedNameMetrics(this.schema);
-        // Compact rows always reserve a fixed badge slot now, even when a property is not required,
-        // so the width budget needs to include that slot plus a more conservative bold monospace
-        // character width for right-aligned names.
-        const badgeSlotWidth = 52; // 3.25rem at the 16px base font size
-        const badgeGap = 10; // matches --global-padding
-        const trailingPadding = 20;
-        const estimatedNameWidth = maxLen * 10.5;
-        const width = Math.max(180, badgeSlotWidth + badgeGap + estimatedNameWidth + trailingPadding);
+        const estimatedNameWidth = maxLen * PROPERTY_NAME_CHAR_WIDTH_PX;
+        const width = Math.max(
+            MIN_COMPACT_NAME_WIDTH_PX,
+            REQUIRED_BADGE_SLOT_WIDTH_PX + REQUIRED_BADGE_GAP_PX + estimatedNameWidth + NAME_COLUMN_TRAILING_PADDING_PX,
+        );
         this.style.setProperty('--compact-name-width', `${Math.round(width)}px`);
     }
 
@@ -160,7 +216,7 @@ export class PpSchemaProperties extends LitElement {
         `;
     }
 
-    private renderPropertyTable(properties: Record<string, any>, required: Set<string>) {
+    private renderPropertyTable(properties: Record<string, any>, required: Set<string>, path = '$.properties') {
         const propEntries = Object.entries(properties);
         if (!propEntries.length) return nothing;
         return propEntries.map(([name, prop]: [string, any]) => {
@@ -169,7 +225,7 @@ export class PpSchemaProperties extends LitElement {
                 const label = 'polymorphic';
                 return html`
                     <div class="property-oneof">
-                        ${this.renderOneOf(variants, name, prop.description, required.has(name), label)}
+                        ${this.renderOneOf(variants, name, prop.description, required.has(name), label, `${path}.${name}`)}
                     </div>
                 `;
             }
@@ -257,45 +313,203 @@ export class PpSchemaProperties extends LitElement {
         return html`
             ${uniqueRefEntries.length ? this.renderCompositionRefs(uniqueRefEntries) : nothing}
             ${Object.keys(mergedProperties).length
-                ? this.renderPropertyTable(mergedProperties, mergedRequired)
+                ? this.renderPropertyTable(mergedProperties, mergedRequired, '$.allOf.properties')
                 : nothing}
         `;
     }
 
-    private renderOneOf(entries: any[], propName?: string, propDesc?: string, isRequired?: boolean, label?: string) {
+    private renderOneOf(entries: any[], propName?: string, propDesc?: string, isRequired?: boolean, label?: string, path = '$.oneOf') {
         if (!entries.length) return nothing;
+        const selectionKey = this.getPolymorphicSelectionKey(path, entries);
+        const selectedIndex = this.getSelectedPolymorphicIndex(selectionKey, entries);
+        const selectedEntry = entries[selectedIndex];
+        const selectedLabel = this.getPolymorphicOptionLabel(selectedEntry, selectedIndex);
+        const useDropdown = this.shouldUsePolymorphicDropdown(entries, propName);
+        const hasSelector = entries.length > 1;
+        const propertyClasses = [
+            'oneof-property',
+            hasSelector ? '' : 'oneof-property-single',
+            hasSelector && useDropdown && this.popoverContext ? 'oneof-property-popover-dropdown' : '',
+        ].filter(Boolean).join(' ');
 
         return html`
-            <div class="oneof-property">
+            <div class=${propertyClasses}>
                 <div class="oneof-left">
                     ${propName ? html`
                         <div class="oneof-prop-name">
-                            ${isRequired ? html`<span class="required-badge">req</span>` : nothing}
+                            <span class="required-badge ${isRequired ? '' : 'required-badge-placeholder'}" aria-hidden=${isRequired ? 'false' : 'true'}>req</span>
                             <span class="prop-name">${propName}</span>
                             ${label ? html`<div class="composition-label polymorphic">(${label})</div>` : nothing}
                         </div>
                     ` : nothing}
                     ${propDesc ? renderMarkdown(propDesc, {className: 'oneof-prop-desc pp-markdown'}) : nothing}
                 </div>
-                <div class="oneof-desc-container">
-                    <sl-tab-group class="oneof-tabs" placement="start">
-                        ${entries.map((e, i) => html`
-                            <sl-tab slot="nav" panel="oneof-${i}" class="oneof-tab" ?active=${i === 0}>
-                                \u203A ${e.title || e.$ref?.split('/').pop() || `Option ${i + 1}`}
-                            </sl-tab>
-                        `)}
-                        ${entries.map((e, i) => html`
-                            <sl-tab-panel name="oneof-${i}" ?active=${i === 0}>
-                                ${this.renderOneOfOption(e)}
-                            </sl-tab-panel>
-                        `)}
-                    </sl-tab-group>
-                </div>
+                ${!hasSelector
+                    ? html`
+                        <div class="oneof-single-value">
+                            ${this.renderOneOfSingleValue(selectedEntry)}
+                        </div>
+                        ${this.renderOneOfSingleBody(selectedEntry, `${path}[${selectedIndex}]`)}
+                    `
+                    : html`
+                        <div class="oneof-desc-container">
+                            ${useDropdown
+                        ? html`
+                            <div class="polymorphic-dropdown-row">
+                                <sl-dropdown class="polymorphic-dropdown" skidding="5" distance="5">
+                                    <sl-button slot="trigger" caret>${selectedLabel}</sl-button>
+                                    <sl-menu @sl-select=${(event: CustomEvent) => this.handlePolymorphicSelect(event, selectionKey, entries.length)}>
+                                        ${entries.map((entry, i) => html`
+                                            <sl-menu-item value="${i}">${this.getPolymorphicOptionLabel(entry, i)}</sl-menu-item>
+                                        `)}
+                                    </sl-menu>
+                                </sl-dropdown>
+                            </div>
+                            <div class="oneof-dropdown-panel">
+                                ${this.renderOneOfOption(selectedEntry, `${path}[${selectedIndex}]`)}
+                            </div>
+                        `
+                        : html`
+                            <sl-tab-group class="oneof-tabs" placement="start">
+                                ${entries.map((e, i) => html`
+                                    <sl-tab slot="nav" panel="${selectionKey}-${i}" class="oneof-tab" ?active=${i === selectedIndex}>
+                                        \u203A ${this.getPolymorphicOptionLabel(e, i)}
+                                    </sl-tab>
+                                `)}
+                                ${entries.map((e, i) => html`
+                                    <sl-tab-panel name="${selectionKey}-${i}" ?active=${i === selectedIndex}>
+                                        ${this.renderOneOfOption(e, `${path}[${i}]`)}
+                                    </sl-tab-panel>
+                                `)}
+                            </sl-tab-group>
+                        `}
+                        </div>
+                    `}
             </div>
         `;
     }
 
-    private renderOneOfOption(entry: any) {
+    private getPolymorphicOptionLabel(entry: any, index: number) {
+        return entry?.title || entry?.$ref?.split('/').pop() || `Option ${index + 1}`;
+    }
+
+    private getPolymorphicSelectionKey(path: string, entries: any[]) {
+        const signature = entries.map((entry, index) => {
+            return this.getPolymorphicOptionLabel(entry, index);
+        }).join('|');
+        return `${path}:${signature}`;
+    }
+
+    private getSelectedPolymorphicIndex(selectionKey: string, entries: any[]) {
+        const selected = this.polymorphicSelections[selectionKey] ?? 0;
+        return selected >= 0 && selected < entries.length ? selected : 0;
+    }
+
+    private handlePolymorphicSelect(event: CustomEvent, selectionKey: string, entryCount: number) {
+        const value = event.detail?.item?.value;
+        if (value === undefined) return;
+        const selected = parseInt(value, 10);
+        if (!Number.isFinite(selected) || selected < 0 || selected >= entryCount) return;
+        this.polymorphicSelections = {
+            ...this.polymorphicSelections,
+            [selectionKey]: selected,
+        };
+    }
+
+    private getCompactNameWidth() {
+        const compactWidth = parseFloat(this.style.getPropertyValue('--compact-name-width'));
+        return Number.isFinite(compactWidth) ? compactWidth : DEFAULT_COMPACT_NAME_WIDTH_PX;
+    }
+
+    private getCssLengthPx(value: string, fallback: number) {
+        const trimmed = value.trim();
+        const numeric = parseFloat(trimmed);
+        if (!Number.isFinite(numeric)) return fallback;
+        if (trimmed.endsWith('rem')) {
+            const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
+            return numeric * (Number.isFinite(rootFontSize) ? rootFontSize : DEFAULT_FONT_SIZE_PX);
+        }
+        if (trimmed.endsWith('em')) {
+            const hostFontSize = parseFloat(getComputedStyle(this).fontSize);
+            return numeric * (Number.isFinite(hostFontSize) ? hostFontSize : DEFAULT_FONT_SIZE_PX);
+        }
+        return numeric;
+    }
+
+    private getPolymorphicConstrainedLeftWidth() {
+        return this.getCssLengthPx(
+            getComputedStyle(this).getPropertyValue('--polymorphic-constrained-left-width'),
+            POLYMORPHIC_CONSTRAINED_LEFT_WIDTH_FALLBACK_PX,
+        );
+    }
+
+    private getPolymorphicVerticalTabRailWidth() {
+        const styles = getComputedStyle(this);
+        if (this.compact) {
+            return this.getCssLengthPx(styles.getPropertyValue('--polymorphic-compact-tab-rail-width'), POLYMORPHIC_COMPACT_TAB_RAIL_WIDTH_FALLBACK_PX);
+        }
+        if (this.condensed) {
+            return this.getCssLengthPx(styles.getPropertyValue('--polymorphic-condensed-tab-rail-width'), POLYMORPHIC_CONDENSED_TAB_RAIL_WIDTH_FALLBACK_PX);
+        }
+        return this.getCssLengthPx(styles.getPropertyValue('--polymorphic-tab-rail-width'), POLYMORPHIC_TAB_RAIL_WIDTH_FALLBACK_PX);
+    }
+
+    private getPolymorphicLeftWidth(propName?: string) {
+        if (!propName) return 0;
+        const labelWidth = REQUIRED_BADGE_SLOT_WIDTH_PX + propName.length * PROPERTY_NAME_CHAR_WIDTH_PX;
+        const preferredWidth = Math.max(this.getCompactNameWidth(), labelWidth);
+        return this.constrained ? Math.min(preferredWidth, this.getPolymorphicConstrainedLeftWidth()) : preferredWidth;
+    }
+
+    private shouldUsePolymorphicDropdown(entries: any[], propName?: string) {
+        if (this.popoverContext) return true;
+        const availableWidth = this.availableWidth || this.getBoundingClientRect().width || this.offsetWidth;
+        if (!availableWidth) return false;
+        const longestLabel = entries.reduce((longest, entry, index) => {
+            return Math.max(longest, this.getPolymorphicOptionLabel(entry, index).length);
+        }, 0);
+        const tabRailMaxWidth = this.condensed
+            ? POLYMORPHIC_TAB_RAIL_CONDENSED_MAX_WIDTH_PX
+            : POLYMORPHIC_TAB_RAIL_MAX_WIDTH_PX;
+        const tabRailWidth = Math.max(
+            POLYMORPHIC_TAB_RAIL_MIN_WIDTH_PX,
+            Math.min(tabRailMaxWidth, POLYMORPHIC_TAB_LABEL_BASE_WIDTH_PX + longestLabel * POLYMORPHIC_TAB_LABEL_CHAR_WIDTH_PX),
+        );
+        const verticalTabRailWidth = this.getPolymorphicVerticalTabRailWidth();
+        if (tabRailWidth > verticalTabRailWidth) return true;
+        const leftWidth = this.getPolymorphicLeftWidth(propName);
+        const layoutPadding = this.constrained ? POLYMORPHIC_CONSTRAINED_LAYOUT_PADDING_PX : POLYMORPHIC_LAYOUT_PADDING_PX;
+        if (this.constrained) {
+            return leftWidth + verticalTabRailWidth + POLYMORPHIC_CONSTRAINED_BODY_MIN_WIDTH_PX + layoutPadding > availableWidth;
+        }
+        return leftWidth + tabRailWidth + POLYMORPHIC_BODY_MIN_WIDTH_PX + layoutPadding > availableWidth;
+    }
+
+    private renderOneOfSingleValue(entry: any) {
+        return html`
+            ${this.renderType(entry)}
+            ${renderConstraints(entry, {labelSuffix: ':'})}
+        `;
+    }
+
+    private renderOneOfSingleBody(entry: any, path = '$.oneOf[0]') {
+        if (entry.$ref) {
+            return nothing;
+        }
+
+        const required = new Set<string>(entry.required || []);
+        if (!entry.description && !entry.properties) return nothing;
+        return html`
+            <div class="oneof-single-panel">
+                ${entry.description ? renderMarkdown(entry.description, {className: 'oneof-option-desc pp-markdown'}) : nothing}
+                ${entry.properties
+                    ? this.renderPropertyTable(entry.properties, required, `${path}.properties`)
+                    : nothing}
+            </div>
+        `;
+    }
+
+    private renderOneOfOption(entry: any, path = '$.oneOf[0]') {
         if (entry.$ref) {
             const link = resolveRefLink(entry.$ref);
             if (!link) return nothing;
@@ -313,7 +527,7 @@ export class PpSchemaProperties extends LitElement {
         return html`
             ${entry.description ? renderMarkdown(entry.description, {className: 'oneof-option-desc pp-markdown'}) : nothing}
             ${entry.properties
-                ? this.renderPropertyTable(entry.properties, required)
+                ? this.renderPropertyTable(entry.properties, required, `${path}.properties`)
                 : type
                     ? html`<div class="oneof-option-scalar"><span class="prop-type">${type}</span>${renderConstraints(entry, {labelSuffix: ':'})}</div>`
                     : nothing}
@@ -333,11 +547,11 @@ export class PpSchemaProperties extends LitElement {
         }
 
         if (target.oneOf && Array.isArray(target.oneOf)) {
-            return this.renderOneOf(target.oneOf, 'ONE OF', undefined, undefined, 'polymorphic');
+            return this.renderOneOf(target.oneOf, 'ONE OF', undefined, undefined, 'polymorphic', '$.oneOf');
         }
 
         if (target.anyOf && Array.isArray(target.anyOf)) {
-            return this.renderOneOf(target.anyOf, 'ANY OF', undefined, undefined, 'polymorphic');
+            return this.renderOneOf(target.anyOf, 'ANY OF', undefined, undefined, 'polymorphic', '$.anyOf');
         }
 
         const properties = target.properties || {};

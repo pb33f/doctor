@@ -6,13 +6,18 @@ export default [dropdownCss, css`
         display: block;
         margin-top: var(--global-padding);
         --compact-name-width: 200px;
+        --polymorphic-constrained-left-width: 14rem;
+        --polymorphic-tab-rail-width: 250px;
+        --polymorphic-condensed-tab-rail-width: 170px;
+        --polymorphic-compact-tab-rail-width: 13rem;
+        --polymorphic-nested-name-width: 14rem;
     }
 
     .property {
         display: grid;
         grid-template-columns: 200px minmax(300px, auto) 1fr;
         align-items: start;
-        gap: 0 1rem;
+        gap: 0 var(--global-padding);
         padding: 15px var(--global-padding);
         border-bottom: 1px dotted var(--hrcolor);
     }
@@ -167,7 +172,7 @@ export default [dropdownCss, css`
     .composition-ref-entry {
         display: grid;
         grid-template-columns: 200px minmax(300px, auto) 1fr;
-        gap: 0 1rem;
+        gap: 0 var(--global-padding);
         align-items: baseline;
         padding: 4px 0;
     }
@@ -208,12 +213,36 @@ export default [dropdownCss, css`
     .oneof-property > .oneof-left {
         width: var(--compact-name-width);
         min-width: var(--compact-name-width);
-        padding-right: 1rem;
+        padding-right: var(--global-padding);
+    }
+
+    .oneof-property-single {
+        display: grid;
+        grid-template-columns: var(--compact-name-width) minmax(0, 1fr);
+        column-gap: var(--global-padding);
+        row-gap: 0;
+    }
+
+    .oneof-property-single > .oneof-left {
+        padding-right: 0;
+    }
+
+    .oneof-property-single .oneof-single-panel {
+        grid-column: 1 / -1;
     }
 
     .oneof-prop-name {
+        display: grid;
+        grid-template-columns: 3.25rem minmax(0, 1fr);
+        align-items: start;
+        gap: var(--global-padding);
         text-align: right;
         white-space: nowrap;
+    }
+
+    .oneof-prop-name .composition-label {
+        grid-column: 2;
+        justify-self: end;
     }
 
     .oneof-desc-container {
@@ -262,18 +291,18 @@ export default [dropdownCss, css`
 
     .oneof-tabs::part(tabs) {
         flex: 1;
-        width: 250px;
-        min-width: 250px;
+        width: var(--polymorphic-tab-rail-width);
+        min-width: var(--polymorphic-tab-rail-width);
     }
 
     :host([condensed]) .oneof-tabs::part(tabs) {
-        width: 170px;
-        min-width: 170px;
+        width: var(--polymorphic-condensed-tab-rail-width);
+        min-width: var(--polymorphic-condensed-tab-rail-width);
     }
 
     :host([compact]) .oneof-tabs::part(tabs) {
-        width: 13rem;
-        min-width: 13rem;
+        width: var(--polymorphic-compact-tab-rail-width);
+        min-width: var(--polymorphic-compact-tab-rail-width);
     }
 
     .oneof-tabs::part(body) {
@@ -308,12 +337,139 @@ export default [dropdownCss, css`
         padding: 0 0 0 var(--global-padding);
     }
 
+    .polymorphic-dropdown-row {
+        margin-bottom: var(--global-padding);
+        min-width: 0;
+    }
+
+    .polymorphic-dropdown {
+        margin-top: 0;
+        max-width: 100%;
+    }
+
+    .polymorphic-dropdown sl-button::part(base) {
+        border-color: var(--warn-color);
+        color: var(--warn-color);
+        border-radius: 0;
+        min-width: min(16rem, 100%);
+        max-width: min(26rem, 100%);
+    }
+
+    .polymorphic-dropdown sl-button::part(label) {
+        color: var(--warn-color);
+        overflow-x: hidden;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        letter-spacing: var(--label-spacing);
+    }
+
+    .polymorphic-dropdown sl-button::part(caret) {
+        color: var(--warn-color);
+    }
+
+    .polymorphic-dropdown sl-menu {
+        border-color: var(--warn-color);
+        border-radius: 0;
+    }
+
+    .polymorphic-dropdown sl-menu-item::part(base) {
+        color: var(--warn-color);
+        font-family: var(--font-stack-bold), monospace;
+        text-transform: uppercase;
+        letter-spacing: var(--label-spacing);
+        --sl-color-neutral-100: var(--warn-color-lowalpha);
+    }
+
+    .oneof-dropdown-panel {
+        min-width: 0;
+        overflow: auto;
+    }
+
+    .oneof-single-panel {
+        min-width: 0;
+        overflow: auto;
+    }
+
+    .oneof-single-value {
+        align-self: start;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+    }
+
     .prop-type-col sl-dropdown {
         margin-top: 0;
     }
 
     .property-oneof {
         grid-column: 1 / -1;
+    }
+
+    :host([constrained]) .oneof-property {
+        display: grid;
+        grid-template-columns: minmax(9rem, min(var(--compact-name-width), var(--polymorphic-constrained-left-width))) minmax(0, 1fr);
+        min-width: 0;
+    }
+
+    :host([constrained]) .oneof-property > .oneof-left {
+        width: auto;
+        min-width: 0;
+    }
+
+    :host([constrained]) .oneof-prop-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    :host([constrained]) .oneof-desc-container {
+        min-width: 0;
+        overflow: visible;
+    }
+
+    :host([constrained]) .oneof-property-single {
+        grid-template-columns: minmax(11rem, var(--compact-name-width)) minmax(0, 1fr);
+        row-gap: 0;
+    }
+
+    :host([constrained]) .oneof-property-single .oneof-single-panel {
+        grid-column: 1 / -1;
+        min-width: 0;
+    }
+
+    :host([popover-context]) .oneof-property-popover-dropdown {
+        display: grid;
+        grid-template-columns: minmax(9rem, min(var(--compact-name-width), var(--polymorphic-constrained-left-width))) minmax(0, 1fr);
+        min-width: 0;
+        row-gap: var(--global-padding);
+    }
+
+    :host([popover-context]) .oneof-property-popover-dropdown > .oneof-left {
+        width: auto;
+        min-width: 0;
+        padding-right: var(--global-padding);
+    }
+
+    :host([popover-context]) .oneof-property-popover-dropdown .oneof-desc-container {
+        display: contents;
+    }
+
+    :host([popover-context]) .oneof-property-popover-dropdown .polymorphic-dropdown-row {
+        margin-bottom: 0;
+        align-self: start;
+    }
+
+    :host([popover-context]) .oneof-property-popover-dropdown .oneof-dropdown-panel {
+        grid-column: 1 / -1;
+        min-width: 0;
+    }
+
+    :host([constrained][compact]) .oneof-desc-container .property {
+        grid-template-columns: minmax(9rem, min(var(--compact-name-width), var(--polymorphic-nested-name-width), 42%)) minmax(0, 1fr);
+    }
+
+    :host([constrained][compact]) .oneof-desc-container .prop-type-col {
+        min-width: 0;
     }
 
     :host([compact]) .oneof-container {

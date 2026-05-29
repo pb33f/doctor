@@ -4,6 +4,10 @@ export default css`
     :host {
         display: inline;
         position: relative;
+        --ref-popover-default-width: 650px;
+        --ref-popover-width: var(--ref-popover-default-width);
+        --ref-popover-max-width: calc(100vw - var(--global-padding-double));
+        --ref-popover-max-height: min(70vh, 600px);
     }
 
     .trigger {
@@ -19,9 +23,11 @@ export default css`
     }
 
     .pp-ref-popover-content {
-        width: 650px;
-        max-height: 400px;
+        width: min(var(--ref-popover-width), var(--ref-popover-max-width));
+        max-width: var(--ref-popover-max-width);
+        max-height: var(--ref-popover-max-height);
         overflow-y: auto;
+        overflow-x: hidden;
         overscroll-behavior: contain;
         background: var(--background-color);
         border: 1px dashed var(--secondary-color);
