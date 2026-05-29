@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/stretchr/testify/assert"
@@ -59,6 +60,41 @@ func TestWalker_CompositionHeavyRefsCompletes(t *testing.T) {
 	models, err := walker.LocateModelsByKeyAndValue(field.KeyNode, field.ValueNode)
 	require.NoError(t, err)
 	assert.Greater(t, len(models), 1, "expected reused schema field to remain discoverable through multiple reference paths")
+}
+
+func TestWalker_LocateModelByLineReturnsDeterministicPathSet(t *testing.T) {
+	docModel := buildCompositionHeavyV3Document(t, 12, 4, 12)
+
+	var expected string
+	var expectedCount int
+	for i := 0; i < 20; i++ {
+		walker := NewDrDocumentWithConfig(docModel, &DrConfig{
+			UseSchemaCache: true,
+		})
+		require.NotNil(t, walker)
+
+		base := walker.V3Document.Components.Schemas.GetOrZero("Base0")
+		require.NotNil(t, base)
+		require.NotNil(t, base.Schema)
+
+		field := base.Schema.Properties.GetOrZero("field0")
+		require.NotNil(t, field)
+		require.NotNil(t, field.KeyNode)
+
+		models, err := walker.LocateModelByLine(field.KeyNode.Line)
+		require.NoError(t, err)
+		paths := locatedModelPaths(models)
+		require.Greater(t, len(paths), 1, "expected aliased field line to resolve to multiple locations")
+
+		current := strings.Join(paths, "\n")
+		if i == 0 {
+			expected = current
+			expectedCount = len(paths)
+			continue
+		}
+		assert.Equal(t, expectedCount, len(paths), "path count changed on iteration %d", i)
+		assert.Equal(t, expected, current, "path order changed on iteration %d", i)
+	}
 }
 
 func TestWalker_CompositionHeavyRefsCompletesWithGraph(t *testing.T) {
@@ -293,4 +329,19 @@ func countLineObjects(walker *DrDocument) int {
 		total += len(objects)
 	}
 	return total
+}
+
+func locatedModelPaths(models []drV3.Foundational) []string {
+	paths := make([]string, 0, len(models))
+	for _, model := range models {
+		if model == nil {
+			continue
+		}
+		path := model.GenerateJSONPath()
+		if path == "" {
+			continue
+		}
+		paths = append(paths, path)
+	}
+	return paths
 }
