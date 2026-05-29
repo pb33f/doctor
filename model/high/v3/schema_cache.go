@@ -442,11 +442,15 @@ func (s *Schema) publishChildSchemas(drCtx *DrContext, visited map[*Schema]struc
 	if s == nil {
 		return
 	}
+	s.EnsureChildrenForRead()
 	if s.XML != nil {
 		drCtx.ObjectChan <- s.XML
 	}
 	if s.ExternalDocs != nil {
 		drCtx.ObjectChan <- s.ExternalDocs
+	}
+	if s.Discriminator != nil {
+		drCtx.ObjectChan <- s.Discriminator
 	}
 
 	publishProxy := func(proxy *SchemaProxy) {
@@ -469,6 +473,7 @@ func (s *Schema) publishChildSchemas(drCtx *DrContext, visited map[*Schema]struc
 	publishProxy(s.Else)
 	publishProxy(s.Then)
 	publishProxy(s.PropertyNames)
+	publishProxy(s.UnevaluatedItems)
 	publishProxy(s.Not)
 
 	if s.DependentSchemas != nil {
@@ -488,6 +493,9 @@ func (s *Schema) publishChildSchemas(drCtx *DrContext, visited map[*Schema]struc
 	}
 	publishDynamicSchemaProxy(s.UnevaluatedProperties, drCtx, visited)
 	publishDynamicSchemaProxy(s.Items, drCtx, visited)
+	if s.AdditionalProperties != nil {
+		drCtx.ObjectChan <- s.AdditionalProperties
+	}
 	publishDynamicSchemaProxy(s.AdditionalProperties, drCtx, visited)
 }
 

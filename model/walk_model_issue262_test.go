@@ -156,6 +156,71 @@ func TestWalker_SchemaCachePreservesReferenceUsagePaths(t *testing.T) {
 	}
 }
 
+func TestWalker_SchemaCacheReplayPublishesHydratedChildObjects(t *testing.T) {
+	docModel := buildSchemaCacheReplayDocument(t)
+
+	for _, tc := range []struct {
+		name   string
+		config *DrConfig
+	}{
+		{
+			name:   "model",
+			config: &DrConfig{UseSchemaCache: true},
+		},
+		{
+			name: "render changes",
+			config: &DrConfig{
+				BuildGraph:     true,
+				RenderChanges:  true,
+				UseSchemaCache: true,
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			noCacheConfig := *tc.config
+			noCacheConfig.UseSchemaCache = false
+			noCache := NewDrDocumentWithConfig(docModel, &noCacheConfig)
+			require.NotNil(t, noCache)
+
+			withCache := NewDrDocumentWithConfig(docModel, tc.config)
+			require.NotNil(t, withCache)
+
+			wrapper := noCache.V3Document.Components.Schemas.GetOrZero("Wrapper")
+			require.NotNil(t, wrapper)
+			require.NotNil(t, wrapper.Schema)
+			require.NotNil(t, wrapper.Schema.Discriminator)
+			require.NotNil(t, wrapper.Schema.AdditionalProperties)
+			require.NotNil(t, wrapper.Schema.AdditionalProperties.A)
+			require.NotNil(t, wrapper.Schema.AdditionalProperties.A.Schema)
+			extraField := wrapper.Schema.AdditionalProperties.A.Schema.PropertiesForRead().GetOrZero("extra_field")
+			require.NotNil(t, extraField)
+			require.NotNil(t, extraField.GetKeyNode())
+
+			tuple := noCache.V3Document.Components.Schemas.GetOrZero("Tuple")
+			require.NotNil(t, tuple)
+			require.NotNil(t, tuple.Schema)
+			require.NotNil(t, tuple.Schema.UnevaluatedItems)
+
+			for _, check := range []struct {
+				name string
+				line int
+			}{
+				{name: "discriminator", line: wrapper.Schema.Discriminator.GetKeyNode().Line},
+				{name: "additionalProperties", line: wrapper.Schema.AdditionalProperties.GetKeyNode().Line},
+				{name: "additionalProperties property", line: extraField.GetKeyNode().Line},
+				{name: "unevaluatedItems", line: tuple.Schema.UnevaluatedItems.GetKeyNode().Line},
+			} {
+				expected := locatedPathsByLine(t, noCache, check.line)
+				actual := locatedPathsByLine(t, withCache, check.line)
+
+				require.Greater(t, len(expected), 1, "expected %s to resolve through repeated reference paths", check.name)
+				assert.Equal(t, expected, actual, "schema cache replay should preserve %s line locations", check.name)
+				assert.True(t, containsPathFragment(actual, "['/two']"), "expected %s cache-hit path to be discoverable", check.name)
+			}
+		})
+	}
+}
+
 func BenchmarkWalker_CompositionHeavyRefs(b *testing.B) {
 	docModel := buildCompositionHeavyV3Document(b, 144, 32, 144)
 	b.ReportAllocs()
@@ -297,6 +362,64 @@ components:
 	return model
 }
 
+func buildSchemaCacheReplayDocument(tb testing.TB) *libopenapi.DocumentModel[v3.Document] {
+	tb.Helper()
+
+	const spec = `openapi: 3.1.0
+info:
+  title: Schema Cache Replay Fixture
+  version: 1.0.0
+paths:
+  /one:
+    get:
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wrapper'
+  /two:
+    get:
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wrapper'
+components:
+  schemas:
+    Tuple:
+      type: array
+      prefixItems:
+        - type: string
+      unevaluatedItems:
+        type: integer
+    Wrapper:
+      type: object
+      discriminator:
+        propertyName: kind
+      properties:
+        kind:
+          type: string
+        tuple:
+          $ref: '#/components/schemas/Tuple'
+      additionalProperties:
+        type: object
+        properties:
+          extra_field:
+            type: string
+`
+
+	document, err := libopenapi.NewDocument([]byte(spec))
+	require.NoError(tb, err)
+
+	model, errs := document.BuildV3Model()
+	require.Empty(tb, errs)
+	return model
+}
+
 func nestedResponseFieldPath(t *testing.T, walker *DrDocument, path string) string {
 	t.Helper()
 
@@ -321,6 +444,23 @@ func nestedResponseFieldPath(t *testing.T, walker *DrDocument, path string) stri
 	require.NotNil(t, field.Schema)
 
 	return field.Schema.GenerateJSONPath()
+}
+
+func locatedPathsByLine(t *testing.T, walker *DrDocument, line int) []string {
+	t.Helper()
+
+	models, err := walker.LocateModelByLine(line)
+	require.NoError(t, err)
+	return locatedModelPaths(models)
+}
+
+func containsPathFragment(paths []string, fragment string) bool {
+	for _, path := range paths {
+		if strings.Contains(path, fragment) {
+			return true
+		}
+	}
+	return false
 }
 
 func countLineObjects(walker *DrDocument) int {
