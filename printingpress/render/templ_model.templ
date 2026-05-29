@@ -92,7 +92,7 @@ templ ModelPageTempl(page *ppmodel.ModelPage, baseURL string) {
 		}
 		if page.ExtensionsJSON != "" {
 			<sl-details class="pp-details" style="display:block;min-height:64px;">
-				<span slot="summary" class="pp-details-summary"><h2>Extensions</h2></span>
+				<span slot="summary" class="pp-details-summary"><h2>{ modelExtensionsSummary(page) }</h2></span>
 				<pp-extensions extensions-json={ page.ExtensionsJSON }></pp-extensions>
 			</sl-details>
 		}

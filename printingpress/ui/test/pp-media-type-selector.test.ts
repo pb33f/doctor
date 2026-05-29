@@ -1,6 +1,18 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import '../src/components/shared/media-type-selector.js';
 import type { PpMediaTypeSelector } from '../src/components/shared/media-type-selector.js';
+
+class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+}
+
+class IntersectionObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+}
 
 function create(contentJson: string): PpMediaTypeSelector {
     const el = document.createElement('pp-media-type-selector') as PpMediaTypeSelector;
@@ -31,6 +43,15 @@ const differentSchemaMT = {
 };
 
 describe('pp-media-type-selector', () => {
+    beforeAll(() => {
+        if (!('ResizeObserver' in globalThis)) {
+            (globalThis as typeof globalThis & {ResizeObserver: typeof ResizeObserverStub}).ResizeObserver = ResizeObserverStub;
+        }
+        if (!('IntersectionObserver' in globalThis)) {
+            (globalThis as typeof globalThis & {IntersectionObserver: typeof IntersectionObserverStub}).IntersectionObserver = IntersectionObserverStub;
+        }
+    });
+
     beforeEach(() => {
         document.body.innerHTML = '';
     });
@@ -129,5 +150,27 @@ describe('pp-media-type-selector', () => {
 
         split = el.shadowRoot?.querySelector('.schema-split');
         expect(split?.classList.contains('example-hidden')).toBe(false);
+    });
+
+    it('renders split schema properties in constrained mode', async () => {
+        const polymorphicMT = {
+            mediaType: 'application/json',
+            schemaJson: JSON.stringify({
+                oneOf: [
+                    {title: 'bank_account', type: 'object', properties: {bank_name: {type: 'string'}}},
+                    {title: 'card', type: 'object', properties: {brand: {type: 'string'}}},
+                ],
+            }),
+            mockJson: '{"object":"bank_account"}',
+        };
+        const el = create(JSON.stringify([polymorphicMT]));
+        await el.updateComplete;
+
+        (el as any).wide = true;
+        await el.updateComplete;
+
+        const schemaProps = el.shadowRoot?.querySelector('pp-schema-properties');
+        expect(schemaProps?.hasAttribute('compact')).toBe(true);
+        expect(schemaProps?.hasAttribute('constrained')).toBe(true);
     });
 });

@@ -317,7 +317,7 @@ export class PpMediaTypeSelector extends LitElement {
         return html`
             <sl-split-panel class=${splitClass} position=${position} @sl-reposition=${this.handleSplitReposition}>
                 <div slot="start" class="split-pane schema-props-pane">
-                    <pp-schema-properties schema-json=${schemaJson || ''} compact></pp-schema-properties>
+                    <pp-schema-properties schema-json=${schemaJson || ''} compact constrained></pp-schema-properties>
                 </div>
                 <sl-icon slot="divider" name="grip-vertical"></sl-icon>
                 <div slot="end" class="split-pane schema-example-pane">

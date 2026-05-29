@@ -886,9 +886,10 @@ sl-details.pp-details::part(summary-icon) {
 }
 
 sl-details.pp-details::part(content) {
-    padding: 0 1rem 1rem;
+    padding: 0 var(--global-padding) var(--global-padding);
 }
 
+.pp-details-summary h2,
 .pp-details-summary h3 {
     margin: 0;
     border-bottom: none;

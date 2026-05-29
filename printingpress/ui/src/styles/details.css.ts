@@ -45,6 +45,7 @@ export default css`
         width: 100%;
     }
     
+    .pp-details-summary h2,
     .pp-details-summary h3 {
         margin: 0;
         border-bottom: none;

@@ -271,7 +271,31 @@ describe('pp-schema-properties allOf', () => {
         expect(requiredBadges.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('computes compact width from nested polymorphic properties', async () => {
+    it('computes compact width from rendered inline polymorphic properties', async () => {
+        const schema = {
+            type: 'object',
+            properties: {
+                source: {
+                    oneOf: [
+                        {
+                            title: 'inline_source',
+                            type: 'object',
+                            properties: {
+                                very_long_inline_property_name_for_compact_width: {type: 'string'},
+                            },
+                        },
+                    ],
+                },
+            },
+        };
+        const el = create(JSON.stringify(schema), true);
+        await el.updateComplete;
+
+        const compactWidth = el.style.getPropertyValue('--compact-name-width');
+        expect(parseInt(compactWidth, 10)).toBeGreaterThan(300);
+    });
+
+    it('does not compute compact width from unexpanded polymorphic ref internals', async () => {
         const schema = {
             type: 'object',
             properties: {
@@ -286,7 +310,7 @@ describe('pp-schema-properties allOf', () => {
         await el.updateComplete;
 
         const compactWidth = el.style.getPropertyValue('--compact-name-width');
-        expect(parseInt(compactWidth, 10)).toBeGreaterThan(300);
+        expect(parseInt(compactWidth, 10)).toBeLessThan(300);
     });
 
     it('reserves enough compact width for required badge slots and long property names', async () => {
@@ -301,6 +325,223 @@ describe('pp-schema-properties allOf', () => {
 
         const compactWidth = el.style.getPropertyValue('--compact-name-width');
         expect(parseInt(compactWidth, 10)).toBeGreaterThan(240);
+    });
+
+    it('keeps vertical polymorphic tabs for short constrained layouts when they fit', async () => {
+        const el = create(JSON.stringify({
+            oneOf: [
+                {title: 'bank_account', type: 'object', properties: {bank_name: {type: 'string'}}},
+                {title: 'card', type: 'object', properties: {brand: {type: 'string'}}},
+            ],
+        }), true);
+        el.setAttribute('constrained', '');
+        await el.updateComplete;
+
+        const tabs = el.shadowRoot?.querySelector('sl-tab-group');
+        expect(tabs?.getAttribute('placement')).toBe('start');
+        expect(el.shadowRoot?.querySelector('.polymorphic-dropdown')).toBeNull();
+    });
+
+    it('uses dropdown polymorphic selectors in popover layouts even when short labels fit', async () => {
+        const el = create(JSON.stringify({
+            oneOf: [
+                {title: 'customer', type: 'object', properties: {id: {type: 'string'}}},
+                {title: 'account', type: 'object', properties: {name: {type: 'string'}}},
+            ],
+        }), true);
+        el.setAttribute('constrained', '');
+        el.setAttribute('popover-context', '');
+        await el.updateComplete;
+
+        expect(el.shadowRoot?.querySelector('sl-tab-group')).toBeNull();
+        const dropdown = el.shadowRoot?.querySelector('.polymorphic-dropdown');
+        expect(dropdown).toBeTruthy();
+        expect(dropdown?.querySelector('sl-button')?.textContent?.trim()).toBe('customer');
+        expect(el.shadowRoot?.querySelector('.oneof-property-popover-dropdown')).toBeTruthy();
+    });
+
+    it('reserves the normal left badge slot for required polymorphic properties', async () => {
+        const el = create(JSON.stringify({
+            type: 'object',
+            properties: {
+                meter: {
+                    oneOf: [
+                        {title: 'customer', type: 'string'},
+                        {title: 'billing_meter', type: 'string'},
+                    ],
+                },
+            },
+            required: ['meter'],
+        }), true);
+        el.setAttribute('constrained', '');
+        el.setAttribute('popover-context', '');
+        await el.updateComplete;
+
+        const propName = el.shadowRoot?.querySelector('.oneof-prop-name');
+        expect(propName?.querySelector('.required-badge')?.textContent?.trim()).toBe('req');
+        expect(propName?.querySelector('.required-badge-placeholder')).toBeNull();
+        expect(propName?.querySelector('.prop-name')?.textContent?.trim()).toBe('meter');
+    });
+
+    it('uses a warning dropdown for long polymorphic labels in tight constrained layouts', async () => {
+        const el = create(JSON.stringify({
+            type: 'object',
+            properties: {
+                external_account: {
+                    oneOf: [
+                        {title: 'external_account_payout_bank_account', type: 'object', properties: {bank_name: {type: 'string'}}},
+                        {title: 'external_account_card', type: 'object', properties: {brand: {type: 'string'}}},
+                    ],
+                },
+            },
+        }), true);
+        el.setAttribute('constrained', '');
+        await el.updateComplete;
+
+        (el as any).availableWidth = 420;
+        el.requestUpdate();
+        await el.updateComplete;
+
+        expect(el.shadowRoot?.querySelector('sl-tab-group')).toBeNull();
+        const dropdown = el.shadowRoot?.querySelector('.polymorphic-dropdown');
+        expect(dropdown).toBeTruthy();
+        const trigger = dropdown?.querySelector('sl-button');
+        expect(trigger?.textContent?.trim()).toBe('external_account_payout_bank_account');
+    });
+
+    it('does not render a selector for single-option polymorphic schemas', async () => {
+        const el = create(JSON.stringify({
+            type: 'object',
+            properties: {
+                settings: {
+                    oneOf: [
+                        {title: 'account_settings', type: 'object', properties: {tos_acceptance: {type: 'object'}}},
+                    ],
+                },
+            },
+        }), true);
+        el.setAttribute('constrained', '');
+        await el.updateComplete;
+
+        expect(el.shadowRoot?.querySelector('sl-tab-group')).toBeNull();
+        expect(el.shadowRoot?.querySelector('.polymorphic-dropdown')).toBeNull();
+        expect(el.shadowRoot?.querySelector('.oneof-single-panel')).toBeTruthy();
+
+        const propNames = Array.from(el.shadowRoot?.querySelectorAll('.oneof-single-panel .prop-name') ?? [])
+            .map((node) => node.textContent?.trim());
+        expect(propNames).toContain('tos_acceptance');
+    });
+
+    it('renders single-option polymorphic refs in the value column', async () => {
+        const el = create(JSON.stringify({
+            type: 'object',
+            properties: {
+                business_profile: {
+                    description: 'Business information about the account.',
+                    oneOf: [
+                        {$ref: '#/components/schemas/WideOption'},
+                    ],
+                },
+            },
+        }), true);
+        el.setAttribute('constrained', '');
+        await el.updateComplete;
+
+        expect(el.shadowRoot?.querySelector('sl-tab-group')).toBeNull();
+        expect(el.shadowRoot?.querySelector('.polymorphic-dropdown')).toBeNull();
+        expect(el.shadowRoot?.querySelector('.oneof-single-value .ref-type-link')?.textContent?.trim()).toContain('WideOption');
+        expect(el.shadowRoot?.querySelector('.oneof-single-panel .ref-type-link')).toBeNull();
+    });
+
+    it('updates dropdown-selected polymorphic option content independently', async () => {
+        const el = create(JSON.stringify({
+            type: 'object',
+            properties: {
+                external_account: {
+                    oneOf: [
+                        {title: 'external_account_payout_bank_account', type: 'object', properties: {bank_name: {type: 'string'}}},
+                        {title: 'external_account_card', type: 'object', properties: {card_brand: {type: 'string'}}},
+                    ],
+                },
+            },
+        }), true);
+        el.setAttribute('constrained', '');
+        await el.updateComplete;
+
+        (el as any).availableWidth = 420;
+        el.requestUpdate();
+        await el.updateComplete;
+
+        let propNames = Array.from(el.shadowRoot?.querySelectorAll('.oneof-dropdown-panel .prop-name') ?? [])
+            .map((node) => node.textContent?.trim());
+        expect(propNames).toContain('bank_name');
+        expect(propNames).not.toContain('card_brand');
+
+        const menu = el.shadowRoot?.querySelector('.polymorphic-dropdown sl-menu');
+        menu?.dispatchEvent(new CustomEvent('sl-select', {detail: {item: {value: '1'}}, bubbles: true, composed: true}));
+        await el.updateComplete;
+
+        propNames = Array.from(el.shadowRoot?.querySelectorAll('.oneof-dropdown-panel .prop-name') ?? [])
+            .map((node) => node.textContent?.trim());
+        expect(propNames).not.toContain('bank_name');
+        expect(propNames).toContain('card_brand');
+        const trigger = el.shadowRoot?.querySelector('.polymorphic-dropdown sl-button');
+        expect(trigger?.textContent?.trim()).toBe('external_account_card');
+    });
+
+    it('uses dropdown when a label is too long for the vertical tab rail', async () => {
+        const el = create(JSON.stringify({
+            type: 'object',
+            properties: {
+                business_profile: {
+                    oneOf: [
+                        {title: 'account_business_profile', type: 'object', properties: {business_type: {type: 'string'}}},
+                        {title: 'account_settings', type: 'object', properties: {dashboard: {type: 'object'}}},
+                    ],
+                },
+            },
+        }), true);
+        el.setAttribute('constrained', '');
+        await el.updateComplete;
+
+        (el as any).availableWidth = 740;
+        el.requestUpdate();
+        await el.updateComplete;
+
+        expect(el.shadowRoot?.querySelector('sl-tab-group')).toBeNull();
+        const trigger = el.shadowRoot?.querySelector('.polymorphic-dropdown sl-button');
+        expect(trigger?.textContent?.trim()).toBe('account_business_profile');
+    });
+
+    it('caps constrained polymorphic fit decisions when nested names inflate compact width', async () => {
+        const el = create(JSON.stringify({
+            type: 'object',
+            properties: {
+                source: {
+                    oneOf: [
+                        {
+                            title: 'bank_account',
+                            type: 'object',
+                            properties: {
+                                absurdly_long_nested_property_name_that_should_not_size_the_polymorphic_rail: {type: 'string'},
+                            },
+                        },
+                        {title: 'card', type: 'object', properties: {brand: {type: 'string'}}},
+                    ],
+                },
+            },
+        }), true);
+        el.setAttribute('constrained', '');
+        await el.updateComplete;
+        expect(parseInt(el.style.getPropertyValue('--compact-name-width'), 10)).toBeGreaterThan(600);
+
+        (el as any).availableWidth = 740;
+        el.requestUpdate();
+        await el.updateComplete;
+
+        const tabs = el.shadowRoot?.querySelector('sl-tab-group');
+        expect(tabs?.getAttribute('placement')).toBe('start');
+        expect(el.shadowRoot?.querySelector('.polymorphic-dropdown')).toBeNull();
     });
 
     it('merges sibling properties at same level as allOf', async () => {

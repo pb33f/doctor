@@ -18,6 +18,8 @@ export class PpRefPopover extends LitElement {
     static styles = refPopoverCss;
     private static readonly showDelayMs = 300;
     private static readonly hideDelayMs = 400;
+    private static readonly popoverWidthTolerancePx = 2;
+    private static readonly maxPopoverMeasureAttempts = 6;
 
     @property({attribute: 'registry-key'}) registryKey = '';
     @property({attribute: 'schema-ref'}) schemaRef = '';
@@ -25,11 +27,16 @@ export class PpRefPopover extends LitElement {
     @state() private entry: RegistryEntry | null = null;
     @state() private model: CanonicalModelData | null = null;
     @state() private parsedData: any = null;
+    @state() private popoverWidth = 0;
 
     private showTimeout?: number;
     private hideTimeout?: number;
+    private measureFrame?: number;
+    private showRequestId = 0;
+    private popoverMeasureAttempts = 0;
     @query('.trigger') private trigger!: HTMLElement;
     @query('slot') private triggerSlot!: HTMLSlotElement;
+    @query('.pp-ref-popover-content') private popoverContent?: HTMLElement;
     private triggerTargets = new Set<HTMLElement>();
     private pointerWithinTrigger = false;
     private pointerWithinPopup = false;
@@ -95,12 +102,25 @@ export class PpRefPopover extends LitElement {
         super.disconnectedCallback();
         clearTimeout(this.showTimeout);
         clearTimeout(this.hideTimeout);
+        this.showRequestId++;
+        if (this.measureFrame) cancelAnimationFrame(this.measureFrame);
         this.triggerSlot?.removeEventListener('slotchange', this.onSlotChange);
         this.clearTriggerTargets();
         this.pointerWithinTrigger = false;
         this.pointerWithinPopup = false;
         this.focusWithinPopup = false;
         this.active = false;
+        this.popoverWidth = 0;
+    }
+
+    protected updated(changed: Map<string, unknown>) {
+        if (changed.has('active') || changed.has('model') || changed.has('parsedData')) {
+            this.schedulePopoverMeasure(true);
+            return;
+        }
+        if (changed.has('popoverWidth')) {
+            this.schedulePopoverMeasure();
+        }
     }
 
     private containsInteractiveNode(node: Node | null): boolean {
@@ -148,18 +168,21 @@ export class PpRefPopover extends LitElement {
 
     private show() {
         clearTimeout(this.hideTimeout);
+        const requestId = ++this.showRequestId;
         this.showTimeout = window.setTimeout(async () => {
             this.entry = (this.registryKey
                 ? getSchemaEntry(this.registryKey)
                 : getSchemaEntryByRef(this.schemaRef)) ?? null;
-            if (!this.entry) return;
+            if (!this.entry || requestId !== this.showRequestId || !this.isInteractivelyActive()) return;
 
             this.model = (this.registryKey
                 ? await loadSchemaModel(this.registryKey)
                 : await loadSchemaModelByRef(this.schemaRef)) ?? null;
-            if (!this.model) return;
+            if (!this.model || requestId !== this.showRequestId || !this.isInteractivelyActive()) return;
 
             try { this.parsedData = JSON.parse(this.model.schemaJson); } catch { this.parsedData = null; }
+            this.popoverWidth = 0;
+            this.popoverMeasureAttempts = 0;
             this.active = true;
         }, PpRefPopover.showDelayMs);
     }
@@ -171,6 +194,8 @@ export class PpRefPopover extends LitElement {
                 return;
             }
             this.active = false;
+            this.popoverWidth = 0;
+            this.popoverMeasureAttempts = 0;
         }, PpRefPopover.hideDelayMs);
     }
 
@@ -202,9 +227,80 @@ export class PpRefPopover extends LitElement {
         catch { return json; }
     }
 
+    private schedulePopoverMeasure(resetAttempts = false) {
+        if (!this.active) return;
+        if (resetAttempts) {
+            this.popoverMeasureAttempts = 0;
+        } else if (this.popoverMeasureAttempts >= PpRefPopover.maxPopoverMeasureAttempts) {
+            return;
+        }
+        if (this.measureFrame) cancelAnimationFrame(this.measureFrame);
+        this.measureFrame = requestAnimationFrame(() => {
+            this.measureFrame = requestAnimationFrame(() => {
+                this.measureFrame = undefined;
+                this.measurePopoverWidth();
+            });
+        });
+    }
+
+    private getCssLengthPx(value: string, fallback = 0) {
+        const trimmed = value.trim();
+        const numeric = parseFloat(trimmed);
+        if (!Number.isFinite(numeric)) return fallback;
+        if (trimmed.endsWith('rem')) {
+            const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
+            return numeric * (Number.isFinite(rootFontSize) ? rootFontSize : 16);
+        }
+        if (trimmed.endsWith('em')) {
+            const hostFontSize = parseFloat(getComputedStyle(this).fontSize);
+            return numeric * (Number.isFinite(hostFontSize) ? hostFontSize : 16);
+        }
+        return numeric;
+    }
+
+    private getPopoverViewportWidth() {
+        const styles = getComputedStyle(this);
+        const margin = this.getCssLengthPx(styles.getPropertyValue('--global-padding-double'));
+        return Math.max(0, window.innerWidth - margin);
+    }
+
+    private collectRenderedWidth(element: HTMLElement, originLeft: number): number {
+        const rect = element.getBoundingClientRect();
+        let maxRight = rect.left - originLeft + element.scrollWidth;
+
+        const visit = (root: ParentNode) => {
+            for (const child of Array.from(root.children)) {
+                if (!(child instanceof HTMLElement)) continue;
+                const childRect = child.getBoundingClientRect();
+                maxRight = Math.max(maxRight, childRect.left - originLeft + child.scrollWidth);
+                if (child.shadowRoot) visit(child.shadowRoot);
+                visit(child);
+            }
+        };
+        if (element.shadowRoot) visit(element.shadowRoot);
+        visit(element);
+        return Math.ceil(maxRight);
+    }
+
+    private measurePopoverWidth() {
+        const content = this.popoverContent;
+        if (!content) return;
+        this.popoverMeasureAttempts++;
+
+        const contentRect = content.getBoundingClientRect();
+        const desiredWidth = Math.min(
+            this.collectRenderedWidth(content, contentRect.left),
+            this.getPopoverViewportWidth(),
+        );
+        if (!Number.isFinite(desiredWidth) || desiredWidth <= 0) return;
+        if (Math.abs(desiredWidth - contentRect.width) <= PpRefPopover.popoverWidthTolerancePx) return;
+        this.popoverWidth = desiredWidth;
+    }
+
     render() {
         const example = this.resolveExample();
         const schemaJson = this.getSchemaJson();
+        const popoverStyle = this.popoverWidth > 0 ? `--ref-popover-width: ${this.popoverWidth}px` : '';
         return html`
             <span class="trigger" @click=${() => { this.active = false; }}>
                 <slot></slot>
@@ -218,6 +314,7 @@ export class PpRefPopover extends LitElement {
                     flip shift
                     distance="8">
                     <div class="pp-ref-popover-content"
+                        style=${popoverStyle}
                         @mouseenter=${this.onPopupEnter}
                         @mouseleave=${this.onPopupLeave}
                         @focusin=${this.onPopupFocusIn}
@@ -228,7 +325,7 @@ export class PpRefPopover extends LitElement {
                             <pp-icon-title icon=${this.entry.componentType} heading=${this.entry.name} level=${3} size="medium"></pp-icon-title>
                         </div>
                         <div class="popover-body">
-                            <pp-schema-properties compact condensed schema-json=${schemaJson}></pp-schema-properties>
+                            <pp-schema-properties compact condensed constrained popover-context schema-json=${schemaJson}></pp-schema-properties>
                         </div>
                         ${example ? html`
                             <div class="popover-example">
