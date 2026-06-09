@@ -26,39 +26,42 @@ import (
 )
 
 type pressEngineConfig struct {
-	DrDoc                   *doctormodel.DrDocument
-	Origins                 bundler.ComponentOriginMap
-	OutputDir               string
-	BaseURL                 string
-	AssetMode               string
-	Embedded                bool
-	SharedAssetBaseURL      string
-	Title                   string
-	Logger                  *slog.Logger
-	SpecFormat              string // "yaml" or "json" — caller should set based on input format
-	SpecRoot                string // root directory of the spec; absolute paths are made relative to this
-	SpecPath                string // absolute local path to the root spec file when known
-	SpecLocation            string // display path of the root spec file relative to SpecRoot when possible
-	SpecURL                 string // optional published source URL for the root spec file
-	SourceSizeBytes         int64  // size of the root source bytes when known
-	NoMermaid               bool   // skip mermaid class diagram generation on model pages
-	NoExplorer              bool   // skip dependency explorer on model pages
-	BuildWarnings           []*BuildWarning
-	BuildErrors             []error // errors from libopenapi model building (surfaced as warnings on index page)
-	DeveloperMode           bool
-	DocsExpiresAt           string
-	ArchiveExportURL        string
-	LintResults             []*v3.RuleFunctionResult
-	OrphanResults           []*v3.RuleFunctionResult
-	Footer                  *FooterConfig
-	MaxPatternRepeatBudget  int
-	MaxGeneratedStringBytes int
-	MaxGeneratedMockBytes   int
-	MaxMockDepth            int
-	MaxMockNodes            int
-	MaxMockProperties       int
-	MaxMockRefExpansions    int
-	MaxMockBytes            int
+	DrDoc                              *doctormodel.DrDocument
+	Origins                            bundler.ComponentOriginMap
+	OutputDir                          string
+	BaseURL                            string
+	AssetMode                          string
+	Embedded                           bool
+	SharedAssetBaseURL                 string
+	Title                              string
+	Logger                             *slog.Logger
+	SpecFormat                         string // "yaml" or "json" — caller should set based on input format
+	SpecRoot                           string // root directory of the spec; absolute paths are made relative to this
+	SpecPath                           string // absolute local path to the root spec file when known
+	SpecLocation                       string // display path of the root spec file relative to SpecRoot when possible
+	SpecURL                            string // optional published source URL for the root spec file
+	ContentDiscoveryEnabled            bool
+	ContentBasePath                    string
+	ContentSpecPath                    string
+	SourceSizeBytes                    int64 // size of the root source bytes when known
+	NoMermaid                          bool  // skip mermaid class diagram generation on model pages
+	NoExplorer                         bool  // skip dependency explorer on model pages
+	BuildWarnings                      []*BuildWarning
+	BuildErrors                        []error // errors from libopenapi model building (surfaced as warnings on index page)
+	DeveloperMode                      bool
+	DocsExpiresAt                      string
+	ArchiveExportURL                   string
+	LintResults                        []*v3.RuleFunctionResult
+	OrphanResults                      []*v3.RuleFunctionResult
+	Footer                             *FooterConfig
+	MaxPatternRepeatBudget             int
+	MaxGeneratedStringBytes            int
+	MaxGeneratedMockBytes              int
+	MaxMockDepth                       int
+	MaxMockNodes                       int
+	MaxMockProperties                  int
+	MaxMockRefExpansions               int
+	MaxMockBytes                       int
 	LLMAggregateSpecSizeThresholdBytes int64
 	LLMMaxAggregateFileBytes           int64
 	LLMGenerateMonoliths               string
@@ -386,6 +389,7 @@ func (pp *PrintingPress) pressSite() (*Site, error) {
 	}
 	pp.site.NoMermaid = pp.engineConfig.NoMermaid
 	pp.site.Lite = pp.engineConfig.NoMermaid && pp.engineConfig.NoExplorer
+	pp.collectContentPages()
 
 	return pp.site, nil
 }

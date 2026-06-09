@@ -39,6 +39,9 @@ type PrintingPressConfig struct {
 	LintResults      []*v3.RuleFunctionResult
 	Footer           *ppmodel.FooterConfig
 	Artifact         *ArtifactManifestConfig
+	// EnableContentPages discovers conventional Markdown files such as about.md
+	// and docs/guide.md next to the local spec and renders them as guide pages.
+	EnableContentPages bool
 
 	// MaxPatternRepeatBudget limits regex repeat work for generated mock strings.
 	// A zero or negative value uses DefaultMaxPatternRepeatBudget.
@@ -90,6 +93,10 @@ type PrintingPressConfig struct {
 	// known URL (e.g. /ppress/static/{contentVersion}) and wants every artifact
 	// to share that one copy instead of duplicating the bundle per generation.
 	SharedAssetBaseURL string
+
+	contentDiscoveryEnabled bool
+	contentBasePath         string
+	contentSpecPath         string
 }
 
 const (
@@ -371,6 +378,9 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 		SharedAssetBaseURL:                 pp.config.SharedAssetBaseURL,
 		Title:                              pp.config.Title,
 		SpecURL:                            pp.config.SpecURL,
+		ContentDiscoveryEnabled:            pp.config.contentDiscoveryEnabled,
+		ContentBasePath:                    pp.config.contentBasePath,
+		ContentSpecPath:                    pp.config.contentSpecPath,
 		Logger:                             slog.Default(),
 		DeveloperMode:                      pp.config.DeveloperMode,
 		DocsExpiresAt:                      printingPressExpiryString(pp.config.ExpiresAt),
@@ -663,25 +673,34 @@ func validateAndNormalizeConfig(config *PrintingPressConfig, source pressSource)
 		}
 	}
 
+	explicitSpecPath := strings.TrimSpace(config.SpecPath) != ""
 	if normalized.BasePath != "" {
-		abs, err := filepath.Abs(normalized.BasePath)
-		if err != nil {
+		if isURLString(normalized.BasePath) {
 			issues = append(issues, ValidationIssue{
 				Field:   "basePath",
 				Err:     ErrInvalidBasePath,
-				Message: fmt.Sprintf("%s: %v", ErrInvalidBasePath.Error(), err),
-			})
-		} else if info, err := os.Stat(abs); err != nil || !info.IsDir() {
-			if err == nil {
-				err = fmt.Errorf("not a directory")
-			}
-			issues = append(issues, ValidationIssue{
-				Field:   "basePath",
-				Err:     ErrInvalidBasePath,
-				Message: fmt.Sprintf("%s: %v", ErrInvalidBasePath.Error(), err),
+				Message: fmt.Sprintf("%s: must be a local directory", ErrInvalidBasePath.Error()),
 			})
 		} else {
-			normalized.BasePath = abs
+			abs, err := filepath.Abs(normalized.BasePath)
+			if err != nil {
+				issues = append(issues, ValidationIssue{
+					Field:   "basePath",
+					Err:     ErrInvalidBasePath,
+					Message: fmt.Sprintf("%s: %v", ErrInvalidBasePath.Error(), err),
+				})
+			} else if info, err := os.Stat(abs); err != nil || !info.IsDir() {
+				if err == nil {
+					err = fmt.Errorf("not a directory")
+				}
+				issues = append(issues, ValidationIssue{
+					Field:   "basePath",
+					Err:     ErrInvalidBasePath,
+					Message: fmt.Sprintf("%s: %v", ErrInvalidBasePath.Error(), err),
+				})
+			} else {
+				normalized.BasePath = abs
+			}
 		}
 	} else if len(source.specBytes) > 0 {
 		wd, err := os.Getwd()
@@ -698,17 +717,23 @@ func validateAndNormalizeConfig(config *PrintingPressConfig, source pressSource)
 
 	if len(source.specBytes) > 0 {
 		if normalized.SpecPath != "" {
-			abs, err := filepath.Abs(normalized.SpecPath)
-			if err != nil {
-				issues = append(issues, ValidationIssue{
-					Field:   "specPath",
-					Err:     ErrInvalidBasePath,
-					Message: fmt.Sprintf("%s: %v", ErrInvalidBasePath.Error(), err),
-				})
+			if isURLString(normalized.SpecPath) {
+				// Remote source metadata is allowed, but libopenapi's BasePath is a
+				// local filesystem root. Leave BasePath unset so resolution uses the
+				// current working directory instead of treating a URL as a path.
 			} else {
-				normalized.SpecPath = abs
-				if normalized.BasePath == "" {
-					normalized.BasePath = filepath.Dir(abs)
+				abs, err := filepath.Abs(normalized.SpecPath)
+				if err != nil {
+					issues = append(issues, ValidationIssue{
+						Field:   "specPath",
+						Err:     ErrInvalidBasePath,
+						Message: fmt.Sprintf("%s: %v", ErrInvalidBasePath.Error(), err),
+					})
+				} else {
+					normalized.SpecPath = abs
+					if normalized.BasePath == "" {
+						normalized.BasePath = filepath.Dir(abs)
+					}
 				}
 			}
 		} else {
@@ -719,11 +744,22 @@ func validateAndNormalizeConfig(config *PrintingPressConfig, source pressSource)
 					base = wd
 				}
 			}
-			if base != "" {
+			if isURLString(base) {
+				normalized.SpecPath = strings.TrimRight(base, "/") + "/" + filename
+			} else if base != "" {
 				normalized.SpecPath = filepath.Join(base, filename)
 			} else {
 				normalized.SpecPath = filename
 			}
+		}
+	}
+
+	normalized.contentDiscoveryEnabled = normalized.EnableContentPages && normalized.BasePath != "" && !isURLString(normalized.BasePath)
+	if normalized.contentDiscoveryEnabled {
+		normalized.contentBasePath = normalized.BasePath
+		normalized.contentSpecPath = ""
+		if explicitSpecPath {
+			normalized.contentSpecPath = normalized.SpecPath
 		}
 	}
 

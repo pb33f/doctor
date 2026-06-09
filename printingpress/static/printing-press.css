@@ -271,7 +271,7 @@ pp-nav > .pp-nav-fallback .pp-nav-fallback-section h4 {
     border-bottom: 1px dashed var(--primary-color-lowalpha);
     color: var(--primary-color);
     font-family: var(--font-stack-bold), monospace;
-    font-size: 1.3rem;
+    font-size: 1rem;
     text-transform: uppercase;
     letter-spacing: var(--title-spacing);
 }
@@ -291,6 +291,10 @@ pp-nav > .pp-nav-preview {
     display: block;
     padding: var(--global-padding);
     font-family: var(--font-stack), monospace;
+}
+
+pp-nav:defined > .pp-nav-preview {
+    padding: 0;
 }
 
 pp-nav > .pp-nav-preview .nav-home {
@@ -353,7 +357,7 @@ pp-nav > .pp-nav-preview .nav-section {
 pp-nav > .pp-nav-preview h4 {
     text-transform: uppercase;
     letter-spacing: var(--title-spacing);
-    font-size: 1.3rem;
+    font-size: 1rem;
     color: var(--primary-color);
     font-family: var(--font-stack-bold), monospace;
     margin: 0 0 var(--global-padding) 0;
@@ -361,6 +365,7 @@ pp-nav > .pp-nav-preview h4 {
     border-bottom: 1px dashed var(--primary-color-lowalpha);
 }
 
+pp-nav > .pp-nav-preview .nav-pages-section,
 pp-nav > .pp-nav-preview .nav-operations-section,
 pp-nav > .pp-nav-preview .nav-models-section,
 pp-nav > .pp-nav-preview .nav-webhooks-section {
@@ -450,6 +455,69 @@ pp-nav > .pp-nav-preview .children {
     margin-bottom: var(--global-padding);
     border-left: 1px dashed var(--secondary-color-dimmer);
     border-bottom: 1px dotted var(--secondary-color-dimmer);
+}
+
+pp-nav > .pp-nav-preview .nav-pages-list {
+    display: grid;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    list-style: none;
+}
+
+pp-nav > .pp-nav-preview .nav-page-link {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: var(--global-padding);
+    align-items: center;
+    min-width: 0;
+    padding: var(--global-padding);
+    color: var(--font-color-sub1);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+    line-height: normal;
+    border-left: 2px solid var(--background-color);
+}
+
+pp-nav > .pp-nav-preview .nav-page-link:hover {
+    background: var(--primary-color-verylowalpha);
+    color: var(--primary-color);
+    text-decoration: none;
+    border-left-color: var(--secondary-color);
+}
+
+pp-nav > .pp-nav-preview .nav-page-link.active {
+    border-left-color: var(--primary-color);
+    background: var(--primary-color-verylowalpha);
+    color: var(--primary-color);
+}
+
+pp-nav > .pp-nav-preview .nav-page-chevron {
+    position: relative;
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    color: var(--secondary-color);
+    line-height: 1;
+}
+
+pp-nav > .pp-nav-preview .nav-page-chevron::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 0.42rem;
+    height: 0.42rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: translateY(-50%) rotate(-45deg);
+    transform-origin: center;
+}
+
+pp-nav > .pp-nav-preview .nav-page-link:hover .nav-page-chevron,
+pp-nav > .pp-nav-preview .nav-page-link.active .nav-page-chevron {
+    color: var(--primary-color);
 }
 
 pp-nav > .pp-nav-preview .pp-nav-preview-operation-link,
@@ -650,6 +718,97 @@ code {
     padding: 20px 0 20px 0;
     border-top: 1px dashed var(--hrcolor);
     border-bottom: 1px dashed var(--hrcolor);
+}
+
+.pp-content-page {
+    padding-bottom: 50px;
+}
+
+.pp-content-page-header {
+    margin: 0 0 var(--global-padding-double) 0;
+}
+
+.pp-content-page-description {
+    color: var(--font-color-sub1);
+    margin-bottom: var(--global-padding-double);
+}
+
+.pp-content-page-markdown {
+    margin: 20px 0 20px 0;
+    padding: 20px 0 20px 0;
+    border-top: 1px dashed var(--hrcolor);
+    border-bottom: 1px dashed var(--hrcolor);
+}
+
+.pp-content-page-markdown blockquote {
+    box-sizing: border-box;
+    padding: 0 0 0 var(--global-padding-double);
+}
+
+.pp-content-page-markdown blockquote p {
+    padding-left: 0;
+}
+
+.pp-content-index {
+    padding-bottom: 50px;
+}
+
+.pp-guide-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+    margin: var(--global-padding-double) 0 2rem 0;
+}
+
+.pp-guide-card,
+.pp-guide-card:visited,
+.pp-guide-card:active {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 1rem;
+    border: 1px dashed var(--hrcolor);
+    border-radius: 0;
+    color: var(--font-color);
+    text-decoration: none;
+    transition: border-color 0.15s;
+}
+
+.pp-guide-card:hover {
+    border: 1px solid var(--secondary-color);
+    background: var(--card-background-color);
+    text-decoration: none;
+}
+
+.pp-guide-card-title {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.4rem;
+    align-items: start;
+}
+
+.pp-guide-card-title sl-icon {
+    color: var(--secondary-color);
+    margin-top: 0.1rem;
+}
+
+.pp-guide-card strong {
+    display: block;
+    min-width: 0;
+    color: var(--primary-color);
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.pp-guide-card p,
+.pp-content-index-empty {
+    color: var(--font-color-sub1);
+}
+
+.pp-guide-card p {
+    font-size: 0.85em;
+    margin-top: 0.3rem;
+    overflow-wrap: break-word;
 }
 
 .pp-description blockquote {
@@ -1006,7 +1165,8 @@ html[theme="tektronix"] pb33f-http-method {
     margin-top: 0.2rem;
 }
 
-.pp-description > table {
+.pp-description > table,
+.pp-content-page-markdown > table {
     border: 1px dashed var(--secondary-color-dimmer);
     width: 100%;
 }
@@ -1015,18 +1175,21 @@ table {
     border-collapse: collapse;
 }
 
-.pp-description > table > thead > tr > th {
+.pp-description > table > thead > tr > th,
+.pp-content-page-markdown > table > thead > tr > th {
     padding: var(--global-padding);
     text-align: left;
     border-bottom: 1px solid var(--secondary-color-dimmer);
     color: var(--secondary-color);
 }
 
-.pp-description > table > tbody > tr:nth-child(even) {
+.pp-description > table > tbody > tr:nth-child(even),
+.pp-content-page-markdown > table > tbody > tr:nth-child(even) {
     background-color: var(--secondary-color-very-lowalpha);
 }
 
-.pp-description > table > tbody > tr > td {
+.pp-description > table > tbody > tr > td,
+.pp-content-page-markdown > table > tbody > tr > td {
     padding: var(--global-padding) var(--global-padding-half) var(--global-padding) var(--global-padding);
 }
 

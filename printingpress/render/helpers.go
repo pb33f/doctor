@@ -51,6 +51,25 @@ func operationBreadcrumb(page *ppmodel.OperationPage) []BreadcrumbItem {
 	return items
 }
 
+func contentPageBreadcrumb(page *ppmodel.ContentPage) []BreadcrumbItem {
+	label := "PAGE"
+	if page != nil {
+		switch {
+		case strings.TrimSpace(page.Label) != "":
+			label = strings.ToUpper(strings.TrimSpace(page.Label))
+		case strings.TrimSpace(page.Title) != "":
+			label = strings.ToUpper(strings.TrimSpace(page.Title))
+		case strings.TrimSpace(page.Slug) != "":
+			label = strings.ToUpper(slugToTitle(pathBaseSlug(page.Slug)))
+		}
+	}
+	return []BreadcrumbItem{
+		{Label: "HOME", Href: pppaths.FileIndexHTML},
+		{Label: "GUIDES", Href: pppaths.GuidesIndexHTML()},
+		{Label: label},
+	}
+}
+
 // AssetHref resolves a relative asset reference against the configured hosted docs root.
 // When no hosted docs root is configured, the original relative asset path is preserved.
 func AssetHref(assetBaseURL, href string) string {
@@ -130,6 +149,14 @@ func ModelsIndexBreadcrumb() []BreadcrumbItem {
 	}
 }
 
+// GuidesIndexBreadcrumb builds the breadcrumb for the generated custom content index.
+func GuidesIndexBreadcrumb() []BreadcrumbItem {
+	return []BreadcrumbItem{
+		{Label: "HOME", Href: pppaths.FileIndexHTML},
+		{Label: "GUIDES"},
+	}
+}
+
 // ModelTypeIndexBreadcrumb builds the breadcrumb for a model type index page.
 func ModelTypeIndexBreadcrumb(typeName string) []BreadcrumbItem {
 	return []BreadcrumbItem{
@@ -185,6 +212,15 @@ func slugToTitle(slug string) string {
 		}
 	}
 	return strings.Join(words, " ")
+}
+
+func pathBaseSlug(slugPath string) string {
+	slugPath = strings.Trim(strings.TrimSpace(slugPath), "/")
+	if slugPath == "" {
+		return ""
+	}
+	parts := strings.Split(slugPath, "/")
+	return parts[len(parts)-1]
 }
 
 func operationNavSections(page *ppmodel.OperationPage) string {

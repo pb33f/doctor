@@ -22,6 +22,7 @@ type JSONBundle struct {
 	Root           *JSONRootPage                           `json:"root,omitempty"`
 	Source         *ppmodel.SourceRef                      `json:"source,omitempty"`
 	Nav            []*ppmodel.NavTag                       `json:"nav,omitempty"`
+	ContentPages   []*ppmodel.ContentPage                  `json:"contentPages,omitempty"`
 	ModelGroups    []*ppmodel.NavModelGroup                `json:"modelGroups,omitempty"`
 	SchemaRegistry map[string]*ppmodel.SchemaRegistryEntry `json:"schemaRegistry,omitempty"`
 	Operations     []JSONArtifactEntry                     `json:"operations,omitempty"`
@@ -123,6 +124,7 @@ func buildJSONBundle(site *ppmodel.Site) *JSONBundle {
 		Root:           buildJSONRootPage(site.Root),
 		Source:         site.Source,
 		Nav:            site.NavTags,
+		ContentPages:   site.ContentPages,
 		ModelGroups:    site.NavModelGroups,
 		SchemaRegistry: site.SchemaRegistry,
 		Operations:     buildOperationArtifactEntries(site.Operations, "operation"),

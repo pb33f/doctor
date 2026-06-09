@@ -51,10 +51,11 @@ func main() {
 	}
 
 	pp, err := printingpress.CreatePrintingPressFromBytes(specBytes, &printingpress.PrintingPressConfig{
-		Title:     *title,
-		BaseURL:   *baseURL,
-		BasePath:  base,
-		OutputDir: resolvedOutput,
+		Title:              *title,
+		BaseURL:            *baseURL,
+		BasePath:           base,
+		OutputDir:          resolvedOutput,
+		EnableContentPages: true,
 	})
 	if err != nil {
 		logger.Error("create printing press failed", "error", err)

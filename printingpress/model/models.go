@@ -19,6 +19,7 @@ import (
 type Site struct {
 	Root               *RootPage
 	Operations         []*OperationPage
+	ContentPages       []*ContentPage
 	Models             map[string][]*ModelPage // keyed by component type slug (e.g. "schemas")
 	Webhooks           []*OperationPage
 	Diagnostics        *DiagnosticsPage
@@ -45,6 +46,31 @@ type Site struct {
 	Footer             *FooterConfig                   `json:"footer,omitempty"`
 	Source             *SourceRef                      `json:"source,omitempty"`
 	HeaderContext      *SiteHeaderContext              `json:"headerContext,omitempty"`
+}
+
+// ContentPage is a convention-discovered Markdown page rendered alongside the
+// generated API reference.
+type ContentPage struct {
+	Title       string              `json:"title"`
+	Label       string              `json:"label,omitempty"`
+	Slug        string              `json:"slug"`
+	Href        string              `json:"href"`
+	Description string              `json:"description,omitempty"`
+	SourcePath  string              `json:"-"`
+	SourceDir   string              `json:"-"`
+	SourceAlias []string            `json:"-"`
+	Body        string              `json:"-"`
+	BodyHTML    string              `json:"bodyHtml,omitempty"`
+	Order       int                 `json:"order,omitempty"`
+	Hidden      bool                `json:"hidden,omitempty"`
+	Assets      []*ContentPageAsset `json:"-"`
+}
+
+// ContentPageAsset is a local or remote image copied into the generated docs.
+type ContentPageAsset struct {
+	Href       string `json:"href"`
+	SourcePath string `json:"-"`
+	Data       []byte `json:"-"`
 }
 
 // LLMOutputConfig controls LLM-oriented aggregate text artifacts for a site.

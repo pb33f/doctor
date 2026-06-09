@@ -4509,8 +4509,52 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
         border-bottom: 1px dashed var(--primary-color-lowalpha);
     }
 
+    .nav-pages-section,
     .nav-models-section {
         margin-top: var(--global-padding-double);
+    }
+
+    .nav-pages-list {
+        display: grid;
+        gap: 0;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .nav-page-link {
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr);
+        column-gap: var(--global-padding);
+        align-items: center;
+        min-width: 0;
+        padding: var(--global-padding);
+        color: var(--font-color-sub1);
+        text-decoration: none;
+        overflow-wrap: anywhere;
+        border-left: 2px solid var(--background-color);
+    }
+
+    .nav-page-link:hover {
+        background: var(--primary-color-verylowalpha);
+        color: var(--primary-color);
+        text-decoration: none;
+        border-left-color: var(--secondary-color);
+    }
+
+    .nav-page-link.active {
+        border-left-color: var(--primary-color);
+        background: var(--primary-color-verylowalpha);
+        color: var(--primary-color);
+    }
+
+    .nav-page-chevron {
+        color: var(--secondary-color);
+    }
+
+    .nav-page-link:hover .nav-page-chevron,
+    .nav-page-link.active .nav-page-chevron {
+        color: var(--primary-color);
     }
 
     .nav-webhooks-section {
@@ -4583,7 +4627,7 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
     sl-tooltip::part(base__arrow){
         background-color: var(--secondary-color);
     }
-`,q=class extends w{constructor(...e){super(...e),this.navJson=``,this.modelsJson=``,this.webhooksJson=``,this.activeSlug=``,this.docsExpiresAt=``,this.archiveExportUrl=``,this.tags=[],this.modelGroups=[],this.webhooks=[],this.expiryTick=0,this.hostedArchiveControls=!1,this.archiveFormat=`zip`,this.includeDiagnostics=!1,this.includeAIDocs=!1,this.archiveExporting=!1,this.archiveExportTargetOrigin=``,this.archiveExportRequestId=0,this.activeArchiveExportRequestId=0,this.loggedEmptyState=!1,this.loggedContentState=!1,this.hostMessageHandler=e=>this.handleHostMessage(e)}static{this.styles=[mc,hc]}logPerf(e,t){let n=globalThis.__PP_LOG;typeof n==`function`&&n(e,t)}previewHoldEnabled(){return this.getAttribute(`data-pp-preview-hold`)===`true`}developerMode(){return document.body?.dataset.ppDeveloperMode===`true`}hasHydratedNav(){return this.hasAttribute(`data-nav`)||this.hasAttribute(`data-models`)||this.hasAttribute(`data-webhooks`)||this.hasAttribute(`data-pp-nav-cached`)}hasNavContent(){return this.tags.length>0||this.modelGroups.length>0||this.webhooks.length>0}archiveControlsEnabled(){return this.hostedArchiveControls||this.archiveExportUrl.trim()!==``}ensureExpiryTimer(){let e=Date.parse(this.docsExpiresAt);if(Number.isNaN(e)){this.stopExpiryTimer();return}if(Date.now()>=e){this.stopExpiryTimer();return}this.expiryTimer===void 0&&(this.expiryTimer=window.setInterval(()=>{this.expiryTick++,Date.now()>=e&&this.stopExpiryTimer()},1e3))}stopExpiryTimer(){this.expiryTimer!==void 0&&(window.clearInterval(this.expiryTimer),this.expiryTimer=void 0)}docsExpiryLabel(e){this.expiryTick;let t=Math.floor(Math.max(0,e-Date.now())/1e3);if(t<=0)return S`docs expired!`;let n=Math.floor(t/60);return n>=2?S`docs expire in <strong>${n}</strong> minutes`:n===1?S`docs expire in <strong>under two minutes</strong>`:S`docs expiring in <strong>${t} second${t===1?``:`s`}</strong>`}renderDocsExpiry(){let e=Date.parse(this.docsExpiresAt);if(Number.isNaN(e))return C;let t=this.docsExpiryLabel(e),n=e-Date.now(),r=n<=0;return S`
+`,q=class extends w{constructor(...e){super(...e),this.navJson=``,this.pagesJson=``,this.modelsJson=``,this.webhooksJson=``,this.activeSlug=``,this.docsExpiresAt=``,this.archiveExportUrl=``,this.hasContentPagesFallback=!1,this.tags=[],this.pages=[],this.modelGroups=[],this.webhooks=[],this.expiryTick=0,this.hostedArchiveControls=!1,this.archiveFormat=`zip`,this.includeDiagnostics=!1,this.includeAIDocs=!1,this.archiveExporting=!1,this.archiveExportTargetOrigin=``,this.archiveExportRequestId=0,this.activeArchiveExportRequestId=0,this.loggedEmptyState=!1,this.loggedContentState=!1,this.hostMessageHandler=e=>this.handleHostMessage(e)}static{this.styles=[mc,hc]}logPerf(e,t){let n=globalThis.__PP_LOG;typeof n==`function`&&n(e,t)}previewHoldEnabled(){return this.getAttribute(`data-pp-preview-hold`)===`true`}developerMode(){return document.body?.dataset.ppDeveloperMode===`true`}hasHydratedNav(){return this.hasAttribute(`data-nav`)||this.hasAttribute(`data-pages`)||this.hasAttribute(`data-models`)||this.hasAttribute(`data-webhooks`)||this.hasAttribute(`data-pp-nav-cached`)}hasNavContent(){return this.tags.length>0||this.pages.length>0||this.modelGroups.length>0||this.webhooks.length>0}archiveControlsEnabled(){return this.hostedArchiveControls||this.archiveExportUrl.trim()!==``}ensureExpiryTimer(){let e=Date.parse(this.docsExpiresAt);if(Number.isNaN(e)){this.stopExpiryTimer();return}if(Date.now()>=e){this.stopExpiryTimer();return}this.expiryTimer===void 0&&(this.expiryTimer=window.setInterval(()=>{this.expiryTick++,Date.now()>=e&&this.stopExpiryTimer()},1e3))}stopExpiryTimer(){this.expiryTimer!==void 0&&(window.clearInterval(this.expiryTimer),this.expiryTimer=void 0)}docsExpiryLabel(e){this.expiryTick;let t=Math.floor(Math.max(0,e-Date.now())/1e3);if(t<=0)return S`docs expired!`;let n=Math.floor(t/60);return n>=2?S`docs expire in <strong>${n}</strong> minutes`:n===1?S`docs expire in <strong>under two minutes</strong>`:S`docs expiring in <strong>${t} second${t===1?``:`s`}</strong>`}renderDocsExpiry(){let e=Date.parse(this.docsExpiresAt);if(Number.isNaN(e))return C;let t=this.docsExpiryLabel(e),n=e-Date.now(),r=n<=0;return S`
             <div class="docs-expiry ${!r&&n<6e4?`critical`:``} ${r?`expired`:``}" aria-live="polite">${t}</div>`}renderHostedArchiveControls(){return this.archiveControlsEnabled()?S`
             <div class="host-archive-controls" aria-label="Documentation archive export">
                 <div class="host-archive-controls-title">export documentation</div>
@@ -4638,6 +4682,15 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
                 ${this.renderDocsExpiry()}
                 <div class="pp-nav-fallback-home">API OVERVIEW</div>
                 ${this.developerMode()?S`<div class="pp-nav-fallback-home diagnostics">DIAGNOSTICS</div>`:C}
+                ${this.hasContentPagesFallback?S`
+                        <div class="pp-nav-fallback-section pp-nav-fallback-guides">
+                            <h4>Guides</h4>
+                            <div class="pp-nav-fallback-list">
+                                ${[74,66,58,70].map(e=>S`
+                                    <div class="pp-nav-fallback-row" style=${`width:${e}%;`}></div>`)}
+                            </div>
+                        </div>
+                    `:C}
                 <div class="pp-nav-fallback-section">
                     <h4>Operations</h4>
                     <div class="pp-nav-fallback-list">
@@ -4653,7 +4706,7 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
                     </div>
                 </div>
             </div>
-        `}connectedCallback(){super.connectedCallback(),window.addEventListener(`message`,this.hostMessageHandler),this.ensureExpiryTimer();let e=this.querySelector(`.pp-nav-preview`);this.logPerf(`nav:connected`,{activeSlug:this.activeSlug,cached:this.hasAttribute(`data-pp-nav-cached`),preview:!!e,previewHold:this.previewHoldEnabled()})}disconnectedCallback(){window.removeEventListener(`message`,this.hostMessageHandler),this.stopExpiryTimer(),super.disconnectedCallback()}willUpdate(e){if(e.has(`navJson`))try{this.tags=this.navJson&&JSON.parse(this.navJson)||[]}catch{this.tags=[]}if(e.has(`modelsJson`))try{this.modelGroups=this.modelsJson&&JSON.parse(this.modelsJson)||[]}catch{this.modelGroups=[]}if(e.has(`webhooksJson`))try{this.webhooks=this.webhooksJson&&JSON.parse(this.webhooksJson)||[]}catch{this.webhooks=[]}e.has(`docsExpiresAt`)&&this.ensureExpiryTimer()}updated(){let e=this.tags.length>0||this.modelGroups.length>0||this.webhooks.length>0;if(!e&&!this.loggedEmptyState&&(this.loggedEmptyState=!0,this.logPerf(`nav:empty-render`)),e&&!this.loggedContentState){if(this.loggedContentState=!0,this.logPerf(`nav:content-render`,{tags:this.tags.length,modelGroups:this.modelGroups.length,webhooks:this.webhooks.length}),this.previewHoldEnabled()){this.logPerf(`nav-preview:hold-active`,{source:`shadow-nav`});return}let e=this.querySelector(`.pp-nav-preview`);e&&(e.remove(),this.logPerf(`nav-preview:removed`,{source:`shadow-nav`}))}}render(){return this.previewHoldEnabled()?S`
+        `}connectedCallback(){super.connectedCallback(),window.addEventListener(`message`,this.hostMessageHandler),this.ensureExpiryTimer();let e=this.querySelector(`.pp-nav-preview`);this.logPerf(`nav:connected`,{activeSlug:this.activeSlug,cached:this.hasAttribute(`data-pp-nav-cached`),preview:!!e,previewHold:this.previewHoldEnabled()})}disconnectedCallback(){window.removeEventListener(`message`,this.hostMessageHandler),this.stopExpiryTimer(),super.disconnectedCallback()}willUpdate(e){if(e.has(`navJson`))try{this.tags=this.navJson&&JSON.parse(this.navJson)||[]}catch{this.tags=[]}if(e.has(`pagesJson`))try{this.pages=this.pagesJson&&JSON.parse(this.pagesJson)||[]}catch{this.pages=[]}if(e.has(`modelsJson`))try{this.modelGroups=this.modelsJson&&JSON.parse(this.modelsJson)||[]}catch{this.modelGroups=[]}if(e.has(`webhooksJson`))try{this.webhooks=this.webhooksJson&&JSON.parse(this.webhooksJson)||[]}catch{this.webhooks=[]}e.has(`docsExpiresAt`)&&this.ensureExpiryTimer()}updated(){let e=this.tags.length>0||this.pages.length>0||this.modelGroups.length>0||this.webhooks.length>0;if(!e&&!this.loggedEmptyState&&(this.loggedEmptyState=!0,this.logPerf(`nav:empty-render`)),e&&!this.loggedContentState){if(this.loggedContentState=!0,this.logPerf(`nav:content-render`,{tags:this.tags.length,pages:this.pages.length,modelGroups:this.modelGroups.length,webhooks:this.webhooks.length}),this.previewHoldEnabled()){this.logPerf(`nav-preview:hold-active`,{source:`shadow-nav`});return}let e=this.querySelector(`.pp-nav-preview`);e&&(e.remove(),this.logPerf(`nav-preview:removed`,{source:`shadow-nav`}))}}render(){return this.previewHoldEnabled()?S`
                 <slot></slot>`:!this.hasNavContent()&&!this.hasHydratedNav()?this.renderFallbackNav():S`
             ${this.renderHostedArchiveControls()}
             ${this.renderDocsExpiry()}
@@ -4667,6 +4720,21 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
                             <sl-icon name="chevron-right" class="nav-home-chevron"></sl-icon>
                             DIAGNOSTICS
                         </a>
+                    `:C}
+            ${this.pages.length?S`
+                        <div class="nav-section nav-pages-section">
+                            <h4>Guides</h4>
+                            <ul class="nav-pages-list">
+                                ${this.pages.map(e=>S`
+                                        <li>
+                                            <a class="nav-page-link ${this.activeSlug===`content/${e.slug}`?`active`:``}" href=${Rs(e.href||``)}>
+                                                <sl-icon name="chevron-right" class="nav-page-chevron"></sl-icon>
+                                                <span>${e.label||e.title||e.slug}</span>
+                                            </a>
+                                        </li>
+                                    `)}
+                            </ul>
+                        </div>
                     `:C}
             ${this.tags.length?S`
                         <div class="nav-section nav-operations-section">
@@ -4692,7 +4760,7 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
                             ></pp-nav-tag>
                         </div>
                     `:C}
-        `}};G([k({attribute:`data-nav`})],q.prototype,`navJson`,void 0),G([k({attribute:`data-models`})],q.prototype,`modelsJson`,void 0),G([k({attribute:`data-webhooks`})],q.prototype,`webhooksJson`,void 0),G([k({attribute:`data-active`})],q.prototype,`activeSlug`,void 0),G([k({attribute:`data-docs-expires-at`})],q.prototype,`docsExpiresAt`,void 0),G([k({attribute:`data-archive-export-url`})],q.prototype,`archiveExportUrl`,void 0),G([A()],q.prototype,`tags`,void 0),G([A()],q.prototype,`modelGroups`,void 0),G([A()],q.prototype,`webhooks`,void 0),G([A()],q.prototype,`expiryTick`,void 0),G([A()],q.prototype,`hostedArchiveControls`,void 0),G([A()],q.prototype,`archiveFormat`,void 0),G([A()],q.prototype,`includeDiagnostics`,void 0),G([A()],q.prototype,`includeAIDocs`,void 0),G([A()],q.prototype,`archiveExporting`,void 0),q=G([O(`pp-nav`)],q);var gc=x`
+        `}};G([k({attribute:`data-nav`})],q.prototype,`navJson`,void 0),G([k({attribute:`data-pages`})],q.prototype,`pagesJson`,void 0),G([k({attribute:`data-models`})],q.prototype,`modelsJson`,void 0),G([k({attribute:`data-webhooks`})],q.prototype,`webhooksJson`,void 0),G([k({attribute:`data-active`})],q.prototype,`activeSlug`,void 0),G([k({attribute:`data-docs-expires-at`})],q.prototype,`docsExpiresAt`,void 0),G([k({attribute:`data-archive-export-url`})],q.prototype,`archiveExportUrl`,void 0),G([k({attribute:`data-has-content-pages`,type:Boolean})],q.prototype,`hasContentPagesFallback`,void 0),G([A()],q.prototype,`tags`,void 0),G([A()],q.prototype,`pages`,void 0),G([A()],q.prototype,`modelGroups`,void 0),G([A()],q.prototype,`webhooks`,void 0),G([A()],q.prototype,`expiryTick`,void 0),G([A()],q.prototype,`hostedArchiveControls`,void 0),G([A()],q.prototype,`archiveFormat`,void 0),G([A()],q.prototype,`includeDiagnostics`,void 0),G([A()],q.prototype,`includeAIDocs`,void 0),G([A()],q.prototype,`archiveExporting`,void 0),q=G([O(`pp-nav`)],q);var gc=x`
     :host {
         display: block;
         margin: 0;
@@ -4846,8 +4914,8 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
     }
 
     .violation-badge.info::part(base) {
-        border-color: var(--secondary-color);
-        color: var(--secondary-color);
+        border-color: var(--primary-color);
+        color: var(--primary-color);
     }
 
     .sr-only {
@@ -5067,8 +5135,8 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
     }
 
     .violation-badge.info::part(base) {
-        border-color: var(--secondary-color);
-        color: var(--secondary-color);
+        border-color: var(--primary-color);
+        color: var(--primary-color);
     }
 
     .sr-only {
@@ -9637,7 +9705,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
   }
 
   .problem.info .severity-icon {
-    color: var(--secondary-color);
+    color: var(--primary-color);
   }
 
   .message {
@@ -9776,7 +9844,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
 
     .info sl-icon,
     .info span {
-        color: var(--secondary-color);
+        color: var(--primary-color);
     }
 
     .details-button {
@@ -10299,7 +10367,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
 
     .stat.info sl-icon,
     .stat.info span {
-        color: var(--secondary-color);
+        color: var(--primary-color);
     }
 
   .list {
@@ -10399,7 +10467,7 @@ Please report this to https://github.com/markedjs/marked.`,e){let e=`<p>An error
     }
 
     .row.info .severity-icon {
-        color: var(--secondary-color);
+        color: var(--primary-color);
     }
 
     .location {

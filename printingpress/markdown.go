@@ -25,11 +25,12 @@ func init() {
 	mdRendererPlain = newMarkdownRenderer(false)
 }
 
-func newMarkdownRenderer(includeMermaid bool) goldmark.Markdown {
+func newMarkdownRenderer(includeMermaid bool, extraExtensions ...goldmark.Extender) goldmark.Markdown {
 	extensions := []goldmark.Extender{extension.GFM}
 	if includeMermaid {
 		extensions = append(extensions, &mermaidExtension{})
 	}
+	extensions = append(extensions, extraExtensions...)
 	extensions = append(extensions, highlighting.NewHighlighting(
 		highlighting.WithStyle("dracula"),
 		highlighting.WithFormatOptions(
@@ -63,6 +64,18 @@ func renderMarkdown(md string, noMermaid bool) string {
 	var buf bytes.Buffer
 	if err := renderer.Convert([]byte(md), &buf); err != nil {
 		return md // fallback to raw text
+	}
+	return buf.String()
+}
+
+func renderMarkdownWithExtensions(md string, noMermaid bool, extraExtensions ...goldmark.Extender) string {
+	if md == "" {
+		return ""
+	}
+	renderer := newMarkdownRenderer(!noMermaid, extraExtensions...)
+	var buf bytes.Buffer
+	if err := renderer.Convert([]byte(md), &buf); err != nil {
+		return md
 	}
 	return buf.String()
 }

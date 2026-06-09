@@ -487,6 +487,19 @@ func TestCreatePrintingPress_ValidationRejectsInvalidAssetMode(t *testing.T) {
 	assert.Contains(t, validationErr.Error(), "asset mode")
 }
 
+func TestCreatePrintingPress_ValidationRejectsURLBasePath(t *testing.T) {
+	_, err := CreatePrintingPressFromBytes([]byte("openapi: 3.1.0\ninfo:\n  title: x\n  version: 1\npaths: {}\n"), &PrintingPressConfig{
+		BasePath: "https://example.com/specs",
+	})
+	require.Error(t, err)
+
+	var validationErr *ValidationError
+	require.ErrorAs(t, err, &validationErr)
+	assert.ErrorIs(t, err, ErrInvalidBasePath)
+	assert.Contains(t, validationErr.Error(), "basePath")
+	assert.Contains(t, validationErr.Error(), "must be a local directory")
+}
+
 func TestCreatePrintingPress_ValidationRejectsInvalidLLMMonolithMode(t *testing.T) {
 	_, err := CreatePrintingPressFromBytes([]byte("openapi: 3.1.0\ninfo:\n  title: x\n  version: 1\npaths: {}\n"), &PrintingPressConfig{
 		LLMGenerateMonoliths: "sometimes",

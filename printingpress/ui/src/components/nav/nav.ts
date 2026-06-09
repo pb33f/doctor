@@ -46,17 +46,28 @@ interface NavModel {
     counts?: ViolationCounts;
 }
 
+interface NavContentPage {
+    title: string;
+    label?: string;
+    slug: string;
+    href: string;
+    description?: string;
+}
+
 @customElement('pp-nav')
 export class PpNav extends LitElement {
     static styles = [navCss, tooltipCss];
 
     @property({attribute: 'data-nav'}) navJson = '';
+    @property({attribute: 'data-pages'}) pagesJson = '';
     @property({attribute: 'data-models'}) modelsJson = '';
     @property({attribute: 'data-webhooks'}) webhooksJson = '';
     @property({attribute: 'data-active'}) activeSlug = '';
     @property({attribute: 'data-docs-expires-at'}) docsExpiresAt = '';
     @property({attribute: 'data-archive-export-url'}) archiveExportUrl = '';
+    @property({attribute: 'data-has-content-pages', type: Boolean}) hasContentPagesFallback = false;
     @state() private tags: NavTag[] = [];
+    @state() private pages: NavContentPage[] = [];
     @state() private modelGroups: NavModelGroup[] = [];
     @state() private webhooks: NavOperation[] = [];
     @state() private expiryTick = 0;
@@ -90,13 +101,14 @@ export class PpNav extends LitElement {
 
     private hasHydratedNav(): boolean {
         return this.hasAttribute('data-nav') ||
+            this.hasAttribute('data-pages') ||
             this.hasAttribute('data-models') ||
             this.hasAttribute('data-webhooks') ||
             this.hasAttribute('data-pp-nav-cached');
     }
 
     private hasNavContent(): boolean {
-        return this.tags.length > 0 || this.modelGroups.length > 0 || this.webhooks.length > 0;
+        return this.tags.length > 0 || this.pages.length > 0 || this.modelGroups.length > 0 || this.webhooks.length > 0;
     }
 
     private archiveControlsEnabled(): boolean {
@@ -375,6 +387,7 @@ export class PpNav extends LitElement {
     }
 
     private renderFallbackNav() {
+        const guideRows = [74, 66, 58, 70];
         const operationRows = [100, 92, 84, 78, 88, 74];
         const modelRows = [96, 86, 82, 90, 76, 88, 80, 72];
         return html`
@@ -384,6 +397,17 @@ export class PpNav extends LitElement {
                 <div class="pp-nav-fallback-home">API OVERVIEW</div>
                 ${this.developerMode()
                     ? html`<div class="pp-nav-fallback-home diagnostics">DIAGNOSTICS</div>`
+                    : nothing}
+                ${this.hasContentPagesFallback
+                    ? html`
+                        <div class="pp-nav-fallback-section pp-nav-fallback-guides">
+                            <h4>Guides</h4>
+                            <div class="pp-nav-fallback-list">
+                                ${guideRows.map((width) => html`
+                                    <div class="pp-nav-fallback-row" style=${`width:${width}%;`}></div>`)}
+                            </div>
+                        </div>
+                    `
                     : nothing}
                 <div class="pp-nav-fallback-section">
                     <h4>Operations</h4>
@@ -430,6 +454,13 @@ export class PpNav extends LitElement {
                 this.tags = [];
             }
         }
+        if (changed.has('pagesJson')) {
+            try {
+                this.pages = this.pagesJson ? JSON.parse(this.pagesJson) || [] : [];
+            } catch {
+                this.pages = [];
+            }
+        }
         if (changed.has('modelsJson')) {
             try {
                 this.modelGroups = this.modelsJson ? JSON.parse(this.modelsJson) || [] : [];
@@ -450,7 +481,7 @@ export class PpNav extends LitElement {
     }
 
     updated() {
-        const hasContent = this.tags.length > 0 || this.modelGroups.length > 0 || this.webhooks.length > 0;
+        const hasContent = this.tags.length > 0 || this.pages.length > 0 || this.modelGroups.length > 0 || this.webhooks.length > 0;
         if (!hasContent && !this.loggedEmptyState) {
             this.loggedEmptyState = true;
             this.logPerf('nav:empty-render');
@@ -459,6 +490,7 @@ export class PpNav extends LitElement {
             this.loggedContentState = true;
             this.logPerf('nav:content-render', {
                 tags: this.tags.length,
+                pages: this.pages.length,
                 modelGroups: this.modelGroups.length,
                 webhooks: this.webhooks.length,
             });
@@ -496,6 +528,26 @@ export class PpNav extends LitElement {
                             <sl-icon name="chevron-right" class="nav-home-chevron"></sl-icon>
                             DIAGNOSTICS
                         </a>
+                    `
+                    : nothing}
+            ${this.pages.length
+                    ? html`
+                        <div class="nav-section nav-pages-section">
+                            <h4>Guides</h4>
+                            <ul class="nav-pages-list">
+                                ${this.pages.map((page) => {
+                                    const active = this.activeSlug === `content/${page.slug}`;
+                                    return html`
+                                        <li>
+                                            <a class="nav-page-link ${active ? 'active' : ''}" href=${docHref(page.href || '')}>
+                                                <sl-icon name="chevron-right" class="nav-page-chevron"></sl-icon>
+                                                <span>${page.label || page.title || page.slug}</span>
+                                            </a>
+                                        </li>
+                                    `;
+                                })}
+                            </ul>
+                        </div>
                     `
                     : nothing}
             ${this.tags.length

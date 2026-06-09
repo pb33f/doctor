@@ -24,6 +24,7 @@ const (
 	DirOperations = "operations"
 	DirModels     = "models"
 	DirTags       = "tags"
+	DirContent    = "content"
 	DirServices   = "services"
 	DirVersions   = "versions"
 	DirSpecs      = "specs"
@@ -35,18 +36,20 @@ const (
 	DirPages = "pages"
 	DirViz   = "viz"
 
-	FileIndexHTML       = "index.html"
-	FileDiagnosticsHTML = "diagnostics.html"
-	FileIndexJSON       = "index.json"
-	FileBundleJSON      = "bundle.json"
-	FileManifestJSON    = "manifest.json"
-	FileNavJSON         = "nav.json"
-	FileLLMIndex        = "llms.txt"
-	FileLLMFull         = "llms-full.txt"
-	FileLLMOperations   = "llms-operations.txt"
-	FileLLMModels       = "llms-models.txt"
-	FileAgentsGuide     = "AGENTS.md"
-	FileStateSQLite     = ".printingpress-state.db"
+	FileIndexHTML               = "index.html"
+	FileGuidesHTML              = "guides.html"
+	FileDiagnosticsHTML         = "diagnostics.html"
+	FileIndexJSON               = "index.json"
+	FileBundleJSON              = "bundle.json"
+	FileManifestJSON            = "manifest.json"
+	FileNavJSON                 = "nav.json"
+	FileLLMIndex                = "llms.txt"
+	FileLLMFull                 = "llms-full.txt"
+	FileLLMOperations           = "llms-operations.txt"
+	FileLLMModels               = "llms-models.txt"
+	FileAgentsGuide             = "AGENTS.md"
+	FileStateSQLite             = ".printingpress-state.db"
+	FileCatalogContentStateJSON = ".printingpress-catalog-content.json"
 
 	FilePB33FThemeCSS             = "pb33f-theme.css"
 	FileCowboyComponentsCSS       = "cowboy-components.css"
@@ -120,6 +123,10 @@ func ModelsIndexHTML() string {
 	return path.Join(DirModels, FileIndexHTML)
 }
 
+func GuidesIndexHTML() string {
+	return FileGuidesHTML
+}
+
 func ModelTypeIndexHTML(typeSlug string) string {
 	return path.Join(DirModels, typeSlug, FileIndexHTML)
 }
@@ -138,6 +145,18 @@ func ModelMarkdown(typeSlug, slug string) string {
 
 func TagHTML(slug string) string {
 	return path.Join(DirTags, slug+ExtHTML)
+}
+
+func ContentPageHTML(slugPath string) string {
+	return path.Clean(slugPath) + ExtHTML
+}
+
+func ContentPageDataBase(slugPath string) string {
+	return path.Join(PageDataDir(), DirContent, path.Clean(slugPath))
+}
+
+func ContentAsset(pageSlug, assetName string) string {
+	return path.Join(DirAssets, "docs", path.Clean(pageSlug), assetName)
 }
 
 func OperationPageDataBase(slug string) string {

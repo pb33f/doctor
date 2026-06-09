@@ -23,14 +23,15 @@ type SiteVersionLink struct {
 
 // CatalogSite is the aggregate multi-spec documentation catalog.
 type CatalogSite struct {
-	Title       string            `json:"title,omitempty"`
-	Description string            `json:"description,omitempty"`
-	ScanRoot    string            `json:"scanRoot,omitempty"`
-	OutputDir   string            `json:"-"`
-	BaseURL     string            `json:"-"`
-	AssetMode   string            `json:"-"`
-	Services    []*CatalogService `json:"services,omitempty"`
-	Warnings    []*BuildWarning   `json:"warnings,omitempty"`
+	Title        string            `json:"title,omitempty"`
+	Description  string            `json:"description,omitempty"`
+	ScanRoot     string            `json:"scanRoot,omitempty"`
+	OutputDir    string            `json:"-"`
+	BaseURL      string            `json:"-"`
+	AssetMode    string            `json:"-"`
+	Services     []*CatalogService `json:"services,omitempty"`
+	ContentPages []*ContentPage    `json:"contentPages,omitempty"`
+	Warnings     []*BuildWarning   `json:"warnings,omitempty"`
 }
 
 // CatalogService represents one grouped service in the aggregate catalog.

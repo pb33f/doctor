@@ -112,6 +112,7 @@ func (ap *AggregatePrintingPress) buildPlan() (*aggregateBuildPlan, error) {
 	}
 	plan.removed = aggregateRemovedRecords(existing, discovered)
 	plan.catalog = ap.buildCatalog(discovered)
+	plan.catalog.ContentPages = ap.collectCatalogContentPages()
 	for _, spec := range discovered {
 		if spec.Changed || ap.config.BuildMode == AggregateBuildModeFull {
 			plan.changed = append(plan.changed, spec)

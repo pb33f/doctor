@@ -267,8 +267,52 @@ export default css`
         border-bottom: 1px dashed var(--primary-color-lowalpha);
     }
 
+    .nav-pages-section,
     .nav-models-section {
         margin-top: var(--global-padding-double);
+    }
+
+    .nav-pages-list {
+        display: grid;
+        gap: 0;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .nav-page-link {
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr);
+        column-gap: var(--global-padding);
+        align-items: center;
+        min-width: 0;
+        padding: var(--global-padding);
+        color: var(--font-color-sub1);
+        text-decoration: none;
+        overflow-wrap: anywhere;
+        border-left: 2px solid var(--background-color);
+    }
+
+    .nav-page-link:hover {
+        background: var(--primary-color-verylowalpha);
+        color: var(--primary-color);
+        text-decoration: none;
+        border-left-color: var(--secondary-color);
+    }
+
+    .nav-page-link.active {
+        border-left-color: var(--primary-color);
+        background: var(--primary-color-verylowalpha);
+        color: var(--primary-color);
+    }
+
+    .nav-page-chevron {
+        color: var(--secondary-color);
+    }
+
+    .nav-page-link:hover .nav-page-chevron,
+    .nav-page-link.active .nav-page-chevron {
+        color: var(--primary-color);
     }
 
     .nav-webhooks-section {
