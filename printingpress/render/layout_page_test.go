@@ -40,6 +40,24 @@ func TestLayoutPageDefaultFallbackOmitsDiagnostics(t *testing.T) {
 	if strings.Contains(html, `<div class="host-archive-controls pp-nav-fallback-archive">`) {
 		t.Fatalf("did not expect archive controls in default nav fallback")
 	}
+	if strings.Contains(html, `<div class="pp-nav-fallback-section pp-nav-fallback-guides"><h4>Guides</h4>`) {
+		t.Fatalf("did not expect guides placeholder without content pages")
+	}
+}
+
+func TestLayoutPageContentFallbackIncludesGuides(t *testing.T) {
+	html := renderLayoutPageForTest(t, LayoutPageParams{
+		PageTitle:       "Train Travel",
+		SiteTitle:       "Train Travel",
+		HasContentPages: true,
+	})
+
+	if !strings.Contains(html, `data-has-content-pages="true"`) {
+		t.Fatalf("expected content page hint on nav element")
+	}
+	if !strings.Contains(html, `<div class="pp-nav-fallback-section pp-nav-fallback-guides"><h4>Guides</h4>`) {
+		t.Fatalf("expected guides placeholder in content page fallback")
+	}
 }
 
 func TestLayoutPageSharedAssetBaseURLAttribute(t *testing.T) {

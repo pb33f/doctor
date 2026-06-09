@@ -107,6 +107,10 @@ func estimateHTMLPageJobs(site *ppmodel.Site) int {
 	if site.Root != nil {
 		total++
 	}
+	total += len(site.ContentPages)
+	if len(site.ContentPages) > 0 {
+		total++
+	}
 	total += len(site.Operations)
 	for typeSlug, pages := range site.Models {
 		if typeSlug == typeSlugPathItems {
@@ -254,6 +258,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		ArchiveExportURL:   site.ArchiveExportURL,
 		Footer:             site.Footer,
 		SharedAssetBaseURL: site.SharedAssetBaseURL,
+		HasContentPages:    hasContentPagesForNav(site.ContentPages),
 	}
 
 	var jobs []htmlWriteJob
@@ -281,6 +286,46 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			return nil, err
 		}
 		progressTracker.advance("preparing overview page")
+	}
+
+	// Write convention-discovered content pages.
+	for _, page := range site.ContentPages {
+		if page == nil {
+			continue
+		}
+		assetPaths, err := writeContentPageAssets(resolvedOutputDir, page)
+		if err != nil {
+			return nil, err
+		}
+		staticPaths = append(staticPaths, assetPaths...)
+		p := *params
+		p.BaseURL = resolveBase(resolvedBaseURL, contentPageDepth(page.Href))
+		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
+		content := render.ContentPageTempl(page, p.BaseURL)
+		jobs = append(jobs, htmlWriteJob{
+			path:       filepath.Join(resolvedOutputDir, filepath.FromSlash(page.Href)),
+			pageTitle:  fmt.Sprintf("%s - %s", page.Title, title),
+			activeSlug: "content/" + page.Slug,
+			params:     p,
+			content:    content,
+		})
+		progressTracker.advance("preparing content pages")
+	}
+
+	// Write generated guides index page.
+	if len(site.ContentPages) > 0 {
+		p := *params
+		p.BaseURL = resolvedBaseURL
+		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
+		content := render.ContentIndexTempl(site.ContentPages, render.GuidesIndexBreadcrumb(), p.BaseURL)
+		jobs = append(jobs, htmlWriteJob{
+			path:       filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.GuidesIndexHTML())),
+			pageTitle:  "Guides - " + title,
+			activeSlug: "guides",
+			params:     p,
+			content:    content,
+		})
+		progressTracker.advance("preparing guides index")
 	}
 
 	// Write operation pages (1 level deep: operations/)
@@ -652,6 +697,7 @@ type pageParams struct {
 	ArchiveExportURL   string
 	Footer             *ppmodel.FooterConfig
 	SharedAssetBaseURL string
+	HasContentPages    bool
 }
 
 func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content templ.Component) error {
@@ -688,6 +734,7 @@ func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content t
 		ArchiveExportURL:   p.ArchiveExportURL,
 		Footer:             p.Footer,
 		SharedAssetBaseURL: p.SharedAssetBaseURL,
+		HasContentPages:    p.HasContentPages,
 	}, content)
 	return layout.Render(context.Background(), f)
 }
@@ -722,6 +769,27 @@ func resolveBase(baseURL string, depth int) string {
 		return ""
 	}
 	return strings.Repeat("../", depth)
+}
+
+func writeContentPageAssets(outputDir string, page *ppmodel.ContentPage) ([]string, error) {
+	if page == nil {
+		return nil, nil
+	}
+	var written []string
+	for _, asset := range page.Assets {
+		if asset == nil || asset.Href == "" {
+			continue
+		}
+		assetPath := filepath.Join(outputDir, filepath.FromSlash(asset.Href))
+		if err := os.MkdirAll(filepath.Dir(assetPath), 0o755); err != nil {
+			return nil, fmt.Errorf("creating content asset directory: %w", err)
+		}
+		if err := os.WriteFile(assetPath, asset.Data, 0o644); err != nil {
+			return nil, fmt.Errorf("writing content asset %s: %w", asset.Href, err)
+		}
+		written = append(written, assetPath)
+	}
+	return written, nil
 }
 
 func copyEmbeddedStatic(outputDir string) ([]string, error) {

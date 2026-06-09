@@ -145,6 +145,7 @@ func buildSharedHydrationPayload(site *ppmodel.Site) *htmlHydrationPayload {
 				"data-nav":      render.MustJSON(site.NavTags),
 				"data-models":   render.MustJSON(site.NavModelGroups),
 				"data-webhooks": render.MustJSON(site.NavWebhooks),
+				"data-pages":    render.MustJSON(contentPagesForNav(site.ContentPages)),
 			},
 		},
 		SchemaRegistry: registry,

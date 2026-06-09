@@ -127,6 +127,10 @@
     return docHref('models/' + typeSlug + '/' + slug + '.html');
   }
 
+  function contentPageActiveSlug(slug) {
+    return 'content/' + String(slug || '');
+  }
+
   function parseJSONAttr(raw) {
     if (Array.isArray(raw)) {
       return raw;
@@ -314,14 +318,34 @@
     return html;
   }
 
+  function renderContentPage(page, activeSlug) {
+    if (!page) {
+      return '';
+    }
+    const classes = ['nav-page-link'];
+    if (contentPageActiveSlug(page.slug) === activeSlug) {
+      classes.push('active');
+    }
+    return (
+      "<li><a href='" +
+      escapeHtml(docHref(page.href || '')) +
+      "' class='" +
+      classes.join(' ') +
+      "'><span class='nav-page-chevron' aria-hidden='true'></span><span>" +
+      escapeHtml(page.label || page.title || page.slug || 'Untitled') +
+      '</span></a></li>'
+    );
+  }
+
   function renderNavPreview(navAttrs, activeSlug) {
     if (!navAttrs) {
       return '';
     }
     const tags = parseJSONAttr(navAttrs['data-nav']);
+    const pages = parseJSONAttr(navAttrs['data-pages']);
     const modelGroups = parseJSONAttr(navAttrs['data-models']);
     const webhooks = parseJSONAttr(navAttrs['data-webhooks']);
-    if (!tags.length && !modelGroups.length && !webhooks.length) {
+    if (!tags.length && !pages.length && !modelGroups.length && !webhooks.length) {
       return '';
     }
     let html =
@@ -339,6 +363,13 @@
         "' href='" +
         escapeHtml(docHref('diagnostics.html')) +
         "'><span class='nav-home-chevron' aria-hidden='true'></span>DIAGNOSTICS</a>";
+    }
+    if (pages.length) {
+      html += "<div class='nav-section nav-pages-section'><h4>Guides</h4><ul class='nav-pages-list'>";
+      for (let i = 0; i < pages.length; i++) {
+        html += renderContentPage(pages[i], activeSlug);
+      }
+      html += '</ul></div>';
     }
     if (tags.length) {
       html += "<div class='nav-section nav-operations-section'><h4>Operations</h4>";
@@ -418,6 +449,7 @@
           log('nav-preview:rendered', {
             source: 'shared-cache-bootstrap',
             tags: parseJSONAttr(navAttrs['data-nav']).length,
+            pages: parseJSONAttr(navAttrs['data-pages']).length,
             modelGroups: parseJSONAttr(navAttrs['data-models']).length,
             webhooks: parseJSONAttr(navAttrs['data-webhooks']).length,
           });
@@ -430,6 +462,7 @@
           log('nav-fallback:retained', {
             source: 'shared-cache-bootstrap',
             tags: parseJSONAttr(navAttrs['data-nav']).length,
+            pages: parseJSONAttr(navAttrs['data-pages']).length,
             modelGroups: parseJSONAttr(navAttrs['data-models']).length,
             webhooks: parseJSONAttr(navAttrs['data-webhooks']).length,
           });

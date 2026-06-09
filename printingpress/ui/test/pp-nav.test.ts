@@ -77,6 +77,51 @@ describe('pp-nav', () => {
     expect(homeLink?.getAttribute('href')).toBe('http://localhost:3000/findings/index.html');
   });
 
+  it('renders conventional content pages before generated sections', async () => {
+    document.body.dataset.ppBaseUrl = '/docs/';
+
+    const pages = [
+      {
+        title: 'Quickstart',
+        label: 'Start Here',
+        slug: 'quickstart',
+        href: 'quickstart.html',
+      },
+      {
+        title: 'Service Guide',
+        label: 'Guide',
+        slug: 'guides/setup',
+        href: 'guides/setup.html',
+      },
+    ];
+    const navData = [
+      {
+        name: 'Users',
+        summary: 'Users',
+        children: null,
+        operations: [],
+        isNavOnly: false,
+      },
+    ];
+
+    const el = document.createElement('pp-nav');
+    el.setAttribute('data-pages', JSON.stringify(pages));
+    el.setAttribute('data-nav', JSON.stringify(navData));
+    el.setAttribute('data-active', 'content/guides/setup');
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const sectionHeadings = Array.from(el.shadowRoot?.querySelectorAll('.nav-section h4') || [])
+      .map((heading) => heading.textContent?.trim());
+    expect(sectionHeadings.slice(0, 2)).toEqual(['Guides', 'Operations']);
+
+    const links = Array.from(el.shadowRoot?.querySelectorAll('.nav-page-link') || []);
+    expect(links.map((link) => link.textContent?.trim())).toEqual(['Start Here', 'Guide']);
+    expect(links[0]?.getAttribute('href')).toBe('http://localhost:3000/docs/quickstart.html');
+    expect(links[1]?.getAttribute('href')).toBe('http://localhost:3000/docs/guides/setup.html');
+    expect(links[1]?.classList.contains('active')).toBe(true);
+  });
+
   it('should render empty when no data', async () => {
     const el = document.createElement('pp-nav');
     document.body.appendChild(el);
@@ -84,6 +129,20 @@ describe('pp-nav', () => {
 
     const tagEls = el.shadowRoot?.querySelectorAll('pp-nav-tag');
     expect(tagEls?.length).toBe(0);
+  });
+
+  it('only shows guide fallback rows when content pages are expected', async () => {
+    const empty = document.createElement('pp-nav');
+    document.body.appendChild(empty);
+    await empty.updateComplete;
+    expect(empty.shadowRoot?.querySelector('.pp-nav-fallback-guides')).toBeNull();
+
+    document.body.innerHTML = '';
+    const withPages = document.createElement('pp-nav');
+    withPages.setAttribute('data-has-content-pages', 'true');
+    document.body.appendChild(withPages);
+    await withPages.updateComplete;
+    expect(withPages.shadowRoot?.querySelector('.pp-nav-fallback-guides')).not.toBeNull();
   });
 
   it('uses the archive controls sender origin when requesting exports', async () => {

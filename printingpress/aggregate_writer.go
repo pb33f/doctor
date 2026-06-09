@@ -95,6 +95,11 @@ func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, 
 	if err != nil {
 		return nil, err
 	}
+	// Aggregate-level Markdown belongs to the catalog shell only. Entry sites
+	// render the API reference without discovering sibling custom pages.
+	pp.config.contentDiscoveryEnabled = false
+	pp.config.contentBasePath = ""
+	pp.config.contentSpecPath = ""
 	site, err := pp.PressModel()
 	if err != nil {
 		return nil, err
@@ -451,11 +456,52 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 	if err := ap.removeObsoleteCatalogHTML(catalog); err != nil {
 		return nil, err
 	}
+	contentStatePaths := make([]string, 0, len(catalog.ContentPages)+1)
+	for _, page := range catalog.ContentPages {
+		assetPaths, err := writeContentPageAssets(ap.config.OutputDir, page)
+		if err != nil {
+			return nil, err
+		}
+		written = append(written, assetPaths...)
+		for _, asset := range page.Assets {
+			if asset != nil {
+				contentStatePaths = append(contentStatePaths, asset.Href)
+			}
+		}
+	}
 	rootPath := filepath.Join(ap.config.OutputDir, pppaths.FileIndexHTML)
-	if err := writeCatalogPage(rootPath, ap.catalogPageData(pppaths.FileIndexHTML, catalog.Title, catalog.Description, nil, false, catalogRootContent(catalog, ap.config.DisableSkippedRendering))); err != nil {
+	rootPage := ap.catalogPageData(pppaths.FileIndexHTML, catalog.Title, catalog.Description, nil, false, catalogRootContent(catalog, ap.config.DisableSkippedRendering))
+	rootPage = withCatalogContentNav(rootPage, catalog, "catalog")
+	if err := writeCatalogPage(rootPath, rootPage); err != nil {
 		return nil, err
 	}
 	written = append(written, rootPath)
+
+	if len(catalog.ContentPages) > 0 {
+		guidesPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(pppaths.GuidesIndexHTML()))
+		guidesPage := ap.catalogPageData(pppaths.GuidesIndexHTML(), "Guides", "", nil, false, render.ContentIndexTempl(catalog.ContentPages, render.GuidesIndexBreadcrumb(), ""))
+		guidesPage = withCatalogContentNav(guidesPage, catalog, "guides")
+		if err := writeCatalogPage(guidesPath, guidesPage); err != nil {
+			return nil, err
+		}
+		written = append(written, guidesPath)
+		contentStatePaths = append(contentStatePaths, pppaths.GuidesIndexHTML())
+	}
+
+	for _, contentPage := range catalog.ContentPages {
+		if contentPage == nil {
+			continue
+		}
+		contentPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(contentPage.Href))
+		content := render.ContentPageTemplWithBreadcrumb(contentPage, "", catalogContentPageBreadcrumb(contentPage))
+		page := ap.catalogPageData(contentPage.Href, fmt.Sprintf("%s - %s", contentPage.Title, catalog.Title), contentPage.Description, nil, false, content)
+		page = withCatalogContentNav(page, catalog, "content/"+contentPage.Slug)
+		if err := writeCatalogPage(contentPath, page); err != nil {
+			return nil, err
+		}
+		written = append(written, contentPath)
+		contentStatePaths = append(contentStatePaths, contentPage.Href)
+	}
 
 	for _, service := range catalog.Services {
 		if !hasVisibleCatalogVersions(service) {
@@ -471,6 +517,12 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 			}
 			written = append(written, versionPath)
 		}
+	}
+	if err := ap.removePreviousCatalogContentArtifacts(contentStatePaths); err != nil {
+		return nil, err
+	}
+	if err := ap.writeCatalogContentState(contentStatePaths); err != nil {
+		return nil, err
 	}
 	return written, nil
 }
@@ -510,6 +562,115 @@ func (ap *AggregatePrintingPress) removeObsoleteCatalogHTML(catalog *ppmodel.Cat
 		}
 	}
 	return nil
+}
+
+type catalogContentState struct {
+	Paths []string `json:"paths"`
+}
+
+func (ap *AggregatePrintingPress) removePreviousCatalogContentArtifacts(currentPaths []string) error {
+	paths, err := ap.readCatalogContentState()
+	if err != nil {
+		if ap != nil && ap.config != nil && ap.config.Logger != nil {
+			ap.config.Logger.Warn("printingpress: unable to read previous catalog content state", "error", err)
+		}
+		return nil
+	}
+	current := make(map[string]struct{}, len(currentPaths))
+	for _, relPath := range currentPaths {
+		clean, ok := cleanCatalogContentStatePath(relPath)
+		if ok {
+			current[clean] = struct{}{}
+		}
+	}
+	for _, relPath := range paths {
+		clean, ok := cleanCatalogContentStatePath(relPath)
+		if !ok {
+			continue
+		}
+		if _, keep := current[clean]; keep {
+			continue
+		}
+		err := os.Remove(filepath.Join(ap.config.OutputDir, filepath.FromSlash(clean)))
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ap *AggregatePrintingPress) readCatalogContentState() ([]string, error) {
+	statePath := filepath.Join(ap.config.OutputDir, pppaths.FileCatalogContentStateJSON)
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var state catalogContentState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return nil, err
+	}
+	return state.Paths, nil
+}
+
+func (ap *AggregatePrintingPress) writeCatalogContentState(paths []string) error {
+	statePath := filepath.Join(ap.config.OutputDir, pppaths.FileCatalogContentStateJSON)
+	if len(paths) == 0 {
+		err := os.Remove(statePath)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		return nil
+	}
+	cleaned := make([]string, 0, len(paths))
+	seen := make(map[string]struct{}, len(paths))
+	for _, relPath := range paths {
+		clean, ok := cleanCatalogContentStatePath(relPath)
+		if !ok {
+			continue
+		}
+		if _, exists := seen[clean]; exists {
+			continue
+		}
+		seen[clean] = struct{}{}
+		cleaned = append(cleaned, clean)
+	}
+	if len(cleaned) == 0 {
+		return nil
+	}
+	sort.Strings(cleaned)
+	data, err := json.Marshal(catalogContentState{Paths: cleaned})
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(statePath), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(statePath, data, 0o644)
+}
+
+func cleanCatalogContentStatePath(relPath string) (string, bool) {
+	relPath = strings.TrimSpace(filepath.ToSlash(relPath))
+	if relPath == "" || strings.Contains(relPath, "\x00") || strings.HasPrefix(relPath, "/") {
+		return "", false
+	}
+	clean := path.Clean(relPath)
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
+		return "", false
+	}
+	if clean == pppaths.GuidesIndexHTML() || strings.HasPrefix(clean, path.Join(pppaths.DirAssets, "docs")+"/") {
+		return clean, true
+	}
+	if strings.ToLower(path.Ext(clean)) == pppaths.ExtHTML {
+		slugPath := strings.TrimSuffix(clean, pppaths.ExtHTML)
+		if isReservedContentSlug(slugPath) {
+			return "", false
+		}
+		return clean, true
+	}
+	return "", false
 }
 
 func (ap *AggregatePrintingPress) writeCatalogJSON(catalog *ppmodel.CatalogSite) ([]string, error) {
@@ -621,15 +782,18 @@ func (ap *AggregatePrintingPress) writeCatalogLLM(catalog *ppmodel.CatalogSite) 
 }
 
 type catalogPageData struct {
-	RelPath       string
-	HeaderTitle   string
-	Title         string
-	Subtitle      string
-	Service       *ppmodel.CatalogService
-	Content       templ.Component
-	AssetBase     string
-	ShowHeroTitle bool
-	Footer        *ppmodel.FooterConfig
+	RelPath        string
+	HeaderTitle    string
+	Title          string
+	Subtitle       string
+	Service        *ppmodel.CatalogService
+	Content        templ.Component
+	AssetBase      string
+	ShowHeroTitle  bool
+	Footer         *ppmodel.FooterConfig
+	ShowCatalogNav bool
+	CatalogPages   []*ppmodel.ContentPage
+	ActiveNavSlug  string
 }
 
 func (ap *AggregatePrintingPress) catalogPageData(relPath, title, subtitle string, service *ppmodel.CatalogService, showHeroTitle bool, content templ.Component) catalogPageData {
@@ -648,6 +812,16 @@ func (ap *AggregatePrintingPress) catalogPageData(relPath, title, subtitle strin
 		ShowHeroTitle: showHeroTitle,
 		Footer:        cloneFooterConfig(ap.config.Footer),
 	}
+}
+
+func withCatalogContentNav(page catalogPageData, catalog *ppmodel.CatalogSite, activeSlug string) catalogPageData {
+	if catalog == nil {
+		return page
+	}
+	page.ShowCatalogNav = hasContentPagesForNav(catalog.ContentPages)
+	page.CatalogPages = catalog.ContentPages
+	page.ActiveNavSlug = activeSlug
+	return page
 }
 
 func (ap *AggregatePrintingPress) catalogAssetBase(relPath string) string {
@@ -725,11 +899,15 @@ func catalogAssetHref(assetBase, href string) string {
 
 func catalogShell(page catalogPageData) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		showNav := catalogPageHasNav(page)
 		if _, err := io.WriteString(w, `<!doctype html><html lang="en" class="sl-theme-dark">`); err != nil {
 			return err
 		}
 		if err := writeCatalogHead(w, page.Title, page.AssetBase); err != nil {
 			return err
+		}
+		if showNav {
+			return renderCatalogNavShell(ctx, w, page)
 		}
 		if _, err := io.WriteString(w, `<body class="pp-catalog-body"><pb33f-header name="`+templ.EscapeString(page.HeaderTitle)+`" url="`+templ.EscapeString(relativeCatalogHref(path.Dir(page.RelPath), pppaths.FileIndexHTML))+`" fluid><div class="header-tools">`); err != nil {
 			return err
@@ -742,7 +920,10 @@ func catalogShell(page catalogPageData) templ.Component {
 		if _, err := io.WriteString(w, `<div class="theme-controls"><pb33f-theme-switcher></pb33f-theme-switcher></div></div></pb33f-header>`); err != nil {
 			return err
 		}
-		if _, err := io.WriteString(w, `<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">`+templ.EscapeString(page.HeaderTitle)+`</span></div><main class="pp-catalog-shell">`); err != nil {
+		if _, err := io.WriteString(w, `<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">`+templ.EscapeString(page.HeaderTitle)+`</span></div>`); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w, `<main class="pp-catalog-shell">`); err != nil {
 			return err
 		}
 		if page.ShowHeroTitle || strings.TrimSpace(page.Subtitle) != "" {
@@ -769,7 +950,65 @@ func catalogShell(page catalogPageData) templ.Component {
 		if err := render.WriteFooter(w, page.Footer); err != nil {
 			return err
 		}
-		_, err := io.WriteString(w, `</main><script>
+		if _, err := io.WriteString(w, `</main>`); err != nil {
+			return err
+		}
+		_, err := io.WriteString(w, catalogVersionSelectScriptHTML()+`</body></html>`)
+		return err
+	})
+}
+
+func renderCatalogNavShell(ctx context.Context, w io.Writer, page catalogPageData) error {
+	if _, err := io.WriteString(w, `<body class="pp-catalog-body"`); err != nil {
+		return err
+	}
+	if strings.TrimSpace(page.AssetBase) != "" {
+		if err := writeCatalogOptionalAttr(w, "data-pp-base-url", page.AssetBase); err != nil {
+			return err
+		}
+	}
+	if _, err := io.WriteString(w, `><pp-layout data-title="`+templ.EscapeString(page.HeaderTitle)+`">`); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(w, `<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">`+templ.EscapeString(page.HeaderTitle)+`</span></div>`); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(w, `<pp-nav id="pp-nav" slot="nav" data-active="`+templ.EscapeString(page.ActiveNavSlug)+`" data-pp-preview-hold="true">`+catalogNavHTML(page)+`</pp-nav>`); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(w, `<main slot="content" class="pp-catalog-shell">`); err != nil {
+		return err
+	}
+	if page.ShowHeroTitle || strings.TrimSpace(page.Subtitle) != "" {
+		if _, err := io.WriteString(w, `<section class="pp-catalog-hero">`); err != nil {
+			return err
+		}
+		if page.ShowHeroTitle {
+			if _, err := io.WriteString(w, `<h1 class="pp-catalog-title">`+templ.EscapeString(page.Title)+`</h1>`); err != nil {
+				return err
+			}
+		}
+		if strings.TrimSpace(page.Subtitle) != "" {
+			if _, err := io.WriteString(w, `<p class="pp-catalog-subtitle">`+templ.EscapeString(page.Subtitle)+`</p>`); err != nil {
+				return err
+			}
+		}
+		if _, err := io.WriteString(w, `</section>`); err != nil {
+			return err
+		}
+	}
+	if err := page.Content.Render(ctx, w); err != nil {
+		return err
+	}
+	if err := render.WriteFooter(w, page.Footer); err != nil {
+		return err
+	}
+	_, err := io.WriteString(w, `</main></pp-layout>`+catalogVersionSelectScriptHTML()+`</body></html>`)
+	return err
+}
+
+func catalogVersionSelectScriptHTML() string {
+	return `<script>
 			document.addEventListener('sl-select', function(event) {
 				const menu = event.target && event.target.closest ? event.target.closest('sl-menu[data-catalog-version-menu]') : null;
 				if (!menu) return;
@@ -777,9 +1016,110 @@ func catalogShell(page catalogPageData) templ.Component {
 				const value = item && item.value;
 				if (value) window.location.href = value;
 			});
-		</script></body></html>`)
-		return err
-	})
+		</script>`
+}
+
+func writeCatalogOptionalAttr(w io.Writer, key, value string) error {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	_, err := io.WriteString(w, ` `+key+`="`+templ.EscapeString(value)+`"`)
+	return err
+}
+
+func catalogPageHasNav(page catalogPageData) bool {
+	return page.ShowCatalogNav && hasContentPagesForNav(page.CatalogPages)
+}
+
+func catalogNavHTML(page catalogPageData) string {
+	if !catalogPageHasNav(page) {
+		return ""
+	}
+	fromDir := path.Dir(page.RelPath)
+	var builder strings.Builder
+	builder.WriteString(`<div class="pp-nav-preview">`)
+	builder.WriteString(catalogNavHomeHTML("API Catalog", relativeCatalogHref(fromDir, pppaths.FileIndexHTML), page.ActiveNavSlug == "catalog"))
+	builder.WriteString(`<div class="nav-section nav-pages-section"><h4>Guides</h4><ul class="nav-pages-list">`)
+	for _, contentPage := range contentPagesForNav(page.CatalogPages) {
+		active := page.ActiveNavSlug == "content/"+contentPage.Slug
+		builder.WriteString(`<li>`)
+		builder.WriteString(catalogNavPageLinkHTML(catalogContentPageNavLabel(contentPage), relativeCatalogHref(fromDir, contentPage.Href), active))
+		builder.WriteString(`</li>`)
+	}
+	builder.WriteString(`</ul></div></div>`)
+	return builder.String()
+}
+
+func catalogNavHomeHTML(label, href string, active bool) string {
+	classAttr := "nav-home"
+	if active {
+		classAttr += " active"
+	}
+	var builder strings.Builder
+	builder.WriteString(`<a class="`)
+	builder.WriteString(templ.EscapeString(classAttr))
+	builder.WriteString(`" href="`)
+	builder.WriteString(templ.EscapeString(href))
+	builder.WriteString(`"`)
+	if active {
+		builder.WriteString(` aria-current="page"`)
+	}
+	builder.WriteString(`><span class="nav-home-chevron" aria-hidden="true"></span>`)
+	builder.WriteString(templ.EscapeString(label))
+	builder.WriteString(`</a>`)
+	return builder.String()
+}
+
+func catalogNavPageLinkHTML(label, href string, active bool) string {
+	classAttr := "nav-page-link"
+	if active {
+		classAttr += " active"
+	}
+	var builder strings.Builder
+	builder.WriteString(`<a class="`)
+	builder.WriteString(templ.EscapeString(classAttr))
+	builder.WriteString(`" href="`)
+	builder.WriteString(templ.EscapeString(href))
+	builder.WriteString(`"`)
+	if active {
+		builder.WriteString(` aria-current="page"`)
+	}
+	builder.WriteString(`><span class="nav-page-chevron" aria-hidden="true"></span><span>`)
+	builder.WriteString(templ.EscapeString(label))
+	builder.WriteString(`</span></a>`)
+	return builder.String()
+}
+
+func catalogContentPageBreadcrumb(page *ppmodel.ContentPage) []render.BreadcrumbItem {
+	fromDir := "."
+	if page != nil {
+		fromDir = path.Dir(page.Href)
+	}
+	return []render.BreadcrumbItem{
+		{Label: "HOME", Href: relativeCatalogHref(fromDir, pppaths.FileIndexHTML)},
+		{Label: "GUIDES", Href: relativeCatalogHref(fromDir, pppaths.GuidesIndexHTML())},
+		{Label: catalogContentPageBreadcrumbLabel(page)},
+	}
+}
+
+func catalogContentPageBreadcrumbLabel(page *ppmodel.ContentPage) string {
+	return strings.ToUpper(catalogContentPageNavLabel(page))
+}
+
+func catalogContentPageNavLabel(page *ppmodel.ContentPage) string {
+	if page == nil {
+		return "Untitled"
+	}
+	if strings.TrimSpace(page.Label) != "" {
+		return strings.TrimSpace(page.Label)
+	}
+	if strings.TrimSpace(page.Title) != "" {
+		return strings.TrimSpace(page.Title)
+	}
+	if strings.TrimSpace(page.Slug) != "" {
+		return strings.ReplaceAll(path.Base(strings.Trim(page.Slug, "/")), "-", " ")
+	}
+	return "Untitled"
 }
 
 func catalogRootContent(catalog *ppmodel.CatalogSite, disableSkippedRendering bool) templ.Component {

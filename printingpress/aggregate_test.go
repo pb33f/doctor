@@ -7,6 +7,7 @@ package printingpress
 import (
 	"context"
 	"database/sql"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -14,7 +15,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/a-h/templ"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -169,6 +172,120 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogAndEntrySites(t *testing
 	assert.NotContains(t, string(entryHTML), `data-pp-versions-href=`)
 }
 
+func TestAggregatePrintingPress_PrintHTML_RendersCatalogContentAndNav(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateSpecWithDetails(t, root, "services/users/specs/users-public.yaml", "Users Public API", "Public user lifecycle endpoints.", "", "v1")
+	writeAggregateSpecWithDetails(t, root, "services/users/specs/users-admin.yaml", "Users Admin API", "Admin user lifecycle endpoints.", "", "v1")
+	writeFile(t, filepath.Join(root, "services", "users", "specs", "about.md"), "Service-local content should not render in aggregate entries.\n")
+	writeFile(t, filepath.Join(root, "_partials", "catalog-note.md"), "Shared catalog note.\n")
+	writeFile(t, filepath.Join(root, "images", "map.svg"), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 1h8v8H1z"/></svg>`)
+	writeFile(t, filepath.Join(root, "about.md"), `---
+title: Catalog About
+label: About
+description: Higher-level catalog context.
+---
+{{<partial "catalog-note.md">}}
+
+![Map](images/map.svg)
+
+See the [setup guide](docs/guide.md).
+`)
+	writeFile(t, filepath.Join(root, "docs", "guide.md"), `---
+title: Catalog Setup
+label: Setup
+slug: guides/setup
+description: How teams use the API catalog.
+---
+Back to [about](../about.md).
+`)
+	writeFile(t, filepath.Join(root, "faq.md"), `---
+title: Private FAQ
+hidden: true
+---
+Hidden direct page.
+`)
+
+	outputDir := filepath.Join(root, "site")
+	store := NewMemorySpecStateStore()
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: store,
+		Title:      "Platform Catalog",
+	})
+	require.NoError(t, err)
+
+	catalog, err := ap.PressModel()
+	require.NoError(t, err)
+	require.Len(t, catalog.ContentPages, 3)
+
+	_, err = ap.PrintHTML()
+	require.NoError(t, err)
+
+	rootHTML := readAggregateFile(t, filepath.Join(outputDir, "index.html"))
+	assert.Contains(t, rootHTML, `<pp-layout data-title="Platform Catalog">`)
+	assert.Contains(t, rootHTML, `<pp-nav id="pp-nav" slot="nav" data-active="catalog" data-pp-preview-hold="true">`)
+	assert.Contains(t, rootHTML, `class="pp-nav-preview"`)
+	rootNav := catalogNavSegment(rootHTML)
+	assert.Contains(t, rootNav, `class="nav-home active"`)
+	assert.Contains(t, rootNav, `>API Catalog</a>`)
+	assert.Contains(t, rootNav, `<h4>Guides</h4>`)
+	assert.Contains(t, rootNav, `href="about.html"`)
+	assert.Contains(t, rootNav, `href="guides/setup.html"`)
+	assert.Contains(t, rootNav, `class="nav-page-link"`)
+	assert.Contains(t, rootNav, `class="nav-page-chevron"`)
+	assert.NotContains(t, rootNav, `faq.html`)
+	assert.NotContains(t, rootNav, `Users Public API`)
+
+	guidesHTML := readAggregateFile(t, filepath.Join(outputDir, "guides.html"))
+	assert.Contains(t, guidesHTML, `<pp-nav id="pp-nav" slot="nav" data-active="guides" data-pp-preview-hold="true">`)
+	assert.Contains(t, guidesHTML, `href="about.html" class="pp-guide-card"`)
+	assert.Contains(t, guidesHTML, `href="guides/setup.html" class="pp-guide-card"`)
+	assert.NotContains(t, guidesHTML, `faq.html`)
+
+	aboutHTML := readAggregateFile(t, filepath.Join(outputDir, "about.html"))
+	assert.Contains(t, aboutHTML, `<sl-breadcrumb-item href="guides.html">GUIDES</sl-breadcrumb-item>`)
+	assert.Contains(t, aboutHTML, "Shared catalog note.")
+	assert.Contains(t, aboutHTML, `src="assets/docs/about/map.svg"`)
+	assert.Contains(t, aboutHTML, `href="guides/setup.html"`)
+	assert.FileExists(t, filepath.Join(outputDir, "assets", "docs", "about", "map.svg"))
+
+	setupHTML := readAggregateFile(t, filepath.Join(outputDir, "guides", "setup.html"))
+	assert.Contains(t, setupHTML, `<sl-breadcrumb-item href="../index.html">HOME</sl-breadcrumb-item>`)
+	assert.Contains(t, setupHTML, `<sl-breadcrumb-item href="../guides.html">GUIDES</sl-breadcrumb-item>`)
+	assert.Contains(t, setupHTML, `href="../about.html"`)
+	assert.Contains(t, catalogNavSegment(setupHTML), `href="../index.html"`)
+	assert.Contains(t, catalogNavSegment(setupHTML), `class="nav-page-link active" href="setup.html"`)
+
+	faqHTML := readAggregateFile(t, filepath.Join(outputDir, "faq.html"))
+	assert.Contains(t, faqHTML, "Hidden direct page.")
+	assert.NotContains(t, catalogNavSegment(faqHTML), `faq.html`)
+
+	versionHTML := readAggregateFile(t, filepath.Join(outputDir, "services", "users", "versions", "v1", "index.html"))
+	assert.NotContains(t, versionHTML, `data-pp-preview-hold="true"`)
+
+	users := findCatalogService(t, catalog, "users")
+	require.NotEmpty(t, users.LatestVersion.Entries)
+	entryDir := filepath.Dir(filepath.FromSlash(users.LatestVersion.Entries[0].OverviewHref))
+	assert.NoFileExists(t, filepath.Join(outputDir, entryDir, "about.html"))
+	entryHTML := readAggregateFile(t, filepath.Join(outputDir, filepath.FromSlash(users.LatestVersion.Entries[0].OverviewHref)))
+	assert.NotContains(t, entryHTML, "Service-local content should not render")
+
+	require.NoError(t, os.Remove(filepath.Join(root, "about.md")))
+	apNext, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: store,
+		Title:      "Platform Catalog",
+	})
+	require.NoError(t, err)
+	_, err = apNext.PrintHTML()
+	require.NoError(t, err)
+	assert.NoFileExists(t, filepath.Join(outputDir, "about.html"))
+	assert.NoFileExists(t, filepath.Join(outputDir, "assets", "docs", "about", "map.svg"))
+	assert.FileExists(t, filepath.Join(outputDir, "guides", "setup.html"))
+}
+
 func TestAggregatePrintingPress_PrintHTML_RendersCatalogDiagnosticsCounts(t *testing.T) {
 	root := t.TempDir()
 	usersRel := "services/users/src/specs/users.yaml"
@@ -315,6 +432,23 @@ func TestCatalogRootContent_DisableSkippedRenderingSuppressesWarningBox(t *testi
 	rendered := html.String()
 	assert.NotContains(t, rendered, `pb33f-attention-box`)
 	assert.Contains(t, rendered, `Users API`)
+}
+
+func TestCatalogShell_WithContentNavIncludesVersionSelectScript(t *testing.T) {
+	page := catalogPageData{
+		RelPath:        pppaths.FileIndexHTML,
+		HeaderTitle:    "Platform Catalog",
+		Title:          "Platform Catalog",
+		Content:        templ.ComponentFunc(func(ctx context.Context, w io.Writer) error { _, err := w.Write([]byte("content")); return err }),
+		ShowCatalogNav: true,
+		CatalogPages: []*ppmodel.ContentPage{
+			{Title: "About", Label: "About", Slug: "about", Href: "about.html"},
+		},
+		ActiveNavSlug: "catalog",
+	}
+	var html strings.Builder
+	require.NoError(t, catalogShell(page).Render(context.Background(), &html))
+	assert.Contains(t, html.String(), `sl-menu[data-catalog-version-menu]`)
 }
 
 func TestCatalogVersionPrimaryHref_UsesVersionOverviewForCollisions(t *testing.T) {
@@ -1183,6 +1317,25 @@ func readAggregateDiagnosticsPayload(t *testing.T, entryDir string) string {
 	payload, err := os.ReadFile(filepath.Join(entryDir, "data", "pages", "diagnostics.js"))
 	require.NoError(t, err)
 	return string(payload)
+}
+
+func readAggregateFile(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	return string(data)
+}
+
+func catalogNavSegment(html string) string {
+	start := strings.Index(html, `<pp-nav id="pp-nav"`)
+	if start < 0 {
+		return ""
+	}
+	end := strings.Index(html[start:], `</pp-nav>`)
+	if end < 0 {
+		return html[start:]
+	}
+	return html[start : start+end+len(`</pp-nav>`)]
 }
 
 func writeAggregateSpec(t *testing.T, root, relPath, title, version string) string {
