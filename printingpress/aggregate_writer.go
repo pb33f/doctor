@@ -494,7 +494,7 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 		}
 		contentPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(contentPage.Href))
 		content := render.ContentPageTemplWithBreadcrumb(contentPage, "", catalogContentPageBreadcrumb(contentPage))
-		page := ap.catalogPageData(contentPage.Href, fmt.Sprintf("%s - %s", contentPage.Title, catalog.Title), contentPage.Description, nil, false, content)
+		page := ap.catalogPageData(contentPage.Href, fmt.Sprintf("%s - %s", contentPage.Title, catalog.Title), "", nil, false, content)
 		page = withCatalogContentNav(page, catalog, "content/"+contentPage.Slug)
 		if err := writeCatalogPage(contentPath, page); err != nil {
 			return nil, err
