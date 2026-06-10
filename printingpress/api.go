@@ -39,8 +39,10 @@ type PrintingPressConfig struct {
 	LintResults      []*v3.RuleFunctionResult
 	Footer           *ppmodel.FooterConfig
 	Artifact         *ArtifactManifestConfig
-	// EnableContentPages discovers conventional Markdown files such as about.md
-	// and docs/guide.md next to the local spec and renders them as guide pages.
+	// EnableContentPages discovers Markdown files next to the local spec or under
+	// docs/ and renders them as guide pages. Conventional names such as about.md
+	// and docs/guide.md keep built-in defaults, and front matter can override
+	// title, label, slug, order, description, and hidden.
 	EnableContentPages bool
 
 	// MaxPatternRepeatBudget limits regex repeat work for generated mock strings.

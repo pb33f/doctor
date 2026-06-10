@@ -58,6 +58,24 @@ Use the generated API pages in parallel with service code.
 
 ![Nested diagram](../images/diagram.svg)
 `)
+	writeFile(t, filepath.Join(root, "docs", "writing-your-first-api.md"), `---
+title: Writing Your First Linus API
+label: First API
+slug: guides/writing-your-first-api
+order: 25
+description: How to create a Linus API contract, validate it, and generate code.
+---
+
+First API walkthrough.
+
+[Service development](service-development.md)
+`)
+	writeFile(t, filepath.Join(root, "docs", "service-development.md"), `Generated handler notes.
+`)
+	writeFile(t, filepath.Join(root, "docs", "reference", "deep-dive.md"), `Nested docs page.
+`)
+	writeFile(t, filepath.Join(root, "docs", "_partials", "ignored.md"), `This partial must not become a page.
+`)
 	writeFile(t, filepath.Join(root, "auth.md"), `---
 title: Auth
 slug: index
@@ -109,6 +127,16 @@ Hidden FAQ content.
 	assert.Equal(t, "guides/setup.html", guide.Href)
 	assert.Contains(t, guide.BodyHTML, `href="../auth.html"`)
 	assert.Contains(t, guide.BodyHTML, `src="../assets/docs/guides/setup/diagram.svg"`)
+	firstAPI := requireContentPage(t, site.ContentPages, "guides/writing-your-first-api")
+	assert.Equal(t, "First API", firstAPI.Label)
+	assert.Equal(t, "How to create a Linus API contract, validate it, and generate code.", firstAPI.Description)
+	assert.Contains(t, firstAPI.BodyHTML, `href="../service-development.html"`)
+	serviceDevelopment := requireContentPage(t, site.ContentPages, "service-development")
+	assert.Equal(t, "Service Development", serviceDevelopment.Title)
+	assert.Equal(t, contentPageDefaultOrder, serviceDevelopment.Order)
+	deepDive := requireContentPage(t, site.ContentPages, "reference/deep-dive")
+	assert.Equal(t, "Deep Dive", deepDive.Title)
+	assert.Equal(t, "reference/deep-dive.html", deepDive.Href)
 	auth := requireContentPage(t, site.ContentPages, "auth")
 	security := requireContentPage(t, site.ContentPages, "security")
 	assert.Less(t, contentPageIndex(site.ContentPages, auth.Slug), contentPageIndex(site.ContentPages, security.Slug))
@@ -128,8 +156,13 @@ Hidden FAQ content.
 	}
 	assert.Contains(t, navSlugs, "about")
 	assert.Contains(t, navSlugs, "guides/setup")
+	assert.Contains(t, navSlugs, "guides/writing-your-first-api")
+	assert.Contains(t, navSlugs, "service-development")
+	assert.Contains(t, navSlugs, "reference/deep-dive")
 	assert.Contains(t, navSlugs, "webhooks-guide")
 	assert.NotContains(t, navSlugs, "faq")
+	assert.Equal(t, -1, contentPageIndex(site.ContentPages, "intro"))
+	assert.Equal(t, -1, contentPageIndex(site.ContentPages, "ignored"))
 
 	jsonOutputDir := t.TempDir()
 	require.NoError(t, PrintJSONArtifacts(site, jsonOutputDir))
@@ -150,6 +183,9 @@ Hidden FAQ content.
 	assert.FileExists(t, filepath.Join(outputDir, "about.html"))
 	assert.FileExists(t, filepath.Join(outputDir, "guides.html"))
 	assert.FileExists(t, filepath.Join(outputDir, "guides", "setup.html"))
+	assert.FileExists(t, filepath.Join(outputDir, "guides", "writing-your-first-api.html"))
+	assert.FileExists(t, filepath.Join(outputDir, "service-development.html"))
+	assert.FileExists(t, filepath.Join(outputDir, "reference", "deep-dive.html"))
 	assert.FileExists(t, filepath.Join(outputDir, "faq.html"))
 	assert.FileExists(t, filepath.Join(outputDir, "webhooks-guide.html"))
 	assert.FileExists(t, filepath.Join(outputDir, "assets", "docs", "about", "diagram.svg"))
@@ -167,11 +203,17 @@ Hidden FAQ content.
 	guideHTML := readFile(t, filepath.Join(outputDir, "guides", "setup.html"))
 	assert.Contains(t, guideHTML, `href="../auth.html"`)
 	assert.Contains(t, guideHTML, `src="../assets/docs/guides/setup/diagram.svg"`)
+	firstAPIHTML := readFile(t, filepath.Join(outputDir, "guides", "writing-your-first-api.html"))
+	assert.Contains(t, firstAPIHTML, "How to create a Linus API contract, validate it, and generate code.")
+	assert.Contains(t, firstAPIHTML, `href="../service-development.html"`)
 	guidesHTML := readFile(t, filepath.Join(outputDir, "guides.html"))
 	assert.Contains(t, guidesHTML, `<h1>Guides</h1>`)
 	assert.Contains(t, guidesHTML, `<sl-breadcrumb-item>GUIDES</sl-breadcrumb-item>`)
 	assert.Contains(t, guidesHTML, `href="about.html"`)
 	assert.Contains(t, guidesHTML, `href="guides/setup.html"`)
+	assert.Contains(t, guidesHTML, `href="guides/writing-your-first-api.html"`)
+	assert.Contains(t, guidesHTML, `href="service-development.html"`)
+	assert.Contains(t, guidesHTML, `href="reference/deep-dive.html"`)
 	assert.Contains(t, guidesHTML, `href="webhooks-guide.html"`)
 	assert.NotContains(t, guidesHTML, `href="faq.html"`)
 

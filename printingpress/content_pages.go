@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -30,6 +31,7 @@ const (
 	contentPartialMaxDepth            = 8
 	contentPartialMaxExpansions       = 128
 	contentImageAssetReadLimit  int64 = 5 * 1024 * 1024
+	contentPageDefaultOrder           = 1000
 )
 
 var partialPattern = regexp.MustCompile(`\{\{<\s*partial\s+"([^"]+)"\s*>\}\}`)
@@ -89,14 +91,23 @@ var supportedContentImageExtensions = map[string]struct{}{
 }
 
 type contentPageDraft struct {
-	convention conventionalContentPage
-	sourcePath string
-	sourceDir  string
-	aliases    []string
-	body       string
-	meta       contentPageFrontMatter
-	hasMeta    bool
-	fromDocs   bool
+	convention    conventionalContentPage
+	hasConvention bool
+	sourcePath    string
+	sourceRelPath string
+	sourceDir     string
+	aliases       []string
+	body          string
+	meta          contentPageFrontMatter
+	hasMeta       bool
+	fromDocs      bool
+}
+
+type contentPageSource struct {
+	filename string
+	relPath  string
+	path     string
+	fromDocs bool
 }
 
 type contentPageFrontMatter struct {
@@ -183,56 +194,134 @@ func (pp *PrintingPress) newContentPageContext() *contentPageContext {
 }
 
 func (pp *PrintingPress) discoverContentPageDrafts(ctx *contentPageContext) []*contentPageDraft {
-	drafts := make([]*contentPageDraft, 0, len(conventionalContentPages))
-	for _, convention := range conventionalContentPages {
-		rootPath, err := ctx.loader.Resolve(ctx.root, convention.filename)
+	sourcesByName := make(map[string]contentPageSource)
+	aliasesByName := make(map[string][]string)
+	for _, source := range pp.discoverContentPageSources(ctx, ctx.root, false, false) {
+		sourcesByName[contentPageSourceKey(source.relPath)] = source
+	}
+	if ctx.docsRoot != "" {
+		for _, source := range pp.discoverContentPageSources(ctx, ctx.docsRoot, true, true) {
+			key := contentPageSourceKey(source.relPath)
+			if rootSource, exists := sourcesByName[key]; exists && !rootSource.fromDocs {
+				pp.warnContentPage("custom page in docs ignored because root page takes precedence", source.path, nil)
+				aliasesByName[key] = append(aliasesByName[key], source.path)
+				continue
+			}
+			sourcesByName[key] = source
+		}
+	}
+	keys := make([]string, 0, len(sourcesByName))
+	for key := range sourcesByName {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	drafts := make([]*contentPageDraft, 0, len(keys))
+	for _, key := range keys {
+		source := sourcesByName[key]
+		data, result, err := ctx.loader.Read(source.path, contentPageReadLimit)
 		if err != nil {
-			pp.warnContentPage("custom page path could not be resolved; skipping", convention.filename, err)
-			continue
-		}
-		docsPath := ""
-		if ctx.docsRoot != "" {
-			docsPath, _ = ctx.loader.Resolve(ctx.docsRoot, convention.filename)
-		}
-		rootData, rootResult, rootErr := ctx.loader.Read(rootPath, contentPageReadLimit)
-		if rootErr == nil {
-			var aliases []string
-			if docsPath != "" {
-				if exists, err := ctx.loader.Exists(docsPath); err == nil && exists {
-					pp.warnContentPage("custom page in docs ignored because root page takes precedence", docsPath, nil)
-					aliases = append(aliases, docsPath)
-				}
-			}
-			draft := pp.newContentPageDraft(ctx, convention, rootResult.Path, rootData, false)
-			if draft != nil {
-				draft.aliases = aliases
-				drafts = append(drafts, draft)
+			if !isContentNotFound(err, result) {
+				pp.warnContentPage("custom page could not be read; skipping", source.path, err)
 			}
 			continue
 		}
-		if !isContentNotFound(rootErr, rootResult) {
-			pp.warnContentPage("custom page could not be read; skipping", rootPath, rootErr)
-			continue
-		}
-		if docsPath == "" {
-			continue
-		}
-		docsData, docsResult, docsErr := ctx.loader.Read(docsPath, contentPageReadLimit)
-		if docsErr == nil {
-			draft := pp.newContentPageDraft(ctx, convention, docsResult.Path, docsData, true)
-			if draft != nil {
-				drafts = append(drafts, draft)
-			}
-			continue
-		}
-		if !isContentNotFound(docsErr, docsResult) {
-			pp.warnContentPage("custom page could not be read; skipping", docsPath, docsErr)
+		convention, hasConvention := conventionalContentPageForSource(source)
+		draft := pp.newContentPageDraft(ctx, convention, hasConvention, result.Path, source.relPath, data, source.fromDocs)
+		if draft != nil {
+			draft.aliases = aliasesByName[key]
+			drafts = append(drafts, draft)
 		}
 	}
 	return drafts
 }
 
-func (pp *PrintingPress) newContentPageDraft(ctx *contentPageContext, convention conventionalContentPage, sourcePath string, data []byte, fromDocs bool) *contentPageDraft {
+func (pp *PrintingPress) discoverContentPageSources(ctx *contentPageContext, root string, fromDocs bool, recursive bool) []contentPageSource {
+	if ctx == nil || ctx.loader == nil || isURLString(root) {
+		return nil
+	}
+	resolvedRoot, err := ctx.loader.resolveLocalPath(root)
+	if err != nil {
+		if !errors.Is(err, errContentNotFound) {
+			pp.warnContentPage("custom page directory could not be read; skipping", root, err)
+		}
+		return nil
+	}
+	if recursive {
+		var sources []contentPageSource
+		err = filepath.WalkDir(resolvedRoot, func(walkPath string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				pp.warnContentPage("custom page path could not be read; skipping", walkPath, walkErr)
+				if entry != nil && entry.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if entry == nil {
+				return nil
+			}
+			if entry.IsDir() {
+				if walkPath != resolvedRoot && isContentPageSkipDir(entry.Name()) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !isContentMarkdownFile(entry) {
+				return nil
+			}
+			relPath, err := filepath.Rel(resolvedRoot, walkPath)
+			if err != nil {
+				pp.warnContentPage("custom page path could not be resolved; skipping", walkPath, err)
+				return nil
+			}
+			relPath = filepath.ToSlash(relPath)
+			resolved, err := ctx.loader.Resolve(resolvedRoot, filepath.FromSlash(relPath))
+			if err != nil {
+				pp.warnContentPage("custom page path could not be resolved; skipping", relPath, err)
+				return nil
+			}
+			sources = append(sources, contentPageSource{
+				filename: entry.Name(),
+				relPath:  relPath,
+				path:     resolved,
+				fromDocs: fromDocs,
+			})
+			return nil
+		})
+		if err != nil {
+			pp.warnContentPage("custom page directory could not be read; skipping", resolvedRoot, err)
+			return nil
+		}
+		return sources
+	}
+	entries, err := os.ReadDir(resolvedRoot)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			pp.warnContentPage("custom page directory could not be read; skipping", resolvedRoot, err)
+		}
+		return nil
+	}
+	sources := make([]contentPageSource, 0, len(entries))
+	for _, entry := range entries {
+		if !isContentMarkdownFile(entry) {
+			continue
+		}
+		filename := entry.Name()
+		resolved, err := ctx.loader.Resolve(resolvedRoot, filename)
+		if err != nil {
+			pp.warnContentPage("custom page path could not be resolved; skipping", filename, err)
+			continue
+		}
+		sources = append(sources, contentPageSource{
+			filename: filename,
+			relPath:  filename,
+			path:     resolved,
+			fromDocs: fromDocs,
+		})
+	}
+	return sources
+}
+
+func (pp *PrintingPress) newContentPageDraft(ctx *contentPageContext, convention conventionalContentPage, hasConvention bool, sourcePath string, sourceRelPath string, data []byte, fromDocs bool) *contentPageDraft {
 	body, meta, hasMeta, err := parseContentFrontMatter(string(data))
 	if !hasMeta {
 		pp.warnContentPage("custom page has no front matter; using filename defaults", sourcePath, nil)
@@ -243,13 +332,15 @@ func (pp *PrintingPress) newContentPageDraft(ctx *contentPageContext, convention
 	}
 	sourceDir := contentDir(sourcePath)
 	return &contentPageDraft{
-		convention: convention,
-		sourcePath: sourcePath,
-		sourceDir:  sourceDir,
-		body:       body,
-		meta:       meta,
-		hasMeta:    hasMeta,
-		fromDocs:   fromDocs,
+		convention:    convention,
+		hasConvention: hasConvention,
+		sourcePath:    sourcePath,
+		sourceRelPath: sourceRelPath,
+		sourceDir:     sourceDir,
+		body:          body,
+		meta:          meta,
+		hasMeta:       hasMeta,
+		fromDocs:      fromDocs,
 	}
 }
 
@@ -261,8 +352,10 @@ func (pp *PrintingPress) resolveContentPages(drafts []*contentPageDraft) []*ppmo
 		if leftOrder != rightOrder {
 			return leftOrder < rightOrder
 		}
-		if left.convention.order != right.convention.order {
-			return left.convention.order < right.convention.order
+		leftPresetOrder := contentDraftPresetOrder(left)
+		rightPresetOrder := contentDraftPresetOrder(right)
+		if leftPresetOrder != rightPresetOrder {
+			return leftPresetOrder < rightPresetOrder
 		}
 		return left.sourcePath < right.sourcePath
 	})
@@ -287,8 +380,8 @@ func (pp *PrintingPress) resolveContentPage(draft *contentPageDraft) *ppmodel.Co
 	if draft == nil {
 		return nil
 	}
-	defaultTitle := draft.convention.title
-	defaultSlug := draft.convention.slug
+	defaultTitle := contentDraftDefaultTitle(draft)
+	defaultSlug := contentDraftDefaultSlug(draft)
 	title := strings.TrimSpace(draft.meta.Title)
 	if title == "" {
 		title = defaultTitle
@@ -628,7 +721,166 @@ func contentDraftOrder(draft *contentPageDraft) int {
 	if draft == nil {
 		return 0
 	}
+	return contentDraftPresetOrder(draft)
+}
+
+func contentDraftPresetOrder(draft *contentPageDraft) int {
+	if draft == nil {
+		return 0
+	}
+	if !draft.hasConvention {
+		return contentPageDefaultOrder
+	}
 	return draft.convention.order
+}
+
+func contentDraftDefaultTitle(draft *contentPageDraft) string {
+	if draft == nil {
+		return ""
+	}
+	if draft.hasConvention && strings.TrimSpace(draft.convention.title) != "" {
+		return draft.convention.title
+	}
+	return contentTitleFromFilename(draft.sourcePath)
+}
+
+func contentDraftDefaultSlug(draft *contentPageDraft) string {
+	if draft == nil {
+		return ""
+	}
+	if draft.hasConvention && strings.TrimSpace(draft.convention.slug) != "" {
+		return draft.convention.slug
+	}
+	if strings.TrimSpace(draft.sourceRelPath) != "" {
+		return contentSlugFromContentPath(draft.sourceRelPath)
+	}
+	return contentSlugFromFilename(draft.sourcePath)
+}
+
+func conventionalContentPageForSource(source contentPageSource) (conventionalContentPage, bool) {
+	relPath := strings.TrimSpace(filepath.ToSlash(source.relPath))
+	if relPath != "" && relPath != strings.TrimSpace(source.filename) {
+		return conventionalContentPage{}, false
+	}
+	key := contentPageSourceKey(source.filename)
+	for _, convention := range conventionalContentPages {
+		if contentPageSourceKey(convention.filename) == key {
+			return convention, true
+		}
+	}
+	return conventionalContentPage{}, false
+}
+
+func contentPageSourceKey(filename string) string {
+	return strings.ToLower(strings.TrimSpace(filename))
+}
+
+func isContentMarkdownFile(entry os.DirEntry) bool {
+	if entry == nil || entry.IsDir() {
+		return false
+	}
+	name := strings.TrimSpace(entry.Name())
+	if name == "" || strings.HasPrefix(name, ".") {
+		return false
+	}
+	return strings.EqualFold(filepath.Ext(name), pppaths.ExtMarkdown)
+}
+
+func isContentPageSkipDir(name string) bool {
+	name = strings.TrimSpace(name)
+	return name == "" || strings.HasPrefix(name, ".") || name == "_partials"
+}
+
+func contentTitleFromFilename(rawPath string) string {
+	stem := contentFilenameStem(rawPath)
+	if stem == "" {
+		return "Page"
+	}
+	normalized := strings.NewReplacer("-", " ", "_", " ", ".", " ").Replace(stem)
+	words := strings.Fields(normalized)
+	if len(words) == 0 {
+		return "Page"
+	}
+	for i, word := range words {
+		words[i] = contentTitleWord(word)
+	}
+	return strings.Join(words, " ")
+}
+
+func contentSlugFromContentPath(rawPath string) string {
+	stemPath := strings.TrimSuffix(filepath.ToSlash(strings.TrimSpace(rawPath)), path.Ext(filepath.ToSlash(strings.TrimSpace(rawPath))))
+	parts := strings.Split(stemPath, "/")
+	slugs := make([]string, 0, len(parts))
+	for _, part := range parts {
+		slug := slugpkg.Sanitize(part)
+		if slug == "" {
+			continue
+		}
+		slugs = append(slugs, slug)
+	}
+	if len(slugs) == 0 {
+		return "page"
+	}
+	return strings.Join(slugs, "/")
+}
+
+func contentSlugFromFilename(rawPath string) string {
+	stem := contentFilenameStem(rawPath)
+	slug := slugpkg.Sanitize(stem)
+	if slug == "" {
+		return "page"
+	}
+	return slug
+}
+
+func contentFilenameStem(rawPath string) string {
+	base := rawPath
+	if isURLString(rawPath) {
+		parsed, err := url.Parse(rawPath)
+		if err == nil {
+			base = path.Base(parsed.Path)
+		}
+	} else {
+		base = filepath.Base(rawPath)
+	}
+	ext := filepath.Ext(base)
+	if isURLString(rawPath) {
+		ext = path.Ext(base)
+	}
+	return strings.TrimSuffix(base, ext)
+}
+
+func contentTitleWord(word string) string {
+	lower := strings.ToLower(strings.TrimSpace(word))
+	switch lower {
+	case "":
+		return ""
+	case "api":
+		return "API"
+	case "apis":
+		return "APIs"
+	case "faq":
+		return "FAQ"
+	case "sdk":
+		return "SDK"
+	case "sdks":
+		return "SDKs"
+	case "http":
+		return "HTTP"
+	case "https":
+		return "HTTPS"
+	case "id":
+		return "ID"
+	case "json":
+		return "JSON"
+	case "oas":
+		return "OAS"
+	case "yaml":
+		return "YAML"
+	}
+	runes := []rune(lower)
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
 }
 
 func sanitizeContentSlugPath(raw string) (string, bool) {

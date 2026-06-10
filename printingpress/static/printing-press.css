@@ -740,6 +740,54 @@ code {
     border-bottom: 1px dashed var(--hrcolor);
 }
 
+.pp-content-page-markdown ul,
+.pp-content-page-markdown ol {
+    margin: var(--global-padding) 0 var(--global-padding-double) 0;
+    padding-left: 2rem;
+}
+
+.pp-content-page-markdown ul {
+    list-style: none;
+}
+
+.pp-content-page-markdown ol {
+    list-style: decimal;
+}
+
+.pp-content-page-markdown li {
+    position: relative;
+    margin: 0 0 var(--global-padding) 0;
+    padding-bottom: 0;
+    line-height: 1.7;
+}
+
+.pp-content-page-markdown ul > li:before,
+.pp-content-page-markdown ul > li > ul > li:before,
+.pp-content-page-markdown ul > li > ul > li > ul > li:before {
+    position: absolute;
+    left: -1.4rem;
+    margin-right: 0;
+}
+
+.pp-content-page-markdown ol > li:before {
+    content: none;
+}
+
+.pp-content-page-markdown li > p {
+    margin: 0;
+    padding-left: 0;
+}
+
+.pp-content-page-markdown li > p + p {
+    margin-top: var(--global-padding-half);
+}
+
+.pp-content-page-markdown li > ul,
+.pp-content-page-markdown li > ol {
+    margin-top: var(--global-padding-half);
+    margin-bottom: 0;
+}
+
 .pp-content-page-markdown blockquote {
     box-sizing: border-box;
     padding: 0 0 0 var(--global-padding-double);
@@ -747,6 +795,76 @@ code {
 
 .pp-content-page-markdown blockquote p {
     padding-left: 0;
+}
+
+.pp-content-code-block {
+    position: relative;
+    margin: var(--global-padding-double) 0;
+}
+
+.pp-content-code-block pre {
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0;
+    padding-right: 3rem;
+}
+
+.pp-content-page-markdown pre:not(.chroma) {
+    display: block;
+    overflow-x: auto;
+    white-space: pre;
+    border: none;
+    border-left: 5px solid var(--secondary-color);
+    border-top: 1px dashed var(--secondary-color-lowalpha);
+    border-bottom: 1px dashed var(--secondary-color-lowalpha);
+    padding: 10px 3rem 10px 20px;
+    line-height: 1.4rem;
+    background-color: var(--background-color);
+    background-image: linear-gradient(to right, var(--chroma-gradient-start, #171d25), var(--background-color));
+    color: var(--font-color);
+}
+
+.pp-content-page-markdown pre:not(.chroma) code {
+    display: inline;
+    border: none;
+    padding: 0;
+    background: none;
+    color: inherit;
+}
+
+.pp-content-code-copy {
+    position: absolute;
+    top: var(--global-padding-half);
+    right: var(--global-padding-half);
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--secondary-color);
+    cursor: pointer;
+}
+
+.pp-content-code-copy sl-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+    font-size: 1.2rem;
+}
+
+.pp-content-code-copy:hover,
+.pp-content-code-copy:focus-visible {
+    color: var(--primary-color);
+}
+
+.pp-content-code-copy:focus-visible {
+    outline: 1px solid var(--secondary-color);
+    outline-offset: 2px;
 }
 
 .pp-content-index {
