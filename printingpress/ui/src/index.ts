@@ -2,6 +2,7 @@
 // Copyright 2024-2026 Princess Beef Heavy Industries, LLC
 import {hydratePrintingPressPage} from './utils/hydration.js';
 import {attentionInlineIcons} from './utils/attention-icons.js';
+import {enhanceContentCodeBlocks} from './utils/content-code-copy.js';
 import {printingPressStaticAssetHref} from './utils/static-assets.js';
 
 // Import Shoelace components used by cowboy-components
@@ -181,10 +182,15 @@ window.addEventListener('message', (event) => {
   applyHostTheme(data.theme);
 });
 
-if (document.body) {
+function bootPrintingPressPage() {
+  enhanceContentCodeBlocks();
   void hydratePrintingPressPage();
-} else {
+}
+
+if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    void hydratePrintingPressPage();
+    bootPrintingPressPage();
   }, {once: true});
+} else {
+  bootPrintingPressPage();
 }
