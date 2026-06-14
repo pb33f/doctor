@@ -21,7 +21,7 @@ import (
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	slugpkg "github.com/pb33f/doctor/printingpress/slug"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 const (
