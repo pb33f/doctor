@@ -226,7 +226,11 @@ func TestWalkerParityGolden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read parity golden: %v; set GOLDEN_REGENERATE=true to create it", err)
 	}
-	if string(expected) != actual {
+	// Git checkout can normalize text files to CRLF on Windows. The generated
+	// summary is intentionally LF-only, so compare content with canonical line endings.
+	expectedText := strings.ReplaceAll(string(expected), "\r\n", "\n")
+	expectedText = strings.ReplaceAll(expectedText, "\r", "\n")
+	if expectedText != actual {
 		t.Fatalf("walk parity changed; set GOLDEN_DUMP=<dir> to inspect rows and GOLDEN_REGENERATE=true to accept intentional changes")
 	}
 }
