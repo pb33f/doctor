@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestNewReferenceAggregator(t *testing.T) {
@@ -159,8 +159,8 @@ func TestReferenceAggregator_GetAggregationStats(t *testing.T) {
 
 	assert.Equal(t, 5, stats["total"])
 	assert.Equal(t, 4, stats["associations"])
-	assert.Equal(t, 1, stats["duplicateGroups"]) // A->B group
-	assert.Equal(t, 2, stats["relationshipsSaved"]) // 3 refs become 1, saves 2
+	assert.Equal(t, 1, stats["duplicateGroups"])            // A->B group
+	assert.Equal(t, 2, stats["relationshipsSaved"])         // 3 refs become 1, saves 2
 	assert.InDelta(t, 40.0, stats["reductionPercent"], 0.1) // 2/5 = 40%
 }
 

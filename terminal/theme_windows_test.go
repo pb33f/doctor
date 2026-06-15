@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 )
 
 const createNoWindow = 0x08000000

@@ -5,14 +5,12 @@ package v3
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/hex"
-	"fmt"
 	"github.com/pb33f/libopenapi/datamodel/high"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/index"
 	"go.yaml.in/yaml/v4"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -62,18 +60,21 @@ type HasSize interface {
 }
 
 type Foundation struct {
-	PathSegment      string
-	InstanceType     string
-	IsIndexed        bool
-	Index            *int
-	Key              string
-	PolyType         string
-	Parent           any
-	NodeParent       any
-	RuleResults      []*RuleFunctionResult
-	JSONPath         string
-	Mutex            sync.RWMutex
-	PathSegmentMutex sync.RWMutex // Separate mutex for PathSegment
+	PathSegment  string
+	InstanceType string
+	IsIndexed    bool
+	Index        *int
+	Key          string
+	PolyType     string
+	Parent       any
+	NodeParent   any
+	RuleResults  []*RuleFunctionResult
+	JSONPath     string
+	Mutex        sync.RWMutex
+	// Deprecated: retained only for source compatibility with direct struct
+	// users. Locking this mutex no longer synchronizes PathSegment; use
+	// GetPathSegment and SetPathSegment instead.
+	PathSegmentMutex sync.RWMutex
 	JSONPathOnce     sync.Once
 	Node             *Node
 	NodeReference    *Node // if the chain was broken, keep a reference
@@ -172,6 +173,37 @@ func (f *Foundation) BuildReferenceEdge(ctx context.Context, source, destination
 	return nil
 }
 
+// BuildReferenceEdgeToLine builds a reference edge whose target is a source
+// line number, resolved to a node id after the walk completes. It avoids
+// formatting the line into the Targets slice just to parse it back out.
+func (f *Foundation) BuildReferenceEdgeToLine(ctx context.Context, source string, targetLine int, ref string, poly string) *Edge {
+	drCtx := GetDrContext(ctx)
+	if drCtx != nil && f != nil {
+		if !drCtx.BuildGraph {
+			return nil
+		}
+		// the target carries the line number string until resolution replaces
+		// it with a node id; edges that never resolve keep it, preserving the
+		// historical (debuggable) target shape for Foundation.Edges readers.
+		line := strconv.Itoa(targetLine)
+		e := &Edge{
+			// keep the historical id format: source_line
+			Id:         source + "_" + line,
+			Sources:    []string{source},
+			Targets:    []string{line},
+			TargetLine: targetLine,
+		}
+		if poly != "" {
+			e.Poly = poly
+		}
+		e.Ref = ref
+		f.AddEdge(e)
+		drCtx.EdgeChan <- e
+		return e
+	}
+	return nil
+}
+
 func AddChunkDefaultHeight(element any, height int) int {
 	if element != nil && !reflect.ValueOf(element).IsNil() {
 		return height + HEIGHT
@@ -236,13 +268,13 @@ func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arra
 
 	if f.PolyType != "" {
 		n.IsPoly = true
-		n.PolyType = drCtx.internString(f.PolyType)
+		n.PolyType = f.PolyType
 	}
 
 	n.RenderChanges = drCtx.RenderChanges
 	n.ArrayIndex = arrayIndex
-	n.Type = drCtx.internString(nodeType)
-	n.Label = drCtx.internString(label)
+	n.Type = nodeType
+	n.Label = label
 	n.Width = calculateGraphNodeWidth(label, nodeType, arrayType, arrayCount)
 	n.Height = 25
 
@@ -291,8 +323,7 @@ func (f *Foundation) ProcessNodesAndEdges(ctx context.Context, label, nodeType s
 			}
 		}
 		// hash this id. This is used to identify the node in the graph in a DOM friendly way.
-		idHash := md5.Sum([]byte(n.Id))
-		n.IdHash = hex.EncodeToString(idHash[:])
+		n.IdHash = NodeIDHash(n.Id)
 
 		if label != "" {
 			drCtx.NodeChan <- n
@@ -336,29 +367,21 @@ func (f *Foundation) ProcessNodesAndEdges(ctx context.Context, label, nodeType s
 					// check if the ref supports a root node
 					if root, ko := model.GoLowUntyped().(low.HasValueNodeUntyped); ko {
 						if root.GetValueNode() != nil {
-							sourceId := fmt.Sprintf("%s", n.Id)
-							target := fmt.Sprintf("%d", root.GetValueNode().Line)
-
 							// build edge from the source
-							f.BuildReferenceEdge(ctx, sourceId, target, r.GetReference(), "")
+							f.BuildReferenceEdgeToLine(ctx, n.Id, root.GetValueNode().Line, r.GetReference(), "")
 
 							// break the chain, no more rendering down this branch.
-							copyNode := *f.GetNode()
-							f.SetRefNode(&copyNode)
+							f.SetRefNode(f.GetNode().CloneShallow())
 							f.SetNode(nil)
 						}
 					} else {
 						if root, ko := model.GoLowUntyped().(low.HasRootNode); ko {
 							if root.GetRootNode() != nil {
-								sourceId := fmt.Sprintf("%s", n.Id)
-								target := fmt.Sprintf("%d", root.GetRootNode().Line)
-
 								// build edge from the source
-								f.BuildReferenceEdge(ctx, sourceId, target, r.GetReference(), "")
+								f.BuildReferenceEdgeToLine(ctx, n.Id, root.GetRootNode().Line, r.GetReference(), "")
 
 								// break the chain, no more rendering down this branch.
-								copyNode := *f.GetNode()
-								f.SetRefNode(&copyNode)
+								f.SetRefNode(f.GetNode().CloneShallow())
 								f.SetNode(nil)
 
 							}
@@ -447,10 +470,15 @@ func (f *Foundation) forwardRuleFunctionResultToRoot(result *RuleFunctionResult)
 }
 
 func (f *Foundation) GetRoot() Foundational {
-	if f.Parent == nil {
-		return f
+	var current Foundational = f
+	for current != nil {
+		parent := current.GetParent()
+		if parent == nil {
+			return current
+		}
+		current = parent
 	}
-	return f.Parent.(Foundational).GetRoot()
+	return nil
 }
 
 func (f *Foundation) GetRuleFunctionResults() []*RuleFunctionResult {
@@ -472,14 +500,14 @@ func (f *Foundation) GetNodeParent() Foundational {
 }
 
 func (f *Foundation) GetPathSegment() string {
-	f.PathSegmentMutex.RLock()
-	defer f.PathSegmentMutex.RUnlock()
+	f.Mutex.RLock()
+	defer f.Mutex.RUnlock()
 	return f.PathSegment
 }
 
 func (f *Foundation) SetPathSegment(segment string) {
-	f.PathSegmentMutex.Lock()
-	defer f.PathSegmentMutex.Unlock()
+	f.Mutex.Lock()
+	defer f.Mutex.Unlock()
 	f.PathSegment = segment
 }
 
@@ -508,6 +536,21 @@ func (f *Foundation) setCanonicalJSONPathFromContext(drCtx *DrContext, rootNode 
 		return
 	}
 	f.setCanonicalJSONPath(path)
+}
+
+// AppendKeySegment appends a quoted key segment to a JSONPath base, e.g.
+// base + ['key']. This is THE single encoding of the key-segment grammar:
+// Foundation.buildJSONPathIterative and the canonical-path pre-population in
+// the model package (prePopulate* family) must both use it so walked paths
+// and pre-seeded definition-site paths can never drift apart.
+func AppendKeySegment(base, key string) string {
+	return base + "['" + key + "']"
+}
+
+// AppendIndexSegment appends an indexed segment to a JSONPath base, e.g.
+// base + .seg[3]. Counterpart of AppendKeySegment for indexed collections.
+func AppendIndexSegment(base, segment string, index int) string {
+	return base + "." + segment + "[" + strconv.Itoa(index) + "]"
 }
 
 func (f *Foundation) GenerateJSONPath() string {
@@ -540,15 +583,15 @@ func (f *Foundation) buildJSONPathIterative() string {
 
 		if key != "" {
 			if pathSeg == "" {
-				segment = "['" + key + "']"
+				segment = AppendKeySegment("", key)
 			} else {
-				segment = pathSeg + "['" + key + "']"
+				segment = AppendKeySegment(pathSeg, key)
 			}
 		} else if index != nil {
 			if cacheSplit {
-				segment = pathSeg + "CACHE-SPLIT[" + fmt.Sprint(*index) + "]--"
+				segment = pathSeg + "CACHE-SPLIT[" + strconv.Itoa(*index) + "]--"
 			} else {
-				segment = pathSeg + "[" + fmt.Sprint(*index) + "]"
+				segment = pathSeg + "[" + strconv.Itoa(*index) + "]"
 			}
 		} else {
 			segment = pathSeg

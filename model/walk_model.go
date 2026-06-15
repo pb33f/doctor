@@ -13,6 +13,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -77,6 +78,22 @@ type DrConfig struct {
 	RenderChanges      bool
 	UseSchemaCache     bool
 	DeterministicPaths bool // When true, schemas always return their definition-site path
+	SyncWalk           bool // When true, walk all branches synchronously for reproducible output
+	WalkWorkers        int  // Optional bounded worker count; <= 0 uses the default
+}
+
+type walkOptions struct {
+	SyncWalk    bool
+	WalkWorkers int
+}
+
+func shouldRunCachedWalkSynchronously(config *DrConfig, options walkOptions) bool {
+	// The schema cache needs a strict happens-before relationship: one schema
+	// owner must finish building before repeated occurrences hydrate from it.
+	// Worker-pool walking breaks that contract by allowing concurrent cache
+	// misses to build and publish the same subtree more than once. Cached walks
+	// therefore run synchronously; uncached walks can still use the pool.
+	return config != nil && config.UseSchemaCache && !options.SyncWalk
 }
 
 type HasValue interface {
@@ -352,9 +369,24 @@ func stableLocatedModels(models []drV3.Foundational) []drV3.Foundational {
 		stable = append(stable, model)
 	}
 
-	sort.Slice(stable, func(i, j int) bool {
-		return locatedModelSortKey(stable[i]) < locatedModelSortKey(stable[j])
+	type locatedModelSortEntry struct {
+		model drV3.Foundational
+		key   string
+	}
+	entries := make([]locatedModelSortEntry, len(stable))
+	for i, model := range stable {
+		entries[i] = locatedModelSortEntry{
+			model: model,
+			key:   locatedModelSortKey(model),
+		}
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].key < entries[j].key
 	})
+	for i, entry := range entries {
+		stable[i] = entry.model
+	}
 	return stable
 }
 
@@ -412,6 +444,23 @@ func (w *DrDocument) walkV3(doc *v3.Document, buildGraph, useCache, renderChange
 }
 
 func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.Document {
+	if config == nil {
+		config = &DrConfig{}
+	}
+	return w.walkV3WithConfigAndOptions(doc, config, walkOptions{
+		SyncWalk:    config.SyncWalk,
+		WalkWorkers: config.WalkWorkers,
+	})
+}
+
+func (w *DrDocument) walkV3WithConfigAndOptions(doc *v3.Document, config *DrConfig, options walkOptions) *drV3.Document {
+	if config == nil {
+		config = &DrConfig{}
+	}
+	if shouldRunCachedWalkSynchronously(config, options) {
+		options.SyncWalk = true
+	}
+
 	const objectCollectorBufferSize = drV3.DefaultWalkWorkQueueSize
 
 	schemaChan := make(chan *drV3.WalkedSchema)
@@ -430,32 +479,33 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 		wd = ""
 	}
 
-	var stringCache sync.Map
 	var canonicalPathCache sync.Map
+	var canonicalPathsApplied sync.Map
 	dctx := &drV3.DrContext{
-		SchemaChan:         schemaChan,
-		SkippedSchemaChan:  skippedSchemaChan,
-		ParameterChan:      parameterChan,
-		HeaderChan:         headerChan,
-		MediaTypeChan:      mediaTypeChan,
-		Index:              w.index,
-		ErrorChan:          buildErrorChan,
-		NodeChan:           nodeChan,
-		EdgeChan:           edgeChan,
-		ObjectChan:         objectChan,
-		V3Document:         doc,
-		BuildGraph:         config.BuildGraph,
-		RenderChanges:      config.RenderChanges,
-		SchemaCache:        &schemaCache,
-		CanonicalPathCache: &canonicalPathCache,
-		HashCache:          drV3.NewHashCache(),
-		StringCache:        &stringCache,
-		StorageRoot:        doc.GoLow().StorageRoot,
-		Logger:             doc.Index.GetLogger(),
-		UseSchemaCache:     config.UseSchemaCache,
-		DeterministicPaths: config.DeterministicPaths,
-		WorkingDirectory:   wd,
-		PooledWalk:         true, // use bounded worker pools by default
+		SchemaChan:            schemaChan,
+		SkippedSchemaChan:     skippedSchemaChan,
+		ParameterChan:         parameterChan,
+		HeaderChan:            headerChan,
+		MediaTypeChan:         mediaTypeChan,
+		Index:                 w.index,
+		ErrorChan:             buildErrorChan,
+		NodeChan:              nodeChan,
+		EdgeChan:              edgeChan,
+		ObjectChan:            objectChan,
+		V3Document:            doc,
+		BuildGraph:            config.BuildGraph,
+		RenderChanges:         config.RenderChanges,
+		SchemaCache:           &schemaCache,
+		CanonicalPathCache:    &canonicalPathCache,
+		CanonicalPathsApplied: &canonicalPathsApplied,
+		CircularRefs:          &drV3.CircularRefSets{},
+		HashCache:             drV3.NewHashCache(),
+		StorageRoot:           doc.GoLow().StorageRoot,
+		Logger:                doc.Index.GetLogger(),
+		UseSchemaCache:        config.UseSchemaCache,
+		DeterministicPaths:    config.DeterministicPaths,
+		SyncWalk:              options.SyncWalk,
+		WorkingDirectory:      wd,
 	}
 	w.StorageRoot = doc.GoLow().StorageRoot
 
@@ -464,8 +514,14 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 	// Create the bounded worker pool for document-level branches. Schema
 	// subtrees are walked inline so a schema is fully built before it is
 	// published to the schema cache.
-	dctx.WalkPool = drV3.NewWalkPool(drV3.DefaultWalkWorkers())
-	defer dctx.WalkPool.Shutdown()
+	if !options.SyncWalk {
+		workers := options.WalkWorkers
+		if workers <= 0 {
+			workers = drV3.DefaultWalkWorkers()
+		}
+		dctx.WalkPool = drV3.NewWalkPool(workers)
+		defer dctx.WalkPool.Shutdown()
+	}
 
 	var schemas []*drV3.Schema
 	var skippedSchemas []*drV3.Schema
@@ -476,8 +532,7 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 	var nodes []*drV3.Node
 	var edges []*drV3.Edge
 	var refEdges []*drV3.Edge
-	var nodeMap = make(map[string]*drV3.Node)
-	var nodeValueMap = make(map[string]*drV3.Node)
+	var nodeValueMap = make(map[int]*drV3.Node)
 	var nodeIdMap = make(map[string]*drV3.Node)
 
 	// Maps use uint64 keys (packed line:column) for zero-allocation lookups.
@@ -534,26 +589,16 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 				}
 			case nt := <-dctx.NodeChan:
 				if nt != nil {
-					if _, ok := nodeMap[fmt.Sprint(nt.KeyLine)]; !ok {
-						nodeMap[fmt.Sprint(nt.KeyLine)] = nt
-					}
-
 					// check if a node is a reference node
+					isRef := false
 					if gl, o := nt.GetInstance().(high.GoesLowUntyped); o {
 						if r, k := gl.GoLowUntyped().(low.IsReferenced); k {
-							if !r.IsReference() {
-								if _, ok := nodeValueMap[fmt.Sprint(nt.ValueLine)]; !ok {
-									nodeValueMap[fmt.Sprint(nt.ValueLine)] = nt
-								}
-							}
-						} else {
-							if _, ok := nodeValueMap[fmt.Sprint(nt.ValueLine)]; !ok {
-								nodeValueMap[fmt.Sprint(nt.ValueLine)] = nt
-							}
+							isRef = r.IsReference()
 						}
-					} else {
-						if _, ok := nodeValueMap[fmt.Sprint(nt.ValueLine)]; !ok {
-							nodeValueMap[fmt.Sprint(nt.ValueLine)] = nt
+					}
+					if !isRef {
+						if _, ok := nodeValueMap[nt.ValueLine]; !ok {
+							nodeValueMap[nt.ValueLine] = nt
 						}
 					}
 					nodes = append(nodes, nt)
@@ -592,7 +637,7 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 				if resolved := pair.Value().Schema(); resolved != nil {
 					if low := resolved.GoLow(); low != nil && low.RootNode != nil {
 						canonicalPathCache.Store(low.RootNode,
-							fmt.Sprintf("$.components.schemas['%s']", pair.Key()))
+							"$.components.schemas['"+pair.Key()+"']")
 					}
 				}
 			}
@@ -602,7 +647,7 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 			for pair := doc.Components.Responses.First(); pair != nil; pair = pair.Next() {
 				if low := pair.Value().GoLow(); low != nil && low.RootNode != nil {
 					canonicalPathCache.Store(low.RootNode,
-						fmt.Sprintf("$.components.responses['%s']", pair.Key()))
+						"$.components.responses['"+pair.Key()+"']")
 				}
 			}
 		}
@@ -611,7 +656,7 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 			for pair := doc.Components.Parameters.First(); pair != nil; pair = pair.Next() {
 				if low := pair.Value().GoLow(); low != nil && low.RootNode != nil {
 					canonicalPathCache.Store(low.RootNode,
-						fmt.Sprintf("$.components.parameters['%s']", pair.Key()))
+						"$.components.parameters['"+pair.Key()+"']")
 				}
 			}
 		}
@@ -620,7 +665,7 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 			for pair := doc.Components.RequestBodies.First(); pair != nil; pair = pair.Next() {
 				if low := pair.Value().GoLow(); low != nil && low.RootNode != nil {
 					canonicalPathCache.Store(low.RootNode,
-						fmt.Sprintf("$.components.requestBodies['%s']", pair.Key()))
+						"$.components.requestBodies['"+pair.Key()+"']")
 				}
 			}
 		}
@@ -629,7 +674,7 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 			for pair := doc.Components.Headers.First(); pair != nil; pair = pair.Next() {
 				if low := pair.Value().GoLow(); low != nil && low.RootNode != nil {
 					canonicalPathCache.Store(low.RootNode,
-						fmt.Sprintf("$.components.headers['%s']", pair.Key()))
+						"$.components.headers['"+pair.Key()+"']")
 				}
 			}
 		}
@@ -641,8 +686,8 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 		if doc.Components.Schemas != nil {
 			for pair := doc.Components.Schemas.First(); pair != nil; pair = pair.Next() {
 				if resolved := pair.Value().Schema(); resolved != nil {
-					basePath := fmt.Sprintf("$.components.schemas['%s']", pair.Key())
-					prePopulateNestedSchemaPaths(&canonicalPathCache, resolved, basePath, visited)
+					basePath := drV3.AppendKeySegment("$.components.schemas", pair.Key())
+					prePopulateNestedSchemaPaths(&canonicalPathCache, resolved, basePath, visited, false)
 				}
 			}
 		}
@@ -654,8 +699,8 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 				if response == nil || response.Content == nil {
 					continue
 				}
-				basePath := fmt.Sprintf("$.components.responses['%s']", pair.Key())
-				prePopulateMediaTypeSchemas(&canonicalPathCache, response.Content, basePath, visited)
+				basePath := drV3.AppendKeySegment("$.components.responses", pair.Key())
+				prePopulateMediaTypeSchemas(&canonicalPathCache, response.Content, basePath, visited, false)
 			}
 		}
 
@@ -666,12 +711,12 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 				if parameter == nil {
 					continue
 				}
-				basePath := fmt.Sprintf("$.components.parameters['%s']", pair.Key())
+				basePath := drV3.AppendKeySegment("$.components.parameters", pair.Key())
 				if parameter.Schema != nil {
-					populateSchemaProxyPath(&canonicalPathCache, parameter.Schema, basePath+".schema", visited)
+					populateSchemaProxyPath(&canonicalPathCache, parameter.Schema, basePath+".schema", visited, false)
 				}
 				if parameter.Content != nil {
-					prePopulateMediaTypeSchemas(&canonicalPathCache, parameter.Content, basePath, visited)
+					prePopulateMediaTypeSchemas(&canonicalPathCache, parameter.Content, basePath, visited, false)
 				}
 			}
 		}
@@ -683,8 +728,8 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 				if requestBody == nil || requestBody.Content == nil {
 					continue
 				}
-				basePath := fmt.Sprintf("$.components.requestBodies['%s']", pair.Key())
-				prePopulateMediaTypeSchemas(&canonicalPathCache, requestBody.Content, basePath, visited)
+				basePath := drV3.AppendKeySegment("$.components.requestBodies", pair.Key())
+				prePopulateMediaTypeSchemas(&canonicalPathCache, requestBody.Content, basePath, visited, false)
 			}
 		}
 
@@ -695,13 +740,32 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 				if header == nil {
 					continue
 				}
-				basePath := fmt.Sprintf("$.components.headers['%s']", pair.Key())
+				basePath := drV3.AppendKeySegment("$.components.headers", pair.Key())
 				if header.Schema != nil {
-					populateSchemaProxyPath(&canonicalPathCache, header.Schema, basePath+".schema", visited)
+					populateSchemaProxyPath(&canonicalPathCache, header.Schema, basePath+".schema", visited, false)
 				}
 				if header.Content != nil {
-					prePopulateMediaTypeSchemas(&canonicalPathCache, header.Content, basePath, visited)
+					prePopulateMediaTypeSchemas(&canonicalPathCache, header.Content, basePath, visited, false)
 				}
+			}
+		}
+
+		// PathItems (OpenAPI 3.1+) - operations carry schemas via parameters,
+		// request bodies, responses and nested callbacks.
+		if doc.Components.PathItems != nil {
+			for pair := doc.Components.PathItems.First(); pair != nil; pair = pair.Next() {
+				if pi := pair.Value(); pi != nil {
+					prePopulatePathItemSchemas(&canonicalPathCache, pi,
+						"$.components.pathItems['"+pair.Key()+"']", visited, false)
+				}
+			}
+		}
+
+		// Callbacks - expression path items carry the same operation shapes.
+		if doc.Components.Callbacks != nil {
+			for pair := doc.Components.Callbacks.First(); pair != nil; pair = pair.Next() {
+				prePopulateCallbackSchemas(&canonicalPathCache, pair.Value(),
+					"$.components.callbacks['"+pair.Key()+"']", visited, false)
 			}
 		}
 	}
@@ -730,9 +794,6 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 	}
 	// sort skipped schemas by line number
 	orderedFuncSkipped := func(i, j int) bool {
-		if i < len(schemas) {
-			_ = schemas[i]
-		}
 		return safeCmp(skippedSchemas[i].GetKeyNode(), skippedSchemas[j].GetKeyNode())
 	}
 	// same for parameters
@@ -742,6 +803,9 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 	// same for headers
 	orderedFuncHeader := func(i, j int) bool {
 		return safeCmp(headers[i].GetKeyNode(), headers[j].GetKeyNode())
+	}
+	orderedFuncMediaType := func(i, j int) bool {
+		return safeCmp(mediaTypes[i].GetKeyNode(), mediaTypes[j].GetKeyNode())
 	}
 	if len(schemas) > 0 {
 		sort.Slice(schemas, orderedFunc)
@@ -754,6 +818,9 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 	}
 	if len(headers) > 0 {
 		sort.Slice(headers, orderedFuncHeader)
+	}
+	if len(mediaTypes) > 0 {
+		sort.Slice(mediaTypes, orderedFuncMediaType)
 	}
 
 	w.Schemas = schemas
@@ -770,18 +837,11 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 
 	if config.BuildGraph {
 		for _, edge := range refEdges {
-			// Check if the target is already a node ID
-			if _, ok := nodeIdMap[edge.Targets[0]]; ok {
-				// Skip self-referencing edges (source == target)
-				if edge.Sources[0] == edge.Targets[0] {
-					continue
-				}
-				targets[edge.Targets[0]] = edge
-				sources[edge.Sources[0]] = edge
-			} else {
-				// Target is likely a line number - convert it to node ID using nodeValueMap
-				if targetNode, ok := nodeValueMap[edge.Targets[0]]; ok {
+			if edge.TargetLine > 0 {
+				// Line-targeted edge - resolve the line to a node ID
+				if targetNode, ok := nodeValueMap[edge.TargetLine]; ok {
 					edge.Targets[0] = targetNode.Id
+					edge.TargetLine = 0
 					// Skip self-referencing edges (source == target after conversion)
 					if edge.Sources[0] == edge.Targets[0] {
 						continue
@@ -789,6 +849,14 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 					targets[edge.Targets[0]] = edge
 					sources[edge.Sources[0]] = edge
 				}
+			} else if _, ok := nodeIdMap[edge.Targets[0]]; ok {
+				// Target is already a node ID
+				// Skip self-referencing edges (source == target)
+				if edge.Sources[0] == edge.Targets[0] {
+					continue
+				}
+				targets[edge.Targets[0]] = edge
+				sources[edge.Sources[0]] = edge
 			}
 			roughEdges = append(roughEdges, edge)
 		}
@@ -814,19 +882,22 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 		w.Edges = cleanedEdges
 
 		// build node tree
-		for x, n := range w.Nodes {
-			fmt.Sprint(x)
+		childrenByParent := make(map[string]map[string]struct{})
+		for _, n := range w.Nodes {
 			if p, ok := nodeIdMap[n.ParentId]; ok {
-
-				exists := false
-				for _, c := range p.Children {
-					if c.Id == n.Id {
-						exists = true
-						break
+				seenChildren := childrenByParent[p.Id]
+				if seenChildren == nil {
+					seenChildren = make(map[string]struct{}, len(p.Children)+1)
+					for _, c := range p.Children {
+						if c != nil {
+							seenChildren[c.Id] = struct{}{}
+						}
 					}
+					childrenByParent[p.Id] = seenChildren
 				}
-				if !exists {
+				if _, exists := seenChildren[n.Id]; !exists {
 					p.Children = append(p.Children, n)
+					seenChildren[n.Id] = struct{}{}
 				}
 
 				if n.Origin == nil {
@@ -852,22 +923,173 @@ func (w *DrDocument) walkV3WithConfig(doc *v3.Document, config *DrConfig) *drV3.
 	return drDoc
 }
 
+// prePopulatePathItemSchemas seeds canonical paths for every schema reachable
+// from a path item (operations, parameters, request bodies, responses,
+// response headers, nested callbacks). Segment shapes mirror the walkers:
+// operations are lowercase method segments, response codes are key-only
+// segments under 'responses', callback expressions are key-only segments
+// under the callback's own key.
+func prePopulatePathItemSchemas(
+	cache *sync.Map,
+	pathItem *v3.PathItem,
+	basePath string,
+	visited map[*yaml.Node]bool,
+	followRefs bool,
+) {
+	if cache == nil || pathItem == nil {
+		return
+	}
+	// guard recursive callback -> pathItem chains ($ref'd path items)
+	if low := pathItem.GoLow(); low != nil && low.RootNode != nil {
+		if visited[low.RootNode] {
+			return
+		}
+		visited[low.RootNode] = true
+	}
+
+	for i, param := range pathItem.Parameters {
+		prePopulateParameterSchemas(cache, param, basePath+".parameters["+strconv.Itoa(i)+"]", visited, followRefs)
+	}
+
+	operations := []struct {
+		method string
+		op     *v3.Operation
+	}{
+		{"get", pathItem.Get}, {"put", pathItem.Put}, {"post", pathItem.Post},
+		{"delete", pathItem.Delete}, {"options", pathItem.Options},
+		{"head", pathItem.Head}, {"patch", pathItem.Patch}, {"trace", pathItem.Trace},
+	}
+	if followRefs {
+		operations[1], operations[2] = operations[2], operations[1]
+	}
+	for _, entry := range operations {
+		if entry.op == nil {
+			continue
+		}
+		opPath := basePath + "." + entry.method
+		for i, param := range entry.op.Parameters {
+			prePopulateParameterSchemas(cache, param, opPath+".parameters["+strconv.Itoa(i)+"]", visited, followRefs)
+		}
+		if entry.op.RequestBody != nil && entry.op.RequestBody.Content != nil {
+			prePopulateMediaTypeSchemas(cache, entry.op.RequestBody.Content, opPath+".requestBody", visited, followRefs)
+		}
+		if entry.op.Responses != nil && entry.op.Responses.Codes != nil {
+			for pair := entry.op.Responses.Codes.First(); pair != nil; pair = pair.Next() {
+				response := pair.Value()
+				if response == nil {
+					continue
+				}
+				respPath := drV3.AppendKeySegment(opPath+".responses", pair.Key())
+				if response.Content != nil {
+					prePopulateMediaTypeSchemas(cache, response.Content, respPath, visited, followRefs)
+				}
+				if response.Headers != nil {
+					for hPair := response.Headers.First(); hPair != nil; hPair = hPair.Next() {
+						header := hPair.Value()
+						if header == nil {
+							continue
+						}
+						headerPath := drV3.AppendKeySegment(respPath+".headers", hPair.Key())
+						if header.Schema != nil {
+							populateSchemaProxyPath(cache, header.Schema, headerPath+".schema", visited, followRefs)
+						}
+						if header.Content != nil {
+							prePopulateMediaTypeSchemas(cache, header.Content, headerPath, visited, followRefs)
+						}
+					}
+				}
+			}
+		}
+		if entry.op.Callbacks != nil {
+			for cbPair := entry.op.Callbacks.First(); cbPair != nil; cbPair = cbPair.Next() {
+				prePopulateCallbackSchemas(cache, cbPair.Value(), opPath+".callbacks['"+cbPair.Key()+"']", visited, followRefs)
+			}
+		}
+	}
+}
+
+// prePopulateCallbackSchemas seeds canonical paths for schemas under a
+// callback's expression path items (expressions are key-only segments).
+func prePopulateCallbackSchemas(
+	cache *sync.Map,
+	callback *v3.Callback,
+	basePath string,
+	visited map[*yaml.Node]bool,
+	followRefs bool,
+) {
+	if cache == nil || callback == nil || callback.Expression == nil {
+		return
+	}
+	for pair := callback.Expression.First(); pair != nil; pair = pair.Next() {
+		if pi := pair.Value(); pi != nil {
+			prePopulatePathItemSchemas(cache, pi, drV3.AppendKeySegment(basePath, pair.Key()), visited, followRefs)
+		}
+	}
+}
+
+// prePopulateParameterSchemas seeds canonical paths for a parameter's schema
+// and content media types.
+func prePopulateParameterSchemas(
+	cache *sync.Map,
+	parameter *v3.Parameter,
+	basePath string,
+	visited map[*yaml.Node]bool,
+	followRefs bool,
+) {
+	if cache == nil || parameter == nil {
+		return
+	}
+	if parameter.Schema != nil {
+		populateSchemaProxyPath(cache, parameter.Schema, basePath+".schema", visited, followRefs)
+	}
+	if parameter.Content != nil {
+		prePopulateMediaTypeSchemas(cache, parameter.Content, basePath, visited, followRefs)
+	}
+}
+
 func prePopulateMediaTypeSchemas(
 	cache *sync.Map,
 	content *orderedmap.Map[string, *v3.MediaType],
 	basePath string,
 	visited map[*yaml.Node]bool,
+	followRefs bool,
 ) {
 	if cache == nil || content == nil {
 		return
 	}
 	for pair := content.First(); pair != nil; pair = pair.Next() {
 		mediaType := pair.Value()
-		if mediaType == nil || mediaType.Schema == nil {
+		if mediaType == nil {
 			continue
 		}
-		mediaPath := fmt.Sprintf("%s.content['%s'].schema", basePath, pair.Key())
-		populateSchemaProxyPath(cache, mediaType.Schema, mediaPath, visited)
+		mediaPath := drV3.AppendKeySegment(basePath+".content", pair.Key())
+		if mediaType.Schema != nil {
+			populateSchemaProxyPath(cache, mediaType.Schema, mediaPath+".schema", visited, followRefs)
+		}
+		if mediaType.Encoding != nil {
+			for encPair := mediaType.Encoding.First(); encPair != nil; encPair = encPair.Next() {
+				encoding := encPair.Value()
+				if encoding == nil || encoding.Headers == nil {
+					continue
+				}
+				// headers under an encoding carry a key segment only (no
+				// 'headers' path segment), matching the walked model's paths.
+				encodingPath := drV3.AppendKeySegment(mediaPath+".encoding", encPair.Key())
+				for headerPair := encoding.Headers.First(); headerPair != nil; headerPair = headerPair.Next() {
+					header := headerPair.Value()
+					if header == nil {
+						continue
+					}
+					headerPath := drV3.AppendKeySegment(encodingPath, headerPair.Key())
+					if header.Schema != nil {
+						populateSchemaProxyPath(cache, header.Schema, headerPath+".schema", visited, followRefs)
+					}
+					if header.Content != nil {
+						prePopulateMediaTypeSchemas(cache, header.Content, headerPath, visited, followRefs)
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -876,6 +1098,7 @@ func prePopulateNestedSchemaPaths(
 	schema *highbase.Schema,
 	basePath string,
 	visited map[*yaml.Node]bool,
+	followRefs bool,
 ) {
 	// This walks libopenapi highbase.Schema objects before doctor v3.Schema
 	// cache aliases exist, so alias-safe *ForRead accessors do not apply here.
@@ -885,57 +1108,57 @@ func prePopulateNestedSchemaPaths(
 
 	if schema.Properties != nil {
 		for pair := schema.Properties.First(); pair != nil; pair = pair.Next() {
-			path := fmt.Sprintf("%s.properties['%s']", basePath, pair.Key())
-			populateSchemaProxyPath(cache, pair.Value(), path, visited)
+			path := drV3.AppendKeySegment(basePath+".properties", pair.Key())
+			populateSchemaProxyPath(cache, pair.Value(), path, visited, followRefs)
 		}
 	}
 
 	for i, proxy := range schema.AllOf {
-		path := fmt.Sprintf("%s.allOf[%d]", basePath, i)
-		populateSchemaProxyPath(cache, proxy, path, visited)
+		path := drV3.AppendIndexSegment(basePath, "allOf", i)
+		populateSchemaProxyPath(cache, proxy, path, visited, followRefs)
 	}
 	for i, proxy := range schema.OneOf {
-		path := fmt.Sprintf("%s.oneOf[%d]", basePath, i)
-		populateSchemaProxyPath(cache, proxy, path, visited)
+		path := drV3.AppendIndexSegment(basePath, "oneOf", i)
+		populateSchemaProxyPath(cache, proxy, path, visited, followRefs)
 	}
 	for i, proxy := range schema.AnyOf {
-		path := fmt.Sprintf("%s.anyOf[%d]", basePath, i)
-		populateSchemaProxyPath(cache, proxy, path, visited)
+		path := drV3.AppendIndexSegment(basePath, "anyOf", i)
+		populateSchemaProxyPath(cache, proxy, path, visited, followRefs)
 	}
 	for i, proxy := range schema.PrefixItems {
-		path := fmt.Sprintf("%s.prefixItems[%d]", basePath, i)
-		populateSchemaProxyPath(cache, proxy, path, visited)
+		path := drV3.AppendIndexSegment(basePath, "prefixItems", i)
+		populateSchemaProxyPath(cache, proxy, path, visited, followRefs)
 	}
 
-	populateSchemaProxyPath(cache, schema.Not, basePath+".not", visited)
-	populateSchemaProxyPath(cache, schema.Contains, basePath+".contains", visited)
-	populateSchemaProxyPath(cache, schema.If, basePath+".if", visited)
-	populateSchemaProxyPath(cache, schema.Then, basePath+".then", visited)
-	populateSchemaProxyPath(cache, schema.Else, basePath+".else", visited)
-	populateSchemaProxyPath(cache, schema.PropertyNames, basePath+".propertyNames", visited)
-	populateSchemaProxyPath(cache, schema.UnevaluatedItems, basePath+".unevaluatedItems", visited)
-	populateSchemaProxyPath(cache, schema.ContentSchema, basePath+".contentSchema", visited)
+	populateSchemaProxyPath(cache, schema.Not, basePath+".not", visited, followRefs)
+	populateSchemaProxyPath(cache, schema.Contains, basePath+".contains", visited, followRefs)
+	populateSchemaProxyPath(cache, schema.If, basePath+".if", visited, followRefs)
+	populateSchemaProxyPath(cache, schema.Then, basePath+".then", visited, followRefs)
+	populateSchemaProxyPath(cache, schema.Else, basePath+".else", visited, followRefs)
+	populateSchemaProxyPath(cache, schema.PropertyNames, basePath+".propertyNames", visited, followRefs)
+	populateSchemaProxyPath(cache, schema.UnevaluatedItems, basePath+".unevaluatedItems", visited, followRefs)
+	populateSchemaProxyPath(cache, schema.ContentSchema, basePath+".contentSchema", visited, followRefs)
 
 	if schema.Items != nil && schema.Items.IsA() && schema.Items.A != nil {
-		populateSchemaProxyPath(cache, schema.Items.A, basePath+".items", visited)
+		populateSchemaProxyPath(cache, schema.Items.A, basePath+".items", visited, followRefs)
 	}
 	if schema.AdditionalProperties != nil && schema.AdditionalProperties.IsA() && schema.AdditionalProperties.A != nil {
-		populateSchemaProxyPath(cache, schema.AdditionalProperties.A, basePath+".additionalProperties", visited)
+		populateSchemaProxyPath(cache, schema.AdditionalProperties.A, basePath+".additionalProperties", visited, followRefs)
 	}
 	if schema.UnevaluatedProperties != nil && schema.UnevaluatedProperties.IsA() && schema.UnevaluatedProperties.A != nil {
-		populateSchemaProxyPath(cache, schema.UnevaluatedProperties.A, basePath+".unevaluatedProperties", visited)
+		populateSchemaProxyPath(cache, schema.UnevaluatedProperties.A, basePath+".unevaluatedProperties", visited, followRefs)
 	}
 
 	if schema.DependentSchemas != nil {
 		for pair := schema.DependentSchemas.First(); pair != nil; pair = pair.Next() {
-			path := fmt.Sprintf("%s.dependentSchemas['%s']", basePath, pair.Key())
-			populateSchemaProxyPath(cache, pair.Value(), path, visited)
+			path := drV3.AppendKeySegment(basePath+".dependentSchemas", pair.Key())
+			populateSchemaProxyPath(cache, pair.Value(), path, visited, followRefs)
 		}
 	}
 	if schema.PatternProperties != nil {
 		for pair := schema.PatternProperties.First(); pair != nil; pair = pair.Next() {
-			path := fmt.Sprintf("%s.patternProperties['%s']", basePath, pair.Key())
-			populateSchemaProxyPath(cache, pair.Value(), path, visited)
+			path := drV3.AppendKeySegment(basePath+".patternProperties", pair.Key())
+			populateSchemaProxyPath(cache, pair.Value(), path, visited, followRefs)
 		}
 	}
 }
@@ -945,13 +1168,12 @@ func populateSchemaProxyPath(
 	proxy *highbase.SchemaProxy,
 	path string,
 	visited map[*yaml.Node]bool,
+	followRefs bool,
 ) {
 	if cache == nil || proxy == nil {
 		return
 	}
-
-	// Stop traversal at direct $ref boundaries: component targets are seeded independently.
-	if proxy.IsReference() {
+	if proxy.IsReference() && !followRefs {
 		return
 	}
 
@@ -971,7 +1193,7 @@ func populateSchemaProxyPath(
 
 	cache.LoadOrStore(root, path)
 	visited[root] = true
-	prePopulateNestedSchemaPaths(cache, resolved, path, visited)
+	prePopulateNestedSchemaPaths(cache, resolved, path, visited, followRefs)
 }
 
 func (w *DrDocument) processObject(obj any, ln []any) {
@@ -1019,8 +1241,9 @@ func (w *DrDocument) addLineObject(line int, obj any, ln []any) {
 	}
 
 	ptr := objectIdentity(obj)
+	objects := w.lineObjects[line]
 
-	if w.lineObjects[line] == nil {
+	if objects == nil {
 		w.lineObjects[line] = []any{obj}
 		if ptr != 0 {
 			w.lineObjectPtrs[line] = map[uintptr]struct{}{ptr: {}}
@@ -1033,22 +1256,24 @@ func (w *DrDocument) addLineObject(line int, obj any, ln []any) {
 	}
 
 	if ptr != 0 {
-		if w.lineObjectPtrs[line] == nil {
-			w.lineObjectPtrs[line] = make(map[uintptr]struct{}, len(w.lineObjects[line]))
-			for _, existing := range w.lineObjects[line] {
+		ptrs := w.lineObjectPtrs[line]
+		if ptrs == nil {
+			ptrs = make(map[uintptr]struct{}, len(objects))
+			for _, existing := range objects {
 				existingPtr := objectIdentity(existing)
 				if existingPtr != 0 {
-					w.lineObjectPtrs[line][existingPtr] = struct{}{}
+					ptrs[existingPtr] = struct{}{}
 				}
 			}
+			w.lineObjectPtrs[line] = ptrs
 		}
-		if _, exists := w.lineObjectPtrs[line][ptr]; exists {
+		if _, exists := ptrs[ptr]; exists {
 			return
 		}
 	}
 
 	path := obj.(drV3.Foundational).GenerateJSONPath()
-	for _, existing := range w.lineObjects[line] {
+	for _, existing := range objects {
 		foundational, ok := existing.(drV3.Foundational)
 		if ok && foundational.GenerateJSONPath() == path {
 			if ptr != 0 {
@@ -1058,7 +1283,7 @@ func (w *DrDocument) addLineObject(line int, obj any, ln []any) {
 		}
 	}
 
-	w.lineObjects[line] = append(w.lineObjects[line], obj)
+	w.lineObjects[line] = append(objects, obj)
 	if ptr != 0 {
 		w.lineObjectPtrs[line][ptr] = struct{}{}
 	}

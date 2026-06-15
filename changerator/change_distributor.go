@@ -6,10 +6,14 @@ package changerator
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	v3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi/datamodel"
+	lowV3 "github.com/pb33f/libopenapi/datamodel/low/v3"
+	"github.com/pb33f/libopenapi/utils"
 	whatChanged "github.com/pb33f/libopenapi/what-changed"
 	whatChangedModel "github.com/pb33f/libopenapi/what-changed/model"
-	"sync"
 )
 
 type ChangeratorChange whatChangedModel.Change
@@ -104,15 +108,17 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 	leftDoc := t.Config.LeftDrDoc
 	rightDoc := t.Config.RightDrDoc
 
-	// rotate rolodex ids
-	leftDoc.Document.Rolodex.RotateId()
-	rightDoc.Document.Rolodex.RotateId()
-
-	docChanges := whatChanged.CompareOpenAPIDocuments(leftDoc.Document.GoLow(), rightDoc.Document.GoLow())
+	docChanges := compareOpenAPIDocuments(leftDoc, rightDoc)
 
 	if docChanges == nil || len(docChanges.GetAllChanges()) == 0 {
 		return nil
 	}
+
+	// Rotate after comparison. libopenapi v0.38 uses Rolodex identity during
+	// external-reference comparison, so rotating before the diff hides changes
+	// when root refs have identical names.
+	leftDoc.Document.Rolodex.RotateId()
+	rightDoc.Document.Rolodex.RotateId()
 
 	t.Config.DocumentChanges = docChanges
 	t.NodeChan = make(chan *modelChange)
@@ -186,6 +192,70 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 
 	return docChanges
 
+}
+
+func compareOpenAPIDocuments(leftDoc, rightDoc *v3.Document) *whatChangedModel.DocumentChanges {
+	if leftDoc == nil || rightDoc == nil || leftDoc.Document == nil || rightDoc.Document == nil {
+		return nil
+	}
+
+	docChanges := whatChanged.CompareOpenAPIDocuments(leftDoc.Document.GoLow(), rightDoc.Document.GoLow())
+	if docChanges != nil && len(docChanges.GetAllChanges()) > 0 {
+		return docChanges
+	}
+	if !hasExternalReferencesForComparison(leftDoc) && !hasExternalReferencesForComparison(rightDoc) {
+		return docChanges
+	}
+
+	rebuiltLeft, leftErr := rebuildLowDocumentForComparison(leftDoc)
+	rebuiltRight, rightErr := rebuildLowDocumentForComparison(rightDoc)
+	if leftErr != nil || rightErr != nil {
+		return docChanges
+	}
+
+	rebuiltChanges := whatChanged.CompareOpenAPIDocuments(rebuiltLeft, rebuiltRight)
+	if rebuiltChanges != nil && len(rebuiltChanges.GetAllChanges()) > 0 {
+		return rebuiltChanges
+	}
+	return docChanges
+}
+
+func hasExternalReferencesForComparison(doc *v3.Document) bool {
+	if doc == nil || doc.Document == nil || doc.Document.GoLow() == nil || doc.Document.GoLow().Index == nil {
+		return false
+	}
+	idx := doc.Document.GoLow().Index
+	if len(idx.GetAllExternalDocuments()) > 0 {
+		return true
+	}
+	for _, ref := range idx.GetAllReferences() {
+		if ref != nil && (utils.IsExternalRef(ref.Definition) || utils.IsExternalRef(ref.RawRef)) {
+			return true
+		}
+	}
+	return false
+}
+
+func rebuildLowDocumentForComparison(doc *v3.Document) (*lowV3.Document, error) {
+	if doc == nil || doc.Document == nil || doc.Document.GoLow() == nil || doc.Document.GoLow().Index == nil {
+		return nil, fmt.Errorf("document has no low-level index")
+	}
+	indexConfig := doc.Document.GoLow().Index.GetConfig()
+	if indexConfig == nil || indexConfig.SpecInfo == nil {
+		return nil, fmt.Errorf("document index has no spec info")
+	}
+	config := indexConfig.ToDocumentConfiguration()
+	if config == nil {
+		config = datamodel.NewDocumentConfiguration()
+	}
+	config.RemoteURLHandler = indexConfig.RemoteURLHandler
+	config.LocalFS = indexConfig.FSHandler
+	config.RemoteFS = indexConfig.FSHandler
+	config.AvoidIndexBuild = indexConfig.AvoidBuildIndex
+	config.SkipCircularReferenceCheck = indexConfig.AvoidCircularReferenceCheck
+	config.ExtractRefsSequentially = indexConfig.ExtractRefsSequentially
+	config.ExcludeExtensionRefs = indexConfig.ExcludeExtensionRefs
+	return lowV3.CreateDocumentFromConfig(indexConfig.SpecInfo, config)
 }
 
 func (t *Changerator) GetDoctor() v3.Doctor {

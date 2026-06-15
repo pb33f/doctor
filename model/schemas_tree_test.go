@@ -7,7 +7,7 @@ import (
 
 	"github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 )
 
 func TestSchemasTreeChildren(t *testing.T) {
@@ -45,11 +45,11 @@ func TestSchemasTreeChildren(t *testing.T) {
 		if node.ParentId == schemasNodeId {
 			childCount++
 			t.Logf("  Child[%d]: id=%s type=%s label=%s", childCount, node.Id, node.Type, node.Label)
-			
+
 			// Check if this looks like a response code (should NOT be here)
-			if node.Label == "409" || node.Label == "404" || node.Label == "400" || 
-			   node.Label == "401" || node.Label == "403" || node.Label == "429" || 
-			   node.Label == "500" || node.Label == "200" || node.Label == "201" {
+			if node.Label == "409" || node.Label == "404" || node.Label == "400" ||
+				node.Label == "401" || node.Label == "403" || node.Label == "429" ||
+				node.Label == "500" || node.Label == "200" || node.Label == "201" {
 				t.Errorf("UNEXPECTED: Response code %s found under schemas!", node.Label)
 			}
 			if node.Type == "response" {
@@ -64,8 +64,8 @@ func TestSchemasTreeChildren(t *testing.T) {
 	for _, node := range drDoc.Nodes {
 		if strings.Contains(node.Id, "$.components.schemas") {
 			if node.Type == "response" || node.Label == "RateLimit" ||
-			   node.Label == "409" || node.Label == "404" || node.Label == "400" {
-				t.Logf("  SUSPECT: id=%s type=%s label=%s parentId=%s", 
+				node.Label == "409" || node.Label == "404" || node.Label == "400" {
+				t.Logf("  SUSPECT: id=%s type=%s label=%s parentId=%s",
 					node.Id, node.Type, node.Label, node.ParentId)
 			}
 		}

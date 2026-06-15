@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	whatChangedModel "github.com/pb33f/libopenapi/what-changed/model"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 // TestProcessSlice_NilSafety tests that the processSlice function properly handles nil SchemaChanges
@@ -22,7 +22,7 @@ func TestProcessSlice_NilSafety(t *testing.T) {
 		if ch == nil {
 			return
 		}
-		
+
 		// for each change, locate the object
 		for range ch.Changes {
 			// processObj would be called here in the real implementation
@@ -51,7 +51,7 @@ func TestProcessSlice_NilSafety(t *testing.T) {
 			},
 			SchemaPropertyChanges: map[string]*whatChangedModel.SchemaChanges{},
 		}
-		
+
 		assert.NotPanics(t, func() {
 			processSlice(changes)
 		}, "processSlice should handle valid SchemaChanges without panicking")
@@ -67,7 +67,7 @@ func TestProcessSlice_NilSafety(t *testing.T) {
 				},
 			},
 		}
-		
+
 		assert.NotPanics(t, func() {
 			processSlice(changes)
 		}, "processSlice should handle SchemaChanges with Changes without panicking")

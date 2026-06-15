@@ -16,8 +16,8 @@ import (
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestPageForResultDefaultsDocumentLevelFindingsToOverview(t *testing.T) {

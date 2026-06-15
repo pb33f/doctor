@@ -7,14 +7,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 )
 
 // TestBlankLineBeforeCodeBlock tests if blank lines before code blocks break list continuation
 func TestBlankLineBeforeCodeBlock(t *testing.T) {
 	testCases := []struct {
-		name           string
-		markdown       string
+		name             string
+		markdown         string
 		expectCodeInList bool
 	}{
 		{

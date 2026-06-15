@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 type OAuthFlow struct {
@@ -34,7 +32,7 @@ func humanizeOAuthFlowLabel(pathSegment string) string {
 	case "":
 		return "oAuth Flow"
 	default:
-		return strings.TrimSpace(cases.Title(language.English).String(pathSegment))
+		return strings.TrimSpace(titleString(pathSegment))
 	}
 }
 

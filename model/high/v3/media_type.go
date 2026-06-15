@@ -40,6 +40,7 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 
 	if mediaType.Examples != nil && mediaType.Examples.Len() > 0 {
 		examples := orderedmap.New[string, *Example]()
+		lowExamplesFinder := newLowNodeFinder(mediaType.GoLow().Examples.Value)
 		for mediaTypePairs := mediaType.Examples.First(); mediaTypePairs != nil; mediaTypePairs = mediaTypePairs.Next() {
 			e := &Example{}
 			e.Parent = m
@@ -47,14 +48,11 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 			e.Key = mediaTypePairs.Key()
 			v := mediaTypePairs.Value()
 			var refString string
-			for lowExpPairs := mediaType.GoLow().Examples.Value.First(); lowExpPairs != nil; lowExpPairs = lowExpPairs.Next() {
-				if lowExpPairs.Key().Value == e.Key {
-					e.KeyNode = lowExpPairs.Key().KeyNode
-					e.ValueNode = lowExpPairs.Value().ValueNode
-					if lowExpPairs.Value().IsReference() {
-						refString = lowExpPairs.Value().GetReference()
-					}
-					break
+			if lowPair, ok := lowExamplesFinder.findPair(e.Key); ok {
+				e.KeyNode = lowPair.Key().KeyNode
+				e.ValueNode = lowPair.Value().ValueNode
+				if lowPair.Value().IsReference() {
+					refString = lowPair.Value().GetReference()
 				}
 			}
 			e.Value = v
@@ -77,18 +75,16 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 
 	if mediaType.Encoding != nil && mediaType.Encoding.Len() > 0 {
 		encoding := orderedmap.New[string, *Encoding]()
+		lowEncFinder := newLowNodeFinder(mediaType.GoLow().Encoding.Value)
 		for encodingPairs := mediaType.Encoding.First(); encodingPairs != nil; encodingPairs = encodingPairs.Next() {
 			e := &Encoding{}
 			e.Parent = m
 			e.SetPathSegment("encoding")
 			e.Key = encodingPairs.Key()
 			v := encodingPairs.Value()
-			for lowEncPairs := mediaType.GoLow().Encoding.Value.First(); lowEncPairs != nil; lowEncPairs = lowEncPairs.Next() {
-				if lowEncPairs.Key().Value == e.Key {
-					e.KeyNode = lowEncPairs.Key().KeyNode
-					e.ValueNode = lowEncPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowEncFinder.find(e.Key); ok {
+				e.KeyNode = keyNode
+				e.ValueNode = valueNode
 			}
 			e.NodeParent = m
 			drCtx.RunWalk(func() { e.Walk(ctx, v) })

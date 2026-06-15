@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	wcModel "github.com/pb33f/libopenapi/what-changed/model"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestFoundation_GetSize_NoChanges(t *testing.T) {

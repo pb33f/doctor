@@ -6,8 +6,6 @@ package v3
 import (
 	"context"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 type License struct {
@@ -21,7 +19,7 @@ func (l *License) Walk(ctx context.Context, license *base.License) {
 	l.Value = license
 	l.ValueNode = license.GoLow().RootNode
 	l.KeyNode = license.GoLow().KeyNode
-	l.BuildNodesAndEdges(ctx, cases.Title(language.English).String(l.PathSegment), l.PathSegment, license, l)
+	l.BuildNodesAndEdges(ctx, titleString(l.PathSegment), l.PathSegment, license, l)
 	drCtx.ObjectChan <- l
 }
 

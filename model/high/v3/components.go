@@ -7,8 +7,6 @@ import (
 	"context"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 type Components struct {
@@ -32,7 +30,7 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 
 	c.Value = components
 	c.SetPathSegment("components")
-	c.BuildNodesAndEdges(ctx, cases.Title(language.English).String(c.PathSegment), c.PathSegment, components, c)
+	c.BuildNodesAndEdges(ctx, titleString(c.PathSegment), c.PathSegment, components, c)
 	negOne := -1
 
 	if components.Schemas != nil && components.Schemas.Len() > 0 {
@@ -46,20 +44,19 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().Schemas),
 		}
 
-		schNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(schNode.PathSegment),
+		schNode.BuildNodesAndEdgesWithArray(ctx, titleString(schNode.PathSegment),
 			schNode.PathSegment, nil, c, false, components.Schemas.Len(), &negOne)
 
 		c.Schemas = orderedmap.New[string, *SchemaProxy]()
+		lowSchemas := newLowNodeFinder(components.GoLow().Schemas.Value)
 		for schemasPairs := components.Schemas.First(); schemasPairs != nil; schemasPairs = schemasPairs.Next() {
 			k := schemasPairs.Key()
 			v := schemasPairs.Value()
 			sp := &SchemaProxy{}
 			sp.Parent = c
-			for lowSchPairs := components.GoLow().Schemas.Value.First(); lowSchPairs != nil; lowSchPairs = lowSchPairs.Next() {
-				if lowSchPairs.Key().Value == k {
-					sp.ValueNode = lowSchPairs.Value().ValueNode
-					sp.KeyNode = lowSchPairs.Key().KeyNode
-				}
+			if keyNode, valueNode, ok := lowSchemas.find(k); ok {
+				sp.KeyNode = keyNode
+				sp.ValueNode = valueNode
 			}
 			sp.NodeParent = schNode
 			sp.Key = k
@@ -82,16 +79,14 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			respNode.PathSegment, nil, c, false, components.Responses.Len(), &negOne)
 
 		c.Responses = orderedmap.New[string, *Response]()
+		lowResponsesFinder := newLowNodeFinder(components.GoLow().Responses.Value)
 		for responsesPairs := components.Responses.First(); responsesPairs != nil; responsesPairs = responsesPairs.Next() {
 			k := responsesPairs.Key()
 			v := responsesPairs.Value()
 			r := &Response{}
-			for lowResponsesPairs := components.GoLow().Responses.Value.First(); lowResponsesPairs != nil; lowResponsesPairs = lowResponsesPairs.Next() {
-				if lowResponsesPairs.Key().Value == k {
-					r.KeyNode = lowResponsesPairs.Key().KeyNode
-					r.ValueNode = lowResponsesPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowResponsesFinder.find(k); ok {
+				r.KeyNode = keyNode
+				r.ValueNode = valueNode
 			}
 			r.Parent = c
 			r.NodeParent = respNode
@@ -115,20 +110,18 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().Parameters),
 		}
 
-		paramNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(paramNode.PathSegment),
+		paramNode.BuildNodesAndEdgesWithArray(ctx, titleString(paramNode.PathSegment),
 			paramNode.PathSegment, nil, c, false, components.Parameters.Len(), &negOne)
 
 		c.Parameters = orderedmap.New[string, *Parameter]()
+		lowParamFinder := newLowNodeFinder(components.GoLow().Parameters.Value)
 		for parametersPairs := components.Parameters.First(); parametersPairs != nil; parametersPairs = parametersPairs.Next() {
 			k := parametersPairs.Key()
 			v := parametersPairs.Value()
 			p := &Parameter{}
-			for lowParamPairs := components.GoLow().Parameters.Value.First(); lowParamPairs != nil; lowParamPairs = lowParamPairs.Next() {
-				if lowParamPairs.Key().Value == k {
-					p.KeyNode = lowParamPairs.Key().KeyNode
-					p.ValueNode = lowParamPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowParamFinder.find(k); ok {
+				p.KeyNode = keyNode
+				p.ValueNode = valueNode
 			}
 			p.Parent = c
 			p.NodeParent = paramNode
@@ -150,20 +143,18 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().Examples),
 		}
 
-		expNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(expNode.PathSegment),
+		expNode.BuildNodesAndEdgesWithArray(ctx, titleString(expNode.PathSegment),
 			expNode.PathSegment, nil, c, false, components.Examples.Len(), &negOne)
 
 		c.Examples = orderedmap.New[string, *Example]()
+		lowExpFinder := newLowNodeFinder(components.GoLow().Examples.Value)
 		for examplesPairs := components.Examples.First(); examplesPairs != nil; examplesPairs = examplesPairs.Next() {
 			k := examplesPairs.Key()
 			v := examplesPairs.Value()
 			e := &Example{}
-			for lowExpPairs := components.GoLow().Examples.Value.First(); lowExpPairs != nil; lowExpPairs = lowExpPairs.Next() {
-				if lowExpPairs.Key().Value == k {
-					e.KeyNode = lowExpPairs.Key().KeyNode
-					e.ValueNode = lowExpPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowExpFinder.find(k); ok {
+				e.KeyNode = keyNode
+				e.ValueNode = valueNode
 			}
 			e.Parent = c
 			e.NodeParent = expNode
@@ -189,16 +180,14 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			reqNode.PathSegment, nil, c, false, components.RequestBodies.Len(), &negOne)
 
 		c.RequestBodies = orderedmap.New[string, *RequestBody]()
+		lowRequestBodiesFinder := newLowNodeFinder(components.GoLow().RequestBodies.Value)
 		for requestBodiesPairs := components.RequestBodies.First(); requestBodiesPairs != nil; requestBodiesPairs = requestBodiesPairs.Next() {
 			k := requestBodiesPairs.Key()
 			v := requestBodiesPairs.Value()
 			rb := &RequestBody{}
-			for lowRequestBodiesPairs := components.GoLow().RequestBodies.Value.First(); lowRequestBodiesPairs != nil; lowRequestBodiesPairs = lowRequestBodiesPairs.Next() {
-				if lowRequestBodiesPairs.Key().Value == k {
-					rb.KeyNode = lowRequestBodiesPairs.Key().KeyNode
-					rb.ValueNode = lowRequestBodiesPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowRequestBodiesFinder.find(k); ok {
+				rb.KeyNode = keyNode
+				rb.ValueNode = valueNode
 			}
 			rb.Parent = c
 			rb.NodeParent = reqNode
@@ -223,20 +212,18 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().Headers),
 		}
 
-		headerNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(headerNode.PathSegment),
+		headerNode.BuildNodesAndEdgesWithArray(ctx, titleString(headerNode.PathSegment),
 			headerNode.PathSegment, nil, c, false, components.Headers.Len(), &negOne)
 
 		c.Headers = orderedmap.New[string, *Header]()
+		lowHeadersFinder := newLowNodeFinder(components.GoLow().Headers.Value)
 		for headersPairs := components.Headers.First(); headersPairs != nil; headersPairs = headersPairs.Next() {
 			k := headersPairs.Key()
 			v := headersPairs.Value()
 			h := &Header{}
-			for lowHeadersPairs := components.GoLow().Headers.Value.First(); lowHeadersPairs != nil; lowHeadersPairs = lowHeadersPairs.Next() {
-				if lowHeadersPairs.Key().Value == headersPairs.Key() {
-					h.KeyNode = lowHeadersPairs.Key().KeyNode
-					h.ValueNode = lowHeadersPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowHeadersFinder.find(k); ok {
+				h.KeyNode = keyNode
+				h.ValueNode = valueNode
 			}
 			h.Parent = c
 			h.NodeParent = headerNode
@@ -262,16 +249,14 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			secNode.PathSegment, nil, c, false, components.SecuritySchemes.Len(), &negOne)
 
 		c.SecuritySchemes = orderedmap.New[string, *SecurityScheme]()
+		lowSecFinder := newLowNodeFinder(components.GoLow().SecuritySchemes.Value)
 		for securitySchemesPairs := components.SecuritySchemes.First(); securitySchemesPairs != nil; securitySchemesPairs = securitySchemesPairs.Next() {
 			k := securitySchemesPairs.Key()
 			v := securitySchemesPairs.Value()
 			ss := &SecurityScheme{}
-			for lowSecPairs := components.GoLow().SecuritySchemes.Value.First(); lowSecPairs != nil; lowSecPairs = lowSecPairs.Next() {
-				if lowSecPairs.Key().Value == k {
-					ss.KeyNode = lowSecPairs.Key().KeyNode
-					ss.ValueNode = lowSecPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowSecFinder.find(k); ok {
+				ss.KeyNode = keyNode
+				ss.ValueNode = valueNode
 			}
 			ss.Parent = c
 			ss.NodeParent = secNode
@@ -293,20 +278,18 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().Links),
 		}
 
-		linkNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(linkNode.PathSegment),
+		linkNode.BuildNodesAndEdgesWithArray(ctx, titleString(linkNode.PathSegment),
 			linkNode.PathSegment, nil, c, false, components.Links.Len(), &negOne)
 
 		c.Links = orderedmap.New[string, *Link]()
+		lowLinksFinder := newLowNodeFinder(components.GoLow().Links.Value)
 		for linksPairs := components.Links.First(); linksPairs != nil; linksPairs = linksPairs.Next() {
 			k := linksPairs.Key()
 			v := linksPairs.Value()
 			l := &Link{}
-			for lowLinksPairs := components.GoLow().Links.Value.First(); lowLinksPairs != nil; lowLinksPairs = lowLinksPairs.Next() {
-				if lowLinksPairs.Key().Value == k {
-					l.KeyNode = lowLinksPairs.Key().KeyNode
-					l.ValueNode = lowLinksPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowLinksFinder.find(k); ok {
+				l.KeyNode = keyNode
+				l.ValueNode = valueNode
 			}
 			l.Parent = c
 			l.NodeParent = linkNode
@@ -328,20 +311,18 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().Callbacks),
 		}
 
-		cbNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(cbNode.PathSegment),
+		cbNode.BuildNodesAndEdgesWithArray(ctx, titleString(cbNode.PathSegment),
 			cbNode.PathSegment, nil, c, false, components.Callbacks.Len(), &negOne)
 
 		c.Callbacks = orderedmap.New[string, *Callback]()
+		lowCBFinder := newLowNodeFinder(components.GoLow().Callbacks.Value)
 		for callbacksPairs := components.Callbacks.First(); callbacksPairs != nil; callbacksPairs = callbacksPairs.Next() {
 			k := callbacksPairs.Key()
 			v := callbacksPairs.Value()
 			cb := &Callback{}
-			for lowCBPairs := components.GoLow().Callbacks.Value.First(); lowCBPairs != nil; lowCBPairs = lowCBPairs.Next() {
-				if lowCBPairs.Key().Value == k {
-					cb.KeyNode = lowCBPairs.Key().KeyNode
-					cb.ValueNode = lowCBPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowCBFinder.find(k); ok {
+				cb.KeyNode = keyNode
+				cb.ValueNode = valueNode
 			}
 			cb.Parent = c
 			cb.NodeParent = cbNode
@@ -362,20 +343,18 @@ func (c *Components) Walk(ctx context.Context, components *v3.Components) {
 			ValueNode:   ExtractValueNodeForLowModel(components.GoLow().PathItems),
 			KeyNode:     ExtractKeyNodeForLowModel(components.GoLow().PathItems),
 		}
-		piNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(piNode.PathSegment),
+		piNode.BuildNodesAndEdgesWithArray(ctx, titleString(piNode.PathSegment),
 			piNode.PathSegment, nil, c, false, components.PathItems.Len(), &negOne)
 
 		c.PathItems = orderedmap.New[string, *PathItem]()
+		lowPiFinder := newLowNodeFinder(components.GoLow().PathItems.Value)
 		for pathItemPairs := components.PathItems.First(); pathItemPairs != nil; pathItemPairs = pathItemPairs.Next() {
 			k := pathItemPairs.Key()
 			v := pathItemPairs.Value()
 			pi := &PathItem{}
-			for lowPiPairs := components.GoLow().PathItems.Value.First(); lowPiPairs != nil; lowPiPairs = lowPiPairs.Next() {
-				if lowPiPairs.Key().Value == k {
-					pi.KeyNode = lowPiPairs.Key().KeyNode
-					pi.ValueNode = lowPiPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowPiFinder.find(k); ok {
+				pi.KeyNode = keyNode
+				pi.ValueNode = valueNode
 			}
 			pi.Parent = c
 

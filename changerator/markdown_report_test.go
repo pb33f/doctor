@@ -10,7 +10,7 @@ import (
 	"github.com/pb33f/doctor/changerator/renderer"
 	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestChangerator_GenerateMarkdownReport_NoChanges(t *testing.T) {

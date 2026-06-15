@@ -5,11 +5,12 @@ package changerator
 
 import (
 	"context"
+	"reflect"
+
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/what-changed/model"
 	"go.yaml.in/yaml/v4"
-	"reflect"
 )
 
 func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
@@ -79,6 +80,7 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 		processSchema := func(ch *model.SchemaChanges, sch *v3.Schema) {
 			nCtx = context.WithValue(ctx, v3.Context, ch)
 			if sch != nil && sch.Value != nil && sch.Value.GoLow() != nil && !sch.Value.GoLow().IsReference() {
+				ensureSchemaChangeNode(sch)
 				sch.Travel(nCtx, t)
 			}
 		}
@@ -240,4 +242,43 @@ func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {
 			HandleExtensions(ctx, schema, changes.ExtensionChanges)
 		}
 	}
+}
+
+func ensureSchemaChangeNode(schema *v3.Schema) {
+	if schema == nil || schema.GetNode() != nil {
+		return
+	}
+	parent := schema.GetNodeParent()
+	if parent == nil || parent.GetNode() == nil {
+		return
+	}
+	id := schema.GenerateJSONPath()
+	if id == "" {
+		return
+	}
+	label := schema.Name
+	if label == "" {
+		label = schema.GetKeyValue()
+	}
+	if label == "" {
+		label = schema.GetPathSegment()
+	}
+	if label == "" {
+		label = "schema"
+	}
+	node := v3.NewSyntheticNode(id, parent.GetNode().Id, label, "schema")
+	node.DrInstance = schema
+	node.Value = schema.GetValueNode()
+	if schema.GetValueNode() != nil {
+		node.ValueLine = schema.GetValueNode().Line
+	}
+	schema.SetNode(node)
+
+	parentNode := parent.GetNode()
+	for _, child := range parentNode.Children {
+		if child != nil && child.Id == node.Id {
+			return
+		}
+	}
+	parentNode.Children = append(parentNode.Children, node)
 }

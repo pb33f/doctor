@@ -15,7 +15,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/pb33f/doctor/printingpress"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 )
 
 func TestProgressModelAdvancesAcrossCompletedStages(t *testing.T) {

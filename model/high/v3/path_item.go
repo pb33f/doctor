@@ -9,8 +9,6 @@ import (
 	"github.com/pb33f/libopenapi/datamodel/low"
 	lowV3 "github.com/pb33f/libopenapi/datamodel/low/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 	"net/http"
 	"reflect"
 	"slices"
@@ -153,7 +151,7 @@ func (p *PathItem) Walk(ctx context.Context, pathItem *v3.PathItem) {
 			KeyNode:     ExtractKeyNodeForLowModel(pathItem.GoLow().Parameters),
 		}
 
-		paramsNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(paramsNode.PathSegment),
+		paramsNode.BuildNodesAndEdgesWithArray(ctx, titleString(paramsNode.PathSegment),
 			paramsNode.PathSegment, nil, p, true, len(pathItem.Parameters), &negOne)
 
 		for i, parameter := range pathItem.Parameters {

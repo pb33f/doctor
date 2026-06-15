@@ -12,8 +12,8 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestOpenBufferedTextFilePreserves0644WithPermissiveUmask(t *testing.T) {

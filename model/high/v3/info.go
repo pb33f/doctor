@@ -6,8 +6,6 @@ package v3
 import (
 	"context"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 type Info struct {
@@ -23,7 +21,7 @@ func (i *Info) Walk(ctx context.Context, info *base.Info) {
 
 	i.Value = info
 	i.SetPathSegment("info")
-	i.BuildNodesAndEdges(ctx, cases.Title(language.English).String(i.PathSegment), i.PathSegment, info, i)
+	i.BuildNodesAndEdges(ctx, titleString(i.PathSegment), i.PathSegment, info, i)
 
 	if info.Contact != nil {
 		i.Contact = &Contact{Value: info.Contact}

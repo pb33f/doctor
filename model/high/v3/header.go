@@ -58,18 +58,16 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 
 	if header.Examples != nil && header.Examples.Len() > 0 {
 		h.Examples = orderedmap.New[string, *Example]()
+		lowExamplesFinder := newLowNodeFinder(header.GoLow().Examples.Value)
 		for examplesPairs := header.Examples.First(); examplesPairs != nil; examplesPairs = examplesPairs.Next() {
 			v := examplesPairs.Value()
 			ex := &Example{}
 			var refString string
-			for lowExPairs := header.GoLow().Examples.Value.First(); lowExPairs != nil; lowExPairs = lowExPairs.Next() {
-				if lowExPairs.Key().Value == examplesPairs.Key() {
-					ex.KeyNode = lowExPairs.Key().KeyNode
-					ex.ValueNode = lowExPairs.Value().ValueNode
-					if lowExPairs.Value().IsReference() {
-						refString = lowExPairs.Value().GetReference()
-					}
-					break
+			if lowPair, ok := lowExamplesFinder.findPair(examplesPairs.Key()); ok {
+				ex.KeyNode = lowPair.Key().KeyNode
+				ex.ValueNode = lowPair.Value().ValueNode
+				if lowPair.Value().IsReference() {
+					refString = lowPair.Value().GetReference()
 				}
 			}
 			ex.Parent = h
@@ -93,15 +91,13 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 
 	if header.Content != nil && header.Content.Len() > 0 {
 		h.Content = orderedmap.New[string, *MediaType]()
+		lowContentFinder := newLowNodeFinder(header.GoLow().Content.Value)
 		for contentPairs := header.Content.First(); contentPairs != nil; contentPairs = contentPairs.Next() {
 			v := contentPairs.Value()
 			mt := &MediaType{}
-			for lowMtPairs := header.GoLow().Content.Value.First(); lowMtPairs != nil; lowMtPairs = lowMtPairs.Next() {
-				if lowMtPairs.Key().Value == contentPairs.Key() {
-					mt.KeyNode = lowMtPairs.Key().KeyNode
-					mt.ValueNode = lowMtPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowContentFinder.find(contentPairs.Key()); ok {
+				mt.KeyNode = keyNode
+				mt.ValueNode = valueNode
 			}
 			mt.SetPathSegment("content")
 			mt.Parent = h

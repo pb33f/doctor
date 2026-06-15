@@ -41,15 +41,13 @@ func (r *RequestBody) Walk(ctx context.Context, requestBody *v3.RequestBody) {
 
 	if requestBody.Content != nil {
 		content := orderedmap.New[string, *MediaType]()
+		lowRespFinder := newLowNodeFinder(requestBody.GoLow().Content.Value)
 		for contentPairs := requestBody.Content.First(); contentPairs != nil; contentPairs = contentPairs.Next() {
 			mt := &MediaType{}
 			mt.Key = contentPairs.Key()
-			for lowRespPairs := requestBody.GoLow().Content.Value.First(); lowRespPairs != nil; lowRespPairs = lowRespPairs.Next() {
-				if lowRespPairs.Key().Value == mt.Key {
-					mt.KeyNode = lowRespPairs.Key().KeyNode
-					mt.ValueNode = lowRespPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowRespFinder.find(mt.Key); ok {
+				mt.KeyNode = keyNode
+				mt.ValueNode = valueNode
 			}
 
 			mt.Parent = r

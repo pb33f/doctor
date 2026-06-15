@@ -6,8 +6,6 @@ package v3
 import (
 	"context"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 type Contact struct {
@@ -21,7 +19,7 @@ func (c *Contact) Walk(ctx context.Context, contact *base.Contact) {
 	c.SetPathSegment("contact")
 	c.ValueNode = contact.GoLow().RootNode
 	c.KeyNode = contact.GoLow().KeyNode
-	c.BuildNodesAndEdges(ctx, cases.Title(language.English).String(c.PathSegment), c.PathSegment, contact, c)
+	c.BuildNodesAndEdges(ctx, titleString(c.PathSegment), c.PathSegment, contact, c)
 
 	if contact.GoLow().IsReference() {
 		BuildReference(drCtx, contact.GoLow())

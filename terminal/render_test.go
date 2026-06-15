@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestRenderBoxDeterministic(t *testing.T) {

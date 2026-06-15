@@ -60,6 +60,8 @@ func (t *Changerator) VisitOperation(ctx context.Context, obj *v3.Operation) {
 				opNode := obj.GetNode()
 				nodeId := opNode.Id + "-tags"
 				tagsNode := v3.NewSyntheticNode(nodeId, opNode.Id, "Tags", "tags")
+				tagsNode.IsArray = true
+				tagsNode.ArrayIndex = -1
 				tagsFoundation.SetNode(tagsNode)
 
 				opNode.Mutex.Lock()

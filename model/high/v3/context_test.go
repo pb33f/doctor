@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 	"go.yaml.in/yaml/v4"
 )
 

@@ -62,18 +62,16 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 
 	if param.Examples != nil && param.Examples.Len() > 0 {
 		examples := orderedmap.New[string, *Example]()
+		lowExamplesFinder := newLowNodeFinder(param.GoLow().Examples.Value)
 		for paramPairs := param.Examples.First(); paramPairs != nil; paramPairs = paramPairs.Next() {
 			e := &Example{}
 			e.Key = paramPairs.Key()
 			var refString string
-			for lowExpPairs := param.GoLow().Examples.Value.First(); lowExpPairs != nil; lowExpPairs = lowExpPairs.Next() {
-				if lowExpPairs.Key().Value == e.Key {
-					e.KeyNode = lowExpPairs.Key().KeyNode
-					e.ValueNode = lowExpPairs.Value().ValueNode
-					if lowExpPairs.Value().IsReference() {
-						refString = lowExpPairs.Value().GetReference()
-					}
-					break
+			if lowPair, ok := lowExamplesFinder.findPair(e.Key); ok {
+				e.KeyNode = lowPair.Key().KeyNode
+				e.ValueNode = lowPair.Value().ValueNode
+				if lowPair.Value().IsReference() {
+					refString = lowPair.Value().GetReference()
 				}
 			}
 			e.Parent = p
@@ -98,18 +96,16 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 
 	if param.Content != nil && param.Content.Len() > 0 {
 		content := orderedmap.New[string, *MediaType]()
+		lowExpFinder := newLowNodeFinder(param.GoLow().Content.Value)
 		for contentPairs := param.Content.First(); contentPairs != nil; contentPairs = contentPairs.Next() {
 			mt := &MediaType{}
 			mt.Parent = p
 			mt.SetPathSegment("content")
 			mt.NodeParent = p
 			mt.Key = contentPairs.Key()
-			for lowExpPairs := param.GoLow().Content.Value.First(); lowExpPairs != nil; lowExpPairs = lowExpPairs.Next() {
-				if lowExpPairs.Key().Value == mt.Key {
-					mt.KeyNode = lowExpPairs.Key().KeyNode
-					mt.ValueNode = lowExpPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowExpFinder.find(mt.Key); ok {
+				mt.KeyNode = keyNode
+				mt.ValueNode = valueNode
 			}
 			v := contentPairs.Value()
 			drCtx.RunWalk(func() { mt.Walk(ctx, v) })

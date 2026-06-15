@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/pb33f/libopenapi"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 const canonicalPathFixture = `openapi: 3.0.3
@@ -185,29 +185,31 @@ func extractUsageSiteHedwigPath(t *testing.T, walker *DrDocument) string {
 	require.NotNil(t, resource)
 	require.NotNil(t, resource.Schema)
 
-	spec := resource.Schema.Properties.GetOrZero("spec")
+	spec := resource.Schema.PropertiesForRead().GetOrZero("spec")
 	require.NotNil(t, spec)
 	require.NotNil(t, spec.Schema)
-	require.NotEmpty(t, spec.Schema.OneOf)
-	require.NotNil(t, spec.Schema.OneOf[0])
-	require.NotNil(t, spec.Schema.OneOf[0].Schema)
+	specOneOf := spec.Schema.OneOfForRead()
+	require.NotEmpty(t, specOneOf)
+	require.NotNil(t, specOneOf[0])
+	require.NotNil(t, specOneOf[0].Schema)
 
-	alert := spec.Schema.OneOf[0].Schema.Properties.GetOrZero("alert")
+	alert := specOneOf[0].Schema.PropertiesForRead().GetOrZero("alert")
 	require.NotNil(t, alert)
 	require.NotNil(t, alert.Schema)
 
-	ticket := alert.Schema.Properties.GetOrZero("ticket")
+	ticket := alert.Schema.PropertiesForRead().GetOrZero("ticket")
 	require.NotNil(t, ticket)
 	require.NotNil(t, ticket.Schema)
-	require.NotEmpty(t, ticket.Schema.AllOf)
-	require.NotNil(t, ticket.Schema.AllOf[0])
-	require.NotNil(t, ticket.Schema.AllOf[0].Schema)
+	ticketAllOf := ticket.Schema.AllOfForRead()
+	require.NotEmpty(t, ticketAllOf)
+	require.NotNil(t, ticketAllOf[0])
+	require.NotNil(t, ticketAllOf[0].Schema)
 
-	labels := ticket.Schema.AllOf[0].Schema.Properties.GetOrZero("labels")
+	labels := ticketAllOf[0].Schema.PropertiesForRead().GetOrZero("labels")
 	require.NotNil(t, labels)
 	require.NotNil(t, labels.Schema)
 
-	hedwig := labels.Schema.Properties.GetOrZero("hedwig_scope")
+	hedwig := labels.Schema.PropertiesForRead().GetOrZero("hedwig_scope")
 	require.NotNil(t, hedwig)
 	require.NotNil(t, hedwig.Schema)
 
@@ -224,10 +226,10 @@ func assertNestedComponentPaths(t *testing.T, walker *DrDocument) {
 	require.NotNil(t, responseMediaType)
 	require.NotNil(t, responseMediaType.SchemaProxy)
 	require.NotNil(t, responseMediaType.SchemaProxy.Schema)
-	responseInner := responseMediaType.SchemaProxy.Schema.Properties.GetOrZero("inner")
+	responseInner := responseMediaType.SchemaProxy.Schema.PropertiesForRead().GetOrZero("inner")
 	require.NotNil(t, responseInner)
 	require.NotNil(t, responseInner.Schema)
-	responseInnerValue := responseInner.Schema.Properties.GetOrZero("inner_value")
+	responseInnerValue := responseInner.Schema.PropertiesForRead().GetOrZero("inner_value")
 	require.NotNil(t, responseInnerValue)
 	require.NotNil(t, responseInnerValue.Schema)
 	responsePath := responseInnerValue.Schema.GenerateJSONPath()
@@ -237,10 +239,10 @@ func assertNestedComponentPaths(t *testing.T, walker *DrDocument) {
 	require.NotNil(t, parameter)
 	require.NotNil(t, parameter.SchemaProxy)
 	require.NotNil(t, parameter.SchemaProxy.Schema)
-	parameterP := parameter.SchemaProxy.Schema.Properties.GetOrZero("p")
+	parameterP := parameter.SchemaProxy.Schema.PropertiesForRead().GetOrZero("p")
 	require.NotNil(t, parameterP)
 	require.NotNil(t, parameterP.Schema)
-	parameterPV := parameterP.Schema.Properties.GetOrZero("pv")
+	parameterPV := parameterP.Schema.PropertiesForRead().GetOrZero("pv")
 	require.NotNil(t, parameterPV)
 	require.NotNil(t, parameterPV.Schema)
 	parameterPath := parameterPV.Schema.GenerateJSONPath()
@@ -253,10 +255,10 @@ func assertNestedComponentPaths(t *testing.T, walker *DrDocument) {
 	require.NotNil(t, requestBodyMediaType)
 	require.NotNil(t, requestBodyMediaType.SchemaProxy)
 	require.NotNil(t, requestBodyMediaType.SchemaProxy.Schema)
-	requestBodyField := requestBodyMediaType.SchemaProxy.Schema.Properties.GetOrZero("body")
+	requestBodyField := requestBodyMediaType.SchemaProxy.Schema.PropertiesForRead().GetOrZero("body")
 	require.NotNil(t, requestBodyField)
 	require.NotNil(t, requestBodyField.Schema)
-	requestBodyBV := requestBodyField.Schema.Properties.GetOrZero("bv")
+	requestBodyBV := requestBodyField.Schema.PropertiesForRead().GetOrZero("bv")
 	require.NotNil(t, requestBodyBV)
 	require.NotNil(t, requestBodyBV.Schema)
 	requestBodyPath := requestBodyBV.Schema.GenerateJSONPath()
@@ -266,10 +268,10 @@ func assertNestedComponentPaths(t *testing.T, walker *DrDocument) {
 	require.NotNil(t, header)
 	require.NotNil(t, header.Schema)
 	require.NotNil(t, header.Schema.Schema)
-	headerH := header.Schema.Schema.Properties.GetOrZero("h")
+	headerH := header.Schema.Schema.PropertiesForRead().GetOrZero("h")
 	require.NotNil(t, headerH)
 	require.NotNil(t, headerH.Schema)
-	headerHV := headerH.Schema.Properties.GetOrZero("hv")
+	headerHV := headerH.Schema.PropertiesForRead().GetOrZero("hv")
 	require.NotNil(t, headerHV)
 	require.NotNil(t, headerHV.Schema)
 	headerPath := headerHV.Schema.GenerateJSONPath()

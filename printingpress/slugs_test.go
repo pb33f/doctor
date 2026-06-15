@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	slugpkg "github.com/pb33f/doctor/printingpress/slug"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestSanitizeSlug(t *testing.T) {

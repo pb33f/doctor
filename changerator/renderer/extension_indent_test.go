@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 )
 
 // TestExtensionCodeBlockIndentation tests that extension code blocks are properly indented
@@ -63,7 +63,7 @@ func TestExtensionCodeBlockIndentation(t *testing.T) {
 
 	// verify no broken patterns
 	if strings.Contains(html, "</ul><pre><code>") ||
-	   strings.Contains(html, "</ul>\n<pre><code>") {
+		strings.Contains(html, "</ul>\n<pre><code>") {
 		t.Errorf("❌ BROKEN: Code block is outside the list structure")
 	} else {
 		t.Logf("✅ GOOD: Code blocks are within list structure")

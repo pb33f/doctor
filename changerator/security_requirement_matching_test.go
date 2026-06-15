@@ -7,8 +7,8 @@ import (
 	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi"
 	whatChangedModel "github.com/pb33f/libopenapi/what-changed/model"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestChangerator_DocumentSecurityRequirementChange_UsesMatchingArraySlot(t *testing.T) {

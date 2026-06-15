@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 )
 
 // TestIndentLogicWithRealFormat verifies indentMultilineDesc with actual formatValueChangeFromChange output
@@ -29,12 +29,12 @@ func TestIndentLogicWithRealFormat(t *testing.T) {
 		content string
 		indent  int
 	}{
-		{0, "`value` changed to:", 0},  // first line not indented
-		{1, "", 6},                       // blank line indented
-		{2, "```yaml", 6},               // code fence indented
-		{3, "data:", 6},                 // code content indented
-		{4, "  - item: test", 6},        // code content indented
-		{5, "```", 6},                   // closing fence indented
+		{0, "`value` changed to:", 0}, // first line not indented
+		{1, "", 6},                    // blank line indented
+		{2, "```yaml", 6},             // code fence indented
+		{3, "data:", 6},               // code content indented
+		{4, "  - item: test", 6},      // code content indented
+		{5, "```", 6},                 // closing fence indented
 	}
 
 	for _, exp := range expectations {

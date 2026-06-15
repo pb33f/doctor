@@ -10,7 +10,7 @@ import (
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	whatChangedModel "github.com/pb33f/libopenapi/what-changed/model"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 	"os"
 	"testing"
 )

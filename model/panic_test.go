@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/pb33f/libopenapi"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 )
 
 // TestMalformedRefDoesNotPanic tests that malformed $ref values with special characters

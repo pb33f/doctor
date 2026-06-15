@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 )
 
 // TestExactIssueFromOutput tests the exact pattern we're seeing in the broken output
@@ -40,8 +40,8 @@ links:
   - ` + "`examples`" + ` removed *'default'*`
 
 	testCases := []struct {
-		name            string
-		enableFix       bool
+		name      string
+		enableFix bool
 	}{
 		{
 			name:      "without_fix",
@@ -76,8 +76,8 @@ links:
 
 			// check if the 'examples' line is wrongly treated as a code block
 			if strings.Contains(html, "<pre><code>  - `examples`") ||
-			   strings.Contains(html, "<pre><code>  - <code") ||
-			   strings.Contains(html, "</code></pre><pre><code>") {
+				strings.Contains(html, "<pre><code>  - <code") ||
+				strings.Contains(html, "</code></pre><pre><code>") {
 				t.Logf("❌ BROKEN: 'examples' line is being rendered as a code block")
 				// find and log the problematic section
 				idx := strings.Index(html, "examples")
@@ -161,7 +161,7 @@ data:
 
 			t.Logf("%s - No Fix:", tc.label)
 			if strings.Contains(html, "<pre><code>  - Property") ||
-			   strings.Contains(html, "</code></pre><pre><code>") {
+				strings.Contains(html, "</code></pre><pre><code>") {
 				t.Logf("  ❌ BROKEN: List item rendered as code block")
 			} else {
 				t.Logf("  ✅ GOOD: List item rendered correctly")
@@ -187,7 +187,7 @@ data:
 
 			t.Logf("%s - With Fix:", tc.label)
 			if strings.Contains(html2, "<pre><code>  - Property") ||
-			   strings.Contains(html2, "</code></pre><pre><code>") {
+				strings.Contains(html2, "</code></pre><pre><code>") {
 				t.Logf("  ❌ BROKEN: List item rendered as code block")
 			} else {
 				t.Logf("  ✅ GOOD: List item rendered correctly")
