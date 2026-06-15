@@ -8,7 +8,7 @@ import (
 
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/orderedmap"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 )
 
 func TestSchemaWalkCacheHitHydratesCompletedSchema(t *testing.T) {
@@ -68,7 +68,7 @@ components:
 	require.Same(t, occurrence, <-objectChan)
 }
 
-func TestSchemaRenderCacheHitAliasesChildrenForRead(t *testing.T) {
+func TestSchemaRenderCacheHitPopulatesDirectAliasChildren(t *testing.T) {
 	cachedSchema := &Schema{Name: "Cached", Walked: true}
 	cachedChild := &Schema{Name: "Child", Walked: true}
 	cachedProperty := &SchemaProxy{
@@ -91,8 +91,9 @@ func TestSchemaRenderCacheHitAliasesChildrenForRead(t *testing.T) {
 	occurrence := &Schema{Name: "usage"}
 	occurrence.hydrateFromCache(cachedSchema, &DrContext{RenderChanges: true})
 
-	require.Nil(t, occurrence.Properties)
 	require.Same(t, cachedSchema, occurrence.Definition)
+	require.NotNil(t, occurrence.Properties)
+	require.Same(t, occurrence.Properties, occurrence.PropertiesForRead())
 
 	properties := occurrence.PropertiesForRead()
 	require.NotNil(t, properties)

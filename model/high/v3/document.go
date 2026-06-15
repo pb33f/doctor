@@ -5,11 +5,8 @@ package v3
 
 import (
 	"context"
-	"fmt"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 type Document struct {
@@ -69,7 +66,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			ValueNode:   ExtractValueNodeForLowModel(doc.GoLow().Servers),
 			KeyNode:     ExtractKeyNodeForLowModel(doc.GoLow().Servers),
 		}
-		serversNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(serversNode.PathSegment),
+		serversNode.BuildNodesAndEdgesWithArray(ctx, titleString(serversNode.PathSegment),
 			serversNode.PathSegment, nil, d, true, len(doc.Servers), &negOne)
 
 		for i, server := range doc.Servers {
@@ -151,10 +148,9 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 					if css, ok := doc.Components.SecuritySchemes.Load(k); ok {
 						// create an edge from the secNode to the security scheme
 						if secNode.GetNode() != nil {
-							sourceId := fmt.Sprintf("%s", secNode.GetNode().Id)
-							target := fmt.Sprintf("%d", css.GoLow().GetRootNode().Line)
-							secNode.BuildReferenceEdge(ctx, sourceId, target,
-								fmt.Sprintf("#/components/securitySchemes/%s", k), "")
+							secNode.BuildReferenceEdgeToLine(ctx, secNode.GetNode().Id,
+								css.GoLow().GetRootNode().Line,
+								"#/components/securitySchemes/"+k, "")
 						}
 					}
 				}
@@ -185,7 +181,7 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			KeyNode:     ExtractKeyNodeForLowModel(doc.GoLow().Tags),
 		}
 
-		tagsNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(tagsNode.PathSegment),
+		tagsNode.BuildNodesAndEdgesWithArray(ctx, titleString(tagsNode.PathSegment),
 			tagsNode.PathSegment, nil, d, true, len(doc.Tags), &negOne)
 
 		for i, tag := range doc.Tags {
@@ -216,17 +212,15 @@ func (d *Document) Walk(ctx context.Context, doc *v3.Document) {
 			ValueNode:   ExtractValueNodeForLowModel(doc.GoLow().Webhooks),
 			KeyNode:     ExtractKeyNodeForLowModel(doc.GoLow().Webhooks),
 		}
-		webhookNode.BuildNodesAndEdges(ctx, cases.Title(language.English).String(webhookNode.PathSegment), webhookNode.PathSegment, nil, d)
+		webhookNode.BuildNodesAndEdges(ctx, titleString(webhookNode.PathSegment), webhookNode.PathSegment, nil, d)
 
+		lowWhFinder := newLowNodeFinder(doc.GoLow().Webhooks.Value)
 		for pair := doc.Webhooks.First(); pair != nil; pair = pair.Next() {
 			pi := &PathItem{}
 			pi.Key = pair.Key()
-			for lowWhPairs := doc.GoLow().Webhooks.Value.First(); lowWhPairs != nil; lowWhPairs = lowWhPairs.Next() {
-				if lowWhPairs.Key().Value == pi.Key {
-					pi.ValueNode = lowWhPairs.Value().ValueNode
-					pi.KeyNode = lowWhPairs.Key().KeyNode
-					break
-				}
+			if keyNode, valueNode, ok := lowWhFinder.find(pi.Key); ok {
+				pi.ValueNode = valueNode
+				pi.KeyNode = keyNode
 			}
 			pi.Parent = d
 			pi.SetPathSegment("webhooks")

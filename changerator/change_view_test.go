@@ -5,7 +5,6 @@ package changerator
 
 import (
 	"os"
-	"sync"
 	"testing"
 
 	drModel "github.com/pb33f/doctor/model"
@@ -13,8 +12,8 @@ import (
 	"github.com/pb33f/libopenapi"
 	what_changed "github.com/pb33f/libopenapi/what-changed"
 	"github.com/pb33f/libopenapi/what-changed/model"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 // makeChanges wraps a slice of model.Change into a what_changed.Changed
@@ -30,8 +29,7 @@ func cloneNodeTreeForTest(node *v3.Node) *v3.Node {
 	if node == nil {
 		return nil
 	}
-	clone := *node
-	clone.Mutex = sync.RWMutex{}
+	clone := node.CloneShallow()
 	clone.SubtreeChanges = nil
 	clone.ChildChangeSummaries = nil
 	if node.Changes != nil {
@@ -51,7 +49,7 @@ func cloneNodeTreeForTest(node *v3.Node) *v3.Node {
 	} else {
 		clone.Children = nil
 	}
-	return &clone
+	return clone
 }
 
 func collectNodeMap(node *v3.Node, out map[string]*v3.Node) {

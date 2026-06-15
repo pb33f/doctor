@@ -497,15 +497,15 @@ func BuildFocusedGraph(allNodes []*v3.Node, allEdges []*v3.Edge, targetNodeID st
 }
 
 func marshalFocusedNodeJSON(node *v3.Node, href string) ([]byte, error) {
-	nodeCopy := *node
+	nodeCopy := node.CloneShallow()
 	nodeCopy.RenderProps = true
-	if shouldTrimFocusedSchemaExampleRow(&nodeCopy) {
+	if shouldTrimFocusedSchemaExampleRow(nodeCopy) {
 		nodeCopy.Height -= v3.HEIGHT
 		if nodeCopy.Height < v3.HEIGHT {
 			nodeCopy.Height = v3.HEIGHT
 		}
 	}
-	nodeJSON, err := json.Marshal(&nodeCopy)
+	nodeJSON, err := json.Marshal(nodeCopy)
 	if err != nil {
 		return nil, err
 	}

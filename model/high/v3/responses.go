@@ -26,21 +26,19 @@ func (r *Responses) Walk(ctx context.Context, responses *v3.Responses) {
 	if responses.Codes != nil {
 		r.Codes = orderedmap.New[string, *Response]()
 
+		lowCodesFinder := newLowNodeFinder(responses.GoLow().Codes)
 		for respPairs := responses.Codes.First(); respPairs != nil; respPairs = respPairs.Next() {
 			k := respPairs.Key()
 			v := respPairs.Value()
 			resp := &Response{}
 			resp.Key = k
 			var refString string
-			for lowRespPairs := responses.GoLow().Codes.First(); lowRespPairs != nil; lowRespPairs = lowRespPairs.Next() {
-				if lowRespPairs.Key().Value == k {
-					resp.KeyNode = lowRespPairs.Key().KeyNode
-					resp.ValueNode = lowRespPairs.Value().ValueNode
-					// capture reference info from the ValueReference wrapper
-					if lowRespPairs.Value().IsReference() {
-						refString = lowRespPairs.Value().GetReference()
-					}
-					break
+			if lowPair, ok := lowCodesFinder.findPair(k); ok {
+				resp.KeyNode = lowPair.Key().KeyNode
+				resp.ValueNode = lowPair.Value().ValueNode
+				// capture reference info from the ValueReference wrapper
+				if lowPair.Value().IsReference() {
+					refString = lowPair.Value().GetReference()
 				}
 			}
 			resp.Parent = r

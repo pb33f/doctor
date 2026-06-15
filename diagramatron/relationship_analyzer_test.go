@@ -8,7 +8,7 @@ import (
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestNewRelationshipAnalyzer(t *testing.T) {

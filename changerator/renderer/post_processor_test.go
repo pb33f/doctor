@@ -6,7 +6,7 @@ package renderer
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestPostProcessor_DisabledReturnsOriginal(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/doctor/terminal"
 	wcModel "github.com/pb33f/libopenapi/what-changed/model"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 // createMockTree creates a mock v3.Node tree for testing without circular imports

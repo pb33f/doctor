@@ -4,9 +4,9 @@
 package v3
 
 import (
-	"crypto/sha256"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -21,20 +21,6 @@ import (
 	what_changed "github.com/pb33f/libopenapi/what-changed"
 	"github.com/pb33f/libopenapi/what-changed/model"
 	"go.yaml.in/yaml/v4"
-)
-
-// Object pools for Node and Edge to reduce allocations
-var (
-	nodePool = sync.Pool{
-		New: func() interface{} {
-			return &Node{}
-		},
-	}
-	edgePool = sync.Pool{
-		New: func() interface{} {
-			return &Edge{}
-		},
-	}
 )
 
 // ChangeSummary holds aggregated change counts for a node's subtree.
@@ -57,41 +43,41 @@ type ChildChangeSummary struct {
 }
 
 type Node struct {
-	Value               *yaml.Node             `json:"-"`
-	Id                  string                 `json:"id"`
-	IdHash              string                 `json:"idHash,omitempty"`
-	ParentId            string                 `json:"parentId"`
-	Type                string                 `json:"type"`
-	Label               string                 `json:"label"`
-	Width               int                    `json:"width"`
-	Height              int                    `json:"height"`
-	Children            []*Node                `json:"nodes,omitempty"`
-	IsArray             bool                   `json:"isArray,omitempty"`
-	IsPoly              bool                   `json:"isPoly,omitempty"`
-	PolyType            string                 `json:"polyType,omitempty"`
-	PropertyCount       int                    `json:"propertyCount,omitempty"`
-	ArrayIndex          int                    `json:"arrayIndex,omitempty"`
-	ArrayValues         int                    `json:"arrayValues,omitempty"`
-	Extensions          int                    `json:"extensions,omitempty"`
-	Hash                string                 `json:"hash,omitempty"`
-	OriginLocation      string                 `json:"originLocation,omitempty"`
-	Origin              *index.NodeOrigin      `json:"nodeOrigin,omitempty"`
-	KeyLine             int                    `json:"-"`
-	ValueLine           int                    `json:"valueLine"`
-	Instance            any                    `json:"instance"`
-	DrInstance          any                    `json:"-"`
-	Changes             []what_changed.Changed `json:"-"`
-	RenderedChanges     []*model.Change        `json:"timeline,omitempty"`
+	Value                *yaml.Node             `json:"-"`
+	Id                   string                 `json:"id"`
+	IdHash               string                 `json:"idHash,omitempty"`
+	ParentId             string                 `json:"parentId"`
+	Type                 string                 `json:"type"`
+	Label                string                 `json:"label"`
+	Width                int                    `json:"width"`
+	Height               int                    `json:"height"`
+	Children             []*Node                `json:"nodes,omitempty"`
+	IsArray              bool                   `json:"isArray,omitempty"`
+	IsPoly               bool                   `json:"isPoly,omitempty"`
+	PolyType             string                 `json:"polyType,omitempty"`
+	PropertyCount        int                    `json:"propertyCount,omitempty"`
+	ArrayIndex           int                    `json:"arrayIndex,omitempty"`
+	ArrayValues          int                    `json:"arrayValues,omitempty"`
+	Extensions           int                    `json:"extensions,omitempty"`
+	Hash                 string                 `json:"hash,omitempty"`
+	OriginLocation       string                 `json:"originLocation,omitempty"`
+	Origin               *index.NodeOrigin      `json:"nodeOrigin,omitempty"`
+	KeyLine              int                    `json:"-"`
+	ValueLine            int                    `json:"valueLine"`
+	Instance             any                    `json:"instance"`
+	DrInstance           any                    `json:"-"`
+	Changes              []what_changed.Changed `json:"-"`
+	RenderedChanges      []*model.Change        `json:"timeline,omitempty"`
 	CleanedChanged       []*model.Change        `json:"cleanedChanges,omitempty"`
 	SubtreeChanges       *ChangeSummary         `json:"-"`
 	ChildChangeSummaries []*ChildChangeSummary  `json:"-"`
 	RenderProps          bool                   `json:"-"`
-	RenderChanges       bool                   `json:"-"`
-	RenderProblems      bool                   `json:"-"`
-	RenderProblemsAsIds bool                   `json:"-"` // modified design to stop embedding violations in nodes, uses lookup now.
-	ViolationIdMap      map[string]string      `json:"-"`
-	Mutex               sync.RWMutex           `json:"-"`
-	drModel             any
+	RenderChanges        bool                   `json:"-"`
+	RenderProblems       bool                   `json:"-"`
+	RenderProblemsAsIds  bool                   `json:"-"` // modified design to stop embedding violations in nodes, uses lookup now.
+	ViolationIdMap       map[string]string      `json:"-"`
+	Mutex                sync.RWMutex           `json:"-"`
+	drModel              any
 }
 
 type NodeChangeable interface {
@@ -176,6 +162,51 @@ func (n *Node) SetInstance(instance any) {
 	n.Instance = instance
 }
 
+// CloneShallow copies node data without copying lock state. Slice and map
+// fields remain shared with the source, matching the historical shallow-copy
+// behavior.
+func (n *Node) CloneShallow() *Node {
+	if n == nil {
+		return nil
+	}
+	return &Node{
+		Value:                n.Value,
+		Id:                   n.Id,
+		IdHash:               n.IdHash,
+		ParentId:             n.ParentId,
+		Type:                 n.Type,
+		Label:                n.Label,
+		Width:                n.Width,
+		Height:               n.Height,
+		Children:             n.Children,
+		IsArray:              n.IsArray,
+		IsPoly:               n.IsPoly,
+		PolyType:             n.PolyType,
+		PropertyCount:        n.PropertyCount,
+		ArrayIndex:           n.ArrayIndex,
+		ArrayValues:          n.ArrayValues,
+		Extensions:           n.Extensions,
+		Hash:                 n.Hash,
+		OriginLocation:       n.OriginLocation,
+		Origin:               n.Origin,
+		KeyLine:              n.KeyLine,
+		ValueLine:            n.ValueLine,
+		Instance:             n.Instance,
+		DrInstance:           n.DrInstance,
+		Changes:              n.Changes,
+		RenderedChanges:      n.RenderedChanges,
+		CleanedChanged:       n.CleanedChanged,
+		SubtreeChanges:       n.SubtreeChanges,
+		ChildChangeSummaries: n.ChildChangeSummaries,
+		RenderProps:          n.RenderProps,
+		RenderChanges:        n.RenderChanges,
+		RenderProblems:       n.RenderProblems,
+		RenderProblemsAsIds:  n.RenderProblemsAsIds,
+		ViolationIdMap:       n.ViolationIdMap,
+		drModel:              n.drModel,
+	}
+}
+
 func (n *NodeChange) PropertiesOnly() {
 	if n.Changes != nil {
 		n.Changes.PropertiesOnly()
@@ -197,6 +228,11 @@ type Edge struct {
 	Targets []string `json:"targets"`
 	Poly    string   `json:"poly,omitempty"`
 	Ref     string   `json:"ref"`
+
+	// TargetLine carries an unresolved reference target as a source line
+	// number during the walk; it is resolved to a node id (Targets[0]) or the
+	// edge is dropped before edges are published. Never serialized.
+	TargetLine int `json:"-"`
 }
 
 func (n *Node) MarshalJSON() ([]byte, error) {
@@ -349,26 +385,24 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 func NewSyntheticNode(id, parentId, label, nodeType string) *Node {
 	return &Node{
 		Id:            id,
-		IdHash:        fmt.Sprintf("%x", sha256.Sum256([]byte(id))),
+		IdHash:        NodeIDHash(id),
 		ParentId:      parentId,
 		Label:         label,
 		Type:          nodeType,
 		Width:         WIDTH,
 		Height:        HEIGHT,
-		IsArray:       true,
-		ArrayValues:   0,
-		ArrayIndex:    -1,
 		RenderChanges: true,
 		RenderProps:   true,
 	}
 }
 
-func GenerateNode(parentId string, instance any, drModel any, ctx *DrContext) *Node {
-	// Get a node from the pool
-	n := nodePool.Get().(*Node)
+func NodeIDHash(id string) string {
+	sum := md5.Sum([]byte(id))
+	return hex.EncodeToString(sum[:])
+}
 
-	// Reset the node to clean state
-	*n = Node{}
+func GenerateNode(parentId string, instance any, drModel any, ctx *DrContext) *Node {
+	n := &Node{}
 
 	// check if instance can go low
 	var uuidValue string
@@ -444,11 +478,7 @@ func GenerateNode(parentId string, instance any, drModel any, ctx *DrContext) *N
 }
 
 func GenerateEdge(sources []string, targets []string) *Edge {
-	// Get an edge from the pool
-	e := edgePool.Get().(*Edge)
-
-	// Reset the edge to clean state
-	*e = Edge{}
+	e := &Edge{}
 
 	// Use a simpler ID generation for edges to reduce UUID overhead
 	// Format: source_target for single connections
@@ -466,18 +496,12 @@ func GenerateEdge(sources []string, targets []string) *Edge {
 	return e
 }
 
-// ReleaseNode returns a node to the pool for reuse
+// ReleaseNode is retained for source compatibility.
 func ReleaseNode(n *Node) {
-	if n != nil {
-		nodePool.Put(n)
-	}
 }
 
-// ReleaseEdge returns an edge to the pool for reuse
+// ReleaseEdge is retained for source compatibility.
 func ReleaseEdge(e *Edge) {
-	if e != nil {
-		edgePool.Put(e)
-	}
 }
 
 func ExtractKeyNodeForLowModel(obj any) *yaml.Node {

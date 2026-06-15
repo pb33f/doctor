@@ -9,9 +9,9 @@ import (
 func TestPathSegmentRaceCondition(t *testing.T) {
 	// Create a Foundation directly to test the race
 	foundation := &Foundation{}
-	
+
 	var wg sync.WaitGroup
-	
+
 	// Goroutine 1: Write to PathSegment
 	wg.Add(1)
 	go func() {
@@ -21,7 +21,7 @@ func TestPathSegmentRaceCondition(t *testing.T) {
 			time.Sleep(time.Nanosecond)
 		}
 	}()
-	
+
 	// Goroutine 2: Read from PathSegment
 	wg.Add(1)
 	go func() {
@@ -31,6 +31,6 @@ func TestPathSegmentRaceCondition(t *testing.T) {
 			time.Sleep(time.Nanosecond)
 		}
 	}()
-	
+
 	wg.Wait()
 }

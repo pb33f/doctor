@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/pb33f/libopenapi"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 )
 
 // TestSchemaCacheHitNodeWidthRace verifies no race between processObject

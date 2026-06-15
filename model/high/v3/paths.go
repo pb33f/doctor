@@ -7,8 +7,6 @@ import (
 	"context"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 type Paths struct {
@@ -26,22 +24,20 @@ func (p *Paths) Walk(ctx context.Context, paths *v3.Paths) {
 	p.SetPathSegment("paths")
 	negOne := -1
 
-	p.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(p.PathSegment),
+	p.BuildNodesAndEdgesWithArray(ctx, titleString(p.PathSegment),
 		p.PathSegment, paths, p, false, paths.PathItems.Len(), &negOne)
 
 	if paths.PathItems != nil {
 		p.PathItems = orderedmap.New[string, *PathItem]()
+		lowPathItemsFinder := newLowNodeFinder(paths.GoLow().PathItems)
 		for pathItemPairs := paths.PathItems.First(); pathItemPairs != nil; pathItemPairs = pathItemPairs.Next() {
 			k := pathItemPairs.Key()
 			v := pathItemPairs.Value()
 			pi := &PathItem{}
 
-			for lowPathItemPairs := paths.GoLow().PathItems.First(); lowPathItemPairs != nil; lowPathItemPairs = lowPathItemPairs.Next() {
-				if lowPathItemPairs.Key().Value == k {
-					pi.ValueNode = lowPathItemPairs.Value().ValueNode
-					pi.KeyNode = lowPathItemPairs.Key().KeyNode
-					break
-				}
+			if keyNode, valueNode, ok := lowPathItemsFinder.find(k); ok {
+				pi.KeyNode = keyNode
+				pi.ValueNode = valueNode
 			}
 			pi.Parent = p
 			pi.NodeParent = p

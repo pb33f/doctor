@@ -13,40 +13,50 @@ import (
 )
 
 // SchemaWorkItem represents a unit of work for schema walking.
+//
+// Deprecated: schema descendants are now walked inline before schema cache
+// publication. This type is retained only for source compatibility.
 type SchemaWorkItem struct {
 	Schema     *SchemaProxy
 	BaseSchema *base.SchemaProxy
 	Depth      int
 }
 
-// SchemaWalkPool manages bounded concurrent schema walking to prevent
-// goroutine explosion on large OpenAPI specs.
+// SchemaWalkPool manages bounded concurrent schema walking.
+//
+// Deprecated: the production walker no longer uses a separate schema pool
+// because schema subtrees must be fully built before cache publication. This
+// compatibility type preserves the old API for external callers that still
+// construct one directly.
 type SchemaWalkPool struct {
 	ctx      context.Context
 	workChan chan *SchemaWorkItem
 	wg       sync.WaitGroup
-	inFlight atomic.Int64 // tracks active work items for WaitForCompletion
+	inFlight atomic.Int64
 	drCtx    *DrContext
 	shutdown atomic.Bool
 	workers  int
 
-	// condition variable for blocking wait (no polling)
 	mu   sync.Mutex
 	cond *sync.Cond
 }
 
 // DefaultSchemaWorkQueueSize is the buffer size for pending schema walks.
-// Set to 5000 to handle enterprise-scale OpenAPI specs out of the box.
+//
+// Deprecated: retained only for source compatibility with SchemaWalkPool.
 const DefaultSchemaWorkQueueSize = 5000
 
 // DefaultSchemaWorkers returns the number of concurrent schema walkers.
-// Scales with available CPU cores for optimal performance.
+//
+// Deprecated: retained only for source compatibility with SchemaWalkPool.
 func DefaultSchemaWorkers() int {
 	return runtime.NumCPU()
 }
 
-// NewSchemaWalkPool creates a pool with bounded workers.
-// If workers <= 0, defaults to runtime.NumCPU() (one worker per core).
+// NewSchemaWalkPool creates a deprecated compatibility schema pool.
+//
+// Deprecated: new walker code should not use a separate schema pool. Schema
+// descendants are walked inline before cache publication.
 func NewSchemaWalkPool(ctx context.Context, drCtx *DrContext, workers int) *SchemaWalkPool {
 	if workers <= 0 {
 		workers = DefaultSchemaWorkers()
@@ -60,7 +70,6 @@ func NewSchemaWalkPool(ctx context.Context, drCtx *DrContext, workers int) *Sche
 	}
 	pool.cond = sync.NewCond(&pool.mu)
 
-	// spawn workers
 	for i := 0; i < workers; i++ {
 		pool.wg.Add(1)
 		go pool.worker()
@@ -69,7 +78,6 @@ func NewSchemaWalkPool(ctx context.Context, drCtx *DrContext, workers int) *Sche
 	return pool
 }
 
-// worker processes schema walk requests from the queue.
 func (p *SchemaWalkPool) worker() {
 	defer p.wg.Done()
 
@@ -78,32 +86,28 @@ func (p *SchemaWalkPool) worker() {
 	}
 }
 
-// processItem walks a single schema.
 func (p *SchemaWalkPool) processItem(item *SchemaWorkItem) {
-	// perform the actual walk
-	item.Schema.Walk(p.ctx, item.BaseSchema, item.Depth)
-
+	if item != nil && item.Schema != nil {
+		item.Schema.Walk(p.ctx, item.BaseSchema, item.Depth)
+	}
 	p.completeWork()
 }
 
 func (p *SchemaWalkPool) completeWork() {
 	if p.inFlight.Add(-1) == 0 {
 		p.mu.Lock()
-		p.cond.Broadcast()
+		if p.cond != nil {
+			p.cond.Broadcast()
+		}
 		p.mu.Unlock()
 	}
 }
 
 // Submit attempts to queue a schema for async walking.
-// Returns true if queued or already cached/in-progress.
-// Returns false if caller should walk synchronously (queue full or shutdown).
+//
+// Deprecated: new walker code should walk schema descendants inline.
 func (p *SchemaWalkPool) Submit(sch *SchemaProxy, baseSchema *base.SchemaProxy, depth int) bool {
-	if p.shutdown.Load() {
-		return false // pool is shutting down
-	}
-
-	// early exit for nil schema
-	if baseSchema == nil {
+	if p == nil || sch == nil || baseSchema == nil {
 		return false
 	}
 
@@ -112,62 +116,102 @@ func (p *SchemaWalkPool) Submit(sch *SchemaProxy, baseSchema *base.SchemaProxy, 
 		return false
 	}
 
-	// try to queue - each SchemaProxy needs its own walk to create proper parent linkage
-	// Note: We do NOT deduplicate based on schema content hash because different
-	// SchemaProxy objects referencing the same schema definition need their own
-	// Schema objects created in the doctor model tree.
 	item := &SchemaWorkItem{
 		Schema:     sch,
 		BaseSchema: baseSchema,
 		Depth:      depth,
 	}
 
-	// increment inFlight before attempting to queue
-	p.inFlight.Add(1)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.shutdown.Load() {
+		return false
+	}
 
+	p.inFlight.Add(1)
 	select {
 	case p.workChan <- item:
-		return true // queued successfully
+		return true
 	default:
-		// queue full - signal sync walk needed
-		p.completeWork() // undo the increment
+		if p.inFlight.Add(-1) == 0 {
+			if p.cond != nil {
+				p.cond.Broadcast()
+			}
+		}
 		return false
 	}
 }
 
-// SubmitOrWalk submits to pool if possible, otherwise walks synchronously.
+// SubmitOrWalk submits to the deprecated pool if possible, otherwise walks
+// synchronously.
+//
+// Deprecated: new walker code should walk schema descendants inline.
 func (p *SchemaWalkPool) SubmitOrWalk(sch *SchemaProxy, baseSchema *base.SchemaProxy, depth int) {
-	if !p.Submit(sch, baseSchema, depth) {
-		// fall back to sync walk
-		sch.Walk(p.ctx, baseSchema, depth)
+	if p != nil && p.Submit(sch, baseSchema, depth) {
+		return
 	}
+	if sch == nil {
+		return
+	}
+	ctx := context.Background()
+	if p != nil && p.ctx != nil {
+		ctx = p.ctx
+	}
+	sch.Walk(ctx, baseSchema, depth)
 }
 
 // IsIdle returns true if the pool has no work in progress.
+//
+// Deprecated: retained only for source compatibility with SchemaWalkPool.
 func (p *SchemaWalkPool) IsIdle() bool {
-	return p.inFlight.Load() == 0
+	return p == nil || p.inFlight.Load() == 0
 }
 
 // WaitForCompletion blocks until all submitted work has completed.
-// Uses sync.Cond for efficient blocking (no polling).
+//
+// Deprecated: retained only for source compatibility with SchemaWalkPool.
 func (p *SchemaWalkPool) WaitForCompletion() {
+	if p == nil {
+		return
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	for p.inFlight.Load() > 0 {
+		if p.cond == nil {
+			return
+		}
 		p.cond.Wait()
 	}
 }
 
 // Shutdown closes the work channel and waits for all workers to finish.
+//
+// Deprecated: retained only for source compatibility with SchemaWalkPool.
 func (p *SchemaWalkPool) Shutdown() {
+	if p == nil {
+		return
+	}
+	p.mu.Lock()
+	if p.shutdown.Load() {
+		p.mu.Unlock()
+		return
+	}
 	p.shutdown.Store(true)
-	close(p.workChan)
+	if p.workChan != nil {
+		close(p.workChan)
+	}
+	p.mu.Unlock()
 	p.wg.Wait()
 }
 
 // DrainAndShutdown waits for all work to complete, then shuts down.
+//
+// Deprecated: retained only for source compatibility with SchemaWalkPool.
 func (p *SchemaWalkPool) DrainAndShutdown() {
+	if p == nil {
+		return
+	}
 	p.WaitForCompletion()
 	p.Shutdown()
 }

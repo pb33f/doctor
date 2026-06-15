@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 )
 
 // TestMediaTypeExamplesProperty tests rendering of media type "examples" property changes
@@ -51,7 +51,7 @@ func TestMediaTypeExamplesProperty(t *testing.T) {
 
 	// Check for the broken pattern
 	if strings.Contains(html, "<pre><code>  - `examples`") ||
-	   strings.Contains(html, "</code></pre><pre><code>") {
+		strings.Contains(html, "</code></pre><pre><code>") {
 		t.Errorf("❌ BROKEN: 'examples' property rendered as code block")
 	} else {
 		t.Logf("✅ GOOD: 'examples' property rendered as list item")

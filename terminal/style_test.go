@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/colorprofile"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestTextStylerNoColor(t *testing.T) {

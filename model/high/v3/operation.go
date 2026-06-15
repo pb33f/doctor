@@ -5,11 +5,9 @@ package v3
 
 import (
 	"context"
-	"fmt"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
+	"strconv"
 	"strings"
 )
 
@@ -55,7 +53,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			KeyNode:     ExtractKeyNodeForLowModel(operation.GoLow().Parameters),
 		}
 
-		paramsNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(paramsNode.PathSegment),
+		paramsNode.BuildNodesAndEdgesWithArray(ctx, titleString(paramsNode.PathSegment),
 			paramsNode.PathSegment, nil, o, true, len(operation.Parameters), &negOne)
 
 		for i, parameter := range operation.Parameters {
@@ -129,19 +127,17 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 
 	if operation.Callbacks != nil {
 		callbacks := orderedmap.New[string, *Callback]()
+		lowCallbacksFinder := newLowNodeFinder(operation.GoLow().Callbacks.Value)
 		for callbackPairs := operation.Callbacks.First(); callbackPairs != nil; callbackPairs = callbackPairs.Next() {
 			c := &Callback{}
 			c.Parent = o
 			c.Key = callbackPairs.Key()
 			var refString string
-			for lowCallbackPairs := operation.GoLow().Callbacks.Value.First(); lowCallbackPairs != nil; lowCallbackPairs = lowCallbackPairs.Next() {
-				if lowCallbackPairs.Key().Value == c.Key {
-					c.KeyNode = lowCallbackPairs.Key().KeyNode
-					c.ValueNode = lowCallbackPairs.Value().ValueNode
-					if lowCallbackPairs.Value().IsReference() {
-						refString = lowCallbackPairs.Value().GetReference()
-					}
-					break
+			if lowPair, ok := lowCallbacksFinder.findPair(c.Key); ok {
+				c.KeyNode = lowPair.Key().KeyNode
+				c.ValueNode = lowPair.Value().ValueNode
+				if lowPair.Value().IsReference() {
+					refString = lowPair.Value().GetReference()
 				}
 			}
 			c.SetPathSegment("callbacks")
@@ -191,8 +187,8 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 						scheme, p := schemes.Get(k)
 						if p {
 							// build an edge!
-							o.BuildReferenceEdge(ctx, o.GenerateJSONPath(), fmt.Sprint(scheme.GoLow().GetRootNode().Line),
-								fmt.Sprintf("'#/components/securitySchemes/%s'", k), "")
+							o.BuildReferenceEdgeToLine(ctx, o.GenerateJSONPath(), scheme.GoLow().GetRootNode().Line,
+								"'#/components/securitySchemes/"+k+"'", "")
 						}
 					}
 				}
@@ -230,7 +226,7 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			KeyNode:     ExtractKeyNodeForLowModel(operation.GoLow().Tags),
 		}
 
-		tagsNode.BuildNodesAndEdgesWithArray(ctx, cases.Title(language.English).String(tagsNode.PathSegment),
+		tagsNode.BuildNodesAndEdgesWithArray(ctx, titleString(tagsNode.PathSegment),
 			tagsNode.PathSegment, nil, o, true, len(operation.Tags), &negOne)
 
 		o.Tags = tagsNode
@@ -240,8 +236,8 @@ func (o *Operation) Walk(ctx context.Context, operation *v3.Operation) {
 			if drCtx.V3Document != nil && drCtx.V3Document.Tags != nil {
 				for x, to := range drCtx.V3Document.Tags {
 					if to.Name == t {
-						o.BuildReferenceEdge(ctx, o.GenerateJSONPath(), fmt.Sprint(to.GoLow().RootNode.Line),
-							fmt.Sprintf("'#/tags[%d]'", x), "")
+						o.BuildReferenceEdgeToLine(ctx, o.GenerateJSONPath(), to.GoLow().RootNode.Line,
+							"'#/tags["+strconv.Itoa(x)+"]'", "")
 					}
 				}
 			}

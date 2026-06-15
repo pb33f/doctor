@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 )
 
 // TestComprehensiveIndentationCheck verifies all rendering contexts handle code blocks correctly
@@ -84,7 +84,7 @@ func TestComprehensiveIndentationCheck(t *testing.T) {
 
 			// verify no broken patterns
 			if strings.Contains(html, "</ul><pre><code>") ||
-			   strings.Contains(html, "</code></pre><pre><code>") {
+				strings.Contains(html, "</code></pre><pre><code>") {
 				t.Errorf("❌ BROKEN: List structure broken")
 				t.Logf("HTML:\n%s", html)
 			} else {

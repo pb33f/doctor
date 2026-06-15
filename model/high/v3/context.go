@@ -52,33 +52,51 @@ type WalkedMediaType struct {
 }
 
 type DrContext struct {
-	SchemaChan         chan *WalkedSchema
-	ObjectChan         chan any
-	SkippedSchemaChan  chan *WalkedSchema
-	ParameterChan      chan *WalkedParam
-	HeaderChan         chan *WalkedHeader
-	MediaTypeChan      chan *WalkedMediaType
-	ErrorChan          chan *BuildError
-	NodeChan           chan *Node
-	EdgeChan           chan *Edge
-	Index              *index.SpecIndex
-	Rolodex            *index.Rolodex
-	V3Document         *v3.Document
-	BuildGraph         bool
-	RenderChanges      bool
-	UseSchemaCache     bool
-	SyncWalk           bool            // When true, walk everything synchronously (no goroutines)
-	PooledWalk         bool            // When true, use bounded worker pools (default)
-	SchemaPool         *SchemaWalkPool // Optional bounded worker pool for schema walks
-	WalkPool           *WalkPool       // General bounded worker pool for all walk operations
-	DeterministicPaths bool            // When true, component objects return definition-site paths
+	SchemaChan        chan *WalkedSchema
+	ObjectChan        chan any
+	SkippedSchemaChan chan *WalkedSchema
+	ParameterChan     chan *WalkedParam
+	HeaderChan        chan *WalkedHeader
+	MediaTypeChan     chan *WalkedMediaType
+	ErrorChan         chan *BuildError
+	NodeChan          chan *Node
+	EdgeChan          chan *Edge
+	Index             *index.SpecIndex
+	Rolodex           *index.Rolodex
+	V3Document        *v3.Document
+	BuildGraph        bool
+	RenderChanges     bool
+	UseSchemaCache    bool
+	SyncWalk          bool      // When true, walk everything synchronously (no goroutines)
+	WalkPool          *WalkPool // General bounded worker pool for all walk operations
+	// Deprecated: schema subtrees are walked inline before cache publication.
+	// This field is retained only for source compatibility with callers that
+	// constructed DrContext directly.
+	SchemaPool *SchemaWalkPool
+	// Deprecated: pooled walking is the default whenever SyncWalk is false.
+	// This field is retained only for source compatibility.
+	PooledWalk         bool
+	DeterministicPaths bool // When true, component objects return definition-site paths
 	SchemaCache        *sync.Map
 	CanonicalPathCache *sync.Map // Maps *yaml.Node pointer -> canonical JSONPath (definition site)
 	HashCache          *HashCache
-	StringCache        *sync.Map // String interning for common strings
-	StorageRoot        string
-	WorkingDirectory   string
-	Logger             *slog.Logger
+	// Deprecated: string interning was removed from the walker. This field is
+	// retained only for source compatibility.
+	StringCache      *sync.Map
+	StorageRoot      string
+	WorkingDirectory string
+	Logger           *slog.Logger
+
+	// CanonicalPathsApplied tracks canonical schemas whose subtrees have had
+	// canonical cache paths applied during this walk, so repeated cache hits
+	// skip the idempotent full-subtree traversal. A pointer so DrContext
+	// copies (WalkContextForRef) share the set; nil simply disables the guard.
+	CanonicalPathsApplied *sync.Map
+
+	// CircularRefs caches circular-reference lookups as sets so reference
+	// walks avoid re-assembling slices per $ref. A pointer so DrContext
+	// copies share it; nil falls back to scanning the index slices directly.
+	CircularRefs *CircularRefSets
 }
 
 type hashCacheKey struct {
@@ -202,18 +220,6 @@ func (d *DrContext) canonicalPathFor(rootNode *yaml.Node) (string, bool) {
 	return canonicalPathFromCache(d.CanonicalPathCache, rootNode)
 }
 
-// internString returns a cached version of the string to reduce memory
-func (d *DrContext) internString(s string) string {
-	if d == nil || d.StringCache == nil {
-		return s
-	}
-	actual, _ := d.StringCache.LoadOrStore(s, s)
-	if value, ok := actual.(string); ok {
-		return value
-	}
-	return s
-}
-
 func GetDrContext(ctx context.Context) *DrContext {
 	return ctx.Value("drCtx").(*DrContext)
 }
@@ -238,41 +244,41 @@ func (d *DrContext) RunWalk(f func()) {
 }
 
 // WaitForCompletion blocks until all submitted walk operations have completed.
-// In pooled mode, this waits for both WalkPool and SchemaPool to drain.
-// In sync mode, this is a no-op (work already completed inline).
+// In sync mode, this is a no-op because work has already completed inline.
 func (d *DrContext) WaitForCompletion() {
-	if d.SyncWalk {
+	if d.SyncWalk && d.SchemaPool == nil {
 		return
 	}
-	if d.WalkPool == nil {
+	if d.WalkPool == nil && d.SchemaPool == nil {
 		return
 	}
-	// wait for BOTH pools using proper blocking (no polling)
-	// schema pool workers can submit work back to walk pool and vice versa,
-	// so we loop until both are stable
 	for {
-		d.WalkPool.WaitForCompletion()
-
+		if d.WalkPool != nil {
+			d.WalkPool.WaitForCompletion()
+		}
 		if d.SchemaPool != nil {
 			d.SchemaPool.WaitForCompletion()
 		}
-
-		// double-check both are idle (handles race where new work submitted)
-		if d.WalkPool.IsIdle() && (d.SchemaPool == nil || d.SchemaPool.IsIdle()) {
+		walkIdle := d.WalkPool == nil || d.WalkPool.IsIdle()
+		schemaIdle := d.SchemaPool == nil || d.SchemaPool.IsIdle()
+		if walkIdle && schemaIdle {
 			return
 		}
 	}
 }
 
-// SubmitSchemaWalk submits a schema walk to the SchemaPool, or runs synchronously.
-// The main document walker intentionally walks schema descendants synchronously
-// before publishing schema cache entries; use this only for callers that can
-// guarantee they are not exposing partially built schema trees to shared state.
+// SubmitSchemaWalk submits a schema walk through the deprecated schema pool
+// when one is configured, otherwise it walks synchronously.
+//
+// Deprecated: schema descendants are now walked inline before schema cache
+// publication. New code should call SchemaProxy.Walk directly or use RunWalk
+// for non-schema document branches.
 func (d *DrContext) SubmitSchemaWalk(ctx context.Context, sch *SchemaProxy, baseSchema *base.SchemaProxy, depth int) {
-	if d.SchemaPool != nil {
+	if d != nil && d.SchemaPool != nil {
 		d.SchemaPool.SubmitOrWalk(sch, baseSchema, depth)
-	} else {
-		// no pool available, run synchronously
+		return
+	}
+	if sch != nil {
 		sch.Walk(ctx, baseSchema, depth)
 	}
 }
@@ -347,4 +353,61 @@ func RefToJSONPath(ref string) string {
 	}
 
 	return b.String()
+}
+
+// CircularRefSets caches the document's circular reference lookups as sets.
+// The underlying index data is immutable during a walk, but the slices are
+// re-assembled (three appends + linear scan) by every reference walk without
+// this cache. Built lazily on first use; safe for concurrent walkers.
+type CircularRefSets struct {
+	defsOnce  sync.Once
+	defs      map[string]struct{}
+	nodesOnce sync.Once
+	nodes     map[*yaml.Node]struct{}
+}
+
+// isCircularDefinition reports whether ref is the loop point definition of a
+// circular, ignored-polymorphic or ignored-array circular reference.
+func (c *CircularRefSets) isCircularDefinition(idx *index.SpecIndex, ref string) bool {
+	c.defsOnce.Do(func() {
+		c.defs = make(map[string]struct{})
+		if idx == nil {
+			return
+		}
+		for _, r := range idx.GetCircularReferences() {
+			c.defs[r.LoopPoint.Definition] = struct{}{}
+		}
+		for _, r := range idx.GetIgnoredPolymorphicCircularReferences() {
+			c.defs[r.LoopPoint.Definition] = struct{}{}
+		}
+		for _, r := range idx.GetIgnoredArrayCircularReferences() {
+			c.defs[r.LoopPoint.Definition] = struct{}{}
+		}
+	})
+	_, ok := c.defs[ref]
+	return ok
+}
+
+// isCircularLoopNode reports whether node is the loop point node of any
+// circular reference known to the rolodex (root index, safe or ignored).
+func (c *CircularRefSets) isCircularLoopNode(rolodex *index.Rolodex, node *yaml.Node) bool {
+	c.nodesOnce.Do(func() {
+		c.nodes = make(map[*yaml.Node]struct{})
+		if rolodex == nil {
+			return
+		}
+		if root := rolodex.GetRootIndex(); root != nil {
+			for _, r := range root.GetCircularReferences() {
+				c.nodes[r.LoopPoint.Node] = struct{}{}
+			}
+		}
+		for _, r := range rolodex.GetSafeCircularReferences() {
+			c.nodes[r.LoopPoint.Node] = struct{}{}
+		}
+		for _, r := range rolodex.GetIgnoredCircularReferences() {
+			c.nodes[r.LoopPoint.Node] = struct{}{}
+		}
+	})
+	_, ok := c.nodes[node]
+	return ok
 }

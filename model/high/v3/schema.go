@@ -9,10 +9,9 @@ import (
 	"sync"
 
 	"github.com/pb33f/libopenapi/datamodel/high/base"
+	lowbase "github.com/pb33f/libopenapi/datamodel/low/base"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"go.yaml.in/yaml/v4"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 type Schema struct {
@@ -74,7 +73,20 @@ func isSchemaAlreadyCached(ctx context.Context, schema *base.Schema) bool {
 func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	drCtx := GetDrContext(ctx)
+	var lowSchema *lowbase.Schema
+	if schema != nil {
+		lowSchema = schema.GoLow()
+	}
 	depth++
+
+	// Latch the canonical path early - if DeterministicPaths is enabled and this
+	// schema has a canonical path (defined in components.schemas), use it to
+	// ensure determinism. This must happen before ANY early return so unwalked
+	// schemas (depth bail) still carry definition-site paths.
+	if lowSchema != nil && lowSchema.RootNode != nil {
+		s.setCanonicalJSONPathFromContext(drCtx, lowSchema.RootNode)
+	}
+
 	if depth > 500 {
 		// this schema is insane and we're going to bail
 		if drCtx.Logger != nil {
@@ -83,27 +95,18 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		return
 	}
 
-	// Check for canonical path early - if DeterministicPaths is enabled and this schema
-	// has a canonical path (defined in components.schemas), use it to ensure determinism
-	if schema != nil {
-		if lowSchema := schema.GoLow(); lowSchema != nil && lowSchema.RootNode != nil {
-			s.setCanonicalJSONPathFromContext(drCtx, lowSchema.RootNode)
-		}
-	}
-
 	sm := drCtx.SchemaCache
 
 	// Use node pointer as cache key for zero-cost deduplication
 	var cacheKey *yaml.Node
 
 	if drCtx.UseSchemaCache {
-		cacheKey = schema.GoLow().RootNode
+		cacheKey = lowSchema.RootNode
 
 		if cached, ok := sm.Load(cacheKey); ok {
-			// cached! we don't need to re-walk this.
-			if cachedSchema, ok := cached.(*Schema); ok &&
-				cachedSchema.isWalked() &&
-				!s.isComponentSchemaOccurrence() {
+			// Cached walks are routed synchronously before this point, so cache
+			// hits only ever see completed schemas.
+			if cachedSchema := schemaFromCacheValue(cached); cachedSchema != nil && cachedSchema.isWalked() {
 				s.Value = schema
 				s.hydrateFromCache(cachedSchema, drCtx)
 				s.setWalked()
@@ -119,9 +122,6 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 				return
 			}
 		}
-
-		// Note: Cache store moved to after properties populated to prevent race condition
-		// where incomplete schemas are sent to ObjectChan from cache hits
 	}
 
 	s.mu.Lock()
@@ -129,13 +129,6 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 	s.mu.Unlock()
 
 	process := true
-	if schema.Type != nil {
-		//if slices.Contains(schema.Type, "boolean") ||
-		//	slices.Contains(schema.Type, "number") ||
-		//	slices.Contains(schema.Type, "string") {
-		//	process = false
-		//}
-	}
 
 	if s.Index != nil {
 		n := ""
@@ -164,13 +157,13 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 	}
 
 	if schema.AllOf != nil {
-		var allOf []*SchemaProxy
+		block := make([]SchemaProxy, len(schema.AllOf))
+		allOf := make([]*SchemaProxy, 0, len(schema.AllOf))
 		for i, allOfItem := range schema.AllOf {
 			aOfItem := allOfItem
-			sch := &SchemaProxy{}
-			sch.ValueNode = allOfItem.GetSchemaKeyNode()
-			sch.KeyNode = schema.GoLow().AllOf.KeyNode
-			sch.ValueNode = schema.GoLow().AllOf.ValueNode
+			sch := &block[i]
+			sch.KeyNode = lowSchema.AllOf.KeyNode
+			sch.ValueNode = lowSchema.AllOf.ValueNode
 			sch.Parent = s
 			sch.IsIndexed = true
 			sch.Index = &i
@@ -188,12 +181,13 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 	}
 
 	if schema.OneOf != nil {
-		var oneOf []*SchemaProxy
+		block := make([]SchemaProxy, len(schema.OneOf))
+		oneOf := make([]*SchemaProxy, 0, len(schema.OneOf))
 		for i, oneOfItem := range schema.OneOf {
 			oOfItem := oneOfItem
-			sch := &SchemaProxy{}
-			sch.KeyNode = schema.GoLow().OneOf.KeyNode
-			sch.ValueNode = schema.GoLow().OneOf.ValueNode
+			sch := &block[i]
+			sch.KeyNode = lowSchema.OneOf.KeyNode
+			sch.ValueNode = lowSchema.OneOf.ValueNode
 			sch.Parent = s
 			sch.IsIndexed = true
 			sch.Index = &i
@@ -210,12 +204,13 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 	}
 
 	if schema.AnyOf != nil {
-		var anyOf []*SchemaProxy
+		block := make([]SchemaProxy, len(schema.AnyOf))
+		anyOf := make([]*SchemaProxy, 0, len(schema.AnyOf))
 		for i, anyOfItem := range schema.AnyOf {
 			aOfItem := anyOfItem
-			sch := &SchemaProxy{}
-			sch.KeyNode = schema.GoLow().AnyOf.KeyNode
-			sch.ValueNode = schema.GoLow().AnyOf.ValueNode
+			sch := &block[i]
+			sch.KeyNode = lowSchema.AnyOf.KeyNode
+			sch.ValueNode = lowSchema.AnyOf.ValueNode
 			sch.Parent = s
 			sch.IsIndexed = true
 			sch.Index = &i
@@ -232,12 +227,13 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 	}
 
 	if schema.PrefixItems != nil {
-		var prefixItems []*SchemaProxy
+		block := make([]SchemaProxy, len(schema.PrefixItems))
+		prefixItems := make([]*SchemaProxy, 0, len(schema.PrefixItems))
 		for i, prefixItem := range schema.PrefixItems {
 			pItem := prefixItem
-			sch := &SchemaProxy{}
-			sch.KeyNode = schema.GoLow().PrefixItems.KeyNode
-			sch.ValueNode = schema.GoLow().PrefixItems.ValueNode
+			sch := &block[i]
+			sch.KeyNode = lowSchema.PrefixItems.KeyNode
+			sch.ValueNode = lowSchema.PrefixItems.ValueNode
 			sch.Parent = s
 			sch.IsIndexed = true
 			sch.Index = &i
@@ -252,21 +248,21 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	if schema.Discriminator != nil {
 		d := &Discriminator{}
-		d.KeyNode = schema.GoLow().Discriminator.KeyNode
-		d.ValueNode = schema.GoLow().Discriminator.ValueNode
+		d.KeyNode = lowSchema.Discriminator.KeyNode
+		d.ValueNode = lowSchema.Discriminator.ValueNode
 		d.Parent = s
 		d.SetPathSegment("discriminator")
 		d.Value = schema.Discriminator
 		d.NodeParent = s
-		d.BuildNodesAndEdges(ctx, cases.Title(language.English).String(d.PathSegment), d.PathSegment, schema.Discriminator, d)
+		d.BuildNodesAndEdges(ctx, titleString(d.PathSegment), d.PathSegment, schema.Discriminator, d)
 		s.Discriminator = d
 		drCtx.ObjectChan <- d
 	}
 
 	if schema.Contains != nil {
 		sch := &SchemaProxy{}
-		sch.KeyNode = schema.GoLow().Contains.KeyNode
-		sch.ValueNode = schema.GoLow().Contains.ValueNode
+		sch.KeyNode = lowSchema.Contains.KeyNode
+		sch.ValueNode = lowSchema.Contains.ValueNode
 		sch.Parent = s
 		sch.SetPathSegment("contains")
 		sch.NodeParent = s
@@ -276,8 +272,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	if schema.If != nil {
 		sch := &SchemaProxy{}
-		sch.KeyNode = schema.GoLow().If.KeyNode
-		sch.ValueNode = schema.GoLow().If.ValueNode
+		sch.KeyNode = lowSchema.If.KeyNode
+		sch.ValueNode = lowSchema.If.ValueNode
 		sch.Parent = s
 		sch.SetPathSegment("if")
 		sch.NodeParent = s
@@ -287,8 +283,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	if schema.Else != nil {
 		sch := &SchemaProxy{}
-		sch.KeyNode = schema.GoLow().Else.KeyNode
-		sch.ValueNode = schema.GoLow().Else.ValueNode
+		sch.KeyNode = lowSchema.Else.KeyNode
+		sch.ValueNode = lowSchema.Else.ValueNode
 		sch.Parent = s
 		sch.SetPathSegment("else")
 		sch.NodeParent = s
@@ -299,8 +295,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 	if schema.Then != nil {
 		sch := &SchemaProxy{}
 		sch.Parent = s
-		sch.KeyNode = schema.GoLow().Then.KeyNode
-		sch.ValueNode = schema.GoLow().Then.ValueNode
+		sch.KeyNode = lowSchema.Then.KeyNode
+		sch.ValueNode = lowSchema.Then.ValueNode
 		sch.SetPathSegment("then")
 		sch.NodeParent = s
 		sch.Walk(ctx, schema.Then, depth)
@@ -309,17 +305,18 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	if schema.DependentSchemas != nil {
 		dependentSchemas := orderedmap.New[string, *SchemaProxy]()
+		lowDependent := newLowNodeFinder(lowSchema.DependentSchemas.Value)
+		block := make([]SchemaProxy, schema.DependentSchemas.Len())
+		di := 0
 		for dependentSchemasPairs := schema.DependentSchemas.First(); dependentSchemasPairs != nil; dependentSchemasPairs = dependentSchemasPairs.Next() {
-			sch := &SchemaProxy{}
+			sch := &block[di]
+			di++
 			sch.Parent = s
 			sch.SetPathSegment("dependentSchemas")
 			sch.Key = dependentSchemasPairs.Key()
-			for lowDPairs := schema.GoLow().DependentSchemas.Value.First(); lowDPairs != nil; lowDPairs = lowDPairs.Next() {
-				if lowDPairs.Key().Value == sch.Key {
-					sch.KeyNode = lowDPairs.Key().KeyNode
-					sch.ValueNode = lowDPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowDependent.find(sch.Key); ok {
+				sch.KeyNode = keyNode
+				sch.ValueNode = valueNode
 			}
 
 			sch.NodeParent = s
@@ -339,34 +336,30 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	if schema.PatternProperties != nil {
 		patternProperties := orderedmap.New[string, *SchemaProxy]()
+		lowPattern := newLowNodeFinder(lowSchema.PatternProperties.Value)
+		block := make([]SchemaProxy, schema.PatternProperties.Len())
+		ppi := 0
 		for patternPropertiesPairs := schema.PatternProperties.First(); patternPropertiesPairs != nil; patternPropertiesPairs = patternPropertiesPairs.Next() {
-			sch := &SchemaProxy{}
+			sch := &block[ppi]
+			ppi++
 			sch.Parent = s
 			sch.SetPathSegment("patternProperties")
 			sch.Key = patternPropertiesPairs.Key()
 			sch.NodeParent = s
-			walked := false
-			for lowPPPairs := schema.GoLow().PatternProperties.Value.First(); lowPPPairs != nil; lowPPPairs = lowPPPairs.Next() {
-				if lowPPPairs.Key().Value == sch.Key {
-					sch.KeyNode = lowPPPairs.Key().KeyNode
-					sch.ValueNode = lowPPPairs.Value().ValueNode
-					walked = true
-					sch.Walk(ctx, patternPropertiesPairs.Value(), depth)
-					break
-				}
+			if keyNode, valueNode, ok := lowPattern.find(sch.Key); ok {
+				sch.KeyNode = keyNode
+				sch.ValueNode = valueNode
 			}
 			patternProperties.Set(patternPropertiesPairs.Key(), sch)
-			if !walked {
-				sch.Walk(ctx, patternPropertiesPairs.Value(), depth)
-			}
+			sch.Walk(ctx, patternPropertiesPairs.Value(), depth)
 		}
 		s.PatternProperties = patternProperties
 	}
 
 	if schema.PropertyNames != nil {
 		sch := &SchemaProxy{}
-		sch.ValueNode = schema.GoLow().PropertyNames.ValueNode
-		sch.KeyNode = schema.GoLow().PropertyNames.KeyNode
+		sch.ValueNode = lowSchema.PropertyNames.ValueNode
+		sch.KeyNode = lowSchema.PropertyNames.KeyNode
 		sch.Parent = s
 		sch.SetPathSegment("propertyNames")
 		sch.Value = schema.PropertyNames
@@ -377,8 +370,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	if schema.UnevaluatedItems != nil {
 		sch := &SchemaProxy{}
-		sch.ValueNode = schema.GoLow().UnevaluatedItems.ValueNode
-		sch.KeyNode = schema.GoLow().UnevaluatedItems.KeyNode
+		sch.ValueNode = lowSchema.UnevaluatedItems.ValueNode
+		sch.KeyNode = lowSchema.UnevaluatedItems.KeyNode
 		sch.Parent = s
 		sch.SetPathSegment("unevaluatedItems")
 		sch.Value = schema.UnevaluatedItems
@@ -392,15 +385,15 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		dynamicValue.SetPathSegment("unevaluatedProperties")
 		dynamicValue.Parent = s
 		dynamicValue.Value = schema.UnevaluatedProperties
-		dynamicValue.ValueNode = schema.GoLow().UnevaluatedProperties.ValueNode
-		dynamicValue.KeyNode = schema.GoLow().UnevaluatedProperties.KeyNode
+		dynamicValue.ValueNode = lowSchema.UnevaluatedProperties.ValueNode
+		dynamicValue.KeyNode = lowSchema.UnevaluatedProperties.KeyNode
 		if schema.UnevaluatedProperties.IsA() {
 			sch := &SchemaProxy{}
 			sch.Parent = s
 			sch.Value = schema.UnevaluatedProperties.A
 			sch.NodeParent = s
-			sch.ValueNode = schema.GoLow().UnevaluatedProperties.ValueNode
-			sch.KeyNode = schema.GoLow().UnevaluatedProperties.KeyNode
+			sch.ValueNode = lowSchema.UnevaluatedProperties.ValueNode
+			sch.KeyNode = lowSchema.UnevaluatedProperties.KeyNode
 			v := schema.UnevaluatedProperties.A
 			sch.Walk(ctx, v, depth)
 		} else {
@@ -414,8 +407,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		dynamicValue.SetPathSegment("items")
 		dynamicValue.Parent = s
 		dynamicValue.Value = schema.Items
-		dynamicValue.ValueNode = schema.GoLow().Items.ValueNode
-		dynamicValue.KeyNode = schema.GoLow().Items.KeyNode
+		dynamicValue.ValueNode = lowSchema.Items.ValueNode
+		dynamicValue.KeyNode = lowSchema.Items.KeyNode
 		dynamicValue.Node = s.Node
 		if schema.Items.IsA() {
 
@@ -423,8 +416,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 			sch.Parent = dynamicValue
 			sch.Value = schema.Items.A
 			sch.NodeParent = s
-			sch.ValueNode = schema.GoLow().Items.ValueNode
-			sch.KeyNode = schema.GoLow().Items.KeyNode
+			sch.ValueNode = lowSchema.Items.ValueNode
+			sch.KeyNode = lowSchema.Items.KeyNode
 			sch.Node = s.Node
 			dynamicValue.A = sch
 			dynamicValue.Node = s.Node
@@ -438,8 +431,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	if schema.Not != nil {
 		sch := &SchemaProxy{}
-		sch.ValueNode = schema.GoLow().Not.ValueNode
-		sch.KeyNode = schema.GoLow().Not.KeyNode
+		sch.ValueNode = lowSchema.Not.ValueNode
+		sch.KeyNode = lowSchema.Not.KeyNode
 		sch.Parent = s
 		sch.SetPathSegment("not")
 		sch.Value = schema.Not
@@ -451,52 +444,26 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	if schema.Properties != nil {
 		properties := orderedmap.New[string, *SchemaProxy]()
+		lowProps := newLowNodeFinder(lowSchema.Properties.Value)
+		block := make([]SchemaProxy, schema.Properties.Len())
+		pi := 0
 		for propertiesPairs := schema.Properties.First(); propertiesPairs != nil; propertiesPairs = propertiesPairs.Next() {
-			sch := &SchemaProxy{}
+			sch := &block[pi]
+			pi++
 			sch.Parent = s
 			sch.SetPathSegment("properties")
 			v := propertiesPairs.Value()
 			sch.Key = propertiesPairs.Key()
 			sch.Value = v
 			properties.Set(propertiesPairs.Key(), sch)
-			walked := false
-			for lowSchPairs := schema.GoLow().Properties.Value.First(); lowSchPairs != nil; lowSchPairs = lowSchPairs.Next() {
-				if lowSchPairs.Key().Value == sch.Key {
-					sch.ValueNode = lowSchPairs.Value().ValueNode
-					sch.KeyNode = lowSchPairs.Key().KeyNode
-					g := v.Schema()
-					if g != nil {
-						//if !slices.Contains(g.Type, "string") &&
-						//	!slices.Contains(g.Type, "boolean") &&
-						//	!slices.Contains(g.Type, "integer") &&
-						//	!slices.Contains(g.Type, "number") {
-						sch.NodeParent = s
-						//}
-					}
-					walked = true
-					//wg.Go(func() {
-					sch.Walk(ctx, v, depth)
-					//})
-					break
-				}
+			if keyNode, valueNode, ok := lowProps.find(sch.Key); ok {
+				sch.ValueNode = valueNode
+				sch.KeyNode = keyNode
 			}
-
-			if v.IsReference() {
+			if v.IsReference() || v.Schema() != nil {
 				sch.NodeParent = s
-			} else {
-				g := v.Schema()
-				if g != nil {
-					//if !slices.Contains(g.Type, "string") &&
-					//	!slices.Contains(g.Type, "boolean") &&
-					//	!slices.Contains(g.Type, "integer") &&
-					//	!slices.Contains(g.Type, "number") {
-					sch.NodeParent = s
-					//}
-				}
 			}
-			if !walked {
-				sch.Walk(ctx, v, depth)
-			}
+			sch.Walk(ctx, v, depth)
 		}
 		s.Properties = properties
 	}
@@ -506,11 +473,10 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 		dynamicValue.SetPathSegment("additionalProperties")
 		dynamicValue.Parent = s
 		dynamicValue.Value = schema.AdditionalProperties
-		dynamicValue.KeyNode = schema.GoLow().AdditionalProperties.KeyNode
-		dynamicValue.ValueNode = schema.GoLow().AdditionalProperties.ValueNode
+		dynamicValue.KeyNode = lowSchema.AdditionalProperties.KeyNode
+		dynamicValue.ValueNode = lowSchema.AdditionalProperties.ValueNode
 		if schema.AdditionalProperties.IsA() {
 			sch := &SchemaProxy{}
-			sch.ValueNode = schema.AdditionalProperties.A.GetSchemaKeyNode()
 			sch.Parent = dynamicValue
 			sch.NodeParent = s
 			sch.Value = schema.AdditionalProperties.A
@@ -526,8 +492,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	if schema.XML != nil {
 		xml := &XML{}
-		xml.ValueNode = schema.GoLow().XML.ValueNode
-		xml.KeyNode = schema.GoLow().XML.KeyNode
+		xml.ValueNode = lowSchema.XML.ValueNode
+		xml.KeyNode = lowSchema.XML.KeyNode
 		xml.Parent = s
 		xml.SetPathSegment("xml")
 		xml.Value = schema.XML
@@ -539,8 +505,8 @@ func (s *Schema) Walk(ctx context.Context, schema *base.Schema, depth int) {
 
 	if schema.ExternalDocs != nil {
 		externalDocs := &ExternalDoc{}
-		externalDocs.ValueNode = schema.GoLow().ExternalDocs.ValueNode
-		externalDocs.KeyNode = schema.GoLow().ExternalDocs.KeyNode
+		externalDocs.ValueNode = lowSchema.ExternalDocs.ValueNode
+		externalDocs.KeyNode = lowSchema.ExternalDocs.KeyNode
 		externalDocs.Parent = s
 		externalDocs.SetPathSegment("externalDocs")
 		externalDocs.Value = schema.ExternalDocs
@@ -685,27 +651,32 @@ func ParseSchemaSize(schema *base.Schema) (height, width int) {
 		}
 	}
 
-	// Check if all polymorphic children have examples (or don't need them)
+	// Check if all polymorphic children have examples (or don't need them).
+	// Iterate the three slices in place: appending them together can write
+	// into the backing array of the shared libopenapi schema slices.
 	allPolyChildrenHaveExamples := false
-	polyChildren := append(append(schema.AllOf, schema.AnyOf...), schema.OneOf...)
-	if len(polyChildren) > 0 {
+	polyChildCount := len(schema.AllOf) + len(schema.AnyOf) + len(schema.OneOf)
+	if polyChildCount > 0 {
 		allPolyChildrenHaveExamples = true
-		for _, child := range polyChildren {
-			childSchema := child.Schema()
-			if childSchema == nil {
-				allPolyChildrenHaveExamples = false
-				break
-			}
-			// Children with enums, booleans, or defaults don't need examples
-			hasEnum := len(childSchema.Enum) > 0
-			isBoolean := len(childSchema.Type) == 1 && childSchema.Type[0] == "boolean"
-			hasDefault := childSchema.Default != nil
-			if hasEnum || isBoolean || hasDefault {
-				continue
-			}
-			if childSchema.Example == nil && len(childSchema.Examples) == 0 {
-				allPolyChildrenHaveExamples = false
-				break
+	polyScan:
+		for _, polyChildren := range [][]*base.SchemaProxy{schema.AllOf, schema.AnyOf, schema.OneOf} {
+			for _, child := range polyChildren {
+				childSchema := child.Schema()
+				if childSchema == nil {
+					allPolyChildrenHaveExamples = false
+					break polyScan
+				}
+				// Children with enums, booleans, or defaults don't need examples
+				hasEnum := len(childSchema.Enum) > 0
+				isBoolean := len(childSchema.Type) == 1 && childSchema.Type[0] == "boolean"
+				hasDefault := childSchema.Default != nil
+				if hasEnum || isBoolean || hasDefault {
+					continue
+				}
+				if childSchema.Example == nil && len(childSchema.Examples) == 0 {
+					allPolyChildrenHaveExamples = false
+					break polyScan
+				}
 			}
 		}
 	}

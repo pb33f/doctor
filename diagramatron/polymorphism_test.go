@@ -10,8 +10,8 @@ import (
 
 	"github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestPolymorphism_PropertyLevelOneOf(t *testing.T) {
@@ -611,4 +611,3 @@ components:
 	// 7. Should have 2 relationships
 	assert.Equal(t, 2, len(diagram.Relationships), "Should have exactly 2 relationships")
 }
-

@@ -6,7 +6,7 @@ package diagramatron
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestDefaultVisualizationConfig(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 )
 
 // TestRealisticExtensionRendering tests extension rendering as it would actually be generated
@@ -71,7 +71,7 @@ func TestRealisticExtensionRendering(t *testing.T) {
 
 	// verify the breaking marker is OUTSIDE the code block
 	if strings.Contains(html, "</code></pre><p><strong>(💔 breaking)</strong></p>") ||
-	   strings.Contains(html, "</code></pre>\n<p><strong>(💔 breaking)</strong></p>") {
+		strings.Contains(html, "</code></pre>\n<p><strong>(💔 breaking)</strong></p>") {
 		t.Logf("✅ GOOD: Breaking marker is outside code block")
 	} else if strings.Contains(html, "breaking)**</code></pre>") {
 		t.Errorf("❌ BROKEN: Breaking marker is inside code block")

@@ -6,8 +6,8 @@ import (
 
 	. "github.com/pb33f/doctor/printingpress/curl"
 	. "github.com/pb33f/doctor/printingpress/model"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestBuildCurlCommandsBasicGet(t *testing.T) {

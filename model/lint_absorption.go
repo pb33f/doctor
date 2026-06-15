@@ -358,10 +358,14 @@ func (d *DrDocument) allFoundationalPathCandidates() ([]lintPathCandidate, []lin
 	if d == nil || len(d.lineObjects) == 0 {
 		return nil, nil, nil, nil
 	}
-	seen := make(map[drV3.Foundational]struct{})
-	candidates := make([]lintPathCandidate, 0)
-	exactPaths := make(map[string][]lintPathCandidate)
-	byCandidate := make(map[drV3.Foundational]lintPathCandidate)
+	totalObjects := 0
+	for _, objects := range d.lineObjects {
+		totalObjects += len(objects)
+	}
+	seen := make(map[drV3.Foundational]struct{}, totalObjects)
+	candidates := make([]lintPathCandidate, 0, totalObjects)
+	exactPaths := make(map[string][]lintPathCandidate, totalObjects)
+	byCandidate := make(map[drV3.Foundational]lintPathCandidate, totalObjects)
 	for _, objects := range d.lineObjects {
 		for _, object := range objects {
 			f, ok := object.(drV3.Foundational)

@@ -9,8 +9,8 @@ import (
 
 	"github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestHTMLRenderer_RenderHTML_NoChanges(t *testing.T) {

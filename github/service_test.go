@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v72/github"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestNewGitHubService(t *testing.T) {

@@ -38,20 +38,18 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 
 	if response.Headers != nil {
 		headers := orderedmap.New[string, *Header]()
+		lowHeadersFinder := newLowNodeFinder(response.GoLow().Headers.Value)
 		for headerPairs := response.Headers.First(); headerPairs != nil; headerPairs = headerPairs.Next() {
 			v := headerPairs.Value()
 			h := &Header{}
 			h.Key = headerPairs.Key()
 			var refString string
-			for lowHeaderPairs := response.GoLow().Headers.Value.First(); lowHeaderPairs != nil; lowHeaderPairs = lowHeaderPairs.Next() {
-				if lowHeaderPairs.Key().Value == h.Key {
-					h.KeyNode = lowHeaderPairs.Key().KeyNode
-					h.ValueNode = lowHeaderPairs.Value().ValueNode
-					// capture reference info from the ValueReference wrapper
-					if lowHeaderPairs.Value().IsReference() {
-						refString = lowHeaderPairs.Value().GetReference()
-					}
-					break
+			if lowPair, ok := lowHeadersFinder.findPair(h.Key); ok {
+				h.KeyNode = lowPair.Key().KeyNode
+				h.ValueNode = lowPair.Value().ValueNode
+				// capture reference info from the ValueReference wrapper
+				if lowPair.Value().IsReference() {
+					refString = lowPair.Value().GetReference()
 				}
 			}
 			h.SetPathSegment("headers")
@@ -77,15 +75,13 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 
 	if response.Content != nil {
 		content := orderedmap.New[string, *MediaType]()
+		lowMtFinder := newLowNodeFinder(response.GoLow().Content.Value)
 		for contentPairs := response.Content.First(); contentPairs != nil; contentPairs = contentPairs.Next() {
 			m := &MediaType{}
 			m.Key = contentPairs.Key()
-			for lowMtPairs := response.GoLow().Content.Value.First(); lowMtPairs != nil; lowMtPairs = lowMtPairs.Next() {
-				if lowMtPairs.Key().Value == m.Key {
-					m.KeyNode = lowMtPairs.Key().KeyNode
-					m.ValueNode = lowMtPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowMtFinder.find(m.Key); ok {
+				m.KeyNode = keyNode
+				m.ValueNode = valueNode
 			}
 			m.Parent = r
 			m.SetPathSegment("content")
@@ -99,6 +95,7 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 
 	if response.Links != nil {
 		links := orderedmap.New[string, *Link]()
+		lowLinksFinder := newLowNodeFinder(response.GoLow().Links.Value)
 		for linksPairs := response.Links.First(); linksPairs != nil; linksPairs = linksPairs.Next() {
 			l := &Link{}
 			l.SetPathSegment("links")
@@ -106,14 +103,11 @@ func (r *Response) Walk(ctx context.Context, response *v3.Response) {
 			l.NodeParent = r
 			l.Key = linksPairs.Key()
 			var refString string
-			for lowLinkPairs := response.GoLow().Links.Value.First(); lowLinkPairs != nil; lowLinkPairs = lowLinkPairs.Next() {
-				if lowLinkPairs.Key().Value == l.Key {
-					l.KeyNode = lowLinkPairs.Key().KeyNode
-					l.ValueNode = lowLinkPairs.Value().ValueNode
-					if lowLinkPairs.Value().IsReference() {
-						refString = lowLinkPairs.Value().GetReference()
-					}
-					break
+			if lowPair, ok := lowLinksFinder.findPair(l.Key); ok {
+				l.KeyNode = lowPair.Key().KeyNode
+				l.ValueNode = lowPair.Value().ValueNode
+				if lowPair.Value().IsReference() {
+					refString = lowPair.Value().GetReference()
 				}
 			}
 			v := linksPairs.Value()

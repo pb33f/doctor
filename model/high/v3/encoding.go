@@ -24,16 +24,19 @@ func (e *Encoding) Walk(ctx context.Context, encoding *v3.Encoding) {
 
 	if encoding.Headers != nil && encoding.Headers.Len() > 0 {
 		headers := orderedmap.New[string, *Header]()
+		lowHeadFinder := newLowNodeFinder(encoding.GoLow().Headers.Value)
 		for headerPairs := encoding.Headers.First(); headerPairs != nil; headerPairs = headerPairs.Next() {
 			h := &Header{}
 			h.Parent = e
+			// Key only, deliberately NO SetPathSegment: encoding headers render
+			// as encoding['prop']['name'] (no 'headers' segment). The canonical
+			// path pre-population (model/walk_model.go prePopulateMediaTypeSchemas)
+			// mirrors this shape - change both together or DeterministicPaths
+			// paths desynchronize.
 			h.Key = headerPairs.Key()
-			for lowHeadPairs := encoding.GoLow().Headers.Value.First(); lowHeadPairs != nil; lowHeadPairs = lowHeadPairs.Next() {
-				if lowHeadPairs.Key().Value == h.Key {
-					h.KeyNode = lowHeadPairs.Key().KeyNode
-					h.ValueNode = lowHeadPairs.Value().ValueNode
-					break
-				}
+			if keyNode, valueNode, ok := lowHeadFinder.find(h.Key); ok {
+				h.KeyNode = keyNode
+				h.ValueNode = valueNode
 			}
 			v := headerPairs.Value()
 			h.NodeParent = e

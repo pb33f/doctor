@@ -7,52 +7,52 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 // TestIndentMultilineDesc tests the indentMultilineDesc function
 func TestIndentMultilineDesc(t *testing.T) {
 	testCases := []struct {
-		name           string
-		input          string
-		indentSpaces   int
-		expected       string
+		name         string
+		input        string
+		indentSpaces int
+		expected     string
 	}{
 		{
-			name: "code_block_should_be_fully_indented",
-			input: "```yaml\ndata:\n  - item: test\n```",
+			name:         "code_block_should_be_fully_indented",
+			input:        "```yaml\ndata:\n  - item: test\n```",
 			indentSpaces: 4,
-			expected: "    ```yaml\n    data:\n      - item: test\n    ```",
+			expected:     "    ```yaml\n    data:\n      - item: test\n    ```",
 		},
 		{
-			name: "regular_text_first_line_not_indented",
-			input: "First line\nSecond line\nThird line",
+			name:         "regular_text_first_line_not_indented",
+			input:        "First line\nSecond line\nThird line",
 			indentSpaces: 4,
-			expected: "First line\n    Second line\n    Third line",
+			expected:     "First line\n    Second line\n    Third line",
 		},
 		{
-			name: "single_line_unchanged",
-			input: "Single line",
+			name:         "single_line_unchanged",
+			input:        "Single line",
 			indentSpaces: 4,
-			expected: "Single line",
+			expected:     "Single line",
 		},
 		{
-			name: "zero_indent_unchanged",
-			input: "Line 1\nLine 2",
+			name:         "zero_indent_unchanged",
+			input:        "Line 1\nLine 2",
 			indentSpaces: 0,
-			expected: "Line 1\nLine 2",
+			expected:     "Line 1\nLine 2",
 		},
 		{
-			name: "code_block_with_blank_line_before",
-			input: "\n```yaml\ndata: test\n```",
+			name:         "code_block_with_blank_line_before",
+			input:        "\n```yaml\ndata: test\n```",
 			indentSpaces: 6,
-			expected: "\n      ```yaml\n      data: test\n      ```",
+			expected:     "\n      ```yaml\n      data: test\n      ```",
 		},
 		{
-			name: "mixed_content_after_colon",
-			input: "value changed to:\n\n```yaml\ndata:\n  - test\n```",
+			name:         "mixed_content_after_colon",
+			input:        "value changed to:\n\n```yaml\ndata:\n  - test\n```",
 			indentSpaces: 6,
-			expected: "value changed to:\n      \n      ```yaml\n      data:\n        - test\n      ```",
+			expected:     "value changed to:\n      \n      ```yaml\n      data:\n        - test\n      ```",
 		},
 	}
 

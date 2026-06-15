@@ -18,63 +18,57 @@ func canonicalPathCacheFromContext(drCtx *DrContext) *sync.Map {
 	return drCtx.CanonicalPathCache
 }
 
-type schemaCacheMode int
-
-const (
-	schemaCacheModeMaterialized schemaCacheMode = iota
-	schemaCacheModeAlias
-)
-
 type schemaCacheCopyOptions struct {
-	mode               schemaCacheMode
-	drCtx              *DrContext
-	canonicalPathCache *sync.Map
 	aliasCanonicalPath bool
 }
 
-func materializedSchemaCacheCopyOptions(drCtx *DrContext) schemaCacheCopyOptions {
-	return schemaCacheCopyOptions{
-		mode:               schemaCacheModeMaterialized,
-		drCtx:              drCtx,
-		canonicalPathCache: canonicalPathCacheFromContext(drCtx),
-	}
+func schemaFromCacheValue(actual any) *Schema {
+	cached, _ := actual.(*Schema)
+	return cached
 }
 
 func aliasSchemaCacheCopyOptions(canonicalPaths bool) schemaCacheCopyOptions {
 	return schemaCacheCopyOptions{
-		mode:               schemaCacheModeAlias,
 		aliasCanonicalPath: canonicalPaths,
 	}
 }
 
-// hydrateFromCache prepares a schema cache-hit occurrence.
+// hydrateFromCache prepares a schema cache-hit occurrence as an alias of the
+// canonical definition.
 //
-// Render/graph builds do not need a full duplicate schema tree for every
-// repeated reference; they need occurrence-local identity on the cache-hit
-// schema itself. Keeping a pointer to the canonical definition avoids
-// recursively cloning large schema subtrees for every occurrence.
-//
-// Non-render model walks retain the historical fully materialized occurrence
-// tree so direct field traversal keeps usage-site paths.
+// Cache hits do not need a full duplicate schema tree for every repeated
+// reference; they need occurrence-local identity on the cache-hit schema
+// itself. Keeping a pointer to the canonical definition avoids recursively
+// cloning large schema subtrees for every occurrence. Direct child aliases are
+// still populated on the occurrence for compatibility with callers that read
+// exported Schema child fields directly; nested child aliases remain lazy via
+// ensureAliasChildren and the *ForRead accessors.
 func (s *Schema) hydrateFromCache(cached *Schema, drCtx *DrContext) {
 	if cached == nil {
 		return
 	}
-	if drCtx != nil && drCtx.RenderChanges {
-		s.hydrateAliasFromCache(cached, drCtx)
-		return
-	}
-
-	s.hydrateMaterializedFromCache(cached, drCtx)
-}
-
-func (s *Schema) hydrateAliasFromCache(cached *Schema, drCtx *DrContext) {
 	source := canonicalSchemaSource(cached)
 	if source == nil {
 		return
 	}
 	canonicalPathCache := canonicalPathCacheFromContext(drCtx)
-	applyCanonicalCachePaths(source, canonicalPathCache, nil)
+	// applying canonical paths latches each JSONPath via sync.Once, so a
+	// second full-subtree traversal for the same canonical schema is pure
+	// waste — run it once per canonical definition per walk. The map holds a
+	// per-source *sync.Once (not a done-marker) so a concurrent hydrator
+	// BLOCKS until the first application completes; a marker checked before
+	// the traversal finished would let the second hydrator read subtree paths
+	// the first has not latched yet.
+	if canonicalPathCache != nil {
+		if drCtx.CanonicalPathsApplied != nil {
+			once, _ := drCtx.CanonicalPathsApplied.LoadOrStore(source, &sync.Once{})
+			once.(*sync.Once).Do(func() {
+				applyCanonicalCachePaths(source, canonicalPathCache, nil)
+			})
+		} else {
+			applyCanonicalCachePaths(source, canonicalPathCache, nil)
+		}
+	}
 	canonicalAliasPaths := canonicalPathCache != nil
 	s.mu.Lock()
 	s.Hash = source.Hash
@@ -82,6 +76,7 @@ func (s *Schema) hydrateAliasFromCache(cached *Schema, drCtx *DrContext) {
 	s.setDefinitionSourceLocked(source)
 	s.mu.Unlock()
 	s.applyAliasCachePath(source, drCtx, canonicalAliasPaths)
+	s.ensureAliasChildren()
 }
 
 func (s *Schema) IsAlias() bool {
@@ -405,31 +400,6 @@ func (s *Schema) buildAliasChildren() {
 	s.ExternalDocs = externalDocs
 }
 
-func (s *Schema) hydrateMaterializedFromCache(cached *Schema, drCtx *DrContext) {
-	options := materializedSchemaCacheCopyOptions(drCtx)
-	s.Hash = cached.Hash
-	s.AllOf = schemaProxySliceFromCache(cached.AllOf, s, s, options)
-	s.OneOf = schemaProxySliceFromCache(cached.OneOf, s, s, options)
-	s.AnyOf = schemaProxySliceFromCache(cached.AnyOf, s, s, options)
-	s.PrefixItems = schemaProxySliceFromCache(cached.PrefixItems, s, s, options)
-	s.Discriminator = copyDiscriminator(cached.Discriminator, s)
-	s.Contains = schemaProxyFromCache(cached.Contains, s, s, options)
-	s.If = schemaProxyFromCache(cached.If, s, s, options)
-	s.Else = schemaProxyFromCache(cached.Else, s, s, options)
-	s.Then = schemaProxyFromCache(cached.Then, s, s, options)
-	s.DependentSchemas = schemaProxyMapFromCache(cached.DependentSchemas, s, s, options)
-	s.PatternProperties = schemaProxyMapFromCache(cached.PatternProperties, s, s, options)
-	s.PropertyNames = schemaProxyFromCache(cached.PropertyNames, s, s, options)
-	s.UnevaluatedItems = schemaProxyFromCache(cached.UnevaluatedItems, s, s, options)
-	s.UnevaluatedProperties = dynamicSchemaProxyFromCache(cached.UnevaluatedProperties, s, options)
-	s.Items = dynamicSchemaProxyFromCache(cached.Items, s, options)
-	s.Not = schemaProxyFromCache(cached.Not, s, s, options)
-	s.Properties = schemaProxyMapFromCache(cached.Properties, s, s, options)
-	s.AdditionalProperties = dynamicSchemaProxyFromCache(cached.AdditionalProperties, s, options)
-	s.XML = copyXML(cached.XML, s)
-	s.ExternalDocs = copyExternalDoc(cached.ExternalDocs, s)
-}
-
 func (s *Schema) publishHydratedChildren(drCtx *DrContext) {
 	if s == nil || drCtx == nil || drCtx.ObjectChan == nil {
 		return
@@ -520,7 +490,6 @@ func publishSchemaProxy(proxy *SchemaProxy, drCtx *DrContext, visited map[*Schem
 	}
 	visited[schema] = struct{}{}
 	drCtx.ObjectChan <- schema
-	schema.publishChildSchemas(drCtx, visited)
 }
 
 func schemaFromCache(cached *Schema, parent any, nodeParent any, options schemaCacheCopyOptions) *Schema {
@@ -528,33 +497,21 @@ func schemaFromCache(cached *Schema, parent any, nodeParent any, options schemaC
 		return nil
 	}
 
-	if options.mode == schemaCacheModeAlias {
-		source := canonicalSchemaSource(cached)
-		if source == nil {
-			return nil
-		}
-		alias := &Schema{
-			Name:                source.Name,
-			Value:               source.Value,
-			Hash:                source.Hash,
-			Walked:              source.isWalked(),
-			aliasCanonicalPaths: options.aliasCanonicalPath,
-		}
-		alias.setDefinitionSourceLocked(source)
-		alias.Foundation = cloneFoundation(&source.Foundation, parent, nodeParent)
-		alias.applyAliasCachePath(source, nil, options.aliasCanonicalPath)
-		return alias
+	source := canonicalSchemaSource(cached)
+	if source == nil {
+		return nil
 	}
-
-	clone := &Schema{
-		Name:   cached.Name,
-		Value:  cached.Value,
-		Walked: cached.isWalked(),
+	alias := &Schema{
+		Name:                source.Name,
+		Value:               source.Value,
+		Hash:                source.Hash,
+		Walked:              source.isWalked(),
+		aliasCanonicalPaths: options.aliasCanonicalPath,
 	}
-	clone.Foundation = cloneFoundation(&cached.Foundation, parent, nodeParent)
-	clone.applyCanonicalCachePath(cached, options.canonicalPathCache)
-	clone.hydrateFromCache(cached, options.drCtx)
-	return clone
+	alias.setDefinitionSourceLocked(source)
+	alias.Foundation = cloneFoundation(&source.Foundation, parent, nodeParent)
+	alias.applyAliasCachePath(source, nil, options.aliasCanonicalPath)
+	return alias
 }
 
 func (s *Schema) applyCanonicalCachePath(cached *Schema, canonicalPathCache *sync.Map) {

@@ -134,8 +134,8 @@ func (t *Changerator) Changerify(n any) []*v3.Node {
 			hasChildChanges := len(nodes[i].Children) > 0
 
 			if hasOwnChanges || hasChildChanges {
-				if nodes[i].DrInstance != nil {
-					t.tmpEdges = append(t.tmpEdges, nodes[i].DrInstance.(v3.Foundational).GetEdges()...)
+				if foundational, ok := nodes[i].DrInstance.(v3.Foundational); ok {
+					t.tmpEdges = append(t.tmpEdges, foundational.GetEdges()...)
 				}
 				nodes[i].RenderChanges = true
 				nodes[i].RenderProps = true
