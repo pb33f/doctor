@@ -5,6 +5,7 @@
 package printingpress
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/pb33f/testify/assert"
@@ -26,7 +27,7 @@ func TestRenderMarkdown_GFM(t *testing.T) {
 func TestRenderMarkdown_FencedCodeHighlighted(t *testing.T) {
 	md := "```json\n{\"key\": \"value\"}\n```"
 	result := renderMarkdown(md, false)
-	assert.Contains(t, result, `class="chroma"`)
+	assertHasClass(t, result, "chroma")
 	assert.Contains(t, result, "<span")
 }
 
@@ -36,4 +37,22 @@ func TestRenderMarkdown_FencedCodeUntagged(t *testing.T) {
 	assert.Contains(t, result, "<pre")
 	assert.Contains(t, result, "<code>")
 	assert.NotContains(t, result, `class="chroma"`)
+}
+
+func assertHasClass(t *testing.T, html string, expected string) {
+	t.Helper()
+
+	for _, part := range strings.Split(html, `class="`)[1:] {
+		classValue, _, ok := strings.Cut(part, `"`)
+		if !ok {
+			continue
+		}
+		for _, className := range strings.Fields(classValue) {
+			if className == expected {
+				return
+			}
+		}
+	}
+
+	assert.Failf(t, "missing HTML class", "expected rendered HTML to contain class %q in %s", expected, html)
 }
