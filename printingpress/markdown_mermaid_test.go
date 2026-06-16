@@ -68,7 +68,7 @@ func TestRenderMarkdown_NonMermaidFenceStillHighlighted(t *testing.T) {
 	result := renderMarkdown(md, false)
 
 	assert.NotContains(t, result, `<pp-mermaid>`)
-	assert.Contains(t, result, `class="chroma"`)
+	assertHasClass(t, result, "chroma")
 }
 
 func TestCreatePrintingPress_MermaidMarkdownFixture(t *testing.T) {
