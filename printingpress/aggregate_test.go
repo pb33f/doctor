@@ -170,13 +170,66 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogAndEntrySites(t *testing
 	assert.Contains(t, string(entryHTML), `src="../../../../../../static/printing-press.js"`)
 	assert.NoFileExists(t, filepath.Join(filepath.Dir(entryIndex), "static", "printing-press.js"))
 	assert.NotContains(t, string(entryHTML), `data-pp-versions-href=`)
+
+	entryOperationHTML, err := os.ReadFile(filepath.Join(filepath.Dir(entryIndex), "operations", "list-health.html"))
+	require.NoError(t, err)
+	assert.Contains(t, string(entryOperationHTML), `<base href="../">`)
+	assert.Contains(t, string(entryOperationHTML), `data-pp-base-url="../"`)
+	assert.Contains(t, string(entryOperationHTML), `href="../../../../../../static/printing-press.css"`)
+	assert.Contains(t, string(entryOperationHTML), `src="../../../../../../static/printing-press.js"`)
+}
+
+func TestAggregatePrintingPress_ServedEntryNestedPagesUsePageAwareSharedAssets(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateSpec(t, root, "services/users/src/specs/users.yaml", "Users API", "v1")
+
+	outputDir := filepath.Join(root, "site")
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: NewMemorySpecStateStore(),
+		AssetMode:  HTMLAssetModeServed,
+	})
+	require.NoError(t, err)
+
+	catalog, err := ap.PressModel()
+	require.NoError(t, err)
+	_, err = ap.PrintHTML()
+	require.NoError(t, err)
+
+	users := findCatalogService(t, catalog, "users")
+	require.Len(t, users.LatestVersion.Entries, 1)
+	entry := users.LatestVersion.Entries[0]
+	entryDir := filepath.Join(outputDir, filepath.Dir(filepath.FromSlash(entry.OverviewHref)))
+	operationHTML, err := os.ReadFile(filepath.Join(entryDir, "operations", "list-health.html"))
+	require.NoError(t, err)
+	rendered := string(operationHTML)
+	assert.NotContains(t, rendered, `<base href=`)
+	assert.Contains(t, rendered, `data-pp-base-url="../"`)
+	assert.Contains(t, rendered, `href="../../../../../../../static/printing-press.css"`)
+	assert.Contains(t, rendered, `src="../../../../../../../static/printing-press.js"`)
+	assert.Contains(t, rendered, `data-pp-shared="data/nav"`)
+	require.FileExists(t, filepath.Join(entryDir, "data", "nav.json"))
 }
 
 func TestAggregatePrintingPress_PrintHTML_RendersCatalogContentAndNav(t *testing.T) {
 	root := t.TempDir()
 	writeAggregateSpecWithDetails(t, root, "services/users/specs/users-public.yaml", "Users Public API", "Public user lifecycle endpoints.", "", "v1")
 	writeAggregateSpecWithDetails(t, root, "services/users/specs/users-admin.yaml", "Users Admin API", "Admin user lifecycle endpoints.", "", "v1")
-	writeFile(t, filepath.Join(root, "services", "users", "specs", "about.md"), "Service-local content should not render in aggregate entries.\n")
+	writeFile(t, filepath.Join(root, "services", "users", "specs", "about.md"), `---
+title: Service About
+label: Service
+description: Service-local context.
+---
+Service-local content renders only inside entry docs.
+`)
+	writeFile(t, filepath.Join(root, "services", "users", "specs", "docs", "runbook.md"), `---
+title: Service Runbook
+slug: guides/runbook
+description: Per-service operating notes.
+---
+Runbook content for this service.
+`)
 	writeFile(t, filepath.Join(root, "_partials", "catalog-note.md"), "Shared catalog note.\n")
 	writeFile(t, filepath.Join(root, "images", "map.svg"), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 1h8v8H1z"/></svg>`)
 	writeFile(t, filepath.Join(root, "about.md"), `---
@@ -212,6 +265,7 @@ Hidden direct page.
 		BuildMode:  AggregateBuildModeFull,
 		StateStore: store,
 		Title:      "Platform Catalog",
+		AssetMode:  HTMLAssetModeServed,
 	})
 	require.NoError(t, err)
 
@@ -232,6 +286,8 @@ Hidden direct page.
 	assert.Contains(t, rootNav, `<h4>Guides</h4>`)
 	assert.Contains(t, rootNav, `href="about.html"`)
 	assert.Contains(t, rootNav, `href="guides/setup.html"`)
+	assert.NotContains(t, rootNav, `Service About`)
+	assert.NotContains(t, rootNav, `Service Runbook`)
 	assert.Contains(t, rootNav, `class="nav-page-link"`)
 	assert.Contains(t, rootNav, `class="nav-page-chevron"`)
 	assert.NotContains(t, rootNav, `faq.html`)
@@ -273,9 +329,18 @@ Hidden direct page.
 	users := findCatalogService(t, catalog, "users")
 	require.NotEmpty(t, users.LatestVersion.Entries)
 	entryDir := filepath.Dir(filepath.FromSlash(users.LatestVersion.Entries[0].OverviewHref))
-	assert.NoFileExists(t, filepath.Join(outputDir, entryDir, "about.html"))
+	assert.FileExists(t, filepath.Join(outputDir, entryDir, "about.html"))
+	assert.FileExists(t, filepath.Join(outputDir, entryDir, "guides", "runbook.html"))
+	entryNav := readAggregateFile(t, filepath.Join(outputDir, entryDir, "data", "nav.json"))
+	assert.Contains(t, entryNav, `"data-pages"`)
+	assert.Contains(t, entryNav, "Service About")
+	assert.Contains(t, entryNav, "guides/runbook.html")
 	entryHTML := readAggregateFile(t, filepath.Join(outputDir, filepath.FromSlash(users.LatestVersion.Entries[0].OverviewHref)))
-	assert.NotContains(t, entryHTML, "Service-local content should not render")
+	assert.Contains(t, entryHTML, `data-has-content-pages="true"`)
+	serviceAboutHTML := readAggregateFile(t, filepath.Join(outputDir, entryDir, "about.html"))
+	assert.Contains(t, serviceAboutHTML, "Service-local content renders only inside entry docs.")
+	serviceRunbookHTML := readAggregateFile(t, filepath.Join(outputDir, entryDir, "guides", "runbook.html"))
+	assert.Contains(t, serviceRunbookHTML, "Runbook content for this service.")
 
 	require.NoError(t, os.Remove(filepath.Join(root, "about.md")))
 	apNext, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
@@ -283,6 +348,7 @@ Hidden direct page.
 		BuildMode:  AggregateBuildModeFull,
 		StateStore: store,
 		Title:      "Platform Catalog",
+		AssetMode:  HTMLAssetModeServed,
 	})
 	require.NoError(t, err)
 	_, err = apNext.PrintHTML()
@@ -534,6 +600,302 @@ func TestAggregatePrintingPress_FastMode_RebuildsOnlyChangedSpecsAndRemovesStale
 	require.NoError(t, err)
 	assert.Equal(t, 0, fourthStats.Specs)
 	require.NoFileExists(t, newIndex)
+}
+
+func TestAggregatePrintingPress_FastMode_RebuildsEntryWhenServiceContentChanges(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateSpec(t, root, "services/users/specs/users.yaml", "Users API", "v1")
+	contentPath := filepath.Join(root, "services", "users", "specs", "about.md")
+	docsPath := filepath.Join(root, "services", "users", "specs", "docs", "reference", "runbook.md")
+	missingImagePagePath := filepath.Join(root, "services", "users", "specs", "docs", "reference", "late-image.md")
+	partialPath := filepath.Join(root, "services", "users", "specs", "_partials", "notice.md")
+	shadowedPartialPath := filepath.Join(root, "services", "users", "specs", "docs", "_partials", "notice.md")
+	unusedPartialPath := filepath.Join(root, "services", "users", "specs", "_partials", "unused.md")
+	imagePath := filepath.Join(root, "services", "users", "specs", "docs", "reference", "images", "badge.svg")
+	missingImagePath := filepath.Join(root, "services", "users", "specs", "docs", "reference", "images", "late.svg")
+	shadowedImagePath := filepath.Join(root, "services", "users", "specs", "docs", "reference", "images", "shadowed.svg")
+	unusedImagePath := filepath.Join(root, "services", "users", "specs", "docs", "reference", "images", "unused.svg")
+	writeFile(t, contentPath, `---
+title: Service Notes
+---
+Initial service notes.
+`)
+	writeFile(t, partialPath, `Initial shared notice.
+
+![Badge](images/badge.svg)
+`)
+	writeFile(t, shadowedPartialPath, `Shadowed notice.
+
+![Shadowed](images/shadowed.svg)
+`)
+	writeFile(t, unusedPartialPath, `Unused notice.
+
+![Unused](images/unused.svg)
+`)
+	writeFile(t, imagePath, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><title>Initial badge</title><path d="M1 1h8v8H1z"/></svg>`)
+	writeFile(t, shadowedImagePath, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><title>Initial shadowed badge</title><path d="M1 1h8v8H1z"/></svg>`)
+	writeFile(t, unusedImagePath, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><title>Initial unused badge</title><path d="M1 1h8v8H1z"/></svg>`)
+	writeFile(t, docsPath, `---
+title: Service Runbook
+slug: guides/runbook
+---
+{{<partial "notice.md">}}
+
+Runbook from docs.
+`)
+	writeFile(t, missingImagePagePath, `---
+title: Late Image
+slug: guides/late-image
+---
+This page references an image that is created after the first build.
+
+![Late](images/late.svg)
+`)
+	outputDir := filepath.Join(root, "site")
+	store := NewMemorySpecStateStore()
+
+	full, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	catalog, err := full.PressModel()
+	require.NoError(t, err)
+	users := findCatalogService(t, catalog, "users")
+	entryDir := filepath.Join(outputDir, filepath.Dir(filepath.FromSlash(users.LatestVersion.Entries[0].OverviewHref)))
+	firstStats, err := full.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 1, firstStats.ChangedSpecs)
+	aboutPath := filepath.Join(entryDir, "about.html")
+	runbookPath := filepath.Join(entryDir, "guides", "runbook.html")
+	badgePath := filepath.Join(entryDir, "assets", "docs", "guides", "runbook", "badge.svg")
+	lateImageAssetPath := filepath.Join(entryDir, "assets", "docs", "guides", "late-image", "late.svg")
+	require.FileExists(t, aboutPath)
+	require.FileExists(t, runbookPath)
+	require.FileExists(t, badgePath)
+	require.NoFileExists(t, lateImageAssetPath)
+	assert.Contains(t, readAggregateFile(t, aboutPath), "Initial service notes.")
+	assert.Contains(t, readAggregateFile(t, runbookPath), "Initial shared notice.")
+	assert.Contains(t, readAggregateFile(t, badgePath), "Initial badge")
+
+	fastNoChange, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	secondStats, err := fastNoChange.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 0, secondStats.ChangedSpecs)
+
+	writeFile(t, shadowedPartialPath, `Updated shadowed notice.
+
+![Shadowed](images/shadowed.svg)
+`)
+	writeFile(t, shadowedImagePath, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><title>Updated shadowed badge</title><path d="M2 2h6v6H2z"/></svg>`)
+	writeFile(t, unusedPartialPath, `Updated unused notice.
+
+![Unused](images/unused.svg)
+`)
+	writeFile(t, unusedImagePath, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><title>Updated unused badge</title><path d="M2 2h6v6H2z"/></svg>`)
+	fastIgnoredContent, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	ignoredStats, err := fastIgnoredContent.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 0, ignoredStats.ChangedSpecs)
+
+	writeFile(t, missingImagePath, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><title>Late badge</title><path d="M4 4h2v2H4z"/></svg>`)
+	fastMissingImageAdded, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	missingImageStats, err := fastMissingImageAdded.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 1, missingImageStats.ChangedSpecs)
+	require.FileExists(t, lateImageAssetPath)
+	assert.Contains(t, readAggregateFile(t, lateImageAssetPath), "Late badge")
+
+	writeFile(t, contentPath, `---
+title: Service Notes
+---
+Updated service notes.
+`)
+	fastChanged, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	thirdStats, err := fastChanged.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 1, thirdStats.ChangedSpecs)
+	updatedAbout := readAggregateFile(t, aboutPath)
+	assert.Contains(t, updatedAbout, "Updated service notes.")
+	assert.NotContains(t, updatedAbout, "Initial service notes.")
+
+	writeFile(t, docsPath, `---
+title: Service Runbook
+slug: guides/runbook
+---
+{{<partial "notice.md">}}
+
+Updated runbook from docs.
+
+![Badge](../images/badge.svg)
+`)
+	fastDocsChanged, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	fourthStats, err := fastDocsChanged.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 1, fourthStats.ChangedSpecs)
+	updatedRunbook := readAggregateFile(t, runbookPath)
+	assert.Contains(t, updatedRunbook, "Updated runbook from docs.")
+	assert.NotContains(t, updatedRunbook, "Runbook from docs.")
+
+	writeFile(t, partialPath, `Updated shared notice.
+
+![Badge](images/badge.svg)
+`)
+	fastPartialChanged, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	fifthStats, err := fastPartialChanged.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 1, fifthStats.ChangedSpecs)
+	repartialedRunbook := readAggregateFile(t, runbookPath)
+	assert.Contains(t, repartialedRunbook, "Updated shared notice.")
+	assert.NotContains(t, repartialedRunbook, "Initial shared notice.")
+
+	writeFile(t, imagePath, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><title>Updated badge</title><path d="M2 2h6v6H2z"/></svg>`)
+	fastImageChanged, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	sixthStats, err := fastImageChanged.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 1, sixthStats.ChangedSpecs)
+	updatedBadge := readAggregateFile(t, badgePath)
+	assert.Contains(t, updatedBadge, "Updated badge")
+	assert.NotContains(t, updatedBadge, "Initial badge")
+
+	require.NoError(t, os.Remove(imagePath))
+	fastImageDeleted, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	seventhStats, err := fastImageDeleted.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 1, seventhStats.ChangedSpecs)
+	require.NoFileExists(t, badgePath)
+
+	writeFile(t, imagePath, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><title>Restored badge</title><path d="M3 3h4v4H3z"/></svg>`)
+	fastImageRestored, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	eighthStats, err := fastImageRestored.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 1, eighthStats.ChangedSpecs)
+	require.FileExists(t, badgePath)
+	assert.Contains(t, readAggregateFile(t, badgePath), "Restored badge")
+
+	require.NoError(t, os.Remove(docsPath))
+	fastDocsDeleted, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	ninthStats, err := fastDocsDeleted.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 1, ninthStats.ChangedSpecs)
+	require.NoFileExists(t, runbookPath)
+	require.NoFileExists(t, badgePath)
+
+	writeFile(t, docsPath, `---
+title: Service Runbook
+slug: guides/runbook
+---
+Restored runbook.
+`)
+	fastDocsRestored, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	tenthStats, err := fastDocsRestored.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 1, tenthStats.ChangedSpecs)
+	require.FileExists(t, runbookPath)
+
+	require.NoError(t, os.Remove(contentPath))
+	fastDeleted, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	eleventhStats, err := fastDeleted.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 1, eleventhStats.ChangedSpecs)
+	require.NoFileExists(t, aboutPath)
+}
+
+func TestAggregatePrintingPress_FastMode_IgnoresImagesOutsideServiceContentRoot(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateSpec(t, root, "services/users/specs/users.yaml", "Users API", "v1")
+	writeFile(t, filepath.Join(root, "services", "users", "specs", "docs", "reference", "outside-image.md"), `---
+title: Outside Image
+slug: guides/outside-image
+---
+This page references an image outside the service content root.
+
+![Outside](../../../outside/late.svg)
+`)
+	outputDir := filepath.Join(root, "site")
+	store := NewMemorySpecStateStore()
+
+	full, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	firstStats, err := full.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 1, firstStats.ChangedSpecs)
+
+	writeFile(t, filepath.Join(root, "services", "users", "outside", "late.svg"), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><title>Outside</title></svg>`)
+	fast, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFast,
+		StateStore: store,
+	})
+	require.NoError(t, err)
+	secondStats, err := fast.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 0, secondStats.ChangedSpecs)
 }
 
 func TestAggregatePrintingPress_FastMode_RebuildsWhenDiagnosticsRenderOptionsChange(t *testing.T) {

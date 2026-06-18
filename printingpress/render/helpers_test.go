@@ -101,6 +101,12 @@ func TestSharedAssetHref(t *testing.T) {
 			href:               "data/pages/index.json",
 			want:               "/docs/data/pages/index.json",
 		},
+		{
+			name:         "relative static asset base resolves from nested served page",
+			assetBaseURL: "../",
+			href:         "static/printing-press.js",
+			want:         "../static/printing-press.js",
+		},
 	}
 
 	for _, tt := range tests {

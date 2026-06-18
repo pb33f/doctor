@@ -42,12 +42,16 @@ const saddlebagState = vi.hoisted(() => {
   };
 });
 
-vi.mock('../src/utils/asset-loader.js', () => ({
-  getBodyData: (key: string) => {
-    return assetLoaderState.bodyData.get(key) ?? '';
-  },
-  loadAsset: (assetBase: string) => assetLoaderState.loadAsset(assetBase),
-}));
+vi.mock('../src/utils/asset-loader.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/utils/asset-loader.js')>();
+  return {
+    ...actual,
+    getBodyData: (key: string) => {
+      return assetLoaderState.bodyData.get(key) ?? '';
+    },
+    loadAsset: (assetBase: string) => assetLoaderState.loadAsset(assetBase),
+  };
+});
 
 vi.mock('@pb33f/saddlebag', () => ({
   CreateBagManager: () => saddlebagState.bagManager,
@@ -139,6 +143,8 @@ describe('printing-press hydration', () => {
 
   beforeEach(() => {
     document.body.innerHTML = '<pp-nav id="pp-nav"></pp-nav><pp-model-page id="pp-model-page"></pp-model-page>';
+    delete document.body.dataset.ppBaseUrl;
+    window.history.replaceState({}, '', '/');
     delete (globalThis as typeof globalThis & {__PP_BOOTSTRAP__?: unknown}).__PP_BOOTSTRAP__;
     assetLoaderState.bodyData.clear();
     assetLoaderState.bodyData.set('ppShared', 'shared-asset');
@@ -237,16 +243,16 @@ describe('printing-press hydration', () => {
 
     assetLoaderState.responses.set('shared-asset', sharedPayload.promise);
     assetLoaderState.responses.set('page-asset', pagePayload.promise);
-    assetLoaderState.responses.set('base-event-model', {
+    assetLoaderState.responses.set('base-signal-model', {
       model: {
-        name: 'OCSFBaseEvent',
+        name: 'BeaconBaseSignal',
         componentType: 'schemas',
         typeSlug: 'schemas',
-        slug: 'ocsf-base-event',
+        slug: 'beacon-base-signal',
         schemaJson: JSON.stringify({
           type: 'object',
           properties: {
-            activity_id: {type: 'integer'},
+            lantern_id: {type: 'integer'},
           },
         }),
       },
@@ -265,19 +271,19 @@ describe('printing-press hydration', () => {
             mediaType: 'application/json',
             isArray: true,
             itemsRef: {
-              name: 'OCSFIngestEvent',
+              name: 'HarborLogEntry',
               componentType: 'schemas',
               typeSlug: 'schemas',
-              slug: 'ocsf-ingest-event',
+              slug: 'harbor-log-entry',
             },
             itemsSchemaJson: JSON.stringify({
               allOf: [
-                {$ref: '#/components/schemas/OCSFBaseEvent'},
+                {$ref: '#/components/schemas/BeaconBaseSignal'},
                 {additionalProperties: true, type: 'object'},
               ],
-              description: 'Concrete OCSF event payload accepted by the ingest endpoint.',
+              description: 'Concrete harbor signal payload accepted by the voyage log endpoint.',
             }),
-            mockJson: JSON.stringify([{activity_id: 1}]),
+            mockJson: JSON.stringify([{lantern_id: 1}]),
           }]),
         },
       },
@@ -288,13 +294,13 @@ describe('printing-press hydration', () => {
 
     sharedPayload.resolve({
       schemaRegistry: {
-        'schemas/OCSFBaseEvent': {
-          name: 'OCSFBaseEvent',
+        'schemas/BeaconBaseSignal': {
+          name: 'BeaconBaseSignal',
           componentType: 'schemas',
           typeSlug: 'schemas',
-          slug: 'ocsf-base-event',
-          href: 'models/schemas/ocsf-base-event.html',
-          pageDataBase: 'base-event-model',
+          slug: 'beacon-base-signal',
+          href: 'models/schemas/beacon-base-signal.html',
+          pageDataBase: 'base-signal-model',
         },
       },
     });
@@ -315,14 +321,14 @@ describe('printing-press hydration', () => {
       }
       propertyNames = Array.from(schemaProps?.shadowRoot?.querySelectorAll('.prop-name') ?? [])
         .map((node) => node.textContent?.trim());
-      if (propertyNames.includes('activity_id')) {
+      if (propertyNames.includes('lantern_id')) {
         break;
       }
     }
 
     expect(requestBody.getAttribute('content-json')).toBeTruthy();
-    expect(assetLoaderState.loadAsset).toHaveBeenCalledWith('base-event-model');
-    expect(propertyNames).toContain('activity_id');
+    expect(assetLoaderState.loadAsset).toHaveBeenCalledWith('base-signal-model');
+    expect(propertyNames).toContain('lantern_id');
   });
 
   it('hydrates shared payload from the saddlebag cache before loading the shared asset', async () => {
@@ -349,6 +355,42 @@ describe('printing-press hydration', () => {
     const nav = document.getElementById('pp-nav');
     expect(nav?.getAttribute('data-nav')).toContain('Users');
     expect(assetLoaderState.loadAsset.mock.calls.map((call) => call[0])).not.toContain('shared-asset');
+  });
+
+  it('keys shared cache entries from the explicit page root when the browser base is unavailable', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      'http://localhost:3000/services/harbor/versions/1-2-3/specs/tide-charts-api/operations/log-voyage.html',
+    );
+    assetLoaderState.bodyData.set('ppShared', 'data/nav');
+    assetLoaderState.bodyData.set('ppBaseUrl', '../');
+    document.body.dataset.ppBaseUrl = '../';
+    assetLoaderState.bodyData.set('ppSharedHash', 'hash-1');
+    saddlebagState.ensureBag(
+      'printing-press:shared:http://localhost:3000/services/harbor/versions/1-2-3/specs/tide-charts-api/data/nav',
+    ).set('shared-payload', {
+      hash: 'hash-1',
+      payload: {
+        attributes: {
+          'pp-nav': {
+            'data-nav': JSON.stringify([{
+              Name: 'Harbor Logs',
+              Summary: 'Harbor Logs',
+              Children: null,
+              Operations: [],
+              IsNavOnly: false,
+            }]),
+          },
+        },
+      },
+    });
+
+    await hydratePrintingPressPage();
+
+    const nav = document.getElementById('pp-nav');
+    expect(nav?.getAttribute('data-nav')).toContain('Harbor Logs');
+    expect(assetLoaderState.loadAsset.mock.calls.map((call) => call[0])).not.toContain('data/nav');
   });
 
   it('invalidates a stale cached shared payload when the build hash changes', async () => {

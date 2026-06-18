@@ -715,9 +715,11 @@ func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content t
 		SiteTitle:          p.SiteTitle,
 		BaseURL:            p.BaseURL,
 		AssetBaseURL:       p.AssetBaseURL,
+		StaticAssetBaseURL: staticAssetBaseURLForPage(p.AssetMode, p.BaseURL, p.AssetBaseURL),
 		ActiveSlug:         activeSlug,
 		SpecFormat:         p.SpecFormat,
 		AssetMode:          p.AssetMode,
+		EmitBaseHref:       shouldEmitBaseHref(p.AssetMode, p.BaseURL),
 		SharedDataBase:     p.SharedDataBase,
 		SharedDataHash:     p.SharedDataHash,
 		PageDataBase:       p.PageDataBase,
@@ -744,6 +746,24 @@ func resolveHTMLAssetMode(site *ppmodel.Site) string {
 		return HTMLAssetModePortable
 	}
 	return site.AssetMode
+}
+
+func shouldEmitBaseHref(assetMode string, baseURL string) bool {
+	if strings.TrimSpace(baseURL) == "" || assetMode != HTMLAssetModePortable {
+		return false
+	}
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return false
+	}
+	return parsed.Scheme == "" && parsed.Host == "" && !strings.HasPrefix(parsed.Path, "/")
+}
+
+func staticAssetBaseURLForPage(assetMode string, baseURL string, assetBaseURL string) string {
+	if strings.TrimSpace(assetBaseURL) != "" || shouldEmitBaseHref(assetMode, baseURL) {
+		return assetBaseURL
+	}
+	return strings.TrimSpace(baseURL)
 }
 
 func highlightCodeSamplesForHTML(op *ppmodel.OperationPage) {

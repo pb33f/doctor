@@ -120,24 +120,33 @@ type contentPageFrontMatter struct {
 }
 
 type contentPageContext struct {
-	root       string
-	docsRoot   string
-	loader     *contentLoader
-	linkByPath map[string]string
+	root                  string
+	docsRoot              string
+	loader                *contentLoader
+	linkByPath            map[string]string
+	unresolvedAssetByPath map[string]struct{}
 }
 
 func (pp *PrintingPress) collectContentPages() {
+	pages, _ := pp.resolveContentPagesOnly()
+	if len(pages) == 0 {
+		return
+	}
+	pp.site.ContentPages = pages
+}
+
+func (pp *PrintingPress) resolveContentPagesOnly() ([]*ppmodel.ContentPage, *contentPageContext) {
 	ctx := pp.newContentPageContext()
 	if ctx == nil {
-		return
+		return nil, nil
 	}
 	drafts := pp.discoverContentPageDrafts(ctx)
 	if len(drafts) == 0 {
-		return
+		return nil, ctx
 	}
 	pages := pp.resolveContentPages(drafts)
 	if len(pages) == 0 {
-		return
+		return nil, ctx
 	}
 	ctx.linkByPath = make(map[string]string, len(pages))
 	for _, page := range pages {
@@ -152,7 +161,7 @@ func (pp *PrintingPress) collectContentPages() {
 	for _, page := range pages {
 		pp.renderContentPage(ctx, page)
 	}
-	pp.site.ContentPages = pages
+	return pages, ctx
 }
 
 func (pp *PrintingPress) newContentPageContext() *contentPageContext {
@@ -632,6 +641,9 @@ func (pp *PrintingPress) rewriteContentPageImage(ctx *contentPageContext, page *
 	}
 	data, result, err := ctx.loader.Read(resolved, contentImageAssetReadLimit)
 	if err != nil {
+		if isContentNotFound(err, result) || errors.Is(err, errContentSizeLimit) {
+			ctx.recordUnresolvedContentAsset(contentLoadResultPath(resolved, result))
+		}
 		if errors.Is(err, errContentSizeLimit) {
 			pp.warnContentPage("custom page image exceeds 5 MB; leaving original link", raw, err)
 		} else {
@@ -662,6 +674,32 @@ func (pp *PrintingPress) rewriteContentPageImage(ctx *contentPageContext, page *
 	}
 	page.Assets = append(page.Assets, &ppmodel.ContentPageAsset{Href: href, SourcePath: sourceKey, Data: data})
 	return relativeContentHref(page.Href, href) + fragment, true
+}
+
+func (ctx *contentPageContext) recordUnresolvedContentAsset(rawPath string) {
+	if ctx == nil || strings.TrimSpace(rawPath) == "" || isURLString(rawPath) {
+		return
+	}
+	clean := filepath.Clean(rawPath)
+	if ctx.loader != nil && !ctx.loader.allowsLocalPath(clean) {
+		return
+	}
+	if ctx.unresolvedAssetByPath == nil {
+		ctx.unresolvedAssetByPath = make(map[string]struct{})
+	}
+	ctx.unresolvedAssetByPath[clean] = struct{}{}
+}
+
+func (ctx *contentPageContext) unresolvedContentAssets() []string {
+	if ctx == nil || len(ctx.unresolvedAssetByPath) == 0 {
+		return nil
+	}
+	paths := make([]string, 0, len(ctx.unresolvedAssetByPath))
+	for path := range ctx.unresolvedAssetByPath {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	return paths
 }
 
 func parseContentFrontMatter(raw string) (body string, meta contentPageFrontMatter, hasMeta bool, err error) {
@@ -1016,6 +1054,13 @@ func relativeContentHref(fromPageHref, targetHref string) string {
 
 func isContentNotFound(err error, result pageLoadResult) bool {
 	return result.NotFound || errors.Is(err, errContentNotFound)
+}
+
+func contentLoadResultPath(fallback string, result pageLoadResult) string {
+	if strings.TrimSpace(result.Path) != "" {
+		return result.Path
+	}
+	return fallback
 }
 
 func (pp *PrintingPress) warnContentPage(message, context string, err error) {

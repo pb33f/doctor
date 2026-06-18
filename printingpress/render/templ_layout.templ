@@ -5,46 +5,46 @@ import "context"
 import "io"
 import "strings"
 
-templ Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL string, sharedAssetBaseURL string, activeSlug string, specFormat string, assetMode string, sharedDataBase string, pageDataBase string, vizGraphDataBase string, vizDiagramDataBase string, extraCSS []string, lite bool, developerMode bool, hasContentPages bool, content templ.Component) {
+templ Layout(params LayoutPageParams, content templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en" class="sl-theme-dark">
-		@Head(pageTitle, baseURL, assetBaseURL, sharedAssetBaseURL, extraCSS, lite)
+		@Head(params.headParams())
 		<body
-			data-spec-format={ specFormat }
-			if baseURL != "" {
-				data-pp-base-url={ baseURL }
+			data-spec-format={ params.SpecFormat }
+			if params.BaseURL != "" {
+				data-pp-base-url={ params.BaseURL }
 			}
-			if assetMode != "" {
-				data-pp-asset-mode={ assetMode }
+			if params.AssetMode != "" {
+				data-pp-asset-mode={ params.AssetMode }
 			}
-			if sharedDataBase != "" {
-				data-pp-shared={ AssetHref(assetBaseURL, sharedDataBase) }
+			if params.SharedDataBase != "" {
+				data-pp-shared={ AssetHref(params.AssetBaseURL, params.SharedDataBase) }
 			}
-			if pageDataBase != "" {
-				data-pp-page={ AssetHref(assetBaseURL, pageDataBase) }
+			if params.PageDataBase != "" {
+				data-pp-page={ AssetHref(params.AssetBaseURL, params.PageDataBase) }
 			}
-			if vizGraphDataBase != "" {
-				data-pp-viz-graph={ AssetHref(assetBaseURL, vizGraphDataBase) }
+			if params.VizGraphDataBase != "" {
+				data-pp-viz-graph={ AssetHref(params.AssetBaseURL, params.VizGraphDataBase) }
 			}
-			if vizDiagramDataBase != "" {
-				data-pp-viz-diagram={ AssetHref(assetBaseURL, vizDiagramDataBase) }
+			if params.VizDiagramDataBase != "" {
+				data-pp-viz-diagram={ AssetHref(params.AssetBaseURL, params.VizDiagramDataBase) }
 			}
-			if developerMode {
+			if params.DeveloperMode {
 				data-pp-developer-mode="true"
 			}>
-				<pp-layout data-title={ siteTitle }>
-					<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">{ siteTitle }</span></div>
+				<pp-layout data-title={ params.SiteTitle }>
+					<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">{ params.SiteTitle }</span></div>
 					<pp-nav
 						id="pp-nav"
 						slot="nav"
-						data-active={ activeSlug }
-						if hasContentPages {
+						data-active={ params.ActiveSlug }
+						if params.HasContentPages {
 							data-has-content-pages="true"
 						}
 					>
 						<div class="pp-nav-fallback" aria-hidden="true">
 							<div class="pp-nav-fallback-home">API OVERVIEW</div>
-							if hasContentPages {
+							if params.HasContentPages {
 								<div class="pp-nav-fallback-section pp-nav-fallback-guides">
 									<h4>Guides</h4>
 									<div class="pp-nav-fallback-list">
@@ -85,7 +85,7 @@ templ Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL st
 					@content
 				</main>
 			</pp-layout>
-			@BootstrapHydrationScript(assetMode, assetBaseURL, sharedDataBase, pageDataBase)
+			@BootstrapHydrationScript(params.AssetMode, params.AssetBaseURL, params.SharedDataBase, params.PageDataBase)
 			<pp-example-drawer></pp-example-drawer>
 			<pp-problems-drawer></pp-problems-drawer>
 		</body>

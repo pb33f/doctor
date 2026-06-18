@@ -13,7 +13,7 @@ import "context"
 import "io"
 import "strings"
 
-func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL string, sharedAssetBaseURL string, activeSlug string, specFormat string, assetMode string, sharedDataBase string, pageDataBase string, vizGraphDataBase string, vizDiagramDataBase string, extraCSS []string, lite bool, developerMode bool, hasContentPages bool, content templ.Component) templ.Component {
+func Layout(params LayoutPageParams, content templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -38,7 +38,7 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Head(pageTitle, baseURL, assetBaseURL, sharedAssetBaseURL, extraCSS, lite).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Head(params.headParams()).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -47,9 +47,9 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(specFormat)
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(params.SpecFormat)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 13, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 13, Col: 39}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -59,15 +59,15 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if baseURL != "" {
+		if params.BaseURL != "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " data-pp-base-url=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(baseURL)
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(params.BaseURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 15, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 15, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -78,15 +78,15 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 				return templ_7745c5c3_Err
 			}
 		}
-		if assetMode != "" {
+		if params.AssetMode != "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " data-pp-asset-mode=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(assetMode)
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(params.AssetMode)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 18, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 18, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -97,15 +97,15 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 				return templ_7745c5c3_Err
 			}
 		}
-		if sharedDataBase != "" {
+		if params.SharedDataBase != "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " data-pp-shared=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
-			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, sharedDataBase))
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(params.AssetBaseURL, params.SharedDataBase))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 21, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 21, Col: 74}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -116,15 +116,15 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 				return templ_7745c5c3_Err
 			}
 		}
-		if pageDataBase != "" {
+		if params.PageDataBase != "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, " data-pp-page=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, pageDataBase))
+			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(params.AssetBaseURL, params.PageDataBase))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 24, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 24, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -135,15 +135,15 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 				return templ_7745c5c3_Err
 			}
 		}
-		if vizGraphDataBase != "" {
+		if params.VizGraphDataBase != "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " data-pp-viz-graph=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
-			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, vizGraphDataBase))
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(params.AssetBaseURL, params.VizGraphDataBase))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 27, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 27, Col: 79}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -154,15 +154,15 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 				return templ_7745c5c3_Err
 			}
 		}
-		if vizDiagramDataBase != "" {
+		if params.VizDiagramDataBase != "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " data-pp-viz-diagram=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var8 string
-			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(assetBaseURL, vizDiagramDataBase))
+			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(AssetHref(params.AssetBaseURL, params.VizDiagramDataBase))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 30, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 30, Col: 83}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -173,7 +173,7 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 				return templ_7745c5c3_Err
 			}
 		}
-		if developerMode {
+		if params.DeveloperMode {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " data-pp-developer-mode=\"true\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -184,9 +184,9 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(siteTitle)
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(params.SiteTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 35, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 35, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -197,9 +197,9 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
-		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(siteTitle)
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(params.SiteTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 36, Col: 159}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 36, Col: 166}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -210,9 +210,9 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var11 string
-		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(activeSlug)
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(params.ActiveSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 40, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_layout.templ`, Line: 40, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -222,7 +222,7 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if hasContentPages {
+		if params.HasContentPages {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, " data-has-content-pages=\"true\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -232,7 +232,7 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if hasContentPages {
+		if params.HasContentPages {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div class=\"pp-nav-fallback-section pp-nav-fallback-guides\"><h4>Guides</h4><div class=\"pp-nav-fallback-list\"><div class=\"pp-nav-fallback-row\" style=\"width:74%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:66%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:58%;\"></div><div class=\"pp-nav-fallback-row\" style=\"width:70%;\"></div></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -250,7 +250,7 @@ func Layout(pageTitle string, siteTitle string, baseURL string, assetBaseURL str
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = BootstrapHydrationScript(assetMode, assetBaseURL, sharedDataBase, pageDataBase).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = BootstrapHydrationScript(params.AssetMode, params.AssetBaseURL, params.SharedDataBase, params.PageDataBase).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

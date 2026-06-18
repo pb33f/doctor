@@ -2,7 +2,7 @@ package render
 
 import "github.com/pb33f/doctor/printingpress/internal/pppaths"
 
-templ Head(title string, baseURL string, assetBaseURL string, sharedAssetBaseURL string, extraCSS []string, lite bool) {
+templ Head(params HeadParams) {
 	<head>
 		<meta charset="UTF-8"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -23,24 +23,24 @@ templ Head(title string, baseURL string, assetBaseURL string, sharedAssetBaseURL
 				} catch (_) {}
 			})();
 		</script>
-		<title>{ title }</title>
-		// Hosted docs resolve links explicitly, but portable nested pages still rely on the
-		// relative base tag so file:// navigation stays within the generated site.
-		if baseURL != "" {
-			<base href={ baseURL }/>
+		<title>{ params.Title }</title>
+		// Portable nested pages keep a relative base tag for file:// navigation.
+		// Hosted and served docs resolve runtime assets from data-pp-base-url instead.
+		if params.EmitBaseHref {
+			<base href={ params.BaseURL }/>
 		}
-		<link rel="stylesheet" href={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FilePB33FThemeCSS)) }/>
-		<link rel="stylesheet" href={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FileCowboyComponentsCSS)) }/>
-		<link rel="stylesheet" href={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FileShoelaceDarkCSS)) }/>
-		<link rel="stylesheet" href={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressCSS)) }/>
-		<link rel="stylesheet" href={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FileChromaCSS)) }/>
-		for _, css := range extraCSS {
-			<link rel="stylesheet" href={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, css) }/>
+		<link rel="stylesheet" href={ SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, pppaths.StaticAsset(pppaths.FilePB33FThemeCSS)) }/>
+		<link rel="stylesheet" href={ SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, pppaths.StaticAsset(pppaths.FileCowboyComponentsCSS)) }/>
+		<link rel="stylesheet" href={ SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, pppaths.StaticAsset(pppaths.FileShoelaceDarkCSS)) }/>
+		<link rel="stylesheet" href={ SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressCSS)) }/>
+		<link rel="stylesheet" href={ SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, pppaths.StaticAsset(pppaths.FileChromaCSS)) }/>
+		for _, css := range params.ExtraCSS {
+			<link rel="stylesheet" href={ SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, css) }/>
 		}
-		if lite {
-			<script defer src={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressLiteJS)) }></script>
+		if params.Lite {
+			<script defer src={ SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressLiteJS)) }></script>
 		} else {
-			<script defer src={ SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressJS)) }></script>
+			<script defer src={ SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressJS)) }></script>
 		}
 	</head>
 }

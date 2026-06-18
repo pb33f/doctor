@@ -13,7 +13,7 @@
 
   function bagID(assetBase) {
     try {
-      return 'printing-press:shared:' + new URL(assetBase, document.baseURI).href;
+      return 'printing-press:shared:' + new URL(assetBase, currentDocBase()).href;
     } catch (_) {
       return 'printing-press:shared:' + assetBase;
     }

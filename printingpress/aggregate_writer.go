@@ -85,6 +85,7 @@ func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, 
 		LLMGenerateMonoliths:               ap.config.LLMGenerateMonoliths,
 		DeveloperMode:                      ap.developerMode,
 		LintResults:                        ap.specLintResults[spec.RelativePath],
+		EnableContentPages:                 true,
 	}
 	if ap.config.BaseURL != "" {
 		if joined, err := joinBaseURLPath(ap.config.BaseURL, spec.OutputSubdir); err == nil {
@@ -95,11 +96,6 @@ func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, 
 	if err != nil {
 		return nil, err
 	}
-	// Aggregate-level Markdown belongs to the catalog shell only. Entry sites
-	// render the API reference without discovering sibling custom pages.
-	pp.config.contentDiscoveryEnabled = false
-	pp.config.contentBasePath = ""
-	pp.config.contentSpecPath = ""
 	site, err := pp.PressModel()
 	if err != nil {
 		return nil, err

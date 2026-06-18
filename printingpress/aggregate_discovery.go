@@ -5,8 +5,10 @@
 package printingpress
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"io/fs"
 	"os"
 	"path"
@@ -128,6 +130,7 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 	root := ap.config.ScanRoot
 	outputDir := ap.config.OutputDir
 	baseConfigHash := aggregateEntryConfigHash(ap.config)
+	contentHashBySpecDir := make(map[string]string)
 	noise := make(map[string]struct{}, len(ap.config.NoiseSegments))
 	for _, segment := range ap.config.NoiseSegments {
 		noise[strings.ToLower(strings.TrimSpace(segment))] = struct{}{}
@@ -189,7 +192,17 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 			return nil
 		}
 
-		configHash := aggregateEntryRenderConfigHash(baseConfigHash, ap.developerMode, ap.specLintResults[relPath])
+		specDir := filepath.Dir(filePath)
+		// Fast mode must resolve service-local content during discovery so it can
+		// decide whether to skip rendering. Changed specs may resolve it again
+		// during the build pass; cache by spec directory to avoid repeating that
+		// work for sibling specs that share the same content root.
+		contentHash, hasContentHash := contentHashBySpecDir[specDir]
+		if !hasContentHash {
+			contentHash = ap.aggregateEntryContentFingerprint(filePath)
+			contentHashBySpecDir[specDir] = contentHash
+		}
+		configHash := aggregateEntryRenderConfigHash(baseConfigHash, ap.developerMode, ap.specLintResults[relPath], contentHash)
 		serviceKey := ap.resolveServiceKey(relPath, metadata.Title, noise)
 		displayName := ap.resolveDisplayName(relPath, serviceKey, metadata.Title)
 		version := ap.resolveVersion(relPath, metadata.Version)
@@ -551,17 +564,19 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 	return fmt.Sprintf("%x", xxhash.Sum64(b))
 }
 
-func aggregateEntryRenderConfigHash(baseConfigHash string, developerMode bool, lintResults []*drV3.RuleFunctionResult) string {
-	if !developerMode {
+func aggregateEntryRenderConfigHash(baseConfigHash string, developerMode bool, lintResults []*drV3.RuleFunctionResult, contentHash string) string {
+	if !developerMode && contentHash == "" {
 		return baseConfigHash
 	}
 	payload := struct {
 		BaseConfigHash string                           `json:"baseConfigHash"`
-		DeveloperMode  bool                             `json:"developerMode"`
+		DeveloperMode  bool                             `json:"developerMode,omitempty"`
+		ContentHash    string                           `json:"contentHash,omitempty"`
 		LintResults    []aggregateLintResultFingerprint `json:"lintResults,omitempty"`
 	}{
 		BaseConfigHash: baseConfigHash,
 		DeveloperMode:  developerMode,
+		ContentHash:    contentHash,
 		LintResults:    aggregateLintResultFingerprints(lintResults),
 	}
 	b, err := json.Marshal(payload)
@@ -569,6 +584,130 @@ func aggregateEntryRenderConfigHash(baseConfigHash string, developerMode bool, l
 		return baseConfigHash
 	}
 	return fmt.Sprintf("%x", xxhash.Sum64(b))
+}
+
+func (ap *AggregatePrintingPress) aggregateEntryContentFingerprint(specPath string) string {
+	pages, ctx := ap.aggregateEntryResolvedContentPages(specPath)
+	if len(pages) == 0 {
+		return ""
+	}
+	sort.SliceStable(pages, func(i, j int) bool {
+		left, right := pages[i], pages[j]
+		if left == nil || right == nil {
+			return right != nil
+		}
+		if left.Slug != right.Slug {
+			return left.Slug < right.Slug
+		}
+		return left.SourcePath < right.SourcePath
+	})
+	contentData := make(map[string][]byte, len(pages))
+
+	for _, page := range pages {
+		if page == nil {
+			continue
+		}
+		contentData["page:"+page.Slug] = aggregateContentPageFingerprint(page)
+		for _, asset := range page.Assets {
+			if asset == nil {
+				continue
+			}
+			contentData["asset:"+page.Slug+":"+asset.Href+":"+asset.SourcePath] = aggregateContentAssetFingerprint(asset)
+		}
+	}
+	if ctx != nil {
+		for _, missing := range ctx.unresolvedContentAssets() {
+			contentData["missing-asset:"+filepath.ToSlash(filepath.Clean(missing))] = nil
+		}
+	}
+
+	return hashAggregateContent(contentData)
+}
+
+func (ap *AggregatePrintingPress) aggregateEntryResolvedContentPages(specPath string) ([]*ppmodel.ContentPage, *contentPageContext) {
+	if strings.TrimSpace(specPath) == "" {
+		return nil, nil
+	}
+	pp := &PrintingPress{
+		engineConfig: &pressEngineConfig{
+			ContentDiscoveryEnabled: true,
+			ContentBasePath:         filepath.Dir(specPath),
+			ContentSpecPath:         specPath,
+			Logger:                  ap.config.Logger,
+		},
+		site: &ppmodel.Site{},
+	}
+	return pp.resolveContentPagesOnly()
+}
+
+func aggregateContentPageFingerprint(page *ppmodel.ContentPage) []byte {
+	if page == nil {
+		return nil
+	}
+	aliases := append([]string(nil), page.SourceAlias...)
+	sort.Strings(aliases)
+	h := xxhash.New()
+	_, _ = fmt.Fprintf(
+		h,
+		"title\x00%s\x00label\x00%s\x00slug\x00%s\x00href\x00%s\x00description\x00%s\x00source\x00%s\x00source-dir\x00%s\x00order\x00%d\x00hidden\x00%t\x00body\x00",
+		page.Title,
+		page.Label,
+		page.Slug,
+		page.Href,
+		page.Description,
+		page.SourcePath,
+		page.SourceDir,
+		page.Order,
+		page.Hidden,
+	)
+	_, _ = h.Write([]byte(page.Body))
+	_, _ = h.Write([]byte{0})
+	_, _ = fmt.Fprintf(h, "body-html\x00%d\x00", len(page.BodyHTML))
+	_, _ = h.Write([]byte(page.BodyHTML))
+	_, _ = h.Write([]byte{0})
+	for _, alias := range aliases {
+		_, _ = fmt.Fprintf(h, "alias\x00%s\x00", alias)
+	}
+	return aggregateUint64Fingerprint(h.Sum64())
+}
+
+func aggregateContentAssetFingerprint(asset *ppmodel.ContentPageAsset) []byte {
+	if asset == nil {
+		return nil
+	}
+	h := xxhash.New()
+	_, _ = fmt.Fprintf(h, "href\x00%s\x00source\x00%s\x00data\x00%d\x00", asset.Href, asset.SourcePath, len(asset.Data))
+	_, _ = h.Write(asset.Data)
+	_, _ = h.Write([]byte{0})
+	return aggregateUint64Fingerprint(h.Sum64())
+}
+
+func aggregateUint64Fingerprint(value uint64) []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, value)
+	return b
+}
+
+func hashAggregateContent(contentData map[string][]byte) string {
+	if len(contentData) == 0 {
+		return ""
+	}
+	h := xxhash.New()
+	hashAggregateContentData(h, contentData)
+	return fmt.Sprintf("%x", h.Sum64())
+}
+
+func hashAggregateContentData(h hash.Hash64, contentData map[string][]byte) {
+	keys := make([]string, 0, len(contentData))
+	for key := range contentData {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		_, _ = fmt.Fprintf(h, "content\x00%s\x00%d\x00", filepath.ToSlash(key), len(contentData[key]))
+		_, _ = h.Write(contentData[key])
+		_, _ = h.Write([]byte{0})
+	}
 }
 
 type aggregateLintResultFingerprint struct {

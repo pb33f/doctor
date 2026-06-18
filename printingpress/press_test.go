@@ -786,7 +786,7 @@ func TestPrintingPress_WriteHTMLSite_UsesConfigOutputDirAndBaseURL(t *testing.T)
 	assert.FileExists(t, outputDir+"/index.html")
 	indexHTML, err := os.ReadFile(outputDir + "/index.html")
 	require.NoError(t, err)
-	assert.Contains(t, string(indexHTML), `<base href="/docs/">`)
+	assert.NotContains(t, string(indexHTML), `<base href=`)
 	assert.Contains(t, string(indexHTML), `data-pp-base-url="/docs/"`)
 	assert.Contains(t, string(indexHTML), `href="/docs/static/printing-press.css"`)
 	assert.Contains(t, string(indexHTML), `src="/docs/static/printing-press.js"`)
@@ -796,7 +796,7 @@ func TestPrintingPress_WriteHTMLSite_UsesConfigOutputDirAndBaseURL(t *testing.T)
 
 	operationHTML, err := os.ReadFile(filepath.Join(outputDir, "operations", opSlug+".html"))
 	require.NoError(t, err)
-	assert.Contains(t, string(operationHTML), `<base href="/docs/">`)
+	assert.NotContains(t, string(operationHTML), `<base href=`)
 	assert.Contains(t, string(operationHTML), `data-pp-base-url="/docs/"`)
 	assert.Contains(t, string(operationHTML), `href="/docs/static/printing-press.css"`)
 	assert.Contains(t, string(operationHTML), `href="/docs/static/printing-press-operation.css"`)
@@ -835,8 +835,38 @@ func TestPrintingPress_WriteHTMLSite_ServedModeWritesJSONAssets(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(outputDir, "data", "nav.js"))
 
 	require.NotEmpty(t, site.Operations)
+	operationHTML, err := os.ReadFile(filepath.Join(outputDir, "operations", site.Operations[0].Slug+".html"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(operationHTML), `<base href=`)
+	assert.Contains(t, string(operationHTML), `data-pp-base-url="../"`)
+	assert.Contains(t, string(operationHTML), `href="../static/printing-press.css"`)
+	assert.Contains(t, string(operationHTML), `href="../static/printing-press-operation.css"`)
+	assert.Contains(t, string(operationHTML), `src="../static/printing-press.js"`)
+	assert.NotContains(t, string(operationHTML), `href="static/printing-press.css"`)
+	assert.NotContains(t, string(operationHTML), `src="static/printing-press.js"`)
 	assert.FileExists(t, filepath.Join(outputDir, "data", "pages", "operations", site.Operations[0].Slug+".json"))
 	assert.NoFileExists(t, filepath.Join(outputDir, "data", "pages", "operations", site.Operations[0].Slug+".js"))
+
+	var modelTypeSlug, modelSlug string
+	for typeSlug, pages := range site.Models {
+		if typeSlug == typeSlugPathItems || len(pages) == 0 {
+			continue
+		}
+		modelTypeSlug = typeSlug
+		modelSlug = pages[0].Slug
+		break
+	}
+	require.NotEmpty(t, modelTypeSlug)
+	require.NotEmpty(t, modelSlug)
+	modelHTML, err := os.ReadFile(filepath.Join(outputDir, "models", modelTypeSlug, modelSlug+".html"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(modelHTML), `<base href=`)
+	assert.Contains(t, string(modelHTML), `data-pp-base-url="../../"`)
+	assert.Contains(t, string(modelHTML), `href="../../static/printing-press.css"`)
+	assert.Contains(t, string(modelHTML), `href="../../static/printing-press-model.css"`)
+	assert.Contains(t, string(modelHTML), `src="../../static/printing-press.js"`)
+	assert.NotContains(t, string(modelHTML), `href="static/printing-press.css"`)
+	assert.NotContains(t, string(modelHTML), `src="static/printing-press.js"`)
 }
 
 func TestPrintingPress_WriteHTMLSite_CleansStaleHydrationAssetsBetweenModes(t *testing.T) {
@@ -993,6 +1023,7 @@ func assertHTMLLinkReachability(t *testing.T, baseURL string) {
 		}
 		return ""
 	}
+	configuredBasePath := hostedBasePath(normalizeBaseURL(baseURL))
 
 	var allBroken []string
 
@@ -1060,6 +1091,9 @@ func assertHTMLLinkReachability(t *testing.T, baseURL string) {
 			target := ""
 			if strings.HasPrefix(clean, "/") {
 				docRoot := hostedBasePath(pageBaseHref)
+				if docRoot == "" {
+					docRoot = configuredBasePath
+				}
 				trimmed := strings.TrimPrefix(clean, docRoot)
 				trimmed = strings.TrimPrefix(trimmed, "/")
 				target = filepath.Join(outputDir, filepath.FromSlash(trimmed))
