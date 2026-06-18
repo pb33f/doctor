@@ -190,6 +190,49 @@ func (l *contentLoader) resolveLocalPath(rawPath string) (string, error) {
 	return evaluated, errContentOutsideRoot
 }
 
+func (l *contentLoader) allowsLocalPath(rawPath string) bool {
+	if l == nil || len(l.allowedRoots) == 0 {
+		return true
+	}
+	if strings.TrimSpace(rawPath) == "" || isURLString(rawPath) {
+		return false
+	}
+	abs, err := filepath.Abs(rawPath)
+	if err != nil {
+		return false
+	}
+	evaluated := filepath.Clean(abs)
+	existing, missingSuffix := nearestExistingPath(evaluated)
+	if existing != "" {
+		if resolved, err := filepath.EvalSymlinks(existing); err == nil {
+			evaluated = filepath.Join(resolved, missingSuffix)
+		}
+	}
+	evaluated = filepath.Clean(evaluated)
+	for _, root := range l.allowedRoots {
+		if isWithinRoot(evaluated, root) {
+			return true
+		}
+	}
+	return false
+}
+
+func nearestExistingPath(absPath string) (string, string) {
+	current := filepath.Clean(absPath)
+	var missing []string
+	for {
+		if _, err := os.Lstat(current); err == nil {
+			return current, filepath.Join(missing...)
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", filepath.Join(missing...)
+		}
+		missing = append([]string{filepath.Base(current)}, missing...)
+		current = parent
+	}
+}
+
 func (l *contentLoader) readURL(rawURL string, limit int64) ([]byte, pageLoadResult, error) {
 	result := pageLoadResult{Path: rawURL}
 	parsed, err := url.Parse(rawURL)

@@ -46,7 +46,7 @@ describe('pp-nav', () => {
   });
 
   it('resolves internal links against the configured page base on nested pages', async () => {
-    document.body.dataset.ppBaseUrl = '/findings/';
+    document.body.dataset.ppBaseUrl = '/harbor/';
 
     const navData = [
       {
@@ -74,7 +74,7 @@ describe('pp-nav', () => {
     await el.updateComplete;
 
     const homeLink = el.shadowRoot?.querySelector('.nav-home');
-    expect(homeLink?.getAttribute('href')).toBe('http://localhost:3000/findings/index.html');
+    expect(homeLink?.getAttribute('href')).toBe('http://localhost:3000/harbor/index.html');
   });
 
   it('renders conventional content pages before generated sections', async () => {

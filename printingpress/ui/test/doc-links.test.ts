@@ -9,20 +9,20 @@ describe('doc-links', () => {
   });
 
   it('resolves document links against the configured page base', () => {
-    document.body.dataset.ppBaseUrl = '/findings/';
+    document.body.dataset.ppBaseUrl = '/harbor/';
 
-    expect(overviewHref()).toBe('http://localhost:3000/findings/index.html');
-    expect(operationHref('get-health')).toBe('http://localhost:3000/findings/operations/get-health.html');
-    expect(modelHref('schemas', 'finding')).toBe('http://localhost:3000/findings/models/schemas/finding.html');
-    expect(docHref('tags/health.html')).toBe('http://localhost:3000/findings/tags/health.html');
+    expect(overviewHref()).toBe('http://localhost:3000/harbor/index.html');
+    expect(operationHref('get-tide')).toBe('http://localhost:3000/harbor/operations/get-tide.html');
+    expect(modelHref('schemas', 'buoy')).toBe('http://localhost:3000/harbor/models/schemas/buoy.html');
+    expect(docHref('tags/tides.html')).toBe('http://localhost:3000/harbor/tags/tides.html');
   });
 
   it('falls back to the document base when no explicit page base is set', () => {
-    document.head.innerHTML = '<base href="/findings/">';
+    document.head.innerHTML = '<base href="/harbor/">';
 
-    expect(overviewHref()).toBe('http://localhost:3000/findings/index.html');
-    expect(operationHref('get-health')).toBe('http://localhost:3000/findings/operations/get-health.html');
-    expect(modelHref('schemas', 'finding')).toBe('http://localhost:3000/findings/models/schemas/finding.html');
+    expect(overviewHref()).toBe('http://localhost:3000/harbor/index.html');
+    expect(operationHref('get-tide')).toBe('http://localhost:3000/harbor/operations/get-tide.html');
+    expect(modelHref('schemas', 'buoy')).toBe('http://localhost:3000/harbor/models/schemas/buoy.html');
   });
 
   it('resolves portable nested pages against the relative page base', () => {
@@ -31,7 +31,7 @@ describe('doc-links', () => {
 
     expect(overviewHref()).toBe('http://localhost:3000/index.html');
     expect(operationHref('get-health')).toBe('http://localhost:3000/operations/get-health.html');
-    expect(modelHref('schemas', 'finding')).toBe('http://localhost:3000/models/schemas/finding.html');
+    expect(modelHref('schemas', 'buoy')).toBe('http://localhost:3000/models/schemas/buoy.html');
   });
 
   it('prefers the configured overview href when present', () => {
@@ -53,10 +53,10 @@ describe('doc-links', () => {
   });
 
   it('preserves literal hrefs', () => {
-    document.body.dataset.ppBaseUrl = '/findings/';
+    document.body.dataset.ppBaseUrl = '/harbor/';
 
     expect(docHref('#responses')).toBe('#responses');
-    expect(docHref('/findings/index.html')).toBe('/findings/index.html');
+    expect(docHref('/harbor/index.html')).toBe('/harbor/index.html');
     expect(docHref('https://example.com/docs')).toBe('https://example.com/docs');
     expect(docHref('mailto:docs@example.com')).toBe('mailto:docs@example.com');
   });

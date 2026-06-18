@@ -10,7 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "github.com/pb33f/doctor/printingpress/internal/pppaths"
 
-func Head(title string, baseURL string, assetBaseURL string, sharedAssetBaseURL string, extraCSS []string, lite bool) templ.Component {
+func Head(params HeadParams) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -36,9 +36,9 @@ func Head(title string, baseURL string, assetBaseURL string, sharedAssetBaseURL 
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(title)
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(params.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 26, Col: 16}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 26, Col: 23}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -48,15 +48,15 @@ func Head(title string, baseURL string, assetBaseURL string, sharedAssetBaseURL 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if baseURL != "" {
+		if params.EmitBaseHref {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<base href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(baseURL)
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(params.BaseURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 30, Col: 23}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 30, Col: 30}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -72,9 +72,9 @@ func Head(title string, baseURL string, assetBaseURL string, sharedAssetBaseURL 
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 templ.SafeURL
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FilePB33FThemeCSS)))
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, pppaths.StaticAsset(pppaths.FilePB33FThemeCSS)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 32, Col: 129}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 32, Col: 149}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -85,9 +85,9 @@ func Head(title string, baseURL string, assetBaseURL string, sharedAssetBaseURL 
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 templ.SafeURL
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FileCowboyComponentsCSS)))
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, pppaths.StaticAsset(pppaths.FileCowboyComponentsCSS)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 33, Col: 135}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 33, Col: 155}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -98,9 +98,9 @@ func Head(title string, baseURL string, assetBaseURL string, sharedAssetBaseURL 
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 templ.SafeURL
-		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FileShoelaceDarkCSS)))
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, pppaths.StaticAsset(pppaths.FileShoelaceDarkCSS)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 34, Col: 131}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 34, Col: 151}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -111,9 +111,9 @@ func Head(title string, baseURL string, assetBaseURL string, sharedAssetBaseURL 
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 templ.SafeURL
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinURLErrs(SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressCSS)))
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinURLErrs(SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressCSS)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 35, Col: 132}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 35, Col: 152}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -124,9 +124,9 @@ func Head(title string, baseURL string, assetBaseURL string, sharedAssetBaseURL 
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 templ.SafeURL
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FileChromaCSS)))
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, pppaths.StaticAsset(pppaths.FileChromaCSS)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 36, Col: 125}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 36, Col: 145}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -136,15 +136,15 @@ func Head(title string, baseURL string, assetBaseURL string, sharedAssetBaseURL 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for _, css := range extraCSS {
+		for _, css := range params.ExtraCSS {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<link rel=\"stylesheet\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var9 templ.SafeURL
-			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(SharedAssetHref(sharedAssetBaseURL, assetBaseURL, css))
+			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, css))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 38, Col: 87}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 38, Col: 107}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
@@ -155,15 +155,15 @@ func Head(title string, baseURL string, assetBaseURL string, sharedAssetBaseURL 
 				return templ_7745c5c3_Err
 			}
 		}
-		if lite {
+		if params.Lite {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<script defer src=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var10 string
-			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressLiteJS)))
+			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressLiteJS)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 41, Col: 126}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 41, Col: 146}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -179,9 +179,9 @@ func Head(title string, baseURL string, assetBaseURL string, sharedAssetBaseURL 
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var11 string
-			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(SharedAssetHref(sharedAssetBaseURL, assetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressJS)))
+			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(SharedAssetHref(params.SharedAssetBaseURL, params.StaticAssetBaseURL, pppaths.StaticAsset(pppaths.FilePrintingPressJS)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 43, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_head.templ`, Line: 43, Col: 142}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {

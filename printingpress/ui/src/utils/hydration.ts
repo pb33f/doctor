@@ -1,5 +1,5 @@
 import {setSchemaRegistryEntries, type RegistryEntry} from './schema-registry.js';
-import {getBodyData, loadAsset} from './asset-loader.js';
+import {getBodyData, loadAsset, runtimeAssetHref} from './asset-loader.js';
 import {CreateBagManager, type Bag, type BagManager} from '@pb33f/saddlebag';
 
 interface HydrationChild {
@@ -117,7 +117,7 @@ async function loadHydrationPayload(assetBase: string, globalName: string, kind:
 
 function sharedBagID(assetBase: string): string {
   try {
-    return `${sharedBagPrefix}${new URL(assetBase, document.baseURI).href}`;
+    return `${sharedBagPrefix}${new URL(runtimeAssetHref(assetBase, ''), document.baseURI).href}`;
   } catch {
     return `${sharedBagPrefix}${assetBase}`;
   }

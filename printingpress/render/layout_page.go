@@ -14,15 +14,28 @@ import (
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 )
 
+// HeadParams holds document-head metadata and static asset roots.
+type HeadParams struct {
+	Title              string
+	BaseURL            string
+	EmitBaseHref       bool
+	StaticAssetBaseURL string
+	SharedAssetBaseURL string
+	ExtraCSS           []string
+	Lite               bool
+}
+
 // LayoutPageParams holds the full page chrome for a rendered HTML page.
 type LayoutPageParams struct {
 	PageTitle          string
 	SiteTitle          string
 	BaseURL            string
 	AssetBaseURL       string
+	StaticAssetBaseURL string
 	ActiveSlug         string
 	SpecFormat         string
 	AssetMode          string
+	EmitBaseHref       bool
 	SharedDataBase     string
 	SharedDataHash     string
 	PageDataBase       string
@@ -42,6 +55,26 @@ type LayoutPageParams struct {
 	HasContentPages    bool
 }
 
+func (params LayoutPageParams) headParams() HeadParams {
+	return HeadParams{
+		Title:              params.PageTitle,
+		BaseURL:            params.BaseURL,
+		EmitBaseHref:       params.EmitBaseHref,
+		StaticAssetBaseURL: params.StaticAssetBaseURL,
+		SharedAssetBaseURL: params.headSharedAssetBaseURL(),
+		ExtraCSS:           params.ExtraCSS,
+		Lite:               params.Lite,
+	}
+}
+
+func (params LayoutPageParams) headSharedAssetBaseURL() string {
+	sharedBase := strings.TrimSpace(params.SharedAssetBaseURL)
+	if sharedBase == "" || params.EmitBaseHref || params.BaseURL == "" || isLiteralHref(sharedBase) || isLiteralHref(params.BaseURL) {
+		return params.SharedAssetBaseURL
+	}
+	return strings.TrimRight(params.BaseURL, "/") + "/" + strings.TrimLeft(sharedBase, "/")
+}
+
 // LayoutPage renders the shared printing press shell with optional aggregate header context.
 func LayoutPage(params LayoutPageParams, content templ.Component) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
@@ -59,7 +92,7 @@ func LayoutPage(params LayoutPageParams, content templ.Component) templ.Componen
 		if _, err := io.WriteString(w, `>`); err != nil {
 			return err
 		}
-		if err := Head(params.PageTitle, params.BaseURL, params.AssetBaseURL, params.SharedAssetBaseURL, params.ExtraCSS, params.Lite).Render(ctx, w); err != nil {
+		if err := Head(params.headParams()).Render(ctx, w); err != nil {
 			return err
 		}
 		if _, err := io.WriteString(w, `<body`); err != nil {

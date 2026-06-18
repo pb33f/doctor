@@ -72,6 +72,32 @@ func TestLayoutPageSharedAssetBaseURLAttribute(t *testing.T) {
 	}
 }
 
+func TestLayoutPageHeadParamsAdjustsRelativeSharedAssetBaseWithoutBaseHref(t *testing.T) {
+	params := LayoutPageParams{
+		BaseURL:            "../",
+		StaticAssetBaseURL: "../",
+		SharedAssetBaseURL: "../../../../../../static",
+	}
+
+	head := params.headParams()
+	if head.SharedAssetBaseURL != "../../../../../../../static" {
+		t.Fatalf("expected page-aware shared asset base, got %q", head.SharedAssetBaseURL)
+	}
+}
+
+func TestLayoutPageHeadParamsKeepsRelativeSharedAssetBaseWithBaseHref(t *testing.T) {
+	params := LayoutPageParams{
+		BaseURL:            "../",
+		EmitBaseHref:       true,
+		SharedAssetBaseURL: "../../../../../../static",
+	}
+
+	head := params.headParams()
+	if head.SharedAssetBaseURL != "../../../../../../static" {
+		t.Fatalf("expected root-relative shared asset base when base href is active, got %q", head.SharedAssetBaseURL)
+	}
+}
+
 func TestLayoutPageArchiveExportURLAttribute(t *testing.T) {
 	html := renderLayoutPageForTest(t, LayoutPageParams{
 		PageTitle:        "Train Travel",

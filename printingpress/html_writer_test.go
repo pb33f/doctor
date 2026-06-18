@@ -64,3 +64,91 @@ func TestNormalizeBaseURL(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldEmitBaseHref(t *testing.T) {
+	tests := []struct {
+		name      string
+		assetMode string
+		baseURL   string
+		want      bool
+	}{
+		{
+			name:      "portable relative nested path",
+			assetMode: HTMLAssetModePortable,
+			baseURL:   "../",
+			want:      true,
+		},
+		{
+			name:      "portable hosted path",
+			assetMode: HTMLAssetModePortable,
+			baseURL:   "/docs/",
+			want:      false,
+		},
+		{
+			name:      "portable absolute URL",
+			assetMode: HTMLAssetModePortable,
+			baseURL:   "https://example.com/docs/",
+			want:      false,
+		},
+		{
+			name:      "served relative nested path",
+			assetMode: HTMLAssetModeServed,
+			baseURL:   "../",
+			want:      false,
+		},
+		{
+			name:      "empty base",
+			assetMode: HTMLAssetModePortable,
+			baseURL:   "",
+			want:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, shouldEmitBaseHref(tt.assetMode, tt.baseURL))
+		})
+	}
+}
+
+func TestStaticAssetBaseURLForPage(t *testing.T) {
+	tests := []struct {
+		name         string
+		assetMode    string
+		baseURL      string
+		assetBaseURL string
+		want         string
+	}{
+		{
+			name:      "served nested page uses explicit page root",
+			assetMode: HTMLAssetModeServed,
+			baseURL:   "../",
+			want:      "../",
+		},
+		{
+			name:      "served deeply nested page uses explicit page root",
+			assetMode: HTMLAssetModeServed,
+			baseURL:   "../../",
+			want:      "../../",
+		},
+		{
+			name:      "portable nested page keeps base tag contract",
+			assetMode: HTMLAssetModePortable,
+			baseURL:   "../",
+			want:      "",
+		},
+		{
+			name:         "hosted page uses configured asset root",
+			assetMode:    HTMLAssetModeServed,
+			baseURL:      "../",
+			assetBaseURL: "/docs/",
+			want:         "/docs/",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, staticAssetBaseURLForPage(tt.assetMode, tt.baseURL, tt.assetBaseURL))
+		})
+	}
+}

@@ -87,6 +87,10 @@ func SharedAssetHref(sharedAssetBaseURL, assetBaseURL, href string) string {
 		trimmed := strings.TrimRight(sharedAssetBaseURL, "/")
 		return trimmed + "/" + strings.TrimPrefix(href, pppaths.DirStatic+"/")
 	}
+	if assetBaseURL != "" && !isLiteralHref(href) {
+		trimmed := strings.TrimRight(assetBaseURL, "/")
+		return trimmed + "/" + strings.TrimLeft(href, "/")
+	}
 	return AssetHref(assetBaseURL, href)
 }
 
