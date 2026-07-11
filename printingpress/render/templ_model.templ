@@ -1,6 +1,7 @@
 package render
 
 import "fmt"
+import "github.com/pb33f/doctor/printingpress/internal/pppaths"
 import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
 templ Breadcrumb(baseURL string, items []BreadcrumbItem) {
@@ -20,7 +21,11 @@ templ ModelPageTempl(page *ppmodel.ModelPage, baseURL string) {
 	<div class="pp-model">
 		@Breadcrumb(baseURL, modelBreadcrumb(page))
 		<div class="pp-model-header">
-			<pp-icon-title icon={ page.ComponentType } heading={ page.Name }></pp-icon-title>
+			if protocol := asyncAPIModelProtocol(page); protocol != "" {
+				<pp-asyncapi-protocol protocol={ protocol } size="large" heading></pp-asyncapi-protocol>
+			} else {
+				<pp-icon-title icon={ page.ComponentType } heading={ page.Name }></pp-icon-title>
+			}
 			if page.RawYAML != "" || page.SchemaJSON != "" {
 				<pp-raw-viewer-btn
 					id="pp-model-raw"
@@ -35,19 +40,17 @@ templ ModelPageTempl(page *ppmodel.ModelPage, baseURL string) {
 				</pp-raw-viewer-btn>
 			}
 		</div>
-		if page.Origin != nil {
-			<div class="pp-origin">
-				<span class="pp-label">Defined in:</span>
-				{ page.Origin.OriginalFile }
-				if page.Origin.Line > 0 {
-					<span> (line { fmt.Sprintf("%d", page.Origin.Line) })</span>
-				}
+		if page.Origin != nil || page.Source != nil {
+			if page.Origin != nil {
+				@SourceLocation(page.Source, page.Origin.OriginalFile, page.Origin.Line, baseURL)
 				if page.Origin.WasRenamed {
-					<span class="pp-renamed">
+					<div class="pp-renamed">
 						Originally: { page.Origin.OriginalName }
-					</span>
+					</div>
 				}
-			</div>
+			} else {
+				@SourceLocation(page.Source, "", 0, baseURL)
+			}
 		}
 		@ViolationStats(page.Name)
 		if page.DescHTML != "" {
@@ -55,12 +58,26 @@ templ ModelPageTempl(page *ppmodel.ModelPage, baseURL string) {
 				@templ.Raw(page.DescHTML)
 			</div>
 		}
+		if shouldRenderAsyncAPITraitProtocols(page) {
+			<div class="pp-asyncapi-operation" id="section-protocols" data-nav-label="Protocols">
+				<h3>PROTOCOLS</h3>
+				<div class="pp-security-scopes" aria-label="Protocols">
+					for _, protocol := range page.AsyncAPI.Bindings {
+						<pp-asyncapi-protocol protocol={ protocol } size="medium"></pp-asyncapi-protocol>
+					}
+				</div>
+			</div>
+		}
+		if shouldRenderAsyncAPIModelSection(page) {
+			@AsyncAPIModelSection(page.AsyncAPI, baseURL)
+		}
 		if page.ComponentType == "securitySchemes" && page.SchemaJSON != "" {
 			<pp-security-scheme id="pp-model-security-scheme"></pp-security-scheme>
-		} else if page.SchemaJSON != "" {
+		} else if page.SchemaJSON != "" && !isAsyncAPIMessagePage(page) && !isAsyncAPIReplyPage(page) && !isAsyncAPIChannelPage(page) {
 			<pp-model-page
 				id="pp-model-page"
 				name={ page.Name }
+				component-type={ page.ComponentType }
 				if page.LayoutMode != "" {
 					layout-mode={ page.LayoutMode }
 				}
@@ -127,4 +144,244 @@ templ ModelPageTempl(page *ppmodel.ModelPage, baseURL string) {
 			</div>
 		}
 	</div>
+}
+
+templ SourceLocation(source *ppmodel.SourceRef, fallbackPath string, fallbackLine int, baseURL string) {
+	<div class="pp-origin">
+		<span class="pp-label">Defined in:</span>
+		if source != nil && source.LinkEnabled && source.Href != "" {
+			<a class="pp-ref-link pp-source-link" href={ templ.SafeURL(DocHref(baseURL, source.Href)) }>{ sourceDisplayPath(source, fallbackPath) }</a>
+		} else {
+			<span>{ sourceDisplayPath(source, fallbackPath) }</span>
+		}
+		if sourceDisplayLine(source, fallbackLine) > 0 {
+			<span> (line { fmt.Sprintf("%d", sourceDisplayLine(source, fallbackLine)) })</span>
+		}
+	</div>
+}
+
+templ AsyncAPIModelSection(info *ppmodel.AsyncAPIModelInfo, baseURL string) {
+	<div class="pp-asyncapi-model">
+		if info.Kind == "message" {
+			@AsyncAPIMessageModelSection(info)
+		} else if info.Kind == "reply" {
+			@AsyncAPIReplyModelSection(info, baseURL)
+		} else if info.Kind == "replyAddress" {
+			@AsyncAPIReplyAddressModelSection(info)
+		} else if info.Kind == "correlationId" {
+			@AsyncAPICorrelationIDModelSection(info)
+		} else if info.Kind == "channel" {
+			@AsyncAPIChannelModelSection(info, baseURL)
+		} else {
+			if info.Kind != "parameter" && (info.Kind != "" || info.Address != "" || info.Protocol != "" || info.ContentType != "") {
+				<div class="pp-server-entry">
+					if info.Kind != "" {
+						<span class="pp-security-badge">{ info.Kind }</span>
+					}
+					if info.Address != "" {
+						<code>{ info.Address }</code>
+					}
+					if info.Protocol != "" {
+						<pp-asyncapi-protocol protocol={ info.Protocol } size="medium"></pp-asyncapi-protocol>
+					}
+					if info.ContentType != "" {
+						<code>{ info.ContentType }</code>
+					}
+				</div>
+			}
+			if len(info.Messages) > 0 {
+				<div class="pp-operations-overview">
+					<h3>MESSAGES</h3>
+					<ul class="pp-operation-list">
+						for _, msg := range info.Messages {
+							<li>
+								if msg.Href != "" {
+									<a class="pp-ref-link" href={ templ.SafeURL(DocHref(baseURL, msg.Href)) }>{ msg.Name }</a>
+								} else {
+									<span>{ msg.Name }</span>
+								}
+								if msg.Summary != "" {
+									<span class="op-summary">{ msg.Summary }</span>
+								}
+							</li>
+						}
+					</ul>
+				</div>
+			}
+			if len(info.Schemas) > 0 {
+				<div class="pp-operations-overview">
+					<h3>SCHEMAS</h3>
+					<ul class="pp-operation-list">
+						for _, surface := range info.Schemas {
+							<li>
+								<span class="pp-security-badge">{ surface.Role }</span>
+								if surface.Ref != nil {
+									<a class="pp-ref-link" href={ templ.SafeURL(DocHref(baseURL, pppaths.ModelHTML(surface.Ref.TypeSlug, surface.Ref.Slug))) }>
+										{ surface.Ref.Name }
+									</a>
+								} else {
+									<span>{ surface.Name }</span>
+								}
+							</li>
+						}
+					</ul>
+				</div>
+			}
+			if len(info.Examples) > 0 {
+				<sl-details class="pp-details" style="display:block;min-height:64px;">
+					<span slot="summary" class="pp-details-summary"><h2>Message Examples</h2></span>
+					for _, example := range info.Examples {
+						<div class="pp-code-sample">
+							if example.Name != "" {
+								<h4 class="pp-code-sample-label">{ example.Name }</h4>
+							}
+							if example.Summary != "" {
+								<p>{ example.Summary }</p>
+							}
+							if example.Headers != "" {
+								<h5 class="pp-code-sample-part-label">Headers</h5>
+								<pre class="chroma pp-code-sample-code"><code>{ example.Headers }</code></pre>
+							}
+							if example.Payload != "" {
+								<h5 class="pp-code-sample-part-label">Payload</h5>
+								<pre class="chroma pp-code-sample-code"><code>{ example.Payload }</code></pre>
+							}
+						</div>
+					}
+				</sl-details>
+			}
+		}
+	</div>
+}
+
+templ AsyncAPIChannelModelSection(info *ppmodel.AsyncAPIModelInfo, baseURL string) {
+	<div class="pp-asyncapi-operation" id="section-channel" data-nav-label="Channel">
+		if info.Address != "" {
+			<div class="pp-asyncapi-channel-target">
+				<pb33f-render-operation-path path={ info.Address }></pb33f-render-operation-path>
+			</div>
+		}
+		if len(info.Bindings) > 0 {
+			<div class="pp-asyncapi-meta-row pp-asyncapi-bindings-row">
+				<span class="pp-asyncapi-meta-label">Bindings</span>
+				<div class="pp-security-scopes" aria-label="Bindings">
+					for _, binding := range info.Bindings {
+						<pp-asyncapi-protocol protocol={ binding } size="small"></pp-asyncapi-protocol>
+					}
+				</div>
+			</div>
+		}
+		if len(info.Messages) > 0 {
+			<div class="pp-asyncapi-meta-row">
+				<span class="pp-asyncapi-meta-label">Messages</span>
+				<div class="pp-asyncapi-meta-value">
+					for _, msg := range info.Messages {
+						if msg.Href != "" {
+							@ComponentReferenceLink("messages", DocHref(baseURL, msg.Href), msg.Name)
+						} else {
+							@ComponentReferenceText("messages", msg.Name)
+						}
+					}
+				</div>
+			</div>
+		}
+	</div>
+}
+
+templ AsyncAPIReplyAddressModelSection(info *ppmodel.AsyncAPIModelInfo) {
+	if info.Address != "" {
+		<div class="pp-asyncapi-operation pp-asyncapi-reply-address-model" id="section-reply-address" data-nav-label="Reply Address">
+			<h3>REPLY ADDRESS</h3>
+			<div class="pp-asyncapi-meta-row">
+				<span class="pp-asyncapi-meta-label">Address</span>
+				<div class="pp-asyncapi-meta-value">
+					<span class="pp-asyncapi-address-value">{ info.Address }</span>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ AsyncAPICorrelationIDModelSection(info *ppmodel.AsyncAPIModelInfo) {
+	if info.Address != "" {
+		<div class="pp-asyncapi-operation pp-asyncapi-correlation-id-model" id="section-correlation-id" data-nav-label="Correlation ID">
+			<h3>CORRELATION ID</h3>
+			<div class="pp-asyncapi-meta-row">
+				<span class="pp-asyncapi-meta-label">Location</span>
+				<div class="pp-asyncapi-meta-value">
+					<span class="pp-asyncapi-address-value">{ info.Address }</span>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ AsyncAPIReplyModelSection(info *ppmodel.AsyncAPIModelInfo, baseURL string) {
+	if info.Address != "" || info.Channel != nil || len(info.Messages) > 0 {
+		<div class="pp-asyncapi-operation pp-asyncapi-reply-model" id="section-reply" data-nav-label="Reply">
+			<h3>REPLY</h3>
+			if info.Address != "" {
+				<div class="pp-asyncapi-meta-row">
+					<span class="pp-asyncapi-meta-label">Address</span>
+					<div class="pp-asyncapi-meta-value">
+						<pb33f-render-operation-path path={ info.Address }></pb33f-render-operation-path>
+					</div>
+				</div>
+			}
+			if info.Channel != nil {
+				<div class="pp-asyncapi-meta-row">
+					<span class="pp-asyncapi-meta-label">Channel</span>
+					<div class="pp-asyncapi-meta-value">
+						if info.Channel.Href != "" {
+							@ComponentReferenceLink("channels", DocHref(baseURL, info.Channel.Href), info.Channel.Name)
+						} else if info.Channel.Name != "" {
+							@ComponentReferenceText("channels", info.Channel.Name)
+						}
+						if info.Channel.Address != "" {
+							<pb33f-render-operation-path path={ info.Channel.Address }></pb33f-render-operation-path>
+						}
+					</div>
+				</div>
+			}
+			if len(info.Messages) > 0 {
+				<div class="pp-asyncapi-meta-row">
+					<span class="pp-asyncapi-meta-label">Messages</span>
+					<div class="pp-asyncapi-meta-value">
+						<div class="pp-asyncapi-reply-messages">
+							for _, msg := range info.Messages {
+								if msg.Href != "" {
+									@ComponentReferenceLink("messages", DocHref(baseURL, msg.Href), msg.Name)
+								} else {
+									@ComponentReferenceText("messages", msg.Name)
+								}
+							}
+						</div>
+					</div>
+				</div>
+			}
+		</div>
+	}
+}
+
+templ ComponentReferenceLink(componentType string, href string, name string) {
+	<span class="pp-component-ref">
+		<pb33f-model-icon icon={ componentType } size="medium"></pb33f-model-icon>
+		<a class="pp-component-ref-link" href={ templ.SafeURL(href) }><span aria-hidden="true">&#10140;</span> { name }</a>
+	</span>
+}
+
+templ ComponentReferenceText(componentType string, name string) {
+	<span class="pp-component-ref">
+		<pb33f-model-icon icon={ componentType } size="medium"></pb33f-model-icon>
+		<span class="pp-component-ref-link"><span aria-hidden="true">&#10140;</span> { name }</span>
+	</span>
+}
+
+templ AsyncAPIMessageModelSection(info *ppmodel.AsyncAPIModelInfo) {
+	if len(info.Content) > 0 {
+		<div class="pp-request-body" id="section-message-content" data-nav-label="Content">
+			<h3>CONTENT</h3>
+			<pp-media-type-selector id="pp-message-content"></pp-media-type-selector>
+		</div>
+	}
 }

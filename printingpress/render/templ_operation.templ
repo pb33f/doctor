@@ -46,7 +46,7 @@ templ headerConstraints(h *ppmodel.HeaderInfo) {
 templ OperationPageTempl(page *ppmodel.OperationPage, baseURL string) {
 	<div class="pp-operation">
 		@Breadcrumb(baseURL, operationBreadcrumb(page))
-		<pp-page-nav page-title={ page.OperationID } sections-json={ operationNavSections(page) }></pp-page-nav>
+		<pp-page-nav page-title={ operationPageTitle(page) } sections-json={ operationNavSections(page) }></pp-page-nav>
 	    <div class="title-section">
 
             <div class="name-path-block">
@@ -54,9 +54,11 @@ templ OperationPageTempl(page *ppmodel.OperationPage, baseURL string) {
                       <pp-raw-viewer-btn
                           id="pp-operation-raw"
                           class="raw-button"
-                          title={ page.Method + " " + page.Path }
-                          method={ page.Method }
-                          path={ page.Path }
+                          title={ operationRawTitle(page) }
+                          if !page.SpecKind.IsAsyncAPI() {
+                              method={ page.Method }
+                              path={ page.Path }
+                          }
                           if page.SourceLine > 0 {
                               start-line={ fmt.Sprintf("%d", page.SourceLine) }
                           }
@@ -66,19 +68,23 @@ templ OperationPageTempl(page *ppmodel.OperationPage, baseURL string) {
                       </pp-raw-viewer-btn>
                   }
 
-                 if page.Summary != "" {
-                     <pp-icon-title icon="operation" heading={ page.Summary }></pp-icon-title>
-                 } else {
-                     <pp-icon-title icon="operation" heading={ page.Path }></pp-icon-title>
-                 }
-                <div class="pp-operation-path">
-                   <pb33f-http-method method={ page.Method }></pb33f-http-method>
-                   <pb33f-render-operation-path path={ page.Path } nowrap></pb33f-render-operation-path>
-                </div>
+                 <pp-icon-title icon="operation" heading={ operationPageTitle(page) }></pp-icon-title>
+	                if !page.SpecKind.IsAsyncAPI() {
+	                    <div class={ operationPathClass(page) }>
+	                        <pb33f-http-method method={ page.Method }></pb33f-http-method>
+	                        <pb33f-render-operation-path path={ page.Path } nowrap></pb33f-render-operation-path>
+	                    </div>
+	                }
 
                 if page.OperationID != "" {
                     <div class="pp-operation-id">
-                        <span class="pp-label">Operation ID:</span>
+                        <span class="pp-label">
+                            if page.SpecKind.IsAsyncAPI() {
+                                Operation:
+                            } else {
+                                Operation ID:
+                            }
+                        </span>
                         <code>{ page.OperationID }</code>
 
                          if page.Deprecated {
@@ -92,6 +98,9 @@ templ OperationPageTempl(page *ppmodel.OperationPage, baseURL string) {
 
 			</div>
 		</div>
+		if page.Source != nil || page.Location != "" {
+			@SourceLocation(page.Source, page.Location, page.SourceLine, baseURL)
+		}
 		@ViolationStats(page.Method + " " + page.Path)
 
 		if page.DescHTML != "" {
@@ -99,13 +108,16 @@ templ OperationPageTempl(page *ppmodel.OperationPage, baseURL string) {
 				@templ.Raw(page.DescHTML)
 			</div>
 		}
+		if page.AsyncAPI != nil {
+			@AsyncAPIOperationSection(page.AsyncAPI, baseURL)
+		}
 		if len(page.Security) > 0 {
-			<div class="pp-security" id="section-security" data-nav-label="Security">
+			<div class="pp-security pp-dotted-section" id="section-security" data-nav-label="Security">
 				<h3>SECURITY</h3>
 				for _, sec := range page.Security {
 					<div class="pp-security-scheme">
 						if sec.Ref != nil {
-							<a class="pp-ref-link pp-security-name" href={ templ.SafeURL(DocHref(baseURL, pppaths.ModelHTML(sec.Ref.TypeSlug, sec.Ref.Slug))) }>
+							<a class="pp-ref-link pp-security-name" href={ templ.SafeURL(OperationDocHref(baseURL, pppaths.ModelHTML(sec.Ref.TypeSlug, sec.Ref.Slug))) }>
 								&#10140; { sec.Name }
 							</a>
 						} else {
@@ -144,7 +156,7 @@ templ OperationPageTempl(page *ppmodel.OperationPage, baseURL string) {
 			</div>
 		}
 		if page.RequestBody != nil {
-			@RequestBodySection(page.RequestBody, baseURL)
+			@RequestBodySection(page.RequestBody, baseURL, operationContentSectionTitle(page))
 		}
 		if page.ResponsesJSON != "" {
 			<pp-operation-responses id="section-responses" data-nav-label="Responses">
@@ -187,7 +199,7 @@ templ OperationPageTempl(page *ppmodel.OperationPage, baseURL string) {
 			</sl-details>
 		}
 		if page.ExternalDoc != nil {
-			<div class="pp-external-docs" id="section-external-docs" data-nav-label="External Docs">
+			<div class="pp-external-docs pp-dotted-section" id="section-external-docs" data-nav-label="External Docs">
 				<h3>EXTERNAL DOCS</h3>
 				<div class="pp-external-doc-entry">
 					<span class="pp-external-doc-name">
@@ -205,6 +217,69 @@ templ OperationPageTempl(page *ppmodel.OperationPage, baseURL string) {
 			</div>
 		}
 	</div>
+}
+
+templ AsyncAPIOperationSection(info *ppmodel.AsyncAPIOperationInfo, baseURL string) {
+	if asyncAPIOperationSectionVisible(info) {
+	<div class="pp-asyncapi-operation" id="section-asyncapi" data-nav-label="Channel">
+		<h3>CHANNEL</h3>
+		if info.Channel != nil {
+			<div class="pp-asyncapi-channel-main">
+				@AsyncAPIAction(info.Action, "large")
+				<div class="pp-asyncapi-channel-target">
+					<div class="pp-asyncapi-channel-name">
+						if info.Channel.Href != "" {
+							<a class="pp-ref-link pp-server-url" href={ templ.SafeURL(OperationDocHref(baseURL, info.Channel.Href)) }>{ info.Channel.Name }</a>
+						} else if info.Channel.Name != "" {
+							<span class="pp-server-url">{ info.Channel.Name }</span>
+						}
+					</div>
+					if info.Channel.Address != "" {
+						<pb33f-render-operation-path path={ info.Channel.Address }></pb33f-render-operation-path>
+					}
+				</div>
+			</div>
+		}
+		if info.Reply != nil {
+			<div class="pp-asyncapi-meta-row">
+				<span class="pp-asyncapi-meta-label">Reply</span>
+				<div class="pp-asyncapi-meta-value">
+					if info.Reply.Address != "" {
+						<pb33f-render-operation-path path={ info.Reply.Address }></pb33f-render-operation-path>
+					}
+					if info.Reply.Channel != nil {
+						if info.Reply.Channel.Href != "" {
+							@ComponentReferenceLink("channels", OperationDocHref(baseURL, info.Reply.Channel.Href), info.Reply.Channel.Name)
+						} else if info.Reply.Channel.Name != "" {
+							@ComponentReferenceText("channels", info.Reply.Channel.Name)
+						}
+					}
+					if len(info.Reply.Messages) > 0 {
+						<div class="pp-asyncapi-reply-messages">
+							for _, msg := range info.Reply.Messages {
+								if msg.Href != "" {
+									@ComponentReferenceLink("messages", OperationDocHref(baseURL, msg.Href), msg.Name)
+								} else {
+									@ComponentReferenceText("messages", msg.Name)
+								}
+							}
+						</div>
+					}
+				</div>
+			</div>
+		}
+		if len(info.Bindings) > 0 {
+			<div class="pp-asyncapi-meta-row pp-asyncapi-bindings-row">
+				<span class="pp-asyncapi-meta-label">Bindings</span>
+				<div class="pp-security-scopes" aria-label="Bindings">
+				for _, binding := range info.Bindings {
+					<pp-asyncapi-protocol protocol={ binding } size="small"></pp-asyncapi-protocol>
+				}
+				</div>
+			</div>
+		}
+	</div>
+	}
 }
 
 templ CodeSamplesSection(samples []*ppmodel.CodeSample) {
@@ -241,14 +316,14 @@ templ CodeSamplePanel(sample *ppmodel.CodeSample) {
 	}
 }
 
-templ RequestBodySection(rb *ppmodel.RequestBodyInfo, baseURL string) {
-	<div class="pp-request-body" id="section-request-body" data-nav-label="Request Body">
-		<h3>Request Body
+templ RequestBodySection(rb *ppmodel.RequestBodyInfo, baseURL string, title string) {
+	<div class="pp-request-body" id="section-request-body" data-nav-label={ title }>
+		<h3>{ title }
 		if rb.RawYAML != "" || rb.RawJSON != "" {
 			<pp-raw-viewer-btn
 			    id="pp-request-body-raw"
 			    class="raw-button"
-				title="Request Body"
+				title={ title }
 				if rb.SourceLine > 0 {
 					start-line={ fmt.Sprintf("%d", rb.SourceLine) }
 				}
@@ -266,13 +341,22 @@ templ RequestBodySection(rb *ppmodel.RequestBodyInfo, baseURL string) {
 		if rb.ExtensionsJSON != "" {
 			<pp-extensions extensions-json={ rb.ExtensionsJSON }></pp-extensions>
 		}
-		if rb.Ref != nil {
+		if len(rb.Refs) > 0 {
+			<p class="pp-request-body-refs">
+				for _, ref := range rb.Refs {
+					<a class="pp-ref-link" href={ templ.SafeURL(OperationDocHref(baseURL, pppaths.ModelHTML(ref.TypeSlug, ref.Slug))) }>
+						&#10140; { ref.Name }
+					</a>
+				}
+			</p>
+		} else if rb.Ref != nil {
 			<p>
-				<a class="pp-ref-link" href={ templ.SafeURL(DocHref(baseURL, pppaths.ModelHTML(rb.Ref.TypeSlug, rb.Ref.Slug))) }>
+				<a class="pp-ref-link" href={ templ.SafeURL(OperationDocHref(baseURL, pppaths.ModelHTML(rb.Ref.TypeSlug, rb.Ref.Slug))) }>
 					&#10140; { rb.Ref.Name }
 				</a>
 			</p>
-		} else if len(rb.Content) > 0 {
+		}
+		if len(rb.Content) > 0 {
 			<pp-media-type-selector id="pp-request-body-content"></pp-media-type-selector>
 		}
 	</div>
@@ -296,7 +380,7 @@ templ CommonHeadersSection(headers []*ppmodel.HeaderInfo, headersJSON string, ba
 		for _, h := range headers {
 			<div class="pp-common-header-entry" id={ "header-" + h.Name }>
 				if h.Ref != nil {
-					<a class="pp-ref-link pp-common-header-name" href={ templ.SafeURL(DocHref(baseURL, pppaths.ModelHTML(h.Ref.TypeSlug, h.Ref.Slug))) }>
+					<a class="pp-ref-link pp-common-header-name" href={ templ.SafeURL(OperationDocHref(baseURL, pppaths.ModelHTML(h.Ref.TypeSlug, h.Ref.Slug))) }>
 						&#10140; { h.Name }
 					</a>
 				} else {

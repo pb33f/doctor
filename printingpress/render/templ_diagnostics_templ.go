@@ -45,12 +45,35 @@ func DiagnosticsPageTempl(page *ppmodel.DiagnosticsPage) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span></div><p>Problems were found with the OpenAPI Contract. There are three different levels of problem:</p><ul><li>An <strong>error</strong> is something to really consider fixing now.</li><li>An <strong>warning</strong> is something to consider reviewing soon.</li><li>An <strong>inform</strong> is something to be aware of.</li></ul><hr><pp-diagnostics-list></pp-diagnostics-list></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span></div><p>Problems were found with the ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(diagnosticsSpecLabel(page))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_diagnostics.templ`, Line: 15, Col: 69}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " contract. There are three different levels of problem:</p><ul><li>An <strong>error</strong> is something to really consider fixing now.</li><li>An <strong>warning</strong> is something to consider reviewing soon.</li><li>An <strong>inform</strong> is something to be aware of.</li></ul><hr><pp-diagnostics-list></pp-diagnostics-list></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		return nil
 	})
+}
+
+func diagnosticsSpecLabel(page *ppmodel.DiagnosticsPage) string {
+	if page == nil {
+		return "API"
+	}
+	if page.SpecLabel != "" {
+		return page.SpecLabel
+	}
+	return "API"
 }
 
 var _ = templruntime.GeneratedTemplate

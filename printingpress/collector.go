@@ -51,6 +51,14 @@ var refSegmentToTypeSlug = map[string]string{
 	"links":           "links",
 	"callbacks":       "callbacks",
 	"pathItems":       typeSlugPathItems,
+	"messages":        "messages",
+	"channels":        "channels",
+	"servers":         "servers",
+	"replies":         "replies",
+	"replyAddresses":  "reply-addresses",
+	"correlationIds":  "correlation-ids",
+	"operationTraits": "operation-traits",
+	"messageTraits":   "message-traits",
 }
 
 // resolveComponentLink parses a $ref string and looks up the model page.
@@ -178,7 +186,10 @@ func (pp *PrintingPress) buildModelIndex() {
 
 // visitDocument collects all top-level document data: info, tags, servers, components, webhooks.
 func (pp *PrintingPress) visitDocument(ctx context.Context, doc *v3.Document) {
-	root := &RootPage{}
+	root := &RootPage{
+		SpecKind:    pp.engineConfig.SpecKind,
+		SpecVersion: pp.engineConfig.SpecVersion,
+	}
 	root.Source = pp.site.Source
 
 	if doc.Document != nil {
@@ -366,6 +377,8 @@ func (pp *PrintingPress) collectOperation(method, path string, op *v3.Operation,
 	slug := pp.slugs.Register("operations", preferred)
 
 	page := &OperationPage{
+		SpecKind:    pp.engineConfig.SpecKind,
+		SpecVersion: pp.engineConfig.SpecVersion,
 		Method:      strings.ToUpper(method),
 		Path:        path,
 		OperationID: operationID,
@@ -910,6 +923,8 @@ func (pp *PrintingPress) collectSchemaComponents(schemas *orderedmap.Map[string,
 		slug := pp.slugs.Register("schemas", preferred)
 
 		page := &ModelPage{
+			SpecKind:      pp.engineConfig.SpecKind,
+			SpecVersion:   pp.engineConfig.SpecVersion,
 			Name:          name,
 			ComponentType: "schemas",
 			TypeSlug:      "schemas",
@@ -1156,6 +1171,8 @@ func collectRenderable[V interface{ GetValue() any }](
 		slug := pp.slugs.Register(typeSlug, preferred)
 
 		page := &ModelPage{
+			SpecKind:      pp.engineConfig.SpecKind,
+			SpecVersion:   pp.engineConfig.SpecVersion,
 			Name:          name,
 			ComponentType: componentType,
 			TypeSlug:      typeSlug,
@@ -1257,6 +1274,7 @@ func (pp *PrintingPress) collectWebhooks(webhooks *orderedmap.Map[string, *v3.Pa
 	// Build webhook nav entries from all collected webhooks
 	for _, wh := range pp.site.Webhooks {
 		pp.site.NavWebhooks = append(pp.site.NavWebhooks, &NavOperation{
+			SpecKind:    wh.SpecKind,
 			Method:      wh.Method,
 			Path:        wh.Path,
 			OperationID: wh.OperationID,
@@ -1448,12 +1466,14 @@ func (pp *PrintingPress) assignOperationsToTags(forceSynthetic bool) {
 		pp.site.Root.TagTree = nil
 		for _, op := range pp.site.Operations {
 			pp.site.Root.UntaggedOperations = append(pp.site.Root.UntaggedOperations, &NavOperation{
+				SpecKind:    op.SpecKind,
 				Method:      op.Method,
 				Path:        op.Path,
 				OperationID: op.OperationID,
-				Summary:     op.Summary,
+				Summary:     navOperationSummary(op),
 				Slug:        op.Slug,
 				Deprecated:  op.Deprecated,
+				Protocols:   operationNavProtocols(op),
 			})
 		}
 		return
@@ -1463,12 +1483,14 @@ func (pp *PrintingPress) assignOperationsToTags(forceSynthetic bool) {
 
 	for _, op := range pp.site.Operations {
 		navOp := &NavOperation{
+			SpecKind:    op.SpecKind,
 			Method:      op.Method,
 			Path:        op.Path,
 			OperationID: op.OperationID,
-			Summary:     op.Summary,
+			Summary:     navOperationSummary(op),
 			Slug:        op.Slug,
 			Deprecated:  op.Deprecated,
+			Protocols:   operationNavProtocols(op),
 		}
 		if len(op.Tags) == 0 {
 			pp.site.Root.UntaggedOperations = append(pp.site.Root.UntaggedOperations, navOp)
@@ -1480,6 +1502,23 @@ func (pp *PrintingPress) assignOperationsToTags(forceSynthetic bool) {
 			pp.site.Root.UntaggedOperations = append(pp.site.Root.UntaggedOperations, navOp)
 		}
 	}
+}
+
+func operationNavProtocols(op *OperationPage) []string {
+	if op == nil || !op.SpecKind.IsAsyncAPI() || op.AsyncAPI == nil {
+		return nil
+	}
+	return append([]string(nil), op.AsyncAPI.Bindings...)
+}
+
+func navOperationSummary(op *OperationPage) string {
+	if op == nil {
+		return ""
+	}
+	if op.SpecKind.IsAsyncAPI() {
+		return firstNonEmpty(op.Summary, op.OperationID, op.Path)
+	}
+	return op.Summary
 }
 
 // populateTagPaths sets TagPath on each OperationPage by walking the NavTag tree
@@ -1536,6 +1575,9 @@ func (pp *PrintingPress) buildNavModelGroups() {
 	}
 	order := []groupDef{
 		{"Schemas", "schemas"},
+		{"Messages", "messages"},
+		{"Channels", "channels"},
+		{"Servers", "servers"},
 		{"Responses", "responses"},
 		{"Parameters", "parameters"},
 		{"Request Bodies", "request-bodies"},
@@ -1544,6 +1586,11 @@ func (pp *PrintingPress) buildNavModelGroups() {
 		{"Examples", "examples"},
 		{"Links", "links"},
 		{"Callbacks", "callbacks"},
+		{"Replies", "replies"},
+		{"Reply Addresses", "reply-addresses"},
+		{"Correlation IDs", "correlation-ids"},
+		{"Operation Traits", "operation-traits"},
+		{"Message Traits", "message-traits"},
 		// path-items omitted from nav — after bundling they duplicate operation pages
 	}
 	for _, def := range order {
@@ -1557,11 +1604,20 @@ func (pp *PrintingPress) buildNavModelGroups() {
 			CardMinWidth: computeNavModelGroupCardMinWidth(pages),
 		}
 		for _, p := range pages {
+			protocol := ""
+			var protocols []string
+			if p.AsyncAPI != nil && (p.AsyncAPI.Kind == "operationTrait" || p.AsyncAPI.Kind == "messageTrait") {
+				protocol = p.AsyncAPI.Protocol
+				protocols = p.AsyncAPI.Bindings
+			}
 			group.Models = append(group.Models, &NavModel{
+				SpecKind:    p.SpecKind,
 				Name:        p.Name,
 				Slug:        p.Slug,
 				TypeSlug:    p.TypeSlug,
 				Description: p.Description,
+				Protocol:    protocol,
+				Protocols:   protocols,
 			})
 		}
 		pp.site.NavModelGroups = append(pp.site.NavModelGroups, group)
@@ -1839,13 +1895,15 @@ func (pp *PrintingPress) buildSourceRef(location, target string, line int) *Sour
 		path = target
 	}
 	href := strings.TrimSpace(target)
-	if url := pp.sourceURLForLocation(location, line); url != "" {
-		href = url
+	linkedHref := pp.sourceURLForLocation(location, target, line)
+	if linkedHref != "" {
+		href = linkedHref
 	}
 	return &SourceRef{
-		Path: path,
-		Line: line,
-		Href: href,
+		Path:        path,
+		Line:        line,
+		Href:        href,
+		LinkEnabled: pp.engineConfig != nil && pp.engineConfig.IncludeSpec && linkedHref != "",
 	}
 }
 
@@ -1878,7 +1936,7 @@ func (pp *PrintingPress) buildModelSourceRef(origin *bundler.ComponentOrigin) *S
 	return pp.buildSourceRef(location, target, line)
 }
 
-func (pp *PrintingPress) sourceURLForLocation(location string, line int) string {
+func (pp *PrintingPress) sourceURLForLocation(location, target string, line int) string {
 	if pp == nil || pp.engineConfig == nil {
 		return ""
 	}
@@ -1886,8 +1944,16 @@ func (pp *PrintingPress) sourceURLForLocation(location string, line int) string 
 	if base == "" {
 		return ""
 	}
+	if pp.engineConfig.IncludeSpec && pp.engineConfig.SpecLocation != "" && location != "" && location != pp.engineConfig.SpecLocation {
+		base = pp.includeReferencedSpec(target)
+		if base == "" {
+			return ""
+		}
+	}
 	if pp.engineConfig.SpecLocation != "" && location != "" && location != pp.engineConfig.SpecLocation {
-		return ""
+		if !pp.engineConfig.IncludeSpec {
+			return ""
+		}
 	}
 	if line > 0 && !strings.Contains(base, "#") {
 		return fmt.Sprintf("%s#L%d", base, line)

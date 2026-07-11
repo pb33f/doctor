@@ -17,9 +17,12 @@ const (
 	jobTypeHTML  = "html"
 	jobTypeLLM   = "llm"
 
-	sourceKindBytes   = "bytes"
-	sourceKindV3Model = "v3-model"
-	sourceKindDrModel = "dr-model"
+	sourceKindBytes            = "bytes"
+	sourceKindOpenAPIBytes     = "openapi-bytes"
+	sourceKindAsyncAPIBytes    = "asyncapi-bytes"
+	sourceKindV3Model          = "v3-model"
+	sourceKindDrModel          = "dr-model"
+	sourceKindAsyncAPIDocument = "asyncapi-document"
 )
 
 type activityManager struct {

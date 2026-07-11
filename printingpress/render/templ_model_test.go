@@ -56,3 +56,36 @@ func TestModelPageExtensionsSummaryCount(t *testing.T) {
 		})
 	}
 }
+
+func TestModelPageNamedTraitPreservesIdentityAndRendersProtocols(t *testing.T) {
+	page := &ppmodel.ModelPage{
+		Name:          "commandTransport",
+		ComponentType: "operationTraits",
+		TypeSlug:      "operation-traits",
+		Slug:          "command-transport",
+		AsyncAPI: &ppmodel.AsyncAPIModelInfo{
+			Kind:     "operationTrait",
+			Bindings: []string{"kafka", "amqp"},
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := ModelPageTempl(page, "").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("render model page: %v", err)
+	}
+
+	html := buf.String()
+	for _, expected := range []string{
+		`<pp-icon-title icon="operationTraits" heading="commandTransport">`,
+		`id="section-protocols" data-nav-label="Protocols"`,
+		`<pp-asyncapi-protocol protocol="kafka" size="medium">`,
+		`<pp-asyncapi-protocol protocol="amqp" size="medium">`,
+	} {
+		if !strings.Contains(html, expected) {
+			t.Fatalf("expected rendered trait to contain %q, got:\n%s", expected, html)
+		}
+	}
+	if strings.Contains(html, `<pp-asyncapi-protocol protocol="kafka" size="large" heading>`) {
+		t.Fatalf("named trait must not replace its title with the protocol: %s", html)
+	}
+}

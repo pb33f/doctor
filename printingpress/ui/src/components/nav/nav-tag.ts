@@ -3,9 +3,13 @@ import {customElement, property, state} from 'lit/decorators.js';
 import navTagCss from './nav-tag.css.js';
 import {operationHref} from '../../utils/doc-links.js';
 import {renderViolationBadges, type ViolationCounts} from '../../utils/violations.js';
+import '../shared/asyncapi-action.js';
+import '../shared/asyncapi-protocol.js';
 
 interface NavTag {
     name: string;
+    protocol?: string;
+    protocols?: string[];
     summary: string;
     children: NavTag[] | null;
     operations: NavOperation[] | null;
@@ -14,12 +18,17 @@ interface NavTag {
 }
 
 interface NavOperation {
+    specKind?: string;
     method: string;
     path: string;
     slug: string;
     summary: string;
     deprecated: boolean;
     counts?: ViolationCounts;
+}
+
+function isAsyncAPIOperation(op: NavOperation): boolean {
+    return op.specKind === 'asyncapi';
 }
 
 function tagContainsSlug(tag: NavTag, slug: string): boolean {
@@ -67,7 +76,19 @@ export class PpNavTag extends LitElement {
         return html`
             <div class="tag-header ${containsActive ? 'active' : ''} ${dev ? 'developer' : ''}" @click=${this.toggle}>
                 <sl-icon name=${open ? 'chevron-down' : 'chevron-right'} class="chevron"></sl-icon>
-                <span class="tag-name">${tag.summary || tag.name}</span>
+                <span class="tag-name">
+                    ${tag.protocol
+                        ? html`<pp-asyncapi-protocol protocol=${tag.protocol} size="nav"></pp-asyncapi-protocol>`
+                        : html`
+                            <span>${tag.summary || tag.name}</span>
+                            ${tag.protocols?.length
+                                ? html`<span class="tag-protocols">
+                                    ${tag.protocols.map((protocol) => html`
+                                        <pp-asyncapi-protocol protocol=${protocol} size="nav"></pp-asyncapi-protocol>`)}
+                                  </span>`
+                                : nothing}
+                          `}
+                </span>
                 ${dev ? renderViolationBadges(tag.counts) : nothing}
             </div>
             ${open
@@ -81,8 +102,10 @@ export class PpNavTag extends LitElement {
                                                         <li>
                                                             <a href=${operationHref(op.slug)} class="${op.deprecated ? 'deprecated' : ''} ${op.slug === activeSlug ? 'active' : ''} ${dev ? 'developer' : ''}">
                                                                 <span class="op-title">${op.summary || op.path}</span>
-                                                                <pb33f-http-method mode="nav-naked"
-                                                                        method=${op.method}></pb33f-http-method>
+                                                                ${isAsyncAPIOperation(op)
+                                                                        ? html`<pp-asyncapi-action action=${op.method} size="small"></pp-asyncapi-action>`
+                                                                        : html`<pb33f-http-method mode="nav-naked"
+                                                                                method=${op.method}></pb33f-http-method>`}
                                                                 ${dev ? renderViolationBadges(op.counts) : nothing}
                                                             </a>
                                                         </li>

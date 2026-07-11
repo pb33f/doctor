@@ -27,6 +27,10 @@ export interface ResponseData {
 export interface MediaTypeData {
   mediaType: string;
   schemaJson: string;
+  mermaidDiagram?: string;
+  schemaFormat?: string;
+  rawSchemaJson?: string;
+  rawSchemaYaml?: string;
   mockJson?: string;
   mockYaml?: string;
   mockXml?: string;

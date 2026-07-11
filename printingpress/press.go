@@ -20,6 +20,7 @@ import (
 	. "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/doctor/printingpress/render"
 	slugpkg "github.com/pb33f/doctor/printingpress/slug"
+	"github.com/pb33f/libasyncapi"
 	"github.com/pb33f/libopenapi/bundler"
 	"github.com/pb33f/libopenapi/renderer"
 	"golang.org/x/sync/errgroup"
@@ -27,6 +28,9 @@ import (
 
 type pressEngineConfig struct {
 	DrDoc                              *doctormodel.DrDocument
+	AsyncDoc                           libasyncapi.Document
+	SpecKind                           SpecKind
+	SpecVersion                        string
 	Origins                            bundler.ComponentOriginMap
 	OutputDir                          string
 	BaseURL                            string
@@ -51,6 +55,8 @@ type pressEngineConfig struct {
 	DeveloperMode                      bool
 	DocsExpiresAt                      string
 	ArchiveExportURL                   string
+	IncludeSpec                        bool
+	IncludedSpecs                      []*IncludedSpecAsset
 	LintResults                        []*v3.RuleFunctionResult
 	OrphanResults                      []*v3.RuleFunctionResult
 	Footer                             *FooterConfig
@@ -82,30 +88,31 @@ type resolvedSyntheticTagFallbackConfig struct {
 	MinOperations   int
 }
 
-// PrintingPress generates documentation from an OpenAPI source.
+// PrintingPress generates documentation from an OpenAPI or AsyncAPI source.
 type PrintingPress struct {
-	mu                 sync.Mutex
-	config             *PrintingPressConfig
-	source             pressSource
-	engineConfig       *pressEngineConfig
-	slugs              *slugpkg.SlugRegistry
-	site               *Site
-	mockGen            *renderer.MockGenerator
-	mockGenYAML        *renderer.MockGenerator
-	mockGenXML         *renderer.MockGenerator
-	rawArtifacts       *rawArtifactCache
-	schemaArtifacts    *schemaArtifactCache
-	warnings           []*BuildWarning
-	modelIndex         map[string]*ModelPage // keyed by "typeSlug/name" for O(1) ref resolution
-	devOperationPages  []*developerOperationPage
-	devModelPages      []*developerModelPage
-	devPageIndex       *developerPageIndex
-	syntheticTags      resolvedSyntheticTagFallbackConfig
-	modelBuilt         bool
-	modelBuildDuration time.Duration
-	resolvedOutputDir  string
-	activity           *activityManager
-	currentJob         *activityJob
+	mu                  sync.Mutex
+	config              *PrintingPressConfig
+	source              pressSource
+	engineConfig        *pressEngineConfig
+	slugs               *slugpkg.SlugRegistry
+	site                *Site
+	mockGen             *renderer.MockGenerator
+	mockGenYAML         *renderer.MockGenerator
+	mockGenXML          *renderer.MockGenerator
+	rawArtifacts        *rawArtifactCache
+	schemaArtifacts     *schemaArtifactCache
+	asyncMediaArtifacts map[string]*MediaTypeInfo
+	warnings            []*BuildWarning
+	modelIndex          map[string]*ModelPage // keyed by "typeSlug/name" for O(1) ref resolution
+	devOperationPages   []*developerOperationPage
+	devModelPages       []*developerModelPage
+	devPageIndex        *developerPageIndex
+	syntheticTags       resolvedSyntheticTagFallbackConfig
+	modelBuilt          bool
+	modelBuildDuration  time.Duration
+	resolvedOutputDir   string
+	activity            *activityManager
+	currentJob          *activityJob
 }
 
 func newPressEngine(config *pressEngineConfig) *PrintingPress {
@@ -161,7 +168,10 @@ func (pp *PrintingPress) initEngine(config *pressEngineConfig) {
 	pp.mockGenXML = mgXML
 	pp.rawArtifacts = newRawArtifactCache()
 	pp.schemaArtifacts = newSchemaArtifactCache()
+	pp.asyncMediaArtifacts = make(map[string]*MediaTypeInfo)
 	pp.site = &Site{
+		SpecKind:           config.SpecKind,
+		SpecVersion:        config.SpecVersion,
 		Models:             make(map[string][]*ModelPage),
 		Embedded:           config.Embedded,
 		SharedAssetBaseURL: config.SharedAssetBaseURL,
@@ -170,6 +180,7 @@ func (pp *PrintingPress) initEngine(config *pressEngineConfig) {
 		DeveloperMode:      config.DeveloperMode,
 		DocsExpiresAt:      config.DocsExpiresAt,
 		ArchiveExportURL:   config.ArchiveExportURL,
+		IncludedSpecs:      append([]*IncludedSpecAsset(nil), config.IncludedSpecs...),
 	}
 	pp.devOperationPages = nil
 	pp.devModelPages = nil
@@ -198,8 +209,9 @@ func buildRootSourceRef(config *pressEngineConfig) *SourceRef {
 		return nil
 	}
 	return &SourceRef{
-		Path: path,
-		Href: href,
+		Path:        path,
+		Href:        href,
+		LinkEnabled: config.IncludeSpec,
 	}
 }
 
@@ -231,6 +243,10 @@ func resolveSyntheticTagFallbackConfig(config *pressEngineConfig) resolvedSynthe
 
 func (pp *PrintingPress) pressSite() (*Site, error) {
 	ctx := context.Background()
+
+	if pp.engineConfig != nil && pp.engineConfig.SpecKind.IsAsyncAPI() {
+		return pp.pressAsyncAPISite(ctx)
+	}
 
 	if pp.engineConfig == nil || pp.engineConfig.DrDoc == nil {
 		return nil, ErrNoDrDocument
@@ -360,6 +376,80 @@ func (pp *PrintingPress) pressSite() (*Site, error) {
 		}
 	}
 
+	return pp.finalizeSite()
+}
+
+func (pp *PrintingPress) pressAsyncAPISite(ctx context.Context) (*Site, error) {
+	if pp.engineConfig == nil || pp.engineConfig.AsyncDoc == nil {
+		return nil, ErrNoAsyncAPIDocument
+	}
+	doc := pp.engineConfig.AsyncDoc.Model()
+	if doc == nil {
+		return nil, ErrNoAsyncAPIDocument
+	}
+	if pp.currentJob != nil {
+		pp.currentJob.snapshot("collecting AsyncAPI document model", 0, 1, 0)
+	}
+	pp.visitAsyncAPIDocument(ctx, doc)
+	if pp.currentJob != nil {
+		pp.currentJob.snapshot("AsyncAPI document model collected", 1, 1, 0)
+	}
+	pp.buildCrossRefs()
+	pp.encodeAsyncAPIModelCrossRefs()
+	if !pp.engineConfig.NoExplorer {
+		if err := pp.buildAsyncAPIDependencyGraphs(); err != nil {
+			return nil, err
+		}
+	}
+	pp.collectAsyncAPIDeveloperDiagnostics()
+	return pp.finalizeSite()
+}
+
+func (pp *PrintingPress) encodeAsyncAPIModelCrossRefs() {
+	if pp == nil || pp.site == nil {
+		return
+	}
+	for _, pages := range pp.site.Models {
+		for _, page := range pages {
+			if page == nil || page.CrossRefs == nil {
+				continue
+			}
+			if len(page.CrossRefs.UsedByOperations) == 0 &&
+				len(page.CrossRefs.UsedByModels) == 0 &&
+				len(page.CrossRefs.UsesModels) == 0 {
+				continue
+			}
+			page.CrossRefsJSON = render.MustJSON(page.CrossRefs)
+			applyModelCrossRefHints(page)
+		}
+	}
+}
+
+func (pp *PrintingPress) buildAsyncAPIDependencyGraphs() error {
+	if pp == nil || pp.site == nil {
+		return nil
+	}
+	modelGraphPages := buildAsyncAPIModelGraphPages(nil, pp.site.Models)
+	for _, pages := range pp.site.Models {
+		for _, page := range pages {
+			if page == nil || page.CrossRefs == nil {
+				continue
+			}
+			graphJSON, err := BuildAsyncAPIFocusedModelGraph(page, modelGraphPages, defaultMaxDepth)
+			if err != nil {
+				return err
+			}
+			if graphJSON == "" {
+				continue
+			}
+			page.GraphJSON = graphJSON
+			page.GraphNodeID = SchemaNodeID(page.ComponentType, page.Name)
+		}
+	}
+	return nil
+}
+
+func (pp *PrintingPress) finalizeSite() (*Site, error) {
 	for _, warning := range pp.engineConfig.BuildWarnings {
 		if warning == nil {
 			continue
@@ -390,7 +480,6 @@ func (pp *PrintingPress) pressSite() (*Site, error) {
 	pp.site.NoMermaid = pp.engineConfig.NoMermaid
 	pp.site.Lite = pp.engineConfig.NoMermaid && pp.engineConfig.NoExplorer
 	pp.collectContentPages()
-
 	return pp.site, nil
 }
 

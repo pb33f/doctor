@@ -15,6 +15,8 @@ import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';
 import '../shared/extensions.js';
 import '../shared/example-selector.js';
+import '../class-diagram/class-diagram.js';
+import '../shared/code-viewer.js';
 
 @customElement('pp-media-type-selector')
 export class PpMediaTypeSelector extends LitElement {
@@ -236,7 +238,7 @@ export class PpMediaTypeSelector extends LitElement {
                     ${this.hideRefLinks ? nothing : renderComponentRefLink(mt.schemaRef)}
                 </div>`;
         }
-        if (!mt.schemaJson) return nothing;
+        if (!mt.schemaJson && !mt.rawSchemaJson && !mt.rawSchemaYaml) return nothing;
         return html`<div class="media-type-label">${mt.mediaType}</div>`;
     }
 
@@ -271,6 +273,22 @@ export class PpMediaTypeSelector extends LitElement {
                 <pp-extensions extensions-json=${JSON.stringify(mt.extensions)}></pp-extensions>
             </div>
         `;
+    }
+
+    private renderDiagram(mt: MediaTypeData) {
+        if (!mt.mermaidDiagram) return nothing;
+        return html`<pp-class-diagram name=${mt.mediaType} .diagram=${mt.mermaidDiagram}></pp-class-diagram>`;
+    }
+
+    private renderRawSchema(mt: MediaTypeData) {
+        const code = mt.rawSchemaJson || mt.rawSchemaYaml || '';
+        if (!code) return nothing;
+        const language: 'json' | 'yaml' = mt.rawSchemaJson ? 'json' : 'yaml';
+        return html`
+            <div class="multi-format-schema">
+                ${mt.schemaFormat ? html`<div class="schema-format-label">${mt.schemaFormat}</div>` : nothing}
+                <pp-code-viewer .code=${code} .language=${language} ?pretty=${language === 'json'}></pp-code-viewer>
+            </div>`;
     }
 
     private renderRefInfo(mt: MediaTypeData) {
@@ -363,6 +381,8 @@ export class PpMediaTypeSelector extends LitElement {
                 return html`
                     ${this.renderSchemaHeader(mt)}
                     ${this.renderSplit(mt)}
+                    ${this.renderRawSchema(mt)}
+                    ${this.renderDiagram(mt)}
                     ${this.renderExtensions(mt)}
                 `;
             }
@@ -371,6 +391,8 @@ export class PpMediaTypeSelector extends LitElement {
                 ${this.renderSchemaHeader(mt)}
                 ${this.renderInlineExamples(mt, language, mock)}
                 ${this.renderSchemaProperties(mt)}
+                ${this.renderRawSchema(mt)}
+                ${this.renderDiagram(mt)}
                 ${this.renderExtensions(mt)}
             `;
         }
@@ -383,6 +405,8 @@ export class PpMediaTypeSelector extends LitElement {
                 return html`
                     ${this.renderDropdown(selected)}
                     ${this.renderSplit(selected)}
+                    ${this.renderRawSchema(selected)}
+                    ${this.renderDiagram(selected)}
                     ${this.renderExtensions(selected)}
                 `;
             }
@@ -391,6 +415,8 @@ export class PpMediaTypeSelector extends LitElement {
                 ${this.renderDropdown(selected)}
                 ${this.renderInlineExamples(selected, language, mock)}
                 ${this.renderSchemaProperties(first)}
+                ${this.renderRawSchema(selected)}
+                ${this.renderDiagram(selected)}
                 ${this.renderExtensions(selected)}
             `;
         }
@@ -400,6 +426,8 @@ export class PpMediaTypeSelector extends LitElement {
             return html`
                 ${this.renderDropdown(selected)}
                 ${this.renderSplit(selected)}
+                ${this.renderRawSchema(selected)}
+                ${this.renderDiagram(selected)}
                 ${this.renderExtensions(selected)}
             `;
         }
@@ -408,6 +436,8 @@ export class PpMediaTypeSelector extends LitElement {
             ${this.renderDropdown(selected)}
             ${this.renderInlineExamples(selected, language, mock)}
             ${this.renderSchemaProperties(selected)}
+            ${this.renderRawSchema(selected)}
+            ${this.renderDiagram(selected)}
             ${this.renderExtensions(selected)}
         `;
     }

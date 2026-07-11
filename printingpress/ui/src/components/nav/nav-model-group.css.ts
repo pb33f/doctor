@@ -96,10 +96,20 @@ export default css`
 
     .model-name {
         min-width: 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.35rem;
         font-family: var(--font-stack), monospace;
         word-wrap: break-word;
         overflow-wrap: break-word;
         white-space: normal;
+    }
+
+    .model-protocols {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
     }
 
     .violation-badges {

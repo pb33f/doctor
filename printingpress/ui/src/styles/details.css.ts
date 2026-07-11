@@ -50,5 +50,6 @@ export default css`
         margin: 0;
         border-bottom: none;
         padding: 0;
+        font-size: var(--pp-section-heading-size, var(--h3-size));
     }
 `;

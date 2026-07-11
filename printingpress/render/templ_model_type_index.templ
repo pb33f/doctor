@@ -12,8 +12,19 @@ templ ModelTypeIndexTempl(group *ppmodel.NavModelGroup, breadcrumb []BreadcrumbI
 				for _, model := range group.Models {
 					<a href={ templ.SafeURL(DocHref(baseURL, pppaths.ModelHTML(model.TypeSlug, model.Slug))) } class="pp-model-card">
 						<div class="pp-model-card-title">
-							<pb33f-model-icon icon={ model.TypeSlug } size="small"></pb33f-model-icon>
-							<strong>{ model.Name }</strong>
+							if model.Protocol != "" {
+								<pp-asyncapi-protocol protocol={ model.Protocol } size="small"></pp-asyncapi-protocol>
+							} else {
+								<pb33f-model-icon icon={ model.TypeSlug } size="small"></pb33f-model-icon>
+								<strong>{ model.Name }</strong>
+								if len(model.Protocols) > 0 {
+									<span class="pp-model-card-protocols">
+										for _, protocol := range model.Protocols {
+											<pp-asyncapi-protocol protocol={ protocol } size="small"></pp-asyncapi-protocol>
+										}
+									</span>
+								}
+							}
 						</div>
 						if model.Description != "" {
 							<p>{ truncateDesc(model.Description, 120) }</p>

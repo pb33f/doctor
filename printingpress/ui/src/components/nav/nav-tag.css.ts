@@ -28,7 +28,17 @@ export default css`
 
     .tag-name {
         min-width: 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.35rem;
         overflow-wrap: anywhere;
+    }
+
+    .tag-protocols {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
     }
 
     .tag-header:hover {
@@ -110,7 +120,8 @@ export default css`
         white-space: normal;
     }
 
-    pb33f-http-method {
+    pb33f-http-method,
+    pp-asyncapi-action {
         justify-self: end;
     }
 

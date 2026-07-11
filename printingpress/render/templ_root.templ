@@ -14,6 +14,9 @@ templ RootPageTempl(page *ppmodel.RootPage, baseURL string) {
 				<span class="pp-version">{ page.Version }</span>
 			}
 		</div>
+		if page.Source != nil {
+			@SourceLocation(page.Source, page.Source.Path, page.Source.Line, baseURL)
+		}
 		if page.DescHTML != "" {
 			<div class="pp-description">
 				@templ.Raw(page.DescHTML)
@@ -32,6 +35,34 @@ templ RootPageTempl(page *ppmodel.RootPage, baseURL string) {
 							<sl-icon name="hdd-network" class="pp-server-icon"></sl-icon>
 						</span>
 						<a class="pp-server-url" href={ templ.SafeURL(curl.ResolveServerURL(srv)) } target="_blank" rel="noopener">{ srv.URL }</a>
+					</div>
+				}
+			</div>
+		}
+		if len(page.Security) > 0 {
+			<div class="pp-security">
+				<h2>SECURITY</h2>
+				for _, sec := range page.Security {
+					<div class="pp-security-scheme">
+						if sec.Ref != nil {
+							<a class="pp-ref-link pp-security-name" href={ templ.SafeURL(DocHref(baseURL, pppaths.ModelHTML(sec.Ref.TypeSlug, sec.Ref.Slug))) }>
+								&#10140; { sec.Name }
+							</a>
+						} else {
+							<span class="pp-security-name">{ sec.Name }</span>
+						}
+						<div class="pp-security-details">
+							if sec.SchemeType != "" {
+								@SecuritySchemeTypeBadge(sec)
+							}
+							if len(sec.Scopes) > 0 {
+								<div class="pp-security-scopes" aria-label="Required OAuth scopes">
+									for _, scope := range sec.Scopes {
+										<span class="pp-security-scope">{ scope }</span>
+									}
+								</div>
+							}
+						</div>
 					</div>
 				}
 			</div>
@@ -138,11 +169,16 @@ templ RootTagSection(tag *ppmodel.NavTag, depth int, baseURL string) {
 templ RootOperationItem(op *ppmodel.NavOperation, baseURL string) {
 	<li>
 		<a href={ templ.SafeURL(DocHref(baseURL, pppaths.OperationHTML(op.Slug))) } class={ opItemClass(op.Deprecated) }>
-			<pb33f-http-method small method={ strings.ToLower(op.Method) }></pb33f-http-method>
-			<pb33f-render-operation-path path={ op.Path }></pb33f-render-operation-path>
+			if op.SpecKind.IsAsyncAPI() {
+				@AsyncAPIAction(operationNavActionLabel(op), "small")
+				<pb33f-render-operation-path path={ operationNavPathLabel(op) }></pb33f-render-operation-path>
+			} else {
+				<pb33f-http-method small method={ strings.ToLower(op.Method) }></pb33f-http-method>
+				<pb33f-render-operation-path path={ op.Path }></pb33f-render-operation-path>
+			}
 		</a>
          if op.OperationID != "" {
-                <span class="op-id">OPERATION ID: <span class="op-id-value">{ op.OperationID }</span></span>
+                <span class="op-id">{ operationRootIDLabel(op) } <span class="op-id-value">{ op.OperationID }</span></span>
         }
 		if op.Summary != "" {
             <span class="op-summary">{ op.Summary }</span>

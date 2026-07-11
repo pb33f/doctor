@@ -9,6 +9,7 @@ export default css`
     h2 {
         border-bottom: 1px dashed var(--hrcolor);
         font-family: var(--font-stack), monospace;
+        font-size: var(--pp-section-heading-size, var(--h3-size));
         padding-bottom: var(--global-padding);
         margin-top: 40px;
         text-transform: uppercase;

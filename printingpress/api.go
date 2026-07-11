@@ -15,6 +15,7 @@ import (
 	doctormodel "github.com/pb33f/doctor/model"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
+	"github.com/pb33f/libasyncapi"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/bundler"
 	"github.com/pb33f/libopenapi/datamodel"
@@ -36,9 +37,13 @@ type PrintingPressConfig struct {
 	DeveloperMode    bool
 	ExpiresAt        *time.Time
 	ArchiveExportURL string
-	LintResults      []*v3.RuleFunctionResult
-	Footer           *ppmodel.FooterConfig
-	Artifact         *ArtifactManifestConfig
+	// IncludeSpec copies the input OpenAPI or AsyncAPI document into the HTML
+	// artifact and links rendered source locations to that copy. It is disabled
+	// by default because specifications may contain sensitive information.
+	IncludeSpec bool
+	LintResults []*v3.RuleFunctionResult
+	Footer      *ppmodel.FooterConfig
+	Artifact    *ArtifactManifestConfig
 	// EnableContentPages discovers Markdown files next to the local spec or under
 	// docs/ and renders them as guide pages. Conventional names such as about.md
 	// and docs/guide.md keep built-in defaults, and front matter can override
@@ -140,9 +145,12 @@ type PressStatistics struct {
 }
 
 type pressSource struct {
-	specBytes []byte
-	v3Model   *libopenapi.DocumentModel[highv3.Document]
-	drModel   *doctormodel.DrDocument
+	specBytes   []byte
+	v3Model     *libopenapi.DocumentModel[highv3.Document]
+	drModel     *doctormodel.DrDocument
+	asyncDoc    libasyncapi.Document
+	specKind    SpecKind
+	specVersion string
 }
 
 var bundleBytesWithOrigins = bundler.BundleBytesComposedWithOrigins
@@ -159,7 +167,7 @@ func createPrintingPress(config *PrintingPressConfig, source pressSource) (*Prin
 	}, nil
 }
 
-// CreatePrintingPressFromBytes creates a printing press from raw OpenAPI bytes.
+// CreatePrintingPressFromBytes creates a printing press from raw OpenAPI or AsyncAPI bytes.
 //
 // BasePath is used to resolve file references when the source spans multiple files.
 // A nil config uses the default options.
@@ -170,13 +178,23 @@ func CreatePrintingPressFromBytes(specBytes []byte, config *PrintingPressConfig)
 // CreatePrintingPressFromV3Model creates a printing press from an existing libopenapi v3 model.
 // A nil config uses the default options.
 func CreatePrintingPressFromV3Model(v3Model *libopenapi.DocumentModel[highv3.Document], config *PrintingPressConfig) (*PrintingPress, error) {
-	return createPrintingPress(clonePrintingPressConfig(config), pressSource{v3Model: v3Model})
+	return createPrintingPress(clonePrintingPressConfig(config), pressSource{v3Model: v3Model, specKind: SpecKindOpenAPI})
 }
 
 // CreatePrintingPressFromDrModel creates a printing press from an existing doctor model.
 // A nil config uses the default options.
 func CreatePrintingPressFromDrModel(drModel *doctormodel.DrDocument, config *PrintingPressConfig) (*PrintingPress, error) {
-	return createPrintingPress(clonePrintingPressConfig(config), pressSource{drModel: drModel})
+	return createPrintingPress(clonePrintingPressConfig(config), pressSource{drModel: drModel, specKind: SpecKindOpenAPI})
+}
+
+// CreatePrintingPressFromAsyncAPIDocument creates a printing press from an existing AsyncAPI document.
+// A nil config uses the default options.
+func CreatePrintingPressFromAsyncAPIDocument(asyncDoc libasyncapi.Document, config *PrintingPressConfig) (*PrintingPress, error) {
+	source := pressSource{asyncDoc: asyncDoc, specKind: SpecKindAsyncAPI}
+	if asyncDoc != nil {
+		source.specVersion = asyncDoc.GetVersion()
+	}
+	return createPrintingPress(clonePrintingPressConfig(config), source)
 }
 
 // ActivityStream returns a best-effort live stream of activity snapshots for the
@@ -373,6 +391,8 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 	}
 
 	cfg := &pressEngineConfig{
+		SpecKind:                           pp.source.specKind,
+		SpecVersion:                        pp.source.specVersion,
 		OutputDir:                          outputDir,
 		BaseURL:                            pp.config.BaseURL,
 		AssetMode:                          pp.config.AssetMode,
@@ -387,6 +407,7 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 		DeveloperMode:                      pp.config.DeveloperMode,
 		DocsExpiresAt:                      printingPressExpiryString(pp.config.ExpiresAt),
 		ArchiveExportURL:                   pp.config.ArchiveExportURL,
+		IncludeSpec:                        pp.config.IncludeSpec,
 		LintResults:                        pp.config.LintResults,
 		Footer:                             cloneFooterConfig(pp.config.Footer),
 		MaxPatternRepeatBudget:             pp.config.MaxPatternRepeatBudget,
@@ -406,19 +427,41 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 			MinOperations:   25,
 		},
 	}
-
 	switch {
 	case pp.source.drModel != nil:
 		job.snapshot("using existing doctor model", 1, 1, 0)
+		cfg.SpecKind = SpecKindOpenAPI
 		cfg.DrDoc = pp.source.drModel
+		cfg.SpecVersion = openAPIDocumentVersion(cfg.DrDoc)
 	case pp.source.v3Model != nil:
 		job.snapshot("building doctor model", 0, 1, 0)
+		cfg.SpecKind = SpecKindOpenAPI
 		cfg.DrDoc = buildDrDocument(pp.source.v3Model)
+		cfg.SpecVersion = openAPIDocumentVersion(cfg.DrDoc)
 		job.snapshot("doctor model built", 1, 1, 0)
+	case pp.source.asyncDoc != nil:
+		job.snapshot("using existing AsyncAPI document", 1, 1, 0)
+		cfg.SpecKind = SpecKindAsyncAPI
+		cfg.SpecVersion = pp.source.asyncDoc.GetVersion()
+		cfg.AsyncDoc = pp.source.asyncDoc
+		if pp.source.asyncDoc.IsPartial() {
+			for _, parseErr := range pp.source.asyncDoc.Errors() {
+				cfg.BuildWarnings = append(cfg.BuildWarnings, &ppmodel.BuildWarning{
+					Message: "AsyncAPI document parse issue",
+					Err:     parseErr,
+				})
+			}
+		}
 	case len(pp.source.specBytes) > 0:
 		specBytes := pp.source.specBytes
 		cfg.SourceSizeBytes = int64(len(specBytes))
 		cfg.SpecFormat = DetectSpecFormat(specBytes)
+		identity, err := DetectSpecIdentity(specBytes)
+		if err != nil {
+			return nil, err
+		}
+		cfg.SpecKind = identity.Kind
+		cfg.SpecVersion = identity.Version
 		basePath, err := pp.resolveBasePath()
 		if err != nil {
 			return nil, err
@@ -426,6 +469,27 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 		cfg.SpecRoot = basePath
 		cfg.SpecLocation = formatSpecLocation(pp.config.SpecPath, basePath)
 		cfg.SpecPath = pp.config.SpecPath
+
+		if identity.Kind.IsAsyncAPI() {
+			asyncConfig := newPrintingPressAsyncAPIDocumentConfiguration(basePath, cfg.Logger)
+			job.snapshot("building libasyncapi document", 0, 1, 0)
+			asyncDoc, err := libasyncapi.NewDocumentWithConfiguration(specBytes, asyncConfig)
+			if err != nil {
+				return nil, fmt.Errorf("building AsyncAPI document from source bytes: %w", err)
+			}
+			cfg.AsyncDoc = asyncDoc
+			if asyncDoc.IsPartial() {
+				for _, parseErr := range asyncDoc.Errors() {
+					cfg.BuildWarnings = append(cfg.BuildWarnings, &ppmodel.BuildWarning{
+						Message: "AsyncAPI document parse issue",
+						Context: basePath,
+						Err:     parseErr,
+					})
+				}
+			}
+			job.snapshot("libasyncapi document built", 1, 1, 0)
+			break
+		}
 
 		docConfig := newPrintingPressDocumentConfiguration(basePath, cfg.Logger)
 		job.snapshot("building libopenapi document", 0, 4, 0)
@@ -476,9 +540,24 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 		}
 
 		cfg.DrDoc = buildDrDocument(v3Model)
+		cfg.SpecVersion = openAPIDocumentVersion(cfg.DrDoc)
 		job.snapshot("doctor model built", 4, 4, 0)
 	}
+	if len(pp.source.specBytes) == 0 {
+		if err := pp.prepareModelSourceConfig(cfg); err != nil {
+			return nil, err
+		}
+	}
+	if err := pp.prepareIncludedSpec(cfg); err != nil {
+		return nil, err
+	}
 
+	if cfg.SpecKind.IsAsyncAPI() {
+		if cfg.AsyncDoc == nil {
+			return nil, ErrNoAsyncAPIDocument
+		}
+		return cfg, nil
+	}
 	if cfg.DrDoc == nil {
 		return nil, ErrNoDrDocument
 	}
@@ -486,6 +565,24 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 		cfg.OrphanResults = cfg.DrDoc.AbsorbLintResults(cfg.LintResults, cfg.Logger)
 	}
 	return cfg, nil
+}
+
+func (pp *PrintingPress) prepareModelSourceConfig(config *pressEngineConfig) error {
+	if pp == nil || pp.config == nil || config == nil {
+		return nil
+	}
+	basePath, err := pp.resolveBasePath()
+	if err != nil {
+		return err
+	}
+	config.SpecRoot = basePath
+	specPath := strings.TrimSpace(pp.config.SpecPath)
+	if specPath != "" && !isURLString(specPath) && !filepath.IsAbs(specPath) {
+		specPath = filepath.Join(basePath, specPath)
+	}
+	config.SpecPath = specPath
+	config.SpecLocation = formatSpecLocation(specPath, basePath)
+	return nil
 }
 
 func printingPressExpiryString(expiresAt *time.Time) string {
@@ -506,6 +603,16 @@ func newPrintingPressDocumentConfiguration(basePath string, logger *slog.Logger)
 	return docConfig
 }
 
+// newPrintingPressAsyncAPIDocumentConfiguration returns the libasyncapi settings
+// used for local Printing Press source builds.
+func newPrintingPressAsyncAPIDocumentConfiguration(basePath string, logger *slog.Logger) *libasyncapi.DocumentConfiguration {
+	docConfig := libasyncapi.NewDocumentConfiguration()
+	docConfig.AllowFileReferences = true
+	docConfig.BasePath = basePath
+	docConfig.Logger = logger
+	return docConfig
+}
+
 func shouldBundleModel(v3Model *libopenapi.DocumentModel[highv3.Document]) bool {
 	if v3Model == nil || v3Model.Index == nil {
 		return false
@@ -522,6 +629,13 @@ func buildDrDocument(v3Model *libopenapi.DocumentModel[highv3.Document]) *doctor
 		BuildGraph:     true,
 		UseSchemaCache: true,
 	})
+}
+
+func openAPIDocumentVersion(doc *doctormodel.DrDocument) string {
+	if doc == nil || doc.V3Document == nil || doc.V3Document.Document == nil {
+		return ""
+	}
+	return doc.V3Document.Document.Version
 }
 
 func clonePrintingPressConfig(config *PrintingPressConfig) *PrintingPressConfig {
@@ -560,6 +674,9 @@ func validateSource(source pressSource) error {
 		count++
 	}
 	if source.drModel != nil {
+		count++
+	}
+	if source.asyncDoc != nil {
 		count++
 	}
 	switch count {
@@ -739,7 +856,7 @@ func validateAndNormalizeConfig(config *PrintingPressConfig, source pressSource)
 				}
 			}
 		} else {
-			filename := defaultSpecFilename(DetectSpecFormat(source.specBytes))
+			filename := defaultSpecFilename(defaultSpecKindForBytes(source.specBytes), DetectSpecFormat(source.specBytes))
 			base := normalized.BasePath
 			if base == "" {
 				if wd, err := os.Getwd(); err == nil {
@@ -772,6 +889,13 @@ func validateAndNormalizeConfig(config *PrintingPressConfig, source pressSource)
 			Message: ErrNoV3Document.Error(),
 		})
 	}
+	if source.asyncDoc != nil && source.asyncDoc.Model() == nil {
+		issues = append(issues, ValidationIssue{
+			Field:   "asyncDoc",
+			Err:     ErrNoAsyncAPIDocument,
+			Message: ErrNoAsyncAPIDocument.Error(),
+		})
+	}
 
 	if len(issues) > 0 {
 		return nil, &ValidationError{Issues: issues}
@@ -779,13 +903,23 @@ func validateAndNormalizeConfig(config *PrintingPressConfig, source pressSource)
 	return &normalized, nil
 }
 
-func defaultSpecFilename(specFormat string) string {
-	switch specFormat {
-	case "json":
-		return "openapi.json"
-	default:
-		return "openapi.yaml"
+func defaultSpecKindForBytes(specBytes []byte) SpecKind {
+	identity, err := DetectSpecIdentity(specBytes)
+	if err != nil {
+		return SpecKindOpenAPI
 	}
+	return identity.Kind
+}
+
+func defaultSpecFilename(specKind SpecKind, specFormat string) string {
+	prefix := "openapi"
+	if specKind.IsAsyncAPI() {
+		prefix = "asyncapi"
+	}
+	if specFormat == "json" {
+		return prefix + ".json"
+	}
+	return prefix + ".yaml"
 }
 
 func formatSpecLocation(specPath, specRoot string) string {
@@ -844,7 +978,18 @@ func (pp *PrintingPress) sourceKind() string {
 		return sourceKindDrModel
 	case pp.source.v3Model != nil:
 		return sourceKindV3Model
+	case pp.source.asyncDoc != nil:
+		return sourceKindAsyncAPIDocument
 	case len(pp.source.specBytes) > 0:
+		identity, err := DetectSpecIdentity(pp.source.specBytes)
+		if err == nil {
+			switch {
+			case identity.Kind.IsAsyncAPI():
+				return sourceKindAsyncAPIBytes
+			case identity.Kind.IsOpenAPI():
+				return sourceKindOpenAPIBytes
+			}
+		}
 		return sourceKindBytes
 	default:
 		return ""
@@ -918,6 +1063,25 @@ func countClassDiagrams(site *ppmodel.Site) int {
 			if page.MermaidDiagram != "" {
 				total++
 			}
+			if page.AsyncAPI != nil {
+				total += countMediaTypeDiagrams(page.AsyncAPI.Content)
+			}
+		}
+	}
+	for _, page := range site.Operations {
+		if page == nil || page.RequestBody == nil {
+			continue
+		}
+		total += countMediaTypeDiagrams(page.RequestBody.Content)
+	}
+	return total
+}
+
+func countMediaTypeDiagrams(content []*ppmodel.MediaTypeInfo) int {
+	total := 0
+	for _, mediaType := range content {
+		if mediaType != nil && mediaType.MermaidDiagram != "" {
+			total++
 		}
 	}
 	return total

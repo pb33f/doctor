@@ -18,6 +18,8 @@ import (
 // PrintHTML and PrintLLM, so caller mutations affect subsequent print output.
 type Site struct {
 	Root               *RootPage
+	SpecKind           SpecKindValue `json:"specKind,omitempty"`
+	SpecVersion        string        `json:"specVersion,omitempty"`
 	Operations         []*OperationPage
 	ContentPages       []*ContentPage
 	Models             map[string][]*ModelPage // keyed by component type slug (e.g. "schemas")
@@ -45,7 +47,14 @@ type Site struct {
 	LLM                LLMOutputConfig                 `json:"-"` // resolved LLM writer policy
 	Footer             *FooterConfig                   `json:"footer,omitempty"`
 	Source             *SourceRef                      `json:"source,omitempty"`
+	IncludedSpecs      []*IncludedSpecAsset            `json:"-"`
 	HeaderContext      *SiteHeaderContext              `json:"headerContext,omitempty"`
+}
+
+// IncludedSpecAsset is a source specification file emitted with HTML docs.
+type IncludedSpecAsset struct {
+	Path string
+	Data []byte
 }
 
 // ContentPage is a convention-discovered Markdown page rendered alongside the
@@ -130,6 +139,8 @@ type PageProblem struct {
 type DiagnosticsPage struct {
 	Title       string          `json:"title"`
 	Slug        string          `json:"slug"`
+	SpecKind    SpecKindValue   `json:"specKind,omitempty"`
+	SpecLabel   string          `json:"specLabel,omitempty"`
 	SiteCounts  ViolationCounts `json:"siteCounts"`
 	Problems    []*PageProblem  `json:"problems"`
 	OrphanCount int             `json:"orphanCount"`
@@ -156,6 +167,8 @@ type SchemaRegistryEntry struct {
 
 // RootPage is the landing page data for the generated documentation.
 type RootPage struct {
+	SpecKind           SpecKindValue `json:"specKind,omitempty"`
+	SpecVersion        string        `json:"specVersion,omitempty"`
 	Title              string
 	Description        string
 	DescHTML           string
@@ -178,9 +191,10 @@ type RootPage struct {
 
 // SourceRef points back to the originating specification file for a rendered page or object.
 type SourceRef struct {
-	Path string `json:"path,omitempty"`
-	Line int    `json:"line,omitempty"`
-	Href string `json:"href,omitempty"`
+	Path        string `json:"path,omitempty"`
+	Line        int    `json:"line,omitempty"`
+	Href        string `json:"href,omitempty"`
+	LinkEnabled bool   `json:"-"`
 }
 
 // ContactInfo holds API contact metadata.
@@ -220,6 +234,8 @@ type ExternalDocInfo struct {
 // NavTag represents a tag node in the hierarchical navigation tree.
 type NavTag struct {
 	Name        string           `json:"name"`
+	Protocol    string           `json:"protocol,omitempty"`
+	Protocols   []string         `json:"protocols,omitempty"`
 	Summary     string           `json:"summary"`
 	Slug        string           `json:"slug"`
 	Description string           `json:"description,omitempty"`
@@ -240,12 +256,14 @@ func (t *NavTag) DisplayName() string {
 
 // NavOperation is a lightweight reference to an operation for navigation.
 type NavOperation struct {
+	SpecKind    SpecKindValue    `json:"specKind,omitempty"`
 	Method      string           `json:"method"`
 	Path        string           `json:"path"`
 	OperationID string           `json:"operationId"`
 	Summary     string           `json:"summary"`
 	Slug        string           `json:"slug"`
 	Deprecated  bool             `json:"deprecated"`
+	Protocols   []string         `json:"protocols,omitempty"`
 	Counts      *ViolationCounts `json:"counts,omitempty"`
 }
 
@@ -267,15 +285,20 @@ func (g *NavModelGroup) CardGridStyle() string {
 
 // NavModel is a lightweight reference to a model for navigation.
 type NavModel struct {
+	SpecKind    SpecKindValue    `json:"specKind,omitempty"`
 	Name        string           `json:"name"`
 	Slug        string           `json:"slug"`
 	TypeSlug    string           `json:"typeSlug"`
 	Description string           `json:"description,omitempty"`
+	Protocol    string           `json:"protocol,omitempty"`
+	Protocols   []string         `json:"protocols,omitempty"`
 	Counts      *ViolationCounts `json:"counts,omitempty"`
 }
 
 // OperationPage is the full data for rendering an operation detail page.
 type OperationPage struct {
+	SpecKind              SpecKindValue `json:"specKind,omitempty"`
+	SpecVersion           string        `json:"specVersion,omitempty"`
 	Method                string
 	Path                  string
 	OperationID           string
@@ -317,11 +340,80 @@ type OperationPage struct {
 	Counts                ViolationCounts
 	Problems              []*PageProblem
 	Slices                map[string]*YamlSlice
+	AsyncAPI              *AsyncAPIOperationInfo `json:"asyncapi,omitempty"`
 }
 
 // OperationCrossRefs holds cross-reference information for an operation.
 type OperationCrossRefs struct {
 	ReferencesModels []*ComponentRef `json:"referencesModels,omitempty"` // components this operation uses
+}
+
+// AsyncAPIOperationInfo holds AsyncAPI-specific operation context.
+type AsyncAPIOperationInfo struct {
+	Action     string                `json:"action,omitempty"`
+	Channel    *AsyncAPIChannelRef   `json:"channel,omitempty"`
+	Messages   []*AsyncAPIMessageRef `json:"messages,omitempty"`
+	Reply      *AsyncAPIReplyInfo    `json:"reply,omitempty"`
+	Bindings   []string              `json:"bindings,omitempty"`
+	Traits     []string              `json:"traits,omitempty"`
+	Extensions []*ExtensionEntry     `json:"extensions,omitempty"`
+}
+
+// AsyncAPIChannelRef identifies an AsyncAPI channel rendered or referenced by a page.
+type AsyncAPIChannelRef struct {
+	Name    string `json:"name,omitempty"`
+	Address string `json:"address,omitempty"`
+	Slug    string `json:"slug,omitempty"`
+	Href    string `json:"href,omitempty"`
+}
+
+// AsyncAPIMessageRef identifies an AsyncAPI message rendered or referenced by a page.
+type AsyncAPIMessageRef struct {
+	Name        string `json:"name,omitempty"`
+	Title       string `json:"title,omitempty"`
+	Summary     string `json:"summary,omitempty"`
+	Slug        string `json:"slug,omitempty"`
+	Href        string `json:"href,omitempty"`
+	ContentType string `json:"contentType,omitempty"`
+}
+
+// AsyncAPIReplyInfo holds AsyncAPI operation reply context.
+type AsyncAPIReplyInfo struct {
+	Ref      *ComponentLink        `json:"ref,omitempty"`
+	Channel  *AsyncAPIChannelRef   `json:"channel,omitempty"`
+	Messages []*AsyncAPIMessageRef `json:"messages,omitempty"`
+	Address  string                `json:"address,omitempty"`
+}
+
+// AsyncAPIModelInfo holds AsyncAPI-specific metadata for model pages.
+type AsyncAPIModelInfo struct {
+	Kind        string                    `json:"kind,omitempty"`
+	Address     string                    `json:"address,omitempty"`
+	Protocol    string                    `json:"protocol,omitempty"`
+	ContentType string                    `json:"contentType,omitempty"`
+	Messages    []*AsyncAPIMessageRef     `json:"messages,omitempty"`
+	Channel     *AsyncAPIChannelRef       `json:"channel,omitempty"`
+	Content     []*MediaTypeInfo          `json:"content,omitempty"`
+	Schemas     []*AsyncAPISchemaSurface  `json:"schemas,omitempty"`
+	Bindings    []string                  `json:"bindings,omitempty"`
+	Examples    []*AsyncAPIMessageExample `json:"examples,omitempty"`
+}
+
+// AsyncAPISchemaSurface describes a payload or headers schema rendered on an AsyncAPI page.
+type AsyncAPISchemaSurface struct {
+	Name       string         `json:"name,omitempty"`
+	Role       string         `json:"role,omitempty"`
+	SchemaJSON string         `json:"schemaJson,omitempty"`
+	MockJSON   string         `json:"mockJson,omitempty"`
+	Ref        *ComponentLink `json:"ref,omitempty"`
+}
+
+// AsyncAPIMessageExample holds AsyncAPI message-example payload/header data.
+type AsyncAPIMessageExample struct {
+	Name    string `json:"name,omitempty"`
+	Summary string `json:"summary,omitempty"`
+	Payload string `json:"payload,omitempty"`
+	Headers string `json:"headers,omitempty"`
 }
 
 // ParameterInfo holds operation parameter data.
@@ -350,6 +442,7 @@ type RequestBodyInfo struct {
 	Required       bool              `json:"required,omitempty"`
 	Content        []*MediaTypeInfo  `json:"content,omitempty"`
 	Ref            *ComponentLink    `json:"ref,omitempty"`
+	Refs           []*ComponentLink  `json:"refs,omitempty"`
 	RawJSON        string            `json:"rawJson,omitempty"`
 	RawYAML        string            `json:"rawYaml,omitempty"`
 	SourceLine     int               `json:"sourceLine,omitempty"`
@@ -364,6 +457,10 @@ type MediaTypeInfo struct {
 	MediaType             string            `json:"mediaType"`
 	SchemaJSON            string            `json:"schemaJson"`
 	SchemaHighlightedHTML string            `json:"-"` // chroma output, templ only
+	MermaidDiagram        string            `json:"mermaidDiagram,omitempty"`
+	SchemaFormat          string            `json:"schemaFormat,omitempty"`
+	RawSchemaJSON         string            `json:"rawSchemaJson,omitempty"`
+	RawSchemaYAML         string            `json:"rawSchemaYaml,omitempty"`
 	MockJSON              string            `json:"mockJson,omitempty"`
 	MockYAML              string            `json:"mockYaml,omitempty"`
 	MockXML               string            `json:"mockXml,omitempty"`
@@ -436,6 +533,8 @@ type HeaderInfo struct {
 
 // ModelPage is the full data for rendering a component detail page.
 type ModelPage struct {
+	SpecKind                 SpecKindValue `json:"specKind,omitempty"`
+	SpecVersion              string        `json:"specVersion,omitempty"`
 	Name                     string
 	ComponentType            string // "schemas", "responses", "parameters", etc.
 	TypeSlug                 string // URL path segment for the component type
@@ -470,6 +569,7 @@ type ModelPage struct {
 	Counts                   ViolationCounts
 	Problems                 []*PageProblem
 	Slices                   map[string]*YamlSlice
+	AsyncAPI                 *AsyncAPIModelInfo `json:"asyncapi,omitempty"`
 }
 
 // ModelCrossRefs holds cross-reference information for a model.
@@ -481,9 +581,10 @@ type ModelCrossRefs struct {
 
 // OperationRef is a lightweight reference to an operation from a cross-ref.
 type OperationRef struct {
-	Method string `json:"method"`
-	Path   string `json:"path"`
-	Slug   string `json:"slug"`
+	Method      string `json:"method"`
+	Path        string `json:"path"`
+	Slug        string `json:"slug"`
+	OperationID string `json:"operationId,omitempty"`
 }
 
 // ComponentRef is a lightweight reference to a component from a cross-ref.

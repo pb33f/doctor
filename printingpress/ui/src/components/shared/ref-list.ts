@@ -2,6 +2,7 @@ import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import refListCss from './ref-list.css.js';
 import {modelHref, operationHref} from '../../utils/doc-links.js';
+import './asyncapi-action.js';
 import '@shoelace-style/shoelace/dist/components/input/input.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
@@ -12,6 +13,7 @@ export interface OperationRef {
     method: string;
     path: string;
     slug: string;
+    operationId?: string;
 }
 
 export interface ComponentRef {
@@ -33,7 +35,20 @@ const TYPE_LABELS: Record<string, string> = {
     callbacks: 'Callbacks',
 };
 
-const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD', 'QUERY'];
+const METHOD_ORDER = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD', 'QUERY', 'RECEIVE', 'SEND'];
+const ASYNCAPI_ACTIONS = new Set(['receive', 'send']);
+
+function normalizeMethod(method: string): string {
+    return method.trim().toUpperCase();
+}
+
+function normalizeAsyncAction(method: string): string {
+    return method.trim().toLowerCase();
+}
+
+function isAsyncAPIAction(method: string): boolean {
+    return ASYNCAPI_ACTIONS.has(normalizeAsyncAction(method));
+}
 
 @customElement('pp-ref-list')
 export class PpRefList extends LitElement {
@@ -60,6 +75,16 @@ export class PpRefList extends LitElement {
             if (this.type === 'components') {
                 const types = new Set((this.items as ComponentRef[]).map(c => c.componentType));
                 this.filterOptions = [...types].sort();
+            } else {
+                const methods = new Set((this.items as OperationRef[]).map(o => normalizeMethod(o.method)).filter(Boolean));
+                this.filterOptions = [...methods].sort((a, b) => {
+                    const aIndex = METHOD_ORDER.indexOf(a);
+                    const bIndex = METHOD_ORDER.indexOf(b);
+                    if (aIndex !== -1 || bIndex !== -1) {
+                        return (aIndex === -1 ? METHOD_ORDER.length : aIndex) - (bIndex === -1 ? METHOD_ORDER.length : bIndex);
+                    }
+                    return a.localeCompare(b);
+                });
             }
         }
 
@@ -73,8 +98,12 @@ export class PpRefList extends LitElement {
 
         if (this.type === 'operations') {
             let ops = this.items as OperationRef[];
-            if (this.filterValue) ops = ops.filter(o => o.method.toUpperCase() === this.filterValue);
-            if (term) ops = ops.filter(o => o.path.toLowerCase().includes(term));
+            if (this.filterValue) ops = ops.filter(o => normalizeMethod(o.method) === this.filterValue);
+            if (term) {
+                ops = ops.filter(o =>
+                    o.path.toLowerCase().includes(term)
+                    || (o.operationId ?? '').toLowerCase().includes(term));
+            }
             return ops;
         } else {
             let comps = this.items as ComponentRef[];
@@ -102,6 +131,13 @@ export class PpRefList extends LitElement {
         this.filterValue = value ?? '';
     }
 
+    private renderOperationMethod(method: string) {
+        if (isAsyncAPIAction(method)) {
+            return html`<pp-asyncapi-action action=${normalizeAsyncAction(method)} size="small"></pp-asyncapi-action>`;
+        }
+        return html`<pb33f-http-method method=${method} tiny></pb33f-http-method>`;
+    }
+
     private renderToolbar() {
         const filterLabel = this.type === 'operations'
             ? (this.filterValue || 'ALL METHODS')
@@ -112,7 +148,7 @@ export class PpRefList extends LitElement {
                 <sl-dropdown>
                     <sl-button slot="trigger" class="filter-btn" caret size="small">
                         ${this.type === 'operations' && this.filterValue
-                            ? html`<pb33f-http-method method=${this.filterValue} tiny></pb33f-http-method>`
+                            ? this.renderOperationMethod(this.filterValue)
                             : filterLabel}
                     </sl-button>
                     <sl-menu @sl-select=${this.handleFilter}>
@@ -120,8 +156,8 @@ export class PpRefList extends LitElement {
                             ${this.type === 'operations' ? 'ALL METHODS' : 'ALL TYPES'}
                         </sl-menu-item>
                         ${this.type === 'operations'
-                            ? HTTP_METHODS.map(m => html`
-                                <sl-menu-item value=${m}><pb33f-http-method method=${m}></pb33f-http-method></sl-menu-item>`)
+                            ? this.filterOptions.map(m => html`
+                                <sl-menu-item value=${m}>${this.renderOperationMethod(m)}</sl-menu-item>`)
                             : this.filterOptions.map(t => html`
                                 <sl-menu-item value=${t}>
                                     ${TYPE_LABELS[t] || t}
@@ -130,8 +166,8 @@ export class PpRefList extends LitElement {
                 </sl-dropdown>
                 <sl-input
                     size="small"
-                    placeholder=${this.type === 'operations' ? 'SEARCH PATHS...' : 'SEARCH NAMES...'}
-                    aria-label=${this.type === 'operations' ? 'Filter by path' : 'Search components'}
+                    placeholder=${this.type === 'operations' ? 'SEARCH OPERATIONS...' : 'SEARCH NAMES...'}
+                    aria-label=${this.type === 'operations' ? 'Filter by operation' : 'Search components'}
                     clearable
                     @sl-input=${this.handleSearch}
                     @sl-clear=${this.handleClear}>
@@ -140,17 +176,34 @@ export class PpRefList extends LitElement {
         `;
     }
 
+    private renderOperationLabel(op: OperationRef) {
+        const operationID = op.operationId?.trim();
+        if (operationID) {
+            return html`<span
+                class="operation-ref-title"
+                style="display:block;color:var(--terminal-text);line-height:1;overflow-wrap:anywhere;word-break:break-word;">${operationID}</span>`;
+        }
+        return html`<pb33f-render-operation-path path=${op.path}></pb33f-render-operation-path>`;
+    }
+
     private renderOperationItem(op: OperationRef) {
         return html`
-            <div style="display:flex;align-items:center;gap:var(--global-padding);padding:var(--global-padding-half) 0">
-                <pb33f-http-method method=${op.method} tiny></pb33f-http-method>
-                <a style="color:var(--font-color);text-decoration:none;font-family:var(--font-stack),monospace;--op-path-text-decoration:none"
-                   @mouseenter=${(e: Event) => (e.target as HTMLElement).style.setProperty('--op-path-text-decoration', 'underline')}
-                   @mouseleave=${(e: Event) => (e.target as HTMLElement).style.setProperty('--op-path-text-decoration', 'none')}
-                   @focus=${(e: Event) => (e.target as HTMLElement).style.setProperty('--op-path-text-decoration', 'underline')}
-                   @blur=${(e: Event) => (e.target as HTMLElement).style.setProperty('--op-path-text-decoration', 'none')}
+            <div
+                class="operation-ref-row"
+                style="display:grid;grid-template-columns:max-content minmax(0,1fr);align-items:baseline;column-gap:var(--global-padding);padding:var(--global-padding-half) 0;min-width:0;">
+                <span
+                    class="operation-ref-method"
+                    style="display:inline-flex;align-items:baseline;justify-content:flex-start;min-width:0;line-height:1;">
+                    ${this.renderOperationMethod(op.method)}
+                </span>
+                <a class="operation-ref-link"
+                   style="display:block;min-width:0;max-width:100%;color:var(--terminal-text);line-height:1;text-decoration:none;font-family:var(--font-stack),monospace;--op-path-text-decoration:none;"
+                   @mouseenter=${(e: Event) => (e.currentTarget as HTMLElement).style.textDecoration = 'underline'}
+                   @mouseleave=${(e: Event) => (e.currentTarget as HTMLElement).style.textDecoration = 'none'}
+                   @focus=${(e: Event) => (e.currentTarget as HTMLElement).style.textDecoration = 'underline'}
+                   @blur=${(e: Event) => (e.currentTarget as HTMLElement).style.textDecoration = 'none'}
                    href=${operationHref(op.slug)}>
-                    <pb33f-render-operation-path path=${op.path} nowrap></pb33f-render-operation-path>
+                    ${this.renderOperationLabel(op)}
                 </a>
             </div>
         `;

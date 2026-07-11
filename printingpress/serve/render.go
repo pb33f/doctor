@@ -39,6 +39,7 @@ type ArchiveRenderOptions struct {
 	SpecPath                           string
 	SpecURL                            string
 	SpecBytes                          []byte
+	IncludeSpec                        bool
 	LintResults                        []*v3.RuleFunctionResult
 	Footer                             *ppmodel.FooterConfig
 	MaxPatternRepeatBudget             int
@@ -133,6 +134,7 @@ func renderArchiveVariant(opts ArchiveRenderOptions, outputDir string, developer
 		LLMAggregateSpecSizeThresholdBytes: opts.LLMAggregateSpecSizeThresholdBytes,
 		LLMMaxAggregateFileBytes:           opts.LLMMaxAggregateFileBytes,
 		LLMGenerateMonoliths:               opts.LLMGenerateMonoliths,
+		IncludeSpec:                        opts.IncludeSpec,
 	})
 	if err != nil {
 		return fmt.Errorf("create archive printing press: %w", err)

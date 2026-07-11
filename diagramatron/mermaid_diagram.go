@@ -12,6 +12,7 @@ import (
 type MermaidDiagram struct {
 	Classes       map[string]*MermaidClass
 	Relationships []*MermaidRelationship
+	Warnings      []error
 	Config        *MermaidConfig
 	classOrder    []string // maintain insertion order
 }
@@ -24,6 +25,7 @@ func NewMermaidDiagram(config *MermaidConfig) *MermaidDiagram {
 	return &MermaidDiagram{
 		Classes:       make(map[string]*MermaidClass),
 		Relationships: []*MermaidRelationship{},
+		Warnings:      []error{},
 		Config:        config,
 		classOrder:    []string{},
 	}
@@ -81,6 +83,7 @@ func (md *MermaidDiagram) Render() string {
 type MermaidClass struct {
 	ID          string
 	Name        string
+	DisplayName string
 	Type        string // class, interface, abstract
 	Annotations []string
 	Properties  []*MermaidMember
@@ -113,7 +116,18 @@ func (mc *MermaidClass) AddMethod(member *MermaidMember) {
 func (mc *MermaidClass) Render(config *MermaidConfig) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("  class %s {\n", mc.ID))
+	if mc.DisplayName != "" {
+		label := strings.NewReplacer(
+			`\`, `\\`,
+			`"`, `'`,
+			"]", "&#93;",
+			"\r", " ",
+			"\n", " ",
+		).Replace(mc.DisplayName)
+		sb.WriteString(fmt.Sprintf("  class %s[\"%s\"] {\n", mc.ID, label))
+	} else {
+		sb.WriteString(fmt.Sprintf("  class %s {\n", mc.ID))
+	}
 
 	for _, annotation := range mc.Annotations {
 		sb.WriteString(fmt.Sprintf("    <<%s>>\n", annotation))
@@ -173,13 +187,13 @@ type MermaidRelationship struct {
 type RelationType string
 
 const (
-	RelationInheritance  RelationType = "<|--"  // inheritance
-	RelationComposition  RelationType = "*--"   // composition
-	RelationAggregation  RelationType = "o--"   // aggregation
-	RelationAssociation  RelationType = "-->"   // association
-	RelationDependency   RelationType = "..>"   // dependency
-	RelationRealization  RelationType = "..|>"  // realization
-	RelationNegation     RelationType = "-.x"   // negation (A is NOT B)
+	RelationInheritance RelationType = "<|--" // inheritance
+	RelationComposition RelationType = "*--"  // composition
+	RelationAggregation RelationType = "o--"  // aggregation
+	RelationAssociation RelationType = "-->"  // association
+	RelationDependency  RelationType = "..>"  // dependency
+	RelationRealization RelationType = "..|>" // realization
+	RelationNegation    RelationType = "-.x"  // negation (A is NOT B)
 )
 
 // Render generates the mermaid syntax for this relationship

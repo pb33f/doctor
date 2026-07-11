@@ -42,14 +42,27 @@ templ NavTempl(tags []*ppmodel.NavTag, models map[string][]*ppmodel.ModelPage, b
 
 templ NavTagItem(tag *ppmodel.NavTag, baseURL string) {
 	<details class="pp-nav-tag" open>
-		<summary>{ tag.Name }</summary>
+		<summary>
+			if tag.Protocol != "" {
+				<pp-asyncapi-protocol protocol={ tag.Protocol } size="nav"></pp-asyncapi-protocol>
+			} else {
+				{ tag.Name }
+				for _, protocol := range tag.Protocols {
+					<pp-asyncapi-protocol protocol={ protocol } size="nav"></pp-asyncapi-protocol>
+				}
+			}
+		</summary>
 		if len(tag.Operations) > 0 {
 			<ul class="pp-nav-operations">
 				for _, op := range tag.Operations {
 					<li>
 						<a href={ templ.SafeURL(DocHref(baseURL, pppaths.OperationHTML(op.Slug))) }>
-							<span class="pp-nav-path">{ op.Path }</span>
-							<pb33f-http-method mode="nav-naked" method={ op.Method }></pb33f-http-method>
+							<span class="pp-nav-path">{ operationNavPathLabel(op) }</span>
+							if op.SpecKind.IsAsyncAPI() {
+								@AsyncAPIAction(operationNavActionLabel(op), "small")
+							} else {
+								<pb33f-http-method mode="nav-naked" method={ op.Method }></pb33f-http-method>
+							}
 						</a>
 					</li>
 				}

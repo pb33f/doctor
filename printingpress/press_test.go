@@ -239,6 +239,35 @@ func TestPrintingPressStylesheet_InsetsBlockquoteChildren(t *testing.T) {
 	assert.Contains(t, css, `padding-left: 0;`)
 }
 
+func TestPrintingPressStylesheet_UsesSharedSectionHeadingSize(t *testing.T) {
+	stylesheet, err := os.ReadFile(filepath.Join("static", "printing-press.css"))
+	require.NoError(t, err)
+
+	css := string(stylesheet)
+	assert.Contains(t, css, `--pp-section-heading-size: var(--h3-size);`)
+	for _, selector := range []string{
+		`.pp-asyncapi-operation > h3`,
+		`.pp-dotted-section > h3`,
+		`.pp-details-summary h2,`,
+		`.pp-request-body > h3`,
+		`.pp-operations-overview > h2,`,
+		`.pp-operation > h2`,
+		`.pp-common-headers h3`,
+		`.pp-servers > h2,`,
+	} {
+		assert.Regexp(t,
+			regexp.MustCompile(`(?s)`+regexp.QuoteMeta(selector)+`[^\{]*\{[^\}]*font-size:\s*var\(--pp-section-heading-size\);`),
+			css,
+		)
+	}
+
+	for _, bundle := range []string{"printing-press.js", "printing-press-lite.js"} {
+		asset, readErr := os.ReadFile(filepath.Join("static", bundle))
+		require.NoError(t, readErr)
+		assert.Contains(t, string(asset), `--pp-section-heading-size`)
+	}
+}
+
 func TestPrintingPress_PrintJSONArtifacts_BundleAndManifest(t *testing.T) {
 	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
 	require.NoError(t, err)

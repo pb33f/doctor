@@ -40,6 +40,7 @@ type AggregatePrintingPressConfig struct {
 	AssetMode               string
 	BuildMode               string
 	DisableSkippedRendering bool
+	IncludeSpec             bool
 	Include                 []string
 	IgnoreRules             []string
 	NoiseSegments           []string
@@ -127,6 +128,7 @@ type SpecStateRecord struct {
 	Hash            string
 	ConfigHash      string
 	MetadataVersion int
+	SpecKind        SpecKind
 	Title           string
 	Summary         string
 	ContactName     string

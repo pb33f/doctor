@@ -92,6 +92,9 @@ func estimateHTMLProgressWork(site *ppmodel.Site) int {
 	if site.SharedAssetBaseURL == "" {
 		total++
 	}
+	if len(site.IncludedSpecs) > 0 {
+		total++
+	}
 	if site.DeveloperMode && site.Diagnostics != nil && len(site.OrphanResults) > 0 {
 		total++
 	}
@@ -200,6 +203,9 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	if err := os.MkdirAll(resolvedOutputDir, 0o755); err != nil {
 		return nil, fmt.Errorf("creating output directory: %w", err)
 	}
+	if err := os.RemoveAll(filepath.Join(resolvedOutputDir, pppaths.DirSpec)); err != nil {
+		return nil, fmt.Errorf("cleaning included specification: %w", err)
+	}
 	if err := cleanGeneratedHydrationAssets(resolvedOutputDir, site.SharedAssetBaseURL != ""); err != nil {
 		return nil, fmt.Errorf("cleaning generated hydration assets: %w", err)
 	}
@@ -210,6 +216,23 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	// renderer emits absolute references at that prefix and never writes the
 	// shared bundle into the artifact.
 	var staticPaths []string
+	if len(site.IncludedSpecs) > 0 {
+		for _, includedSpec := range site.IncludedSpecs {
+			if includedSpec == nil || len(includedSpec.Data) == 0 {
+				continue
+			}
+			includedPath := pppaths.IncludedSpec(includedSpec.Path)
+			absolutePath := filepath.Join(resolvedOutputDir, filepath.FromSlash(includedPath))
+			if err := os.MkdirAll(filepath.Dir(absolutePath), 0o755); err != nil {
+				return nil, fmt.Errorf("creating included specification directory: %w", err)
+			}
+			if err := os.WriteFile(absolutePath, includedSpec.Data, 0o644); err != nil {
+				return nil, fmt.Errorf("writing included specification: %w", err)
+			}
+			staticPaths = append(staticPaths, absolutePath)
+		}
+		progressTracker.advance("including source specification")
+	}
 	if site.SharedAssetBaseURL == "" {
 		for _, dir := range pppaths.StaticDirs() {
 			if err := os.MkdirAll(filepath.Join(resolvedOutputDir, dir), 0o755); err != nil {
@@ -220,7 +243,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		if copyErr != nil {
 			return nil, fmt.Errorf("copying static assets: %w", copyErr)
 		}
-		staticPaths = copied
+		staticPaths = append(staticPaths, copied...)
 		progressTracker.advance("copying static assets")
 	}
 	assetMode := resolveHTMLAssetMode(site)
@@ -276,7 +299,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 				payload:  buildRootHydrationPayload(site.Root, sourceCache),
 			}
 		}
-		rootContent := render.RootPageTempl(site.Root, p.BaseURL)
+		rootContent := render.RootPageTempl(site.Root, templateDocBaseURL(p.AssetMode, p.BaseURL))
 		staticPaths, jobs, err = appendHydratedHTMLJob(resolvedOutputDir, staticPaths, jobs, assetMode, p, hydration, htmlWriteJob{
 			path:      filepath.Join(resolvedOutputDir, pppaths.FileIndexHTML),
 			pageTitle: title,
@@ -301,7 +324,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, contentPageDepth(page.Href))
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
-		content := render.ContentPageTempl(page, p.BaseURL)
+		content := render.ContentPageTempl(page, templateDocBaseURL(p.AssetMode, p.BaseURL))
 		jobs = append(jobs, htmlWriteJob{
 			path:       filepath.Join(resolvedOutputDir, filepath.FromSlash(page.Href)),
 			pageTitle:  fmt.Sprintf("%s - %s", page.Title, title),
@@ -317,7 +340,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p := *params
 		p.BaseURL = resolvedBaseURL
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
-		content := render.ContentIndexTempl(site.ContentPages, render.GuidesIndexBreadcrumb(), p.BaseURL)
+		content := render.ContentIndexTempl(site.ContentPages, render.GuidesIndexBreadcrumb(), templateDocBaseURL(p.AssetMode, p.BaseURL))
 		jobs = append(jobs, htmlWriteJob{
 			path:       filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.GuidesIndexHTML())),
 			pageTitle:  "Guides - " + title,
@@ -334,7 +357,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressOperationCSS)}
 		highlightCodeSamplesForHTML(op)
-		opContent := render.OperationPageTempl(op, p.BaseURL)
+		opContent := render.OperationPageTempl(op, templateDocBaseURL(p.AssetMode, p.BaseURL))
 		pageTitle := fmt.Sprintf("%s %s - %s", op.Method, op.Path, title)
 		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.OperationHTML(op.Slug)))
 		staticPaths, jobs, err = appendHydratedHTMLJob(resolvedOutputDir, staticPaths, jobs, assetMode, p, htmlHydrationJob{
@@ -385,7 +408,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 				}
 				staticPaths = append(staticPaths, graphAssetPaths...)
 			}
-			modelContent := render.ModelPageTempl(page, p.BaseURL)
+			modelContent := render.ModelPageTempl(page, templateDocBaseURL(p.AssetMode, p.BaseURL))
 			pageTitle := fmt.Sprintf("%s - %s", page.Name, title)
 			path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.ModelHTML(typeSlug, page.Slug)))
 			activeModelSlug := page.TypeSlug + "/" + page.Slug
@@ -411,7 +434,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
-		indexContent := render.ModelsIndexTempl(site.NavModelGroups, render.ModelsIndexBreadcrumb(), p.BaseURL)
+		indexContent := render.ModelsIndexTempl(site.NavModelGroups, render.ModelsIndexBreadcrumb(), templateDocBaseURL(p.AssetMode, p.BaseURL))
 		jobs = append(jobs, htmlWriteJob{
 			path:      filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.ModelsIndexHTML())),
 			pageTitle: "Models - " + title,
@@ -427,7 +450,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p.BaseURL = resolveBase(resolvedBaseURL, 2)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
 		bc := render.ModelTypeIndexBreadcrumb(group.Name)
-		content := render.ModelTypeIndexTempl(group, bc, p.BaseURL)
+		content := render.ModelTypeIndexTempl(group, bc, templateDocBaseURL(p.AssetMode, p.BaseURL))
 		pageTitle := fmt.Sprintf("%s - %s", group.Name, title)
 		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.ModelTypeIndexHTML(group.TypeSlug)))
 		jobs = append(jobs, htmlWriteJob{
@@ -484,7 +507,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			p.BaseURL = resolveBase(resolvedBaseURL, 1)
 			p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
 			bc := render.TagIndexBreadcrumb(tag, tagParentMap)
-			content := render.TagIndexTempl(tag, bc, p.BaseURL)
+			content := render.TagIndexTempl(tag, bc, templateDocBaseURL(p.AssetMode, p.BaseURL))
 			pageTitle := fmt.Sprintf("%s - %s", tag.DisplayName(), title)
 			path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.TagHTML(tag.Slug)))
 			jobs = append(jobs, htmlWriteJob{
@@ -505,7 +528,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressOperationCSS)}
 		highlightCodeSamplesForHTML(wh)
-		whContent := render.OperationPageTempl(wh, p.BaseURL)
+		whContent := render.OperationPageTempl(wh, templateDocBaseURL(p.AssetMode, p.BaseURL))
 		pageTitle := fmt.Sprintf("Webhook: %s %s - %s", wh.Method, wh.Path, title)
 		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.OperationHTML(wh.Slug)))
 		staticPaths, jobs, err = appendHydratedHTMLJob(resolvedOutputDir, staticPaths, jobs, assetMode, p, htmlHydrationJob{
@@ -757,6 +780,13 @@ func shouldEmitBaseHref(assetMode string, baseURL string) bool {
 		return false
 	}
 	return parsed.Scheme == "" && parsed.Host == "" && !strings.HasPrefix(parsed.Path, "/")
+}
+
+func templateDocBaseURL(assetMode string, baseURL string) string {
+	if shouldEmitBaseHref(assetMode, baseURL) {
+		return ""
+	}
+	return baseURL
 }
 
 func staticAssetBaseURLForPage(assetMode string, baseURL string, assetBaseURL string) string {

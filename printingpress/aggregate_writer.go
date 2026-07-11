@@ -70,6 +70,7 @@ func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, 
 		SpecPath:                           spec.AbsolutePath,
 		OutputDir:                          entryOutput,
 		AssetMode:                          ap.config.AssetMode,
+		IncludeSpec:                        ap.config.IncludeSpec,
 		SharedAssetBaseURL:                 ap.entrySharedAssetBaseURL(spec),
 		Footer:                             cloneFooterConfig(ap.config.Footer),
 		MaxPatternRepeatBudget:             ap.config.MaxPatternRepeatBudget,
@@ -101,7 +102,14 @@ func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, 
 		return nil, err
 	}
 	site.HeaderContext = entry.HeaderContext
+	renderedSource := site.Source
 	site.Source = entry.Source
+	if ap.config.IncludeSpec && entry.Source != nil && renderedSource != nil {
+		includedSource := *entry.Source
+		includedSource.Href = renderedSource.Href
+		includedSource.LinkEnabled = renderedSource.LinkEnabled
+		site.Source = &includedSource
+	}
 	return site, nil
 }
 
@@ -321,6 +329,7 @@ func (ap *AggregatePrintingPress) persistState(plan *aggregateBuildPlan) error {
 			Hash:            spec.Hash,
 			ConfigHash:      spec.ConfigHash,
 			MetadataVersion: aggregateMetadataVersion,
+			SpecKind:        spec.SpecKind,
 			Title:           spec.Title,
 			Summary:         spec.Summary,
 			ContactName:     catalogContactName(spec.Contact),
@@ -1209,6 +1218,9 @@ func catalogVersionEntriesContent(service *ppmodel.CatalogService, version *ppmo
 			if _, err := io.WriteString(w, `<h3 class="pp-catalog-card-title"><a href="`+templ.EscapeString(relativeCatalogHref(path.Dir(version.OverviewHref), entry.OverviewHref))+`">`+templ.EscapeString(entry.Title)+`</a></h3>`); err != nil {
 				return err
 			}
+			if _, err := io.WriteString(w, catalogSpecKindBadgeHTML(entry)); err != nil {
+				return err
+			}
 			if _, err := io.WriteString(w, catalogSummaryHTML(entry.Summary)); err != nil {
 				return err
 			}
@@ -1420,6 +1432,25 @@ func catalogSummaryHTML(value string) string {
 	builder.WriteString(`</p>`)
 	builder.WriteString(`</div>`)
 	return builder.String()
+}
+
+func catalogSpecKindBadgeHTML(entry *ppmodel.CatalogSpecEntry) string {
+	label := catalogEntrySpecKindLabel(entry)
+	if label == "" {
+		return ""
+	}
+	return `<p class="pp-catalog-spec-kind"><span class="pp-catalog-spec-kind-badge" data-spec-kind="` +
+		templ.EscapeString(entry.SpecKind.MachineValue()) + `">` + templ.EscapeString(label) + `</span></p>`
+}
+
+func catalogEntrySpecKindLabel(entry *ppmodel.CatalogSpecEntry) string {
+	if entry == nil {
+		return ""
+	}
+	if strings.TrimSpace(entry.SpecKindLabel) != "" {
+		return strings.TrimSpace(entry.SpecKindLabel)
+	}
+	return entry.SpecKind.DisplayLabel()
 }
 
 func catalogServiceDiagnosticsHref(fromDir string, service *ppmodel.CatalogService) string {
@@ -1646,6 +1677,10 @@ func buildCatalogAgentsGuide(catalog *ppmodel.CatalogSite) string {
 				builder.WriteString(" | [AGENTS.md](")
 				builder.WriteString(catalogEntryAgentsPath(entry))
 				builder.WriteString(")")
+				if label := catalogEntrySpecKindLabel(entry); label != "" {
+					builder.WriteString(" — ")
+					builder.WriteString(label)
+				}
 				if strings.TrimSpace(entry.RelativePath) != "" {
 					builder.WriteString(" — ")
 					builder.WriteString(entry.RelativePath)
@@ -1697,6 +1732,10 @@ func buildCatalogLLMIndex(catalog *ppmodel.CatalogSite) string {
 					builder.WriteString("](")
 					builder.WriteString(catalogEntryLLMPath(entry))
 					builder.WriteString(")")
+					if label := catalogEntrySpecKindLabel(entry); label != "" {
+						builder.WriteString(" — ")
+						builder.WriteString(label)
+					}
 					if strings.TrimSpace(entry.RelativePath) != "" {
 						builder.WriteString(" — ")
 						builder.WriteString(entry.RelativePath)
@@ -1749,6 +1788,10 @@ func buildServiceLLMIndex(service *ppmodel.CatalogService) string {
 			builder.WriteString("](")
 			builder.WriteString(relativeMarkdownLink(current, catalogEntryLLMPath(entry)))
 			builder.WriteString(")")
+			if label := catalogEntrySpecKindLabel(entry); label != "" {
+				builder.WriteString(" — ")
+				builder.WriteString(label)
+			}
 			if strings.TrimSpace(entry.RelativePath) != "" {
 				builder.WriteString(" — ")
 				builder.WriteString(entry.RelativePath)
@@ -1794,6 +1837,10 @@ func buildVersionLLMIndex(service *ppmodel.CatalogService, version *ppmodel.Cata
 		builder.WriteString(" | [AGENTS.md](")
 		builder.WriteString(relativeMarkdownLink(current, catalogEntryAgentsPath(entry)))
 		builder.WriteString(")")
+		if label := catalogEntrySpecKindLabel(entry); label != "" {
+			builder.WriteString(" — ")
+			builder.WriteString(label)
+		}
 		if strings.TrimSpace(entry.RelativePath) != "" {
 			builder.WriteString(" — ")
 			builder.WriteString(entry.RelativePath)

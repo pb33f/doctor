@@ -36,6 +36,59 @@ func modelExtensionsSummary(page *ppmodel.ModelPage) string {
 	return fmt.Sprintf("Extensions (%d)", len(page.Extensions))
 }
 
+func sourceDisplayPath(source *ppmodel.SourceRef, fallback string) string {
+	if source != nil && strings.TrimSpace(source.Path) != "" {
+		return source.Path
+	}
+	return fallback
+}
+
+func sourceDisplayLine(source *ppmodel.SourceRef, fallback int) int {
+	if source != nil && source.Line > 0 {
+		return source.Line
+	}
+	return fallback
+}
+
+func isAsyncAPIMessagePage(page *ppmodel.ModelPage) bool {
+	return page != nil && page.AsyncAPI != nil && page.AsyncAPI.Kind == "message"
+}
+
+func isAsyncAPIReplyPage(page *ppmodel.ModelPage) bool {
+	return page != nil && page.AsyncAPI != nil && page.AsyncAPI.Kind == "reply"
+}
+
+func isAsyncAPIChannelPage(page *ppmodel.ModelPage) bool {
+	return page != nil && page.AsyncAPI != nil && page.AsyncAPI.Kind == "channel"
+}
+
+func shouldRenderAsyncAPIModelSection(page *ppmodel.ModelPage) bool {
+	if page == nil || page.AsyncAPI == nil || page.ComponentType == "securitySchemes" {
+		return false
+	}
+	switch page.AsyncAPI.Kind {
+	case "schema", "parameter", "operationTrait", "messageTrait":
+		return false
+	default:
+		return true
+	}
+}
+
+func asyncAPIModelProtocol(page *ppmodel.ModelPage) string {
+	if page == nil || page.AsyncAPI == nil {
+		return ""
+	}
+	if page.AsyncAPI.Kind != "operationTrait" && page.AsyncAPI.Kind != "messageTrait" {
+		return ""
+	}
+	return page.AsyncAPI.Protocol
+}
+
+func shouldRenderAsyncAPITraitProtocols(page *ppmodel.ModelPage) bool {
+	return asyncAPIModelProtocol(page) == "" && page != nil && page.AsyncAPI != nil &&
+		(page.AsyncAPI.Kind == "operationTrait" || page.AsyncAPI.Kind == "messageTrait") && len(page.AsyncAPI.Bindings) > 0
+}
+
 func operationBreadcrumb(page *ppmodel.OperationPage) []BreadcrumbItem {
 	items := []BreadcrumbItem{
 		{Label: "HOME", Href: pppaths.FileIndexHTML},
@@ -49,6 +102,132 @@ func operationBreadcrumb(page *ppmodel.OperationPage) []BreadcrumbItem {
 		items = append(items, item)
 	}
 	return items
+}
+
+func operationPageTitle(page *ppmodel.OperationPage) string {
+	if page == nil {
+		return ""
+	}
+	if page.SpecKind.IsAsyncAPI() {
+		if page.Summary != "" {
+			return page.Summary
+		}
+		if page.OperationID != "" {
+			return page.OperationID
+		}
+		if page.AsyncAPI != nil && page.AsyncAPI.Channel != nil {
+			return firstNonEmpty(page.AsyncAPI.Channel.Address, page.AsyncAPI.Channel.Name)
+		}
+	}
+	if page.Summary != "" {
+		return page.Summary
+	}
+	return page.Path
+}
+
+func operationRawTitle(page *ppmodel.OperationPage) string {
+	if page == nil {
+		return ""
+	}
+	if page.SpecKind.IsAsyncAPI() {
+		action := ""
+		if page.AsyncAPI != nil {
+			action = page.AsyncAPI.Action
+		}
+		return strings.TrimSpace(firstNonEmpty(strings.ToUpper(action)+" "+page.Path, page.OperationID, page.Path))
+	}
+	return strings.TrimSpace(page.Method + " " + page.Path)
+}
+
+func operationPathClass(page *ppmodel.OperationPage) string {
+	if page != nil && page.SpecKind.IsAsyncAPI() {
+		return "pp-operation-path pp-operation-path-asyncapi"
+	}
+	return "pp-operation-path"
+}
+
+func operationNavPathLabel(op *ppmodel.NavOperation) string {
+	if op == nil {
+		return ""
+	}
+	if op.SpecKind.IsAsyncAPI() {
+		return firstNonEmpty(op.Path, op.OperationID, op.Summary)
+	}
+	return op.Path
+}
+
+func operationNavActionLabel(op *ppmodel.NavOperation) string {
+	if op == nil {
+		return ""
+	}
+	if op.SpecKind.IsAsyncAPI() {
+		return op.Method
+	}
+	return op.Method
+}
+
+func operationRootIDLabel(op *ppmodel.NavOperation) string {
+	if op != nil && op.SpecKind.IsAsyncAPI() {
+		return "OPERATION:"
+	}
+	return "OPERATION ID:"
+}
+
+func asyncAPIActionName(action string) string {
+	return strings.ToLower(strings.TrimSpace(action))
+}
+
+func asyncAPIActionSize(size string) string {
+	switch strings.ToLower(strings.TrimSpace(size)) {
+	case "small":
+		return "small"
+	default:
+		return "large"
+	}
+}
+
+func asyncAPIActionCode(action string) string {
+	switch asyncAPIActionName(action) {
+	case "receive":
+		return "RCV"
+	case "send":
+		return "SND"
+	default:
+		return strings.ToUpper(strings.TrimSpace(action))
+	}
+}
+
+func asyncAPIActionIcon(action string) string {
+	switch asyncAPIActionName(action) {
+	case "receive":
+		return "arrow-left"
+	case "send":
+		return "arrow-right"
+	default:
+		return "arrow-right"
+	}
+}
+
+func asyncAPIActionLabel(action string) string {
+	switch asyncAPIActionName(action) {
+	case "receive":
+		return "Receive"
+	case "send":
+		return "Send"
+	default:
+		return strings.TrimSpace(action)
+	}
+}
+
+func asyncAPIActionFallbackClass(action string, size string) string {
+	classes := []string{
+		"pp-asyncapi-action",
+		"pp-asyncapi-action-" + asyncAPIActionSize(size),
+	}
+	if name := asyncAPIActionName(action); name != "" {
+		classes = append(classes, "pp-asyncapi-action-"+name)
+	}
+	return strings.Join(classes, " ")
 }
 
 func contentPageBreadcrumb(page *ppmodel.ContentPage) []BreadcrumbItem {
@@ -73,7 +252,7 @@ func contentPageBreadcrumb(page *ppmodel.ContentPage) []BreadcrumbItem {
 // AssetHref resolves a relative asset reference against the configured hosted docs root.
 // When no hosted docs root is configured, the original relative asset path is preserved.
 func AssetHref(assetBaseURL, href string) string {
-	return resolveDocHref(assetBaseURL, href)
+	return resolveDocHref(assetBaseURL, href, false)
 }
 
 // SharedAssetHref resolves an asset reference, preferring sharedAssetBaseURL
@@ -94,14 +273,17 @@ func SharedAssetHref(sharedAssetBaseURL, assetBaseURL, href string) string {
 	return AssetHref(assetBaseURL, href)
 }
 
-// DocHref resolves a document link against the configured hosted docs root.
-// Portable pages preserve the original relative href so the page's <base href>
-// continues to handle nested file:// navigation correctly.
+// DocHref resolves a document link against the configured docs root.
+// Empty bases preserve hrefs for callers that rely on a page-level <base href>.
 func DocHref(baseURL, href string) string {
-	return resolveDocHref(baseURL, href)
+	return resolveDocHref(baseURL, href, true)
 }
 
-func resolveDocHref(baseURL, href string) string {
+func OperationDocHref(baseURL, href string) string {
+	return DocHref(baseURL, href)
+}
+
+func resolveDocHref(baseURL, href string, resolveRelativeBase bool) string {
 	if baseURL == "" || href == "" || isLiteralHref(href) {
 		return href
 	}
@@ -111,6 +293,9 @@ func resolveDocHref(baseURL, href string) string {
 	}
 	if isHostedAssetBase(base) {
 		return base.ResolveReference(ref).String()
+	}
+	if resolveRelativeBase && isRelativePathBase(base) {
+		return strings.TrimRight(base.Path, "/") + "/" + strings.TrimLeft(href, "/")
 	}
 	return href
 }
@@ -143,6 +328,16 @@ func isHostedAssetBase(base *url.URL) bool {
 		return base.Scheme != "" && base.Host != ""
 	}
 	return strings.HasPrefix(base.Path, "/")
+}
+
+func isRelativePathBase(base *url.URL) bool {
+	return base != nil &&
+		base.Scheme == "" &&
+		base.Host == "" &&
+		base.Path != "" &&
+		!strings.HasPrefix(base.Path, "/") &&
+		base.RawQuery == "" &&
+		base.Fragment == ""
 }
 
 // ModelsIndexBreadcrumb builds the breadcrumb for the models index page.
@@ -236,6 +431,9 @@ func operationNavSections(page *ppmodel.OperationPage) string {
 	if page.DescHTML != "" {
 		sections = append(sections, navSection{"Description", "section-description"})
 	}
+	if page != nil && asyncAPIOperationSectionVisible(page.AsyncAPI) {
+		sections = append(sections, navSection{"Channel", "section-asyncapi"})
+	}
 	if len(page.Security) > 0 {
 		sections = append(sections, navSection{"Security", "section-security"})
 	}
@@ -243,7 +441,7 @@ func operationNavSections(page *ppmodel.OperationPage) string {
 		sections = append(sections, navSection{"Servers", "section-servers"})
 	}
 	if page.RequestBody != nil {
-		sections = append(sections, navSection{"Request Body", "section-request-body"})
+		sections = append(sections, navSection{operationContentSectionTitle(page), "section-request-body"})
 	}
 	if page.ResponsesJSON != "" {
 		sections = append(sections, navSection{"Responses", "section-responses"})
@@ -270,6 +468,20 @@ func operationNavSections(page *ppmodel.OperationPage) string {
 		sections = append(sections, navSection{"External Docs", "section-external-docs"})
 	}
 	return MustJSON(sections)
+}
+
+func asyncAPIOperationSectionVisible(info *ppmodel.AsyncAPIOperationInfo) bool {
+	return info != nil && (info.Channel != nil || info.Reply != nil || len(info.Bindings) > 0)
+}
+
+func operationContentSectionTitle(page *ppmodel.OperationPage) string {
+	if page != nil && page.SpecKind.IsAsyncAPI() {
+		if page.AsyncAPI != nil && len(page.AsyncAPI.Messages) > 1 {
+			return "Messages"
+		}
+		return "Message"
+	}
+	return "Request Body"
 }
 
 func codeSampleTabLabel(sample *ppmodel.CodeSample, index int) string {
@@ -301,4 +513,13 @@ func singleLine(s string) string {
 	s = strings.ReplaceAll(s, "\n", " ")
 	s = strings.ReplaceAll(s, "\r", " ")
 	return strings.Join(strings.Fields(s), " ")
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }

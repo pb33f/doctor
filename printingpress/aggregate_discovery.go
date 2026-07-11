@@ -7,6 +7,7 @@ package printingpress
 import (
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
 	"io/fs"
@@ -53,6 +54,7 @@ type aggregateDiscoveredSpec struct {
 	Format        string
 	OutputSubdir  string
 	EntrySlug     string
+	SpecKind      SpecKind
 	Changed       bool
 	RenderSkipped bool
 	Warnings      []string
@@ -61,11 +63,12 @@ type aggregateDiscoveredSpec struct {
 }
 
 type aggregateSpecMetadata struct {
-	Title   string
-	Summary string
-	Contact *ppmodel.ContactInfo
-	Version string
-	Valid   bool
+	Title    string
+	Summary  string
+	Contact  *ppmodel.ContactInfo
+	Version  string
+	SpecKind SpecKind
+	Valid    bool
 }
 
 type aggregateServiceGroup struct {
@@ -103,7 +106,7 @@ func (ap *AggregatePrintingPress) buildPlan() (*aggregateBuildPlan, error) {
 	if err != nil {
 		return nil, err
 	}
-	discovered, err := ap.discoverSpecs(existing)
+	discovered, discoveryWarnings, err := ap.discoverSpecs(existing)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +117,7 @@ func (ap *AggregatePrintingPress) buildPlan() (*aggregateBuildPlan, error) {
 	}
 	plan.removed = aggregateRemovedRecords(existing, discovered)
 	plan.catalog = ap.buildCatalog(discovered)
+	plan.catalog.Warnings = append(plan.catalog.Warnings, discoveryWarnings...)
 	plan.catalog.ContentPages = ap.collectCatalogContentPages()
 	for _, spec := range discovered {
 		if spec.Changed || ap.config.BuildMode == AggregateBuildModeFull {
@@ -126,7 +130,7 @@ func (ap *AggregatePrintingPress) buildPlan() (*aggregateBuildPlan, error) {
 	return plan, nil
 }
 
-func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRecord) ([]*aggregateDiscoveredSpec, error) {
+func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRecord) ([]*aggregateDiscoveredSpec, []*ppmodel.BuildWarning, error) {
 	root := ap.config.ScanRoot
 	outputDir := ap.config.OutputDir
 	baseConfigHash := aggregateEntryConfigHash(ap.config)
@@ -137,6 +141,7 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 	}
 
 	var discovered []*aggregateDiscoveredSpec
+	var discoveryWarnings []*ppmodel.BuildWarning
 	err := filepath.WalkDir(root, func(filePath string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -166,14 +171,22 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 		if err != nil {
 			return err
 		}
-		if !containsOpenAPIMarkers(string(content), relPath) {
+		identity, err := DetectSpecIdentity(content)
+		if err != nil {
+			if errors.Is(err, ErrUnsupportedAsyncAPI2) {
+				discoveryWarnings = append(discoveryWarnings, &ppmodel.BuildWarning{
+					Message: "unsupported AsyncAPI 2.x spec omitted from aggregate catalog",
+					Context: relPath,
+				})
+				ap.config.Logger.Warn("printingpress: omitting unsupported AsyncAPI 2.x aggregate candidate", "path", relPath)
+			}
 			return nil
 		}
 
 		hash := hashSpecBytes(content)
 		record := existing[relPath]
 		metadata := aggregateSpecMetadata{}
-		if record == nil || record.Hash != hash || record.Summary == "" || record.MetadataVersion < aggregateMetadataVersion || ap.config.BuildMode == AggregateBuildModeFull {
+		if record == nil || record.Hash != hash || record.Summary == "" || record.MetadataVersion < aggregateMetadataVersion || record.SpecKind != identity.Kind || ap.config.BuildMode == AggregateBuildModeFull {
 			metadata, err = parseAggregateSpecMetadata(content)
 			if err != nil {
 				ap.config.Logger.Warn("printingpress: skipping candidate that failed metadata parse", "path", relPath, "error", err)
@@ -181,15 +194,19 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 			}
 		} else {
 			metadata = aggregateSpecMetadata{
-				Title:   record.Title,
-				Summary: record.Summary,
-				Contact: catalogContactFromFields(record.ContactName, record.ContactEmail),
-				Version: record.Version,
-				Valid:   true,
+				Title:    record.Title,
+				Summary:  record.Summary,
+				Contact:  catalogContactFromFields(record.ContactName, record.ContactEmail),
+				Version:  record.Version,
+				SpecKind: record.SpecKind,
+				Valid:    true,
 			}
 		}
 		if !metadata.Valid {
 			return nil
+		}
+		if !metadata.SpecKind.IsKnown() {
+			metadata.SpecKind = identity.Kind
 		}
 
 		specDir := filepath.Dir(filePath)
@@ -202,7 +219,7 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 			contentHash = ap.aggregateEntryContentFingerprint(filePath)
 			contentHashBySpecDir[specDir] = contentHash
 		}
-		configHash := aggregateEntryRenderConfigHash(baseConfigHash, ap.developerMode, ap.specLintResults[relPath], contentHash)
+		configHash := aggregateEntryRenderConfigHash(baseConfigHash, ap.developerMode, ap.specLintResults[relPath], contentHash, metadata.SpecKind)
 		serviceKey := ap.resolveServiceKey(relPath, metadata.Title, noise)
 		displayName := ap.resolveDisplayName(relPath, serviceKey, metadata.Title)
 		version := ap.resolveVersion(relPath, metadata.Version)
@@ -221,7 +238,8 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 			Version:      version,
 			VersionSlug:  slugpkg.Sanitize(version),
 			Format:       DetectSpecFormat(content),
-			Changed:      record == nil || record.Hash != hash || record.ConfigHash != configHash || ap.config.BuildMode == AggregateBuildModeFull,
+			SpecKind:     metadata.SpecKind,
+			Changed:      record == nil || record.Hash != hash || record.ConfigHash != configHash || record.SpecKind != metadata.SpecKind || ap.config.BuildMode == AggregateBuildModeFull,
 			Source: &ppmodel.SourceRef{
 				Path: relPath,
 				Href: relPath,
@@ -232,12 +250,12 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	sort.Slice(discovered, func(i, j int) bool {
 		return discovered[i].RelativePath < discovered[j].RelativePath
 	})
-	return discovered, nil
+	return discovered, discoveryWarnings, nil
 }
 
 func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscoveredSpec) *ppmodel.CatalogSite {
@@ -333,22 +351,24 @@ func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscovered
 				spec.OutputSubdir = pppaths.AggregateSpecDir(group.slug, versionGroup.slug, spec.EntrySlug)
 				spec.Source.Href = spec.RelativePath
 				versionModel.Entries = append(versionModel.Entries, &ppmodel.CatalogSpecEntry{
-					ID:           spec.RelativePath,
-					Slug:         spec.EntrySlug,
-					Title:        spec.Title,
-					Summary:      spec.Summary,
-					Contact:      cloneCatalogContact(spec.Contact),
-					ServiceKey:   spec.ServiceKey,
-					ServiceSlug:  spec.ServiceSlug,
-					Version:      spec.Version,
-					VersionSlug:  spec.VersionSlug,
-					Format:       spec.Format,
-					RelativePath: spec.RelativePath,
-					OutputSubdir: spec.OutputSubdir,
-					OverviewHref: pppaths.AggregateSpecIndexHTML(group.slug, versionGroup.slug, spec.EntrySlug),
-					Warnings:     append([]string(nil), spec.Warnings...),
-					Source:       spec.Source,
-					Counts:       aggregateLintResultCounts(ap.specLintResults[spec.RelativePath]),
+					ID:            spec.RelativePath,
+					Slug:          spec.EntrySlug,
+					SpecKind:      spec.SpecKind,
+					SpecKindLabel: spec.SpecKind.DisplayLabel(),
+					Title:         spec.Title,
+					Summary:       spec.Summary,
+					Contact:       cloneCatalogContact(spec.Contact),
+					ServiceKey:    spec.ServiceKey,
+					ServiceSlug:   spec.ServiceSlug,
+					Version:       spec.Version,
+					VersionSlug:   spec.VersionSlug,
+					Format:        spec.Format,
+					RelativePath:  spec.RelativePath,
+					OutputSubdir:  spec.OutputSubdir,
+					OverviewHref:  pppaths.AggregateSpecIndexHTML(group.slug, versionGroup.slug, spec.EntrySlug),
+					Warnings:      append([]string(nil), spec.Warnings...),
+					Source:        spec.Source,
+					Counts:        aggregateLintResultCounts(ap.specLintResults[spec.RelativePath]),
 				})
 				versionModel.SpecCount++
 				serviceModel.SpecCount++
@@ -519,6 +539,7 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 	payload := struct {
 		BaseURL                            string                  `json:"baseURL,omitempty"`
 		AssetMode                          string                  `json:"assetMode,omitempty"`
+		IncludeSpec                        bool                    `json:"includeSpec,omitempty"`
 		EntryConfigFingerprint             string                  `json:"entryConfigFingerprint,omitempty"`
 		NoiseSegments                      []string                `json:"noiseSegments,omitempty"`
 		ServiceOverrides                   []AggregatePathOverride `json:"serviceOverrides,omitempty"`
@@ -539,6 +560,7 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 	}{
 		BaseURL:                            config.BaseURL,
 		AssetMode:                          config.AssetMode,
+		IncludeSpec:                        config.IncludeSpec,
 		EntryConfigFingerprint:             config.EntryConfigFingerprint,
 		NoiseSegments:                      append([]string(nil), config.NoiseSegments...),
 		ServiceOverrides:                   append([]AggregatePathOverride(nil), config.ServiceOverrides...),
@@ -564,19 +586,21 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 	return fmt.Sprintf("%x", xxhash.Sum64(b))
 }
 
-func aggregateEntryRenderConfigHash(baseConfigHash string, developerMode bool, lintResults []*drV3.RuleFunctionResult, contentHash string) string {
-	if !developerMode && contentHash == "" {
-		return baseConfigHash
+func aggregateEntryRenderConfigHash(baseConfigHash string, developerMode bool, lintResults []*drV3.RuleFunctionResult, contentHash string, specKind SpecKind) string {
+	if !specKind.IsKnown() {
+		specKind = SpecKindOpenAPI
 	}
 	payload := struct {
 		BaseConfigHash string                           `json:"baseConfigHash"`
 		DeveloperMode  bool                             `json:"developerMode,omitempty"`
 		ContentHash    string                           `json:"contentHash,omitempty"`
+		SpecKind       SpecKind                         `json:"specKind,omitempty"`
 		LintResults    []aggregateLintResultFingerprint `json:"lintResults,omitempty"`
 	}{
 		BaseConfigHash: baseConfigHash,
 		DeveloperMode:  developerMode,
 		ContentHash:    contentHash,
+		SpecKind:       specKind,
 		LintResults:    aggregateLintResultFingerprints(lintResults),
 	}
 	b, err := json.Marshal(payload)
@@ -825,9 +849,10 @@ func hashSpecBytes(content []byte) string {
 
 func parseAggregateSpecMetadata(content []byte) (aggregateSpecMetadata, error) {
 	var parsed struct {
-		OpenAPI string `yaml:"openapi"`
-		Swagger string `yaml:"swagger"`
-		Info    struct {
+		OpenAPI  string `yaml:"openapi"`
+		Swagger  string `yaml:"swagger"`
+		AsyncAPI string `yaml:"asyncapi"`
+		Info     struct {
 			Title       string `yaml:"title"`
 			Summary     string `yaml:"summary"`
 			Description string `yaml:"description"`
@@ -841,15 +866,19 @@ func parseAggregateSpecMetadata(content []byte) (aggregateSpecMetadata, error) {
 	if err := yaml.Unmarshal(content, &parsed); err != nil {
 		return aggregateSpecMetadata{}, err
 	}
-	if strings.TrimSpace(parsed.OpenAPI) == "" && strings.TrimSpace(parsed.Swagger) == "" {
+	specKind := SpecKindOpenAPI
+	if strings.TrimSpace(parsed.AsyncAPI) != "" {
+		specKind = SpecKindAsyncAPI
+	} else if strings.TrimSpace(parsed.OpenAPI) == "" && strings.TrimSpace(parsed.Swagger) == "" {
 		return aggregateSpecMetadata{}, nil
 	}
 	return aggregateSpecMetadata{
-		Title:   strings.TrimSpace(parsed.Info.Title),
-		Summary: chooseCatalogSummary(parsed.Info.Summary, parsed.Info.Description),
-		Contact: catalogContactFromFields(parsed.Info.Contact.Name, parsed.Info.Contact.Email),
-		Version: strings.TrimSpace(parsed.Info.Version),
-		Valid:   true,
+		Title:    strings.TrimSpace(parsed.Info.Title),
+		Summary:  chooseCatalogSummary(parsed.Info.Summary, parsed.Info.Description),
+		Contact:  catalogContactFromFields(parsed.Info.Contact.Name, parsed.Info.Contact.Email),
+		Version:  strings.TrimSpace(parsed.Info.Version),
+		SpecKind: specKind,
+		Valid:    true,
 	}, nil
 }
 

@@ -4,7 +4,11 @@
 
 package pppaths
 
-import "path"
+import (
+	"path"
+	"path/filepath"
+	"strings"
+)
 
 const (
 	ExtHTML     = ".html"
@@ -28,6 +32,7 @@ const (
 	DirServices   = "services"
 	DirVersions   = "versions"
 	DirSpecs      = "specs"
+	DirSpec       = "spec"
 
 	// DirData is the per-artifact namespace for hydration JSON. Everything
 	// under DirData contains rendered spec content for the document and is
@@ -157,6 +162,12 @@ func ContentPageDataBase(slugPath string) string {
 
 func ContentAsset(pageSlug, assetName string) string {
 	return path.Join(DirAssets, "docs", path.Clean(pageSlug), assetName)
+}
+
+// IncludedSpec returns the generated path for an included source specification.
+func IncludedSpec(fileName string) string {
+	cleaned := strings.TrimPrefix(path.Clean("/"+filepath.ToSlash(fileName)), "/")
+	return path.Join(DirSpec, cleaned)
 }
 
 func OperationPageDataBase(slug string) string {
