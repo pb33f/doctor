@@ -42,6 +42,34 @@ describe('pp-model-page', () => {
     expect(content).toContain('string');
   });
 
+  it('renders AsyncAPI parameter examples and metadata', async () => {
+    const el = document.createElement('pp-model-page');
+    el.setAttribute('component-type', 'parameters');
+    el.setAttribute('model-json', JSON.stringify({
+      description: 'The ID of the streetlight.',
+      location: '$message.payload#/streetlightId',
+      default: '1',
+      enum: ['1', '2', '100'],
+      examples: ['1', '2', '100'],
+    }));
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const exampleSelector = el.shadowRoot?.querySelector('pp-example-selector');
+    expect(exampleSelector).toBeTruthy();
+    expect(JSON.parse(exampleSelector?.getAttribute('examples-json') || '{}')).toEqual({
+      'Example 1': '"1"',
+      'Example 2': '"2"',
+      'Example 3': '"100"',
+    });
+
+    const content = el.shadowRoot?.textContent || '';
+    expect(content).toContain('location');
+    expect(content).toContain('$message.payload#/streetlightId');
+    expect(content).toContain('default');
+    expect(content).toContain('enum');
+  });
+
   it('should show Composition heading for allOf-only schema', async () => {
     const el = document.createElement('pp-model-page');
     const schema = {

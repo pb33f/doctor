@@ -643,8 +643,13 @@ func renderAgentsGuide(site *Site, plans ...llmWritePlan) string {
 
 	b.WriteString("## Artifact Map\n\n")
 	writeLLMFileMap(&b, plan)
-	b.WriteString("- `operations/*.md` - One Markdown page per operation or webhook with parameters, security, request/response details, and related links.\n")
-	b.WriteString("- `operations/*.json` - One machine-readable JSON artifact per operation or webhook for structured traversal and code generation.\n")
+	if site.SpecKind.IsAsyncAPI() {
+		b.WriteString("- `operations/*.md` - One Markdown page per AsyncAPI operation with action, channel, messages, replies, security, bindings, traits, and related links.\n")
+		b.WriteString("- `operations/*.json` - One machine-readable JSON artifact per AsyncAPI operation for structured traversal and code generation.\n")
+	} else {
+		b.WriteString("- `operations/*.md` - One Markdown page per operation or webhook with parameters, security, request/response details, and related links.\n")
+		b.WriteString("- `operations/*.json` - One machine-readable JSON artifact per operation or webhook for structured traversal and code generation.\n")
+	}
 	b.WriteString("- `models/<type>/*.md` - One Markdown page per model or component with schema summaries and cross-links.\n")
 	b.WriteString("- `models/<type>/*.json` - One machine-readable JSON artifact per model or component.\n")
 	b.WriteString("- `bundle.json`, `index.json`, `nav.json`, `manifest.json` - Top-level machine-readable artifacts for structured traversal of the rendered docs set.\n")
@@ -652,8 +657,13 @@ func renderAgentsGuide(site *Site, plans ...llmWritePlan) string {
 
 	b.WriteString("## Recommended Workflow\n\n")
 	b.WriteString("1. Read [llms.txt](llms.txt) to find the most relevant tag, operation, or model family.\n")
-	b.WriteString("2. Open the matching `operations/<slug>.md` page for concrete endpoint details and usage guidance.\n")
-	b.WriteString("3. Follow links into `models/<type>/<slug>.md` for request and response shapes.\n")
+	if site.SpecKind.IsAsyncAPI() {
+		b.WriteString("2. Open the matching `operations/<slug>.md` page for action, channel, message, reply, and protocol context.\n")
+		b.WriteString("3. Follow links into `models/<type>/<slug>.md` for channel, message, payload, header, schema, and security details.\n")
+	} else {
+		b.WriteString("2. Open the matching `operations/<slug>.md` page for concrete endpoint details and usage guidance.\n")
+		b.WriteString("3. Follow links into `models/<type>/<slug>.md` for request and response shapes.\n")
+	}
 	if plan.generateMonoliths {
 		b.WriteString("4. Use [llms-full.txt](llms-full.txt) only when you need broad one-file retrieval or cross-cutting summaries.\n")
 	} else {
@@ -942,9 +952,13 @@ func renderQuickStart(site *Site) string {
 	var b strings.Builder
 	b.WriteString("## Quick Start\n\n")
 
-	// Base URL
 	if len(site.Root.Servers) > 0 {
-		b.WriteString("**Base URL:** `" + site.Root.Servers[0].URL + "`\n\n")
+		label := "Base URL"
+		if site.SpecKind.IsAsyncAPI() {
+			label = "Primary server"
+		}
+		b.WriteString("**" + label + ":** `" + site.Root.Servers[0].URL + "`")
+		b.WriteString("\n\n")
 	}
 
 	// Auth scheme names
@@ -963,6 +977,14 @@ func renderQuickStart(site *Site) string {
 	var stats []string
 	if len(site.Operations) > 0 {
 		stats = append(stats, fmt.Sprintf("%d operations", len(site.Operations)))
+	}
+	if site.SpecKind.IsAsyncAPI() {
+		if channelCount := len(site.Models["channels"]); channelCount > 0 {
+			stats = append(stats, fmt.Sprintf("%d channels", channelCount))
+		}
+		if messageCount := len(site.Models["messages"]); messageCount > 0 {
+			stats = append(stats, fmt.Sprintf("%d messages", messageCount))
+		}
 	}
 	schemaCount := len(site.Models["schemas"])
 	if schemaCount > 0 {
@@ -1021,8 +1043,8 @@ func renderOperationsIndex(site *Site) string {
 				if navOp.Summary != "" {
 					summary = " — " + singleLine(navOp.Summary)
 				}
-				b.WriteString(fmt.Sprintf("- [%s %s](operations/%s.md)%s\n",
-					navOp.Method, navOp.Path, navOp.Slug, summary))
+				b.WriteString(fmt.Sprintf("- [%s](operations/%s.md)%s\n",
+					operationNavLLMLabel(navOp), navOp.Slug, summary))
 			}
 			if len(tag.Operations) > 0 {
 				b.WriteString("\n")
@@ -1046,7 +1068,7 @@ func renderOperationsIndex(site *Site) string {
 			if op.Summary != "" {
 				summary = " — " + singleLine(op.Summary)
 			}
-			b.WriteString(fmt.Sprintf("- [%s %s](operations/%s.md)%s\n", op.Method, op.Path, op.Slug, summary))
+			b.WriteString(fmt.Sprintf("- [%s](operations/%s.md)%s\n", operationPageLLMLabel(op), op.Slug, summary))
 		}
 		b.WriteString("\n")
 	}
@@ -1067,6 +1089,9 @@ func countTagOperations(tag *NavTag) int {
 func renderHowToUse(site *Site) string {
 	if site.Root == nil {
 		return ""
+	}
+	if site.SpecKind.IsAsyncAPI() {
+		return renderAsyncAPIHowToUse(site)
 	}
 
 	var b strings.Builder
@@ -1140,6 +1165,68 @@ func renderHowToUse(site *Site) string {
 }
 
 // Removed: renderSecuritySchemeInfo — replaced by SecurityRequirement.SchemeType/Scheme/In fields
+
+func renderAsyncAPIHowToUse(site *Site) string {
+	var b strings.Builder
+	b.WriteString("## How to Use This AsyncAPI\n\n")
+
+	if len(site.Root.Servers) > 0 {
+		b.WriteString("### Servers\n\n")
+		for _, srv := range site.Root.Servers {
+			if srv == nil {
+				continue
+			}
+			label := strings.TrimSpace(srv.URL)
+			if label == "" {
+				continue
+			}
+			b.WriteString("- `" + label + "`")
+			if srv.Description != "" {
+				b.WriteString(": " + singleLine(srv.Description))
+			}
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+	}
+
+	if len(site.Root.Security) > 0 {
+		b.WriteString("### Security\n\n")
+		for _, secReq := range site.Root.Security {
+			b.WriteString("- **" + secReq.Name + "**")
+			details := make([]string, 0, 3)
+			if secReq.SchemeType != "" {
+				details = append(details, secReq.SchemeType)
+			}
+			if secReq.Scheme != "" {
+				details = append(details, secReq.Scheme)
+			}
+			if secReq.In != "" {
+				details = append(details, "in "+secReq.In)
+			}
+			if len(details) > 0 {
+				b.WriteString(" — " + strings.Join(details, "; "))
+			}
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+	}
+
+	if len(site.Operations) > 0 {
+		b.WriteString("### Operation Flow\n\n")
+		for _, op := range site.Operations {
+			b.WriteString("- ")
+			b.WriteString(operationPageLLMLabel(op))
+			if op.Summary != "" {
+				b.WriteString(" — " + singleLine(op.Summary))
+			}
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("---\n\n")
+	return b.String()
+}
 
 // buildResourceTable derives a resources summary table from NavTags.
 func buildResourceTable(site *Site) string {
@@ -1356,6 +1443,9 @@ func writeModelsSection(ctx llmRenderContext, w io.StringWriter) (bool, error) {
 
 // renderOperationMD renders a single operation as markdown.
 func renderOperationMD(ctx llmRenderContext, op *OperationPage) string {
+	if op != nil && op.SpecKind.IsAsyncAPI() {
+		return renderAsyncAPIOperationMD(ctx, op)
+	}
 	var b strings.Builder
 
 	b.WriteString("### " + op.Method + " " + op.Path + "\n\n")
@@ -1424,14 +1514,7 @@ func renderOperationMD(ctx llmRenderContext, op *OperationPage) string {
 		b.WriteString(renderResponsesMD(ctx, op.Responses))
 	}
 
-	// Cross-references
-	if op.CrossRefs != nil && len(op.CrossRefs.ReferencesModels) > 0 {
-		var names []string
-		for _, ref := range op.CrossRefs.ReferencesModels {
-			names = append(names, componentRefLabel(ctx, ref))
-		}
-		b.WriteString("**Models referenced:** " + strings.Join(names, ", ") + "\n\n")
-	}
+	b.WriteString(renderOperationCrossRefsMD(ctx, op))
 
 	if related := renderRelatedOperationsMD(ctx, op); related != "" {
 		b.WriteString(related)
@@ -1446,8 +1529,127 @@ func renderOperationMD(ctx llmRenderContext, op *OperationPage) string {
 	return b.String()
 }
 
+func renderAsyncAPIOperationMD(ctx llmRenderContext, op *OperationPage) string {
+	var b strings.Builder
+	info := op.AsyncAPI
+
+	b.WriteString("### " + operationPageLLMLabel(op) + "\n\n")
+
+	if op.Summary != "" {
+		b.WriteString(op.Summary + "\n\n")
+	}
+
+	var meta []string
+	if op.OperationID != "" {
+		meta = append(meta, "**Operation ID:** `"+op.OperationID+"`")
+	}
+	if info != nil && info.Action != "" {
+		meta = append(meta, "**Action:** `"+info.Action+"`")
+	}
+	if len(op.Tags) > 0 {
+		meta = append(meta, "**Tags:** "+strings.Join(op.Tags, ", "))
+	}
+	if op.Deprecated {
+		meta = append(meta, "**Deprecated**")
+	}
+	if len(meta) > 0 {
+		b.WriteString(strings.Join(meta, "  \n") + "\n\n")
+	}
+
+	if src := renderSourceMetadataRef(op.Source); src != "" {
+		b.WriteString(src)
+		b.WriteString("\n")
+	}
+
+	if op.Description != "" && op.Description != op.Summary {
+		b.WriteString(op.Description + "\n\n")
+	}
+
+	if sec := renderOperationSecurityMD(ctx, op); sec != "" {
+		b.WriteString(sec)
+	}
+
+	if info == nil {
+		return b.String()
+	}
+
+	if info.Channel != nil {
+		b.WriteString("#### Channel\n\n")
+		b.WriteString("- " + asyncAPIChannelLink(ctx, info.Channel) + "\n")
+		if info.Channel.Address != "" {
+			b.WriteString("- Address: `" + info.Channel.Address + "`\n")
+		}
+		b.WriteString("\n")
+	}
+
+	if len(info.Messages) > 0 {
+		b.WriteString("#### Messages\n\n")
+		for _, msg := range info.Messages {
+			if msg == nil {
+				continue
+			}
+			b.WriteString("- " + asyncAPIMessageLink(ctx, msg))
+			details := make([]string, 0, 2)
+			if msg.ContentType != "" {
+				details = append(details, msg.ContentType)
+			}
+			if msg.Summary != "" {
+				details = append(details, singleLine(msg.Summary))
+			}
+			if len(details) > 0 {
+				b.WriteString(" — " + strings.Join(details, "; "))
+			}
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+	}
+
+	if info.Reply != nil {
+		b.WriteString("#### Reply\n\n")
+		if info.Reply.Address != "" {
+			b.WriteString("- Address: `" + info.Reply.Address + "`\n")
+		}
+		if info.Reply.Channel != nil {
+			b.WriteString("- Channel: " + asyncAPIChannelLink(ctx, info.Reply.Channel) + "\n")
+		}
+		for _, msg := range info.Reply.Messages {
+			if msg == nil {
+				continue
+			}
+			b.WriteString("- Message: " + asyncAPIMessageLink(ctx, msg) + "\n")
+		}
+		b.WriteString("\n")
+	}
+
+	if len(info.Bindings) > 0 {
+		b.WriteString("#### Bindings\n\n")
+		for _, binding := range info.Bindings {
+			b.WriteString("- `" + binding + "`\n")
+		}
+		b.WriteString("\n")
+	}
+	if len(info.Traits) > 0 {
+		b.WriteString("#### Traits\n\n")
+		for _, trait := range info.Traits {
+			b.WriteString("- `" + trait + "`\n")
+		}
+		b.WriteString("\n")
+	}
+	if len(info.Extensions) > 0 {
+		b.WriteString("#### Extensions\n\n")
+		b.WriteString(renderExtensionsMD(info.Extensions))
+		b.WriteString("\n")
+	}
+	b.WriteString(renderOperationCrossRefsMD(ctx, op))
+
+	return b.String()
+}
+
 // renderModelMD renders a single model/component as markdown.
 func renderModelMD(ctx llmRenderContext, page *ModelPage) string {
+	if page != nil && page.SpecKind.IsAsyncAPI() {
+		return renderAsyncAPIModelMD(ctx, page)
+	}
 	var b strings.Builder
 
 	b.WriteString("### " + page.Name + "\n\n")
@@ -1478,31 +1680,176 @@ func renderModelMD(ctx llmRenderContext, page *ModelPage) string {
 		b.WriteString("\n")
 	}
 
-	// Cross-references
-	if page.CrossRefs != nil {
-		if len(page.CrossRefs.UsedByOperations) > 0 {
-			var refs []string
-			for _, ref := range page.CrossRefs.UsedByOperations {
-				refs = append(refs, operationRefLabel(ctx, ref))
-			}
-			b.WriteString("**Used by:** " + strings.Join(refs, ", ") + "\n\n")
-		}
-		if len(page.CrossRefs.UsesModels) > 0 {
-			var refs []string
-			for _, ref := range page.CrossRefs.UsesModels {
-				refs = append(refs, componentRefLabel(ctx, ref))
-			}
-			b.WriteString("**References:** " + strings.Join(refs, ", ") + "\n\n")
-		}
-		if len(page.CrossRefs.UsedByModels) > 0 {
-			var refs []string
-			for _, ref := range page.CrossRefs.UsedByModels {
-				refs = append(refs, componentRefLabel(ctx, ref))
-			}
-			b.WriteString("**Referenced by:** " + strings.Join(refs, ", ") + "\n\n")
-		}
+	b.WriteString(renderModelCrossRefsMD(ctx, page))
+
+	return b.String()
+}
+
+func renderAsyncAPIModelMD(ctx llmRenderContext, page *ModelPage) string {
+	var b strings.Builder
+	info := page.AsyncAPI
+
+	b.WriteString("### " + page.Name + "\n\n")
+
+	if info != nil && info.Kind != "" {
+		b.WriteString("**AsyncAPI model:** `" + info.Kind + "`\n\n")
+	}
+	if page.Description != "" {
+		b.WriteString(page.Description + "\n\n")
+	}
+	if src := renderSourceMetadataRef(page.Source); src != "" {
+		b.WriteString(src)
+		b.WriteString("\n")
+	}
+	if info == nil {
+		return b.String()
 	}
 
+	var details []string
+	if info.Address != "" {
+		details = append(details, "**Address:** `"+info.Address+"`")
+	}
+	if info.Protocol != "" {
+		details = append(details, "**Protocol:** `"+info.Protocol+"`")
+	}
+	if info.ContentType != "" {
+		details = append(details, "**Content type:** `"+info.ContentType+"`")
+	}
+	if len(details) > 0 {
+		b.WriteString(strings.Join(details, "  \n") + "\n\n")
+	}
+
+	if info.Channel != nil {
+		b.WriteString("#### Channel\n\n")
+		b.WriteString("- " + asyncAPIChannelLink(ctx, info.Channel) + "\n\n")
+	}
+	if len(info.Messages) > 0 {
+		b.WriteString("#### Messages\n\n")
+		for _, msg := range info.Messages {
+			if msg == nil {
+				continue
+			}
+			b.WriteString("- " + asyncAPIMessageLink(ctx, msg))
+			if msg.Summary != "" {
+				b.WriteString(" — " + singleLine(msg.Summary))
+			}
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+	}
+	if len(info.Schemas) > 0 {
+		b.WriteString("#### Schemas\n\n")
+		for _, surface := range info.Schemas {
+			b.WriteString(renderAsyncAPISchemaSurfaceMD(ctx, surface))
+		}
+	}
+	if len(info.Examples) > 0 {
+		b.WriteString("#### Examples\n\n")
+		for _, example := range info.Examples {
+			if example == nil {
+				continue
+			}
+			name := firstNonEmpty(example.Name, "example")
+			b.WriteString("##### " + name + "\n\n")
+			if example.Summary != "" {
+				b.WriteString(example.Summary + "\n\n")
+			}
+			if strings.TrimSpace(example.Payload) != "" {
+				b.WriteString("Payload:\n\n")
+				b.WriteString(renderSchemaBlock(example.Payload))
+				b.WriteString("\n")
+			}
+			if strings.TrimSpace(example.Headers) != "" {
+				b.WriteString("Headers:\n\n")
+				b.WriteString(renderSchemaBlock(example.Headers))
+				b.WriteString("\n")
+			}
+		}
+	}
+	if len(info.Bindings) > 0 {
+		b.WriteString("#### Bindings\n\n")
+		for _, binding := range info.Bindings {
+			b.WriteString("- `" + binding + "`\n")
+		}
+		b.WriteString("\n")
+	}
+	if len(page.Extensions) > 0 {
+		b.WriteString("#### Extensions\n\n")
+		b.WriteString(renderExtensionsMD(page.Extensions))
+		b.WriteString("\n")
+	}
+	b.WriteString(renderModelCrossRefsMD(ctx, page))
+
+	return b.String()
+}
+
+func renderOperationCrossRefsMD(ctx llmRenderContext, op *OperationPage) string {
+	if op == nil || op.CrossRefs == nil || len(op.CrossRefs.ReferencesModels) == 0 {
+		return ""
+	}
+	var names []string
+	for _, ref := range op.CrossRefs.ReferencesModels {
+		names = append(names, componentRefLabel(ctx, ref))
+	}
+	return "**Models referenced:** " + strings.Join(names, ", ") + "\n\n"
+}
+
+func renderModelCrossRefsMD(ctx llmRenderContext, page *ModelPage) string {
+	if page == nil || page.CrossRefs == nil {
+		return ""
+	}
+	var b strings.Builder
+	if len(page.CrossRefs.UsedByOperations) > 0 {
+		var refs []string
+		for _, ref := range page.CrossRefs.UsedByOperations {
+			refs = append(refs, operationRefLabel(ctx, ref))
+		}
+		b.WriteString("**Used by:** " + strings.Join(refs, ", ") + "\n\n")
+	}
+	if len(page.CrossRefs.UsesModels) > 0 {
+		var refs []string
+		for _, ref := range page.CrossRefs.UsesModels {
+			refs = append(refs, componentRefLabel(ctx, ref))
+		}
+		b.WriteString("**References:** " + strings.Join(refs, ", ") + "\n\n")
+	}
+	if len(page.CrossRefs.UsedByModels) > 0 {
+		var refs []string
+		for _, ref := range page.CrossRefs.UsedByModels {
+			refs = append(refs, componentRefLabel(ctx, ref))
+		}
+		b.WriteString("**Referenced by:** " + strings.Join(refs, ", ") + "\n\n")
+	}
+	return b.String()
+}
+
+func renderAsyncAPISchemaSurfaceMD(ctx llmRenderContext, surface *AsyncAPISchemaSurface) string {
+	if surface == nil {
+		return ""
+	}
+	var b strings.Builder
+	title := firstNonEmpty(surface.Name, surface.Role, "schema")
+	b.WriteString("##### " + title + "\n\n")
+	if surface.Role != "" {
+		b.WriteString("**Role:** `" + surface.Role + "`\n\n")
+	}
+	if surface.Ref != nil {
+		b.WriteString("**Schema ref:** " + componentLinkLabel(ctx, surface.Ref) + "\n\n")
+		return b.String()
+	}
+	summary := renderSchemaSummaryMD(ctx, surface.SchemaJSON, nil, nil)
+	if summary != "" {
+		b.WriteString(summary)
+	}
+	if shouldRenderRawSchemaWithContext(ctx, surface.SchemaJSON, summary != "", surface.MockJSON != "", false) {
+		b.WriteString(renderSchemaBlock(surface.SchemaJSON))
+		b.WriteString("\n")
+	}
+	if surface.MockJSON != "" {
+		b.WriteString("Mock payload:\n\n")
+		b.WriteString(renderSchemaBlock(surface.MockJSON))
+		b.WriteString("\n")
+	}
 	return b.String()
 }
 
@@ -2628,6 +2975,77 @@ func operationLink(ctx llmRenderContext, slug, label string) string {
 	return "[" + label + "](" + ctx.operationLinkPrefix + slug + ".md)"
 }
 
+func operationNavLLMLabel(op *NavOperation) string {
+	if op == nil {
+		return ""
+	}
+	if op.SpecKind.IsAsyncAPI() {
+		action := strings.ToUpper(strings.TrimSpace(op.Method))
+		channel := strings.TrimSpace(op.Path)
+		if action == "" {
+			action = "OPERATION"
+		}
+		if channel == "" {
+			return action
+		}
+		return action + " " + channel
+	}
+	return strings.TrimSpace(strings.TrimSpace(op.Method) + " " + strings.TrimSpace(op.Path))
+}
+
+func operationPageLLMLabel(op *OperationPage) string {
+	if op == nil {
+		return ""
+	}
+	if op.SpecKind.IsAsyncAPI() {
+		info := op.AsyncAPI
+		action := strings.ToUpper(strings.TrimSpace(op.Method))
+		channel := strings.TrimSpace(op.Path)
+		if info != nil {
+			action = strings.ToUpper(firstNonEmpty(info.Action, action))
+			if info.Channel != nil {
+				channel = firstNonEmpty(info.Channel.Name, info.Channel.Address, channel)
+			}
+		}
+		if action == "" {
+			action = "OPERATION"
+		}
+		if op.OperationID != "" && channel != "" {
+			return action + " " + op.OperationID + " (" + channel + ")"
+		}
+		if op.OperationID != "" {
+			return action + " " + op.OperationID
+		}
+		if channel != "" {
+			return action + " " + channel
+		}
+		return action
+	}
+	return strings.TrimSpace(strings.TrimSpace(op.Method) + " " + strings.TrimSpace(op.Path))
+}
+
+func asyncAPIChannelLink(ctx llmRenderContext, channel *AsyncAPIChannelRef) string {
+	if channel == nil {
+		return ""
+	}
+	label := firstNonEmpty(channel.Name, channel.Address, "channel")
+	if channel.Slug == "" {
+		return "`" + label + "`"
+	}
+	return "[" + label + "](" + ctx.modelLinkPrefix + "channels/" + channel.Slug + ".md)"
+}
+
+func asyncAPIMessageLink(ctx llmRenderContext, message *AsyncAPIMessageRef) string {
+	if message == nil {
+		return ""
+	}
+	label := firstNonEmpty(message.Title, message.Name, "message")
+	if message.Slug == "" {
+		return "`" + label + "`"
+	}
+	return "[" + label + "](" + ctx.modelLinkPrefix + "messages/" + message.Slug + ".md)"
+}
+
 func componentLinkLabel(ctx llmRenderContext, ref *ComponentLink) string {
 	if ref == nil {
 		return ""
@@ -2646,7 +3064,11 @@ func operationRefLabel(ctx llmRenderContext, ref *OperationRef) string {
 	if ref == nil {
 		return ""
 	}
-	return operationLink(ctx, ref.Slug, ref.Method+" "+ref.Path)
+	label := strings.TrimSpace(ref.Method + " " + ref.Path)
+	if ref.OperationID != "" && ref.Path != "" && !strings.HasPrefix(ref.Path, "/") {
+		label = strings.TrimSpace(ref.Method + " " + ref.OperationID)
+	}
+	return operationLink(ctx, ref.Slug, label)
 }
 
 func lookupOperationByID(site *Site, operationID string) *OperationPage {

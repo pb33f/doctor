@@ -47,13 +47,13 @@ func (pp *PrintingPress) buildCrossRefs() {
 	// Apply cross-refs to each operation page
 	opCrossRefs := pp.buildOperationCrossRefs(opRefsCache)
 	for _, op := range pp.site.Operations {
-		key := op.Method + " " + op.Path
+		key := operationCrossRefKey(op)
 		if refs, ok := opCrossRefs[key]; ok {
 			op.CrossRefs = refs
 		}
 	}
 	for _, wh := range pp.site.Webhooks {
-		key := wh.Method + " " + wh.Path
+		key := operationCrossRefKey(wh)
 		if refs, ok := opCrossRefs[key]; ok {
 			wh.CrossRefs = refs
 		}
@@ -62,7 +62,7 @@ func (pp *PrintingPress) buildCrossRefs() {
 
 // getCrossRefIndex builds the cross-reference index by scanning SchemaJSON content.
 func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPage, map[string][]*ComponentRef) {
-	if pp.engineConfig == nil || pp.engineConfig.DrDoc == nil {
+	if pp == nil || pp.site == nil {
 		return nil, nil, nil
 	}
 
@@ -111,6 +111,14 @@ func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPa
 					Slug:          srcPage.Slug,
 				})
 			}
+			for _, compRef := range pp.extractAsyncAPIModelRefs(srcPage, modelSlugLookup) {
+				targetKey := slugpkg.ComponentKey(compRef.ComponentType, compRef.Name)
+				if targetKey == srcKey {
+					continue
+				}
+				addComponentRefUnique(&idx.ComponentUsesModels, srcKey, compRef)
+				addComponentRefUnique(&idx.ComponentToComponent, targetKey, modelPageComponentRef(srcPage))
+			}
 		}
 	}
 
@@ -120,12 +128,13 @@ func (pp *PrintingPress) getCrossRefIndex() (*CrossRefIndex, map[string]*ModelPa
 	opRefsCache := make(map[string][]*ComponentRef, len(allOps))
 	for _, op := range allOps {
 		opRef := &OperationRef{
-			Method: op.Method,
-			Path:   op.Path,
-			Slug:   op.Slug,
+			Method:      op.Method,
+			Path:        op.Path,
+			Slug:        op.Slug,
+			OperationID: op.OperationID,
 		}
 
-		key := op.Method + " " + op.Path
+		key := operationCrossRefKey(op)
 		referencedModels := pp.extractOperationModelRefs(op, modelSlugLookup)
 		opRefsCache[key] = referencedModels
 		for _, compRef := range referencedModels {
@@ -162,13 +171,28 @@ func (pp *PrintingPress) extractOperationModelRefs(op *OperationPage, modelSlugL
 	seen := make(map[string]bool)
 	var refs []*ComponentRef
 
+	addComponentRef := func(compRef *ComponentRef) {
+		if compRef == nil {
+			return
+		}
+		key := slugpkg.ComponentKey(compRef.ComponentType, compRef.Name)
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		refs = append(refs, compRef)
+	}
+	addNamedModel := func(componentType, name string) {
+		if name == "" {
+			return
+		}
+		if page := modelSlugLookup[slugpkg.ComponentKey(componentType, name)]; page != nil {
+			addComponentRef(modelPageComponentRef(page))
+		}
+	}
 	addRef := func(schemaJSON string) {
 		for _, compRef := range extractRefsFromJSON(schemaJSON, modelSlugLookup) {
-			key := slugpkg.ComponentKey(compRef.ComponentType, compRef.Name)
-			if !seen[key] {
-				seen[key] = true
-				refs = append(refs, compRef)
-			}
+			addComponentRef(compRef)
 		}
 	}
 
@@ -220,14 +244,128 @@ func (pp *PrintingPress) extractOperationModelRefs(op *OperationPage, modelSlugL
 		addLink(p.Ref)
 	}
 
-	// Scan security requirements
-	for _, sec := range op.Security {
-		if sec.Ref != nil {
+	// Scan the same effective security requirements rendered on the operation page.
+	if groups, explicitNone, ok := effectiveSecurityGroups(pp.site, op); ok && !explicitNone {
+		for _, group := range groups {
+			for _, sec := range group.Requirements {
+				addLink(sec.Ref)
+			}
+		}
+	} else {
+		for _, sec := range op.Security {
 			addLink(sec.Ref)
 		}
 	}
 
+	if op.SpecKind.IsAsyncAPI() && op.AsyncAPI != nil {
+		addAsyncChannel := func(channel *AsyncAPIChannelRef) {
+			if channel == nil {
+				return
+			}
+			addNamedModel("channels", channel.Name)
+		}
+		addAsyncMessage := func(message *AsyncAPIMessageRef) {
+			if message == nil {
+				return
+			}
+			addNamedModel("messages", message.Name)
+			if page := modelSlugLookup[slugpkg.ComponentKey("messages", message.Name)]; page != nil {
+				for _, compRef := range pp.extractAsyncAPIModelRefs(page, modelSlugLookup) {
+					addComponentRef(compRef)
+				}
+			}
+		}
+		addAsyncChannel(op.AsyncAPI.Channel)
+		for _, message := range op.AsyncAPI.Messages {
+			addAsyncMessage(message)
+		}
+		if op.AsyncAPI.Reply != nil {
+			addLink(op.AsyncAPI.Reply.Ref)
+			addAsyncChannel(op.AsyncAPI.Reply.Channel)
+			for _, message := range op.AsyncAPI.Reply.Messages {
+				addAsyncMessage(message)
+			}
+		}
+	}
+
 	return refs
+}
+
+func operationCrossRefKey(op *OperationPage) string {
+	if op == nil {
+		return ""
+	}
+	if op.Slug != "" {
+		return op.Slug
+	}
+	return op.Method + " " + op.Path
+}
+
+func (pp *PrintingPress) extractAsyncAPIModelRefs(page *ModelPage, modelSlugLookup map[string]*ModelPage) []*ComponentRef {
+	if page == nil || page.AsyncAPI == nil {
+		return nil
+	}
+	seen := make(map[string]bool)
+	var refs []*ComponentRef
+	add := func(ref *ComponentRef) {
+		if ref == nil {
+			return
+		}
+		key := slugpkg.ComponentKey(ref.ComponentType, ref.Name)
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		refs = append(refs, ref)
+	}
+	addNamed := func(componentType, name string) {
+		if name == "" {
+			return
+		}
+		if target := modelSlugLookup[slugpkg.ComponentKey(componentType, name)]; target != nil {
+			add(modelPageComponentRef(target))
+		}
+	}
+	addLink := func(link *ComponentLink) {
+		if link == nil {
+			return
+		}
+		addNamed(link.ComponentType, link.Name)
+	}
+
+	if page.AsyncAPI.Channel != nil {
+		addNamed("channels", page.AsyncAPI.Channel.Name)
+	}
+	for _, message := range page.AsyncAPI.Messages {
+		if message != nil {
+			addNamed("messages", message.Name)
+		}
+	}
+	for _, surface := range page.AsyncAPI.Schemas {
+		if surface == nil {
+			continue
+		}
+		addLink(surface.Ref)
+		for _, compRef := range extractRefsFromJSON(surface.SchemaJSON, modelSlugLookup) {
+			add(compRef)
+		}
+	}
+	for _, compRef := range extractRefsFromJSON(page.SchemaJSON, modelSlugLookup) {
+		add(compRef)
+	}
+	return refs
+}
+
+func modelPageComponentRef(page *ModelPage) *ComponentRef {
+	if page == nil {
+		return nil
+	}
+	return &ComponentRef{
+		Name:          page.Name,
+		ComponentType: page.ComponentType,
+		TypeSlug:      page.TypeSlug,
+		Slug:          page.Slug,
+	}
 }
 
 var refPattern = regexp.MustCompile(`"\$ref"\s*:\s*"#/components/([^"]+)/([^"]+)"`)
@@ -245,7 +383,7 @@ func extractRefsFromJSON(jsonStr string, lookup map[string]*ModelPage) []*Compon
 	var refs []*ComponentRef
 	seen := make(map[string]bool)
 	for _, m := range matches {
-		compType, compName := m[1], m[2]
+		compType, compName := decodeJSONPointerToken(m[1]), decodeJSONPointerToken(m[2])
 		key := slugpkg.ComponentKey(compType, compName)
 		if seen[key] {
 			continue
@@ -274,6 +412,12 @@ func addComponentRefUnique(m *map[string][]*ComponentRef, key string, ref *Compo
 
 func addOperationRefUnique(m *map[string][]*OperationRef, key string, ref *OperationRef) {
 	for _, existing := range (*m)[key] {
+		if existing.Slug != "" || ref.Slug != "" {
+			if existing.Slug == ref.Slug {
+				return
+			}
+			continue
+		}
 		if existing.Method == ref.Method && existing.Path == ref.Path {
 			return
 		}

@@ -19,6 +19,8 @@ const (
 // JSONBundle is the top-level public JSON entrypoint written by PrintJSONArtifacts.
 type JSONBundle struct {
 	Format         string                                  `json:"format"`
+	SpecKind       ppmodel.SpecKindValue                   `json:"specKind,omitempty"`
+	SpecVersion    string                                  `json:"specVersion,omitempty"`
 	Root           *JSONRootPage                           `json:"root,omitempty"`
 	Source         *ppmodel.SourceRef                      `json:"source,omitempty"`
 	Nav            []*ppmodel.NavTag                       `json:"nav,omitempty"`
@@ -35,6 +37,8 @@ type JSONBundle struct {
 
 // JSONRootPage is the root page content embedded in bundle.json.
 type JSONRootPage struct {
+	SpecKind           ppmodel.SpecKindValue               `json:"specKind,omitempty"`
+	SpecVersion        string                              `json:"specVersion,omitempty"`
 	Title              string                              `json:"title,omitempty"`
 	Description        string                              `json:"description,omitempty"`
 	DescHTML           string                              `json:"descHtml,omitempty"`
@@ -104,11 +108,12 @@ type SiteManifest = ArtifactManifest
 
 // JSONArtifactEntry describes a single emitted JSON artifact.
 type JSONArtifactEntry struct {
-	Kind     string `json:"kind"`
-	Path     string `json:"path"`
-	Name     string `json:"name,omitempty"`
-	Slug     string `json:"slug,omitempty"`
-	TypeSlug string `json:"typeSlug,omitempty"`
+	Kind     string                `json:"kind"`
+	SpecKind ppmodel.SpecKindValue `json:"specKind,omitempty"`
+	Path     string                `json:"path"`
+	Name     string                `json:"name,omitempty"`
+	Slug     string                `json:"slug,omitempty"`
+	TypeSlug string                `json:"typeSlug,omitempty"`
 }
 
 // ManifestEntry is kept as a compatibility alias for JSONArtifactEntry.
@@ -121,6 +126,8 @@ func buildJSONBundle(site *ppmodel.Site) *JSONBundle {
 
 	bundle := &JSONBundle{
 		Format:         jsonBundleFormat,
+		SpecKind:       site.SpecKind,
+		SpecVersion:    site.SpecVersion,
 		Root:           buildJSONRootPage(site.Root),
 		Source:         site.Source,
 		Nav:            site.NavTags,
@@ -143,6 +150,8 @@ func buildJSONRootPage(root *ppmodel.RootPage) *JSONRootPage {
 	}
 
 	return &JSONRootPage{
+		SpecKind:           root.SpecKind,
+		SpecVersion:        root.SpecVersion,
 		Title:              root.Title,
 		Description:        root.Description,
 		DescHTML:           root.DescHTML,
@@ -260,10 +269,11 @@ func buildOperationArtifactEntries(operations []*ppmodel.OperationPage, kind str
 			continue
 		}
 		result = append(result, JSONArtifactEntry{
-			Kind: kind,
-			Path: pppaths.OperationJSON(operation.Slug),
-			Name: operation.Method + " " + operation.Path,
-			Slug: operation.Slug,
+			Kind:     kind,
+			SpecKind: operation.SpecKind,
+			Path:     pppaths.OperationJSON(operation.Slug),
+			Name:     operation.Method + " " + operation.Path,
+			Slug:     operation.Slug,
 		})
 	}
 	return result
@@ -290,6 +300,7 @@ func buildModelArtifactEntries(models map[string][]*ppmodel.ModelPage) map[strin
 			}
 			entries = append(entries, JSONArtifactEntry{
 				Kind:     "model",
+				SpecKind: page.SpecKind,
 				Path:     pppaths.ModelJSON(typeSlug, page.Slug),
 				Name:     page.Name,
 				Slug:     page.Slug,
@@ -302,16 +313,20 @@ func buildModelArtifactEntries(models map[string][]*ppmodel.ModelPage) map[strin
 }
 
 func buildArtifactManifest(site *ppmodel.Site) *ArtifactManifest {
+	specKind := ppmodel.SpecKindValueUnknown
+	if site != nil {
+		specKind = site.SpecKind
+	}
 	artifacts := []JSONArtifactEntry{
-		{Kind: "bundle", Path: pppaths.FileBundleJSON, Name: "JSON bundle"},
+		{Kind: "bundle", SpecKind: specKind, Path: pppaths.FileBundleJSON, Name: "JSON bundle"},
 	}
 	if site != nil && site.Root != nil {
-		artifacts = append(artifacts, JSONArtifactEntry{Kind: "root", Path: pppaths.FileIndexJSON, Name: "Root page"})
+		artifacts = append(artifacts, JSONArtifactEntry{Kind: "root", SpecKind: specKind, Path: pppaths.FileIndexJSON, Name: "Root page"})
 	}
 	if site != nil && site.NavTags != nil {
-		artifacts = append(artifacts, JSONArtifactEntry{Kind: "nav", Path: pppaths.FileNavJSON, Name: "Navigation"})
+		artifacts = append(artifacts, JSONArtifactEntry{Kind: "nav", SpecKind: specKind, Path: pppaths.FileNavJSON, Name: "Navigation"})
 	}
-	artifacts = append(artifacts, JSONArtifactEntry{Kind: "manifest", Path: pppaths.FileManifestJSON, Name: "JSON artifact manifest"})
+	artifacts = append(artifacts, JSONArtifactEntry{Kind: "manifest", SpecKind: specKind, Path: pppaths.FileManifestJSON, Name: "JSON artifact manifest"})
 	artifacts = append(artifacts, buildOperationArtifactEntries(site.Operations, "operation")...)
 	artifacts = append(artifacts, buildOperationArtifactEntries(site.Webhooks, "webhook")...)
 

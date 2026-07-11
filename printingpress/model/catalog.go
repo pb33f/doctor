@@ -66,6 +66,8 @@ type CatalogVersion struct {
 type CatalogSpecEntry struct {
 	ID            string             `json:"id"`
 	Slug          string             `json:"slug"`
+	SpecKind      SpecKindValue      `json:"specKind,omitempty"`
+	SpecKindLabel string             `json:"specKindLabel,omitempty"`
 	Title         string             `json:"title,omitempty"`
 	Summary       string             `json:"summary,omitempty"`
 	Contact       *ContactInfo       `json:"contact,omitempty"`

@@ -351,6 +351,94 @@ func TestBuildNavModelGroups_AssignsAdaptiveCardWidth(t *testing.T) {
 	assert.Contains(t, group.CardGridStyle(), "--pp-model-card-min:")
 }
 
+func TestBuildNavModelGroups_CarriesAsyncAPIProtocol(t *testing.T) {
+	pp := newPressEngine(&pressEngineConfig{})
+	pp.site.Models = map[string][]*ModelPage{
+		"operation-traits": {
+			{
+				Name:     "kafka",
+				Slug:     "kafka",
+				TypeSlug: "operation-traits",
+				SpecKind: SpecKindAsyncAPI,
+				AsyncAPI: &AsyncAPIModelInfo{Kind: "operationTrait", Protocol: "kafka", Bindings: []string{"kafka"}},
+			},
+		},
+	}
+
+	pp.buildNavModelGroups()
+	require.Len(t, pp.site.NavModelGroups, 1)
+	require.Len(t, pp.site.NavModelGroups[0].Models, 1)
+	assert.Equal(t, "kafka", pp.site.NavModelGroups[0].Models[0].Protocol)
+	assert.Equal(t, []string{"kafka"}, pp.site.NavModelGroups[0].Models[0].Protocols)
+}
+
+func TestCanonicalAsyncAPIProtocol(t *testing.T) {
+	tests := []struct {
+		name      string
+		component string
+		protocols []string
+		want      string
+	}{
+		{name: "canonical kafka component", component: "kafka", protocols: []string{"kafka"}, want: "kafka"},
+		{name: "case insensitive", component: "KAFKA", protocols: []string{"kafka"}, want: "kafka"},
+		{name: "secure kafka alias", component: "kafka", protocols: []string{"kafka", "kafka-secure"}, want: "kafka"},
+		{name: "websocket alias", component: "websocket", protocols: []string{"ws"}, want: "ws"},
+		{name: "websocket plural alias", component: "websocket", protocols: []string{"websockets"}, want: "websockets"},
+		{name: "google pubsub alias", component: "googlepubsub", protocols: []string{"gcp-pubsub"}, want: "gcp-pubsub"},
+		{name: "amqp version alias", component: "amqp", protocols: []string{"amqp", "amqp1"}, want: "amqp"},
+		{name: "secure mqtt alias", component: "mqtt", protocols: []string{"mqtt", "mqtts"}, want: "mqtt"},
+		{name: "mqtt version alias", component: "mqtt", protocols: []string{"mqtt", "mqtt5"}, want: "mqtt"},
+		{name: "named trait preserves identity", component: "kafkaProducer", protocols: []string{"kafka"}, want: ""},
+		{name: "multi protocol preserves identity", component: "transport", protocols: []string{"kafka", "amqp"}, want: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, canonicalAsyncAPIProtocol(tt.component, tt.protocols))
+		})
+	}
+}
+
+func TestAssignAsyncAPINavTagProtocols(t *testing.T) {
+	tags := []*NavTag{
+		{
+			Name: "kafka",
+			Operations: []*NavOperation{
+				{Protocols: []string{"kafka"}},
+				{Protocols: []string{"kafka"}},
+			},
+		},
+		{
+			Name: "lighting",
+			Operations: []*NavOperation{
+				{Protocols: []string{"kafka"}},
+			},
+		},
+		{
+			Name: "transport",
+			Operations: []*NavOperation{
+				{Protocols: []string{"kafka"}},
+				{Protocols: []string{"amqp"}},
+			},
+		},
+		{
+			Name: "kafka",
+			Operations: []*NavOperation{
+				{Protocols: []string{"amqp"}},
+			},
+		},
+	}
+
+	assignAsyncAPINavTagProtocols(tags)
+	assert.Equal(t, "kafka", tags[0].Protocol)
+	assert.Equal(t, []string{"kafka"}, tags[0].Protocols)
+	assert.Empty(t, tags[1].Protocol)
+	assert.Equal(t, []string{"kafka"}, tags[1].Protocols)
+	assert.Empty(t, tags[2].Protocol)
+	assert.ElementsMatch(t, []string{"kafka", "amqp"}, tags[2].Protocols)
+	assert.Empty(t, tags[3].Protocol)
+}
+
 func TestCaptureRawData_UsesIdentityCacheAndLazyHighlight(t *testing.T) {
 	pp := newPressEngine(&pressEngineConfig{})
 	renderable := &countingRenderable{

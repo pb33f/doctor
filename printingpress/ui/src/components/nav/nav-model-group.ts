@@ -3,6 +3,7 @@ import {customElement, property, state} from 'lit/decorators.js';
 import navModelGroupCss from './nav-model-group.css.js';
 import {modelHref} from '../../utils/doc-links.js';
 import {renderViolationBadges, type ViolationCounts} from '../../utils/violations.js';
+import '../shared/asyncapi-protocol.js';
 
 interface NavModelGroup {
     name: string;
@@ -15,6 +16,8 @@ interface NavModel {
     name: string;
     slug: string;
     typeSlug: string;
+    protocol?: string;
+    protocols?: string[];
     counts?: ViolationCounts;
 }
 
@@ -49,7 +52,7 @@ export class PpNavModelGroup extends LitElement {
             if (this.open && this.activeSlug) {
                 requestAnimationFrame(() => {
                     const active = this.renderRoot.querySelector('a.active');
-                    active?.scrollIntoView({block: 'center', behavior: 'auto'});
+                    active?.scrollIntoView?.({block: 'center', behavior: 'auto'});
                 });
             }
         }
@@ -84,7 +87,19 @@ export class PpNavModelGroup extends LitElement {
                                         <li>
                                             <a href=${modelHref(model.typeSlug, model.slug)}
                                                class="${modelSlug === activeSlug ? 'active' : ''} ${dev ? 'developer' : ''}">
-                                                <span class="model-name">${model.name}</span>
+                                                <span class="model-name">
+                                                    ${model.protocol
+                                                        ? html`<pp-asyncapi-protocol protocol=${model.protocol} size="nav"></pp-asyncapi-protocol>`
+                                                        : html`
+                                                            <span>${model.name}</span>
+                                                            ${model.protocols?.length
+                                                                ? html`<span class="model-protocols">
+                                                                    ${model.protocols.map((protocol) => html`
+                                                                        <pp-asyncapi-protocol protocol=${protocol} size="nav"></pp-asyncapi-protocol>`)}
+                                                                  </span>`
+                                                                : nothing}
+                                                          `}
+                                                </span>
                                                 ${dev ? renderViolationBadges(model.counts) : nothing}
                                             </a>
                                         </li>

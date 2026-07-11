@@ -14,7 +14,7 @@ export default css`
         margin-top: var(--subheader-margin-top);
         margin-bottom: 0;
         padding-bottom: var(--subheader-padding-bottom);
-        font-size: var(--h2-size);
+        font-size: var(--pp-section-heading-size, var(--h3-size));
         font-family: var(--font-stack-bold), monospace;
         font-weight: normal;
         text-transform: uppercase;

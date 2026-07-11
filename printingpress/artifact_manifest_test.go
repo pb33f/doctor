@@ -30,6 +30,7 @@ func TestPrintingPress_WritesHostedArtifactManifestWhenEnabled(t *testing.T) {
 		Embedded:           true,
 		ExpiresAt:          &expiresAt,
 		SharedAssetBaseURL: "/ppress/static/v1",
+		IncludeSpec:        true,
 		Artifact: &ArtifactManifestConfig{
 			Enabled:              true,
 			DocumentID:           "doc-123",
@@ -86,6 +87,11 @@ func TestPrintingPress_WritesHostedArtifactManifestWhenEnabled(t *testing.T) {
 	assert.NotEmpty(t, indexMeta.ETag)
 	assert.True(t, indexMeta.Gzip)
 	assert.FileExists(t, filepath.Join(outputDir, "index.html.gz"))
+	specMeta, ok := manifest.Files["spec/openapi.yaml"]
+	require.True(t, ok)
+	assert.Equal(t, ArtifactAccessProtected, specMeta.Access)
+	assert.True(t, specMeta.Gzip)
+	assert.FileExists(t, filepath.Join(outputDir, "spec", "openapi.yaml.gz"))
 
 	// shared assets live at the host's shared URL — they must not appear in
 	// the per-artifact manifest or on disk under the artifact root.

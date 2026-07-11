@@ -70,6 +70,8 @@ func (pp *PrintingPress) collectDeveloperDiagnostics() {
 	pp.site.Diagnostics = &ppmodel.DiagnosticsPage{
 		Title:       "Diagnostics",
 		Slug:        pppaths.DiagnosticsSlug,
+		SpecKind:    pp.site.SpecKind,
+		SpecLabel:   pp.site.SpecKind.DisplayLabel(),
 		SiteCounts:  siteCounts,
 		Problems:    diagnosticProblems,
 		OrphanCount: len(pp.engineConfig.OrphanResults),

@@ -7,6 +7,8 @@ package printingpress
 import (
 	"errors"
 	"strings"
+
+	"github.com/pb33f/libasyncapi"
 )
 
 var (
@@ -26,8 +28,16 @@ var (
 	ErrNoV3Document = errors.New("printingpress: doctor model has no V3 document")
 	// ErrNoOutputDir is returned when no output directory can be resolved.
 	ErrNoOutputDir = errors.New("printingpress: output directory is required")
+	// ErrIncludedSpecUnavailable is returned when IncludeSpec is enabled but source bytes cannot be obtained.
+	ErrIncludedSpecUnavailable = errors.New("printingpress: included specification bytes are unavailable")
 	// ErrNilSite is returned when a writer is called without a rendered site model.
 	ErrNilSite = errors.New("printingpress: site is required")
+	// ErrUnknownSpecKind is returned when raw bytes do not contain a supported root marker.
+	ErrUnknownSpecKind = errors.New("printingpress: unsupported or missing specification marker")
+	// ErrUnsupportedAsyncAPI2 is returned when an AsyncAPI 2.x source is supplied.
+	ErrUnsupportedAsyncAPI2 = libasyncapi.ErrAsyncAPI2NotSupported
+	// ErrNoAsyncAPIDocument is returned when an AsyncAPI document could not be produced.
+	ErrNoAsyncAPIDocument = errors.New("printingpress: AsyncAPI document is required")
 )
 
 // ValidationIssue describes one configuration validation problem.

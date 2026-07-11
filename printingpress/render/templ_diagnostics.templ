@@ -12,7 +12,7 @@ templ DiagnosticsPageTempl(page *ppmodel.DiagnosticsPage) {
 			<span class="pp-version">{ fmt.Sprintf("%d problems", page.SiteCounts.Total()) }</span>
 		</div>
 		<p>
-            Problems were found with the OpenAPI Contract. There are three different levels of problem:
+            Problems were found with the { diagnosticsSpecLabel(page) } contract. There are three different levels of problem:
         </p>
         <ul>
             <li>An <strong>error</strong> is something to really consider fixing now.</li>
@@ -22,4 +22,14 @@ templ DiagnosticsPageTempl(page *ppmodel.DiagnosticsPage) {
         <hr/>
 		<pp-diagnostics-list></pp-diagnostics-list>
 	</div>
+}
+
+func diagnosticsSpecLabel(page *ppmodel.DiagnosticsPage) string {
+	if page == nil {
+		return "API"
+	}
+	if page.SpecLabel != "" {
+		return page.SpecLabel
+	}
+	return "API"
 }

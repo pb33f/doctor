@@ -15,6 +15,8 @@ import type {ViolationCounts} from '../../utils/violations.js';
 
 interface NavTag {
     name: string;
+    protocol?: string;
+    protocols?: string[];
     summary: string;
     children: NavTag[] | null;
     operations: NavOperation[] | null;
@@ -43,6 +45,8 @@ interface NavModel {
     name: string;
     slug: string;
     typeSlug: string;
+    protocol?: string;
+    protocols?: string[];
     counts?: ViolationCounts;
 }
 

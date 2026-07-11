@@ -26,6 +26,7 @@
     --global-padding-double: 20px;
     --nav-op-max-width: 400px;
     --smaller-font: 0.8rem;
+    --pp-section-heading-size: var(--h3-size);
 
     /* Shoelace tooltip overrides */
     --sl-tooltip-background-color: var(--background-color);
@@ -942,6 +943,13 @@ code {
     margin-bottom: 1.2rem;
 }
 
+.pp-servers > h2,
+.pp-security > h2,
+.pp-contact > h3,
+.pp-license > h3 {
+    font-size: var(--pp-section-heading-size);
+}
+
 
 .pp-security {
     margin-bottom: var(--global-padding-double);
@@ -1044,6 +1052,147 @@ code {
     font-size: 1.1em;
 }
 
+.pp-asyncapi-operation {
+    margin-bottom: var(--global-padding-double);
+    border: 1px dashed var(--secondary-color-dimmer);
+    border-radius: 0;
+    padding: var(--global-padding);
+}
+
+.pp-asyncapi-operation > h3 {
+    margin-bottom: 20px;
+    margin-top: 0;
+    font-size: var(--pp-section-heading-size);
+    text-transform: uppercase;
+    letter-spacing: var(--title-spacing);
+}
+
+.pp-asyncapi-channel-main {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 0.75rem;
+    min-width: 0;
+    margin-bottom: var(--global-padding);
+}
+
+.pp-asyncapi-channel-main pp-asyncapi-action {
+    flex: 0 0 auto;
+    margin-top: 0.1em;
+    font-size: 1.4rem;
+}
+
+.pp-asyncapi-channel-target {
+    display: grid;
+    gap: var(--global-padding-half);
+    min-width: 0;
+    flex: 1 1 0;
+}
+
+.pp-asyncapi-channel-target pb33f-render-operation-path {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: anywhere;
+}
+
+.pp-asyncapi-channel-name {
+    min-width: 0;
+}
+
+.pp-asyncapi-channel-name:empty {
+    display: none;
+}
+
+.pp-asyncapi-meta-row {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 0 1rem;
+    align-items: baseline;
+    padding: var(--global-padding-half) 0;
+}
+
+.pp-asyncapi-bindings-row {
+    align-items: center;
+}
+
+.pp-asyncapi-bindings-row .pp-asyncapi-meta-label {
+    align-self: center;
+    line-height: 1;
+}
+
+.pp-asyncapi-bindings-row .pp-security-scopes {
+    align-items: center;
+}
+
+.pp-asyncapi-meta-label {
+    justify-self: end;
+    color: var(--tertiary-color);
+    font-family: var(--font-stack), monospace;
+}
+
+.pp-asyncapi-meta-value {
+    display: grid;
+    gap: var(--global-padding-half);
+    min-width: 0;
+}
+
+.pp-asyncapi-meta-value pb33f-render-operation-path {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.pp-asyncapi-meta-value .pp-server-url {
+    overflow-wrap: anywhere;
+}
+
+.pp-asyncapi-address-value {
+    min-width: 0;
+    color: var(--font-color);
+    font-family: var(--font-stack), monospace;
+    overflow-wrap: anywhere;
+}
+
+.pp-component-ref {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--global-padding);
+    min-width: 0;
+    padding: 0.2rem 0;
+}
+
+.pp-component-ref-link,
+.pp-component-ref-link:visited,
+.pp-component-ref-link:active {
+    min-width: 0;
+    color: var(--terminal-text);
+    text-decoration: none;
+    font-family: var(--font-stack), monospace;
+    overflow-wrap: anywhere;
+}
+
+.pp-component-ref-link:hover {
+    color: var(--terminal-text);
+    text-decoration: underline;
+}
+
+.pp-asyncapi-reply-messages {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--global-padding-half);
+}
+
+@media (max-width: 780px) {
+    .pp-asyncapi-meta-row {
+        grid-template-columns: 1fr;
+    }
+
+    .pp-asyncapi-meta-label {
+        justify-self: start;
+    }
+}
+
 .pp-external-docs {
     margin-top: var(--global-padding);
 }
@@ -1052,12 +1201,29 @@ code {
     margin-bottom: var(--global-padding);
 }
 
+.pp-dotted-section {
+    margin-top: 0;
+    margin-bottom: var(--global-padding-double);
+    border: 1px dashed var(--secondary-color-dimmer);
+    border-radius: 0;
+    padding: var(--global-padding);
+}
+
+.pp-dotted-section > h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: var(--pp-section-heading-size);
+    text-transform: uppercase;
+    letter-spacing: var(--title-spacing);
+}
+
 .pp-external-doc-entry {
     display: grid;
-    grid-template-columns: 50% 1fr;
+    grid-template-columns: minmax(0, 50%) minmax(0, 1fr);
     gap: 0 1rem;
     align-items: baseline;
     padding: var(--global-padding) 0;
+    min-width: 0;
 }
 
 .pp-external-doc-name {
@@ -1068,14 +1234,20 @@ code {
     font-family: var(--font-stack), monospace;
     color: var(--font-color-sub1);
     text-align: right;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .pp-external-doc-url,
 .pp-external-doc-url:visited,
 .pp-external-doc-url:active {
+    display: block;
+    min-width: 0;
     font-family: var(--font-stack-bold), monospace;
     color: var(--primary-color);
     text-decoration: none;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .pp-external-doc-url:hover {
@@ -1171,6 +1343,7 @@ sl-details.pp-details::part(content) {
     margin: 0;
     border-bottom: none;
     padding: 0;
+    font-size: var(--pp-section-heading-size);
     letter-spacing: var(--title-spacing);
     text-transform: uppercase;
 }
@@ -1192,10 +1365,70 @@ pp-curl-command {
 }
 .pp-operation-path {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--global-padding);
     margin: var(--global-padding) 0 var(--global-padding-double) 0;
     font-size: 1.4rem;
+}
+
+.pp-operation-path code {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.pp-operation-path pb33f-render-operation-path {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.pp-operation-path.pp-operation-path-asyncapi {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.pp-operation-path.pp-operation-path-asyncapi pp-asyncapi-action {
+    flex: 0 0 auto;
+    margin-top: 0.1em;
+}
+
+.pp-operation-path.pp-operation-path-asyncapi pb33f-render-operation-path {
+    flex: 1 1 0;
+    min-width: 0;
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: anywhere;
+}
+
+.pp-asyncapi-action,
+pp-asyncapi-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: var(--font-stack), monospace;
+    font-size: inherit;
+    line-height: 1;
+}
+
+.pp-asyncapi-action sl-icon,
+pp-asyncapi-action sl-icon {
+    width: 0.9em;
+    height: 0.9em;
+    font-size: 0.9em;
+}
+
+.pp-asyncapi-action-receive,
+pp-asyncapi-action[action="receive"] {
+    color: var(--primary-color);
+}
+
+.pp-asyncapi-action-send,
+pp-asyncapi-action[action="send"] {
+    color: var(--secondary-color);
 }
 
 .title-section {
@@ -1377,6 +1610,13 @@ li {
     align-items: start;
 }
 
+.pp-model-card-protocols {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
 .pp-model-card strong {
     display: block;
     color: var(--primary-color);
@@ -1410,6 +1650,7 @@ li {
 .pp-request-body > h3 {
     margin-bottom: 20px;
     margin-top: 0;
+    font-size: var(--pp-section-heading-size);
     text-transform: uppercase;
     letter-spacing: var(--title-spacing);
 }
@@ -1419,6 +1660,20 @@ li {
     padding: 0;
     border-top: none;
     border-bottom: none;
+}
+
+.pp-request-body-refs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--global-padding-half) var(--global-padding);
+}
+
+.pp-code-sample-part-label {
+    margin: var(--global-padding) 0 var(--global-padding-half) 0;
+    color: var(--tertiary-color);
+    font-family: var(--font-stack), monospace;
+    text-transform: uppercase;
+    letter-spacing: var(--title-spacing);
 }
 
 .pp-request-body > h3 > .raw-button {
@@ -1453,6 +1708,11 @@ a.pp-ref-link:hover {
     margin-bottom: calc(var(--global-padding) * 4);
 }
 
+.pp-operations-overview > h2,
+.pp-operations-overview > h3 {
+    font-size: var(--pp-section-heading-size);
+}
+
 .pp-tag-group {
     margin-bottom: calc(var(--global-padding) * 3);
 }
@@ -1471,6 +1731,7 @@ a.pp-ref-link:hover {
 
 .pp-operation > h2 {
     margin-bottom: var(--global-padding-double);
+    font-size: var(--pp-section-heading-size);
 }
 
 .pp-operation > h2 > .raw-button {
@@ -1546,6 +1807,7 @@ ul.pp-operation-list > li:before {
 .pp-common-headers h3 {
     color: var(--secondary-color);
     font-family: var(--font-stack-bold);
+    font-size: var(--pp-section-heading-size);
     text-transform: uppercase;
     letter-spacing: var(--title-spacing);
     margin-bottom: 0.5rem;

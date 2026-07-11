@@ -70,6 +70,36 @@ describe('pp-media-type-selector', () => {
         expect(refLink?.textContent).toContain('Pet');
     });
 
+    it('renders a class diagram for an inline relational schema', async () => {
+        const el = create(JSON.stringify([{
+            mediaType: 'application/json',
+            schemaJson: '{"type":"object"}',
+            mermaidDiagram: 'classDiagram\n  class Event\n  class SentAt\n  Event *-- SentAt : sentAt',
+        }]));
+        await el.updateComplete;
+
+        const diagram = el.shadowRoot?.querySelector('pp-class-diagram') as HTMLElement & {diagram?: string};
+        expect(diagram).toBeTruthy();
+        expect(diagram.diagram).toContain('Event *-- SentAt');
+    });
+
+    it('renders unsupported multi-format schemas as raw content', async () => {
+        const raw = '{"type":"record","name":"Event","fields":[]}';
+        const el = create(JSON.stringify([{
+            mediaType: 'application/avro',
+            schemaJson: '',
+            schemaFormat: 'application/vnd.apache.avro;version=1.9.0',
+            rawSchemaJson: raw,
+        }]));
+        await el.updateComplete;
+
+        expect(el.shadowRoot?.querySelector('.schema-format-label')?.textContent).toContain('application/vnd.apache.avro');
+        const viewer = el.shadowRoot?.querySelector('pp-code-viewer') as HTMLElement & {code?: string};
+        expect(viewer?.code).toBe(raw);
+        expect(el.shadowRoot?.querySelector('pp-schema-properties')).toBeNull();
+        expect(el.shadowRoot?.querySelector('pp-class-diagram')).toBeNull();
+    });
+
     it('should suppress inline schema ref links when hide-ref-links is set', async () => {
         const el = create(JSON.stringify([jsonMT]));
         el.setAttribute('hide-ref-links', '');

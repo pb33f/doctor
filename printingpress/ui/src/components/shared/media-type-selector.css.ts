@@ -120,4 +120,14 @@ export default [dropdownCss, css`
     .example-restore::part(base):hover {
         color: var(--primary-color);
     }
+    .multi-format-schema {
+        margin-top: var(--global-padding);
+    }
+    .schema-format-label {
+        margin-bottom: var(--global-padding-half);
+        color: var(--secondary-color);
+        font-size: var(--font-size-small);
+        text-transform: uppercase;
+        overflow-wrap: anywhere;
+    }
 `]

@@ -11,6 +11,7 @@ export default css`
     
     h2 {
         margin-bottom: 0;
+        font-size: var(--pp-section-heading-size, var(--h3-size));
     }
     
     /* Narrow (stacked) layout */

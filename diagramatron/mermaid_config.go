@@ -6,6 +6,9 @@ package diagramatron
 // MermaidConfig configures the mermaid diagram generation
 type MermaidConfig struct {
 	MaxProperties            int  // max properties to show per class (default 20)
+	MaxSchemas               int  // max unique schemas traversed (default 500)
+	MaxRelationships         int  // max relationships retained (default 2000)
+	MaxDepth                 int  // max recursive schema depth (default 100)
 	IncludePrivate           bool // include private members
 	IncludeOperations        bool // include operations/methods
 	ShowCardinality          bool // show relationship cardinality
@@ -17,6 +20,9 @@ type MermaidConfig struct {
 func DefaultMermaidConfig() *MermaidConfig {
 	return &MermaidConfig{
 		MaxProperties:            20,
+		MaxSchemas:               500,
+		MaxRelationships:         2000,
+		MaxDepth:                 100,
 		IncludePrivate:           true,
 		IncludeOperations:        true,
 		ShowCardinality:          true,

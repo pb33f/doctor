@@ -18,6 +18,7 @@ func TestLoadDiscoversAndResolvesRelativePaths(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "printing-press.yaml"), []byte(`
 output: ./site
 basePath: ./specs
+includeSpec: true
 scan:
   root: ./apis
 state:
@@ -30,6 +31,7 @@ state:
 	require.NotNil(t, cfg)
 	require.Equal(t, filepath.Join(projectDir, "site"), cfg.Output)
 	require.Equal(t, filepath.Join(projectDir, "specs"), cfg.BasePath)
+	require.True(t, cfg.IncludeSpec)
 	require.Equal(t, filepath.Join(projectDir, "apis"), cfg.Scan.Root)
 	require.Equal(t, filepath.Join(projectDir, "state", "cache.db"), cfg.State.SQLite.Path)
 }

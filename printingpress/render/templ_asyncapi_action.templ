@@ -1,0 +1,10 @@
+package render
+
+templ AsyncAPIAction(action string, size string) {
+	<pp-asyncapi-action action={ asyncAPIActionName(action) } size={ asyncAPIActionSize(size) }>
+		<span class={ asyncAPIActionFallbackClass(action, size) } aria-label={ asyncAPIActionLabel(action) }>
+			<sl-icon name={ asyncAPIActionIcon(action) }></sl-icon>
+			<span>{ asyncAPIActionCode(action) }</span>
+		</span>
+	</pp-asyncapi-action>
+}

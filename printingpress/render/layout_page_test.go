@@ -149,6 +149,21 @@ func TestSharedNavPreviewUsesConsistentChevrons(t *testing.T) {
 	}
 }
 
+func TestSharedNavPreviewSupportsAsyncAPIComponents(t *testing.T) {
+	for _, expected := range []string{
+		`function renderProtocol(protocol)`,
+		`<pp-asyncapi-protocol protocol='`,
+		`op.specKind === 'asyncapi'`,
+		`<pp-asyncapi-action action='`,
+		`tag.protocols.map(renderProtocol)`,
+		`model.protocols.map(renderProtocol)`,
+	} {
+		if !strings.Contains(bootstrapSharedNavCacheSource, expected) {
+			t.Fatalf("expected shared nav preview bootstrap to contain %q", expected)
+		}
+	}
+}
+
 func TestSharedNavPreviewIncludesArchiveFallback(t *testing.T) {
 	if !strings.Contains(bootstrapSharedNavCacheSource, `function archiveExportURLForPreview`) {
 		t.Fatalf("expected shared nav preview bootstrap to resolve archive export URL")

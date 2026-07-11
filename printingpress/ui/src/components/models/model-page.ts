@@ -32,6 +32,7 @@ export class PpModelPage extends LitElement {
 
   @property({attribute: 'model-json'}) modelJson = '';
   @property() name = '';
+  @property({attribute: 'component-type'}) componentType = '';
   @property({attribute: 'layout-mode'}) layoutMode = 'stacked';
   @property({attribute: 'estimated-body-height', type: Number}) estimatedBodyHeight = 0;
   @property({attribute: 'estimated-split-height', type: Number}) estimatedSplitHeight = 0;
@@ -258,6 +259,32 @@ export class PpModelPage extends LitElement {
 
     return html`
       ${schema.type !== 'boolean' ? this.renderExamples(data, schema) : nothing}
+      ${this.renderPropertyGrid(entries)}
+    `;
+  }
+
+  private renderAsyncAPIParameter(data: any) {
+    const entries: Array<{label: string; value: unknown; isCode?: boolean}> = [];
+    if (data.location) entries.push({label: 'location', value: data.location, isCode: true});
+    if (data.default !== undefined) entries.push({label: 'default', value: JSON.stringify(data.default), isCode: true});
+    if (Array.isArray(data.enum) && data.enum.length) {
+      entries.push({
+        label: 'enum',
+        value: html`<div class="enum-grid">${data.enum.map((value: unknown) => html`<span class="enum-value">${JSON.stringify(value)}</span>`)}</div>`,
+      });
+    }
+
+    const examples: Record<string, string> = {};
+    if (Array.isArray(data.examples)) {
+      data.examples.forEach((value: unknown, index: number) => {
+        examples[`Example ${index + 1}`] = JSON.stringify(value, null, 2);
+      });
+    }
+
+    return html`
+      ${Object.keys(examples).length
+        ? html`<pp-example-selector mode="inline" examples-json=${JSON.stringify(examples)}></pp-example-selector>`
+        : nothing}
       ${this.renderPropertyGrid(entries)}
     `;
   }
@@ -524,6 +551,9 @@ export class PpModelPage extends LitElement {
 
     // Parameter: has "in" field
     if (data.in) return this.renderParameter(data);
+
+    // AsyncAPI channel parameter: uses location and scalar example arrays.
+    if (this.componentType === 'parameters') return this.renderAsyncAPIParameter(data);
 
     // Header: has "schema" but no "in" and no "properties"
     if (data.schema && !data.properties && !data.in) return this.renderHeader(data);

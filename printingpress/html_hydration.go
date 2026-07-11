@@ -165,7 +165,7 @@ func buildModelHydrationPayload(page *ppmodel.ModelPage, sourceCache *yamlSliceH
 		}
 	}
 
-	if page.SchemaJSON != "" {
+	if page.SchemaJSON != "" && !isAsyncAPIMessageModel(page) && !isAsyncAPIReplyModel(page) {
 		payload.Model = &htmlModelAssetData{
 			Name:          page.Name,
 			ComponentType: page.ComponentType,
@@ -179,12 +179,25 @@ func buildModelHydrationPayload(page *ppmodel.ModelPage, sourceCache *yamlSliceH
 			SchemaRawJSON: page.SchemaRawJSON,
 		}
 	}
+	if page.AsyncAPI != nil && len(page.AsyncAPI.Content) > 0 {
+		payload.Attributes["pp-message-content"] = map[string]string{
+			"content-json": render.MustJSON(page.AsyncAPI.Content),
+		}
+	}
 	payload.Developer = buildDeveloperHydrationPayloadWithCache(page.Counts, page.Problems, page.Slices, ppmodel.ViolationCounts{}, 0, sourceCache)
 
 	if len(payload.Attributes) == 0 {
 		payload.Attributes = nil
 	}
 	return payload
+}
+
+func isAsyncAPIMessageModel(page *ppmodel.ModelPage) bool {
+	return page != nil && page.AsyncAPI != nil && page.AsyncAPI.Kind == "message"
+}
+
+func isAsyncAPIReplyModel(page *ppmodel.ModelPage) bool {
+	return page != nil && page.AsyncAPI != nil && page.AsyncAPI.Kind == "reply"
 }
 
 func buildOperationHydrationPayload(page *ppmodel.OperationPage, sourceCache *yamlSliceHydrationCache) *htmlHydrationPayload {
@@ -206,7 +219,7 @@ func buildOperationHydrationPayload(page *ppmodel.OperationPage, sourceCache *ya
 				"raw-yaml": page.RequestBody.RawYAML,
 			}
 		}
-		if page.RequestBody.Ref == nil && len(page.RequestBody.Content) > 0 {
+		if len(page.RequestBody.Content) > 0 {
 			payload.Attributes["pp-request-body-content"] = map[string]string{
 				"content-json": render.MustJSON(page.RequestBody.Content),
 			}

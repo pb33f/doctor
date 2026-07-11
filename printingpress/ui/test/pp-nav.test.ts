@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import '../src/components/nav/nav.js';
 import '../src/components/nav/nav-tag.js';
+import '../src/components/nav/nav-model-group.js';
 import '@pb33f/cowboy-components/components/http-method/http-method.js';
 
 describe('pp-nav', () => {
@@ -34,6 +35,7 @@ describe('pp-nav', () => {
 
     const el = document.createElement('pp-nav');
     el.setAttribute('data-nav', JSON.stringify(navData));
+    el.setAttribute('data-active', 'receive-light-measurement');
     document.body.appendChild(el);
     await el.updateComplete;
 
@@ -43,6 +45,114 @@ describe('pp-nav', () => {
 
     const tagEls = el.shadowRoot?.querySelectorAll('pp-nav-tag');
     expect(tagEls?.length).toBe(1);
+  });
+
+  it('renders AsyncAPI nav actions with directional abbreviations', async () => {
+    const navData = [
+      {
+        name: 'Operations',
+        summary: '',
+        children: null,
+        operations: [
+          {
+            specKind: 'asyncapi',
+            method: 'receive',
+            path: 'streetlights.{streetlightId}.measured',
+            operationId: 'receiveLightMeasurement',
+            summary: 'Receive information about environmental lighting conditions of a streetlight.',
+            slug: 'receive-light-measurement',
+            deprecated: false,
+          },
+        ],
+        isNavOnly: false,
+      },
+    ];
+
+    const el = document.createElement('pp-nav');
+    el.setAttribute('data-nav', JSON.stringify(navData));
+    el.setAttribute('data-active', 'receive-light-measurement');
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const tagEl = el.shadowRoot?.querySelector('pp-nav-tag') as HTMLElement & { updateComplete?: Promise<unknown> };
+    await tagEl?.updateComplete;
+
+    const action = tagEl?.shadowRoot?.querySelector('pp-asyncapi-action');
+    expect(action?.getAttribute('action')).toBe('receive');
+    expect(action?.getAttribute('size')).toBe('small');
+    expect(tagEl?.shadowRoot?.querySelector('pb33f-http-method')).toBeNull();
+  });
+
+  it('renders protocol-named operation groups with the shared protocol component', async () => {
+    const el = document.createElement('pp-nav');
+    el.setAttribute('data-nav', JSON.stringify([{
+      name: 'kafka',
+      protocol: 'kafka',
+      summary: 'kafka',
+      children: null,
+      operations: [],
+      isNavOnly: false,
+    }]));
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const tag = el.shadowRoot?.querySelector('pp-nav-tag') as HTMLElement & {updateComplete?: Promise<unknown>};
+    await tag?.updateComplete;
+    const protocol = tag?.shadowRoot?.querySelector('.tag-name pp-asyncapi-protocol');
+    expect(protocol?.getAttribute('protocol')).toBe('kafka');
+    expect(protocol?.getAttribute('size')).toBe('nav');
+    const label = protocol?.shadowRoot?.querySelector('.label');
+    const header = tag?.shadowRoot?.querySelector('.tag-header');
+    expect(window.getComputedStyle(label as Element).fontSize).toBe(window.getComputedStyle(header as Element).fontSize);
+  });
+
+  it('renders protocol models with the shared protocol component', async () => {
+    const el = document.createElement('pp-nav');
+    el.setAttribute('data-models', JSON.stringify([{
+      name: 'Operation Traits',
+      typeSlug: 'operation-traits',
+      models: [{
+        name: 'kafka',
+        slug: 'kafka',
+        typeSlug: 'operation-traits',
+        protocol: 'kafka',
+      }],
+    }]));
+    el.setAttribute('data-active', 'operation-traits/kafka');
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const group = el.shadowRoot?.querySelector('pp-nav-model-group') as HTMLElement & {updateComplete?: Promise<unknown>};
+    await group?.updateComplete;
+
+    const protocol = group?.shadowRoot?.querySelector('pp-asyncapi-protocol');
+    expect(protocol?.getAttribute('protocol')).toBe('kafka');
+    expect(protocol?.getAttribute('size')).toBe('nav');
+  });
+
+  it('preserves named trait identity and renders all protocol markers', async () => {
+    const group = document.createElement('pp-nav-model-group') as HTMLElement & {
+      group: unknown;
+      activeSlug: string;
+      updateComplete: Promise<unknown>;
+    };
+    group.group = {
+      name: 'Operation Traits',
+      typeSlug: 'operation-traits',
+      models: [{
+        name: 'commandTransport',
+        slug: 'command-transport',
+        typeSlug: 'operation-traits',
+        protocols: ['kafka', 'amqp'],
+      }],
+    };
+    group.activeSlug = 'operation-traits/command-transport';
+    document.body.appendChild(group);
+    await group.updateComplete;
+
+    expect(group.shadowRoot?.querySelector('.model-name > span')?.textContent).toBe('commandTransport');
+    const protocols = Array.from(group.shadowRoot?.querySelectorAll('pp-asyncapi-protocol') ?? []);
+    expect(protocols.map((protocol) => protocol.getAttribute('protocol'))).toEqual(['kafka', 'amqp']);
   });
 
   it('resolves internal links against the configured page base on nested pages', async () => {

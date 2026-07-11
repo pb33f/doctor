@@ -60,6 +60,82 @@ func TestAggregatePrintingPress_PressModel_GroupsServicesAndVersions(t *testing.
 	assert.Equal(t, "services/shipping/versions/2024-06-01/index.html", shipping.LatestVersion.OverviewHref)
 }
 
+func TestAggregatePrintingPress_PressModel_DiscoversMixedOpenAPIAndAsyncAPIEntries(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateSpec(t, root, "services/events/specs/openapi.yaml", "Events API", "v1")
+	writeAggregateAsyncAPISpec(t, root, "services/events/specs/asyncapi.yaml", "Events Stream", "v1")
+	outputDir := filepath.Join(root, "site")
+
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: NewMemorySpecStateStore(),
+	})
+	require.NoError(t, err)
+
+	catalog, err := ap.PressModel()
+	require.NoError(t, err)
+	events := findCatalogService(t, catalog, "events")
+	require.NotNil(t, events.LatestVersion)
+	require.Len(t, events.LatestVersion.Entries, 2)
+
+	kinds := map[string]string{}
+	for _, entry := range events.LatestVersion.Entries {
+		kinds[entry.SpecKind.MachineValue()] = entry.SpecKindLabel
+	}
+	assert.Equal(t, "OpenAPI", kinds["openapi"])
+	assert.Equal(t, "AsyncAPI", kinds["asyncapi"])
+
+	stats, err := ap.PrintSelectedOutputs(AggregateRenderOptions{HTML: true, LLM: true, JSON: true})
+	require.NoError(t, err)
+	assert.Equal(t, 2, stats.Specs)
+
+	versionHTML, err := os.ReadFile(filepath.Join(outputDir, "services", "events", "versions", "v1", "index.html"))
+	require.NoError(t, err)
+	assert.Contains(t, string(versionHTML), `data-spec-kind="openapi"`)
+	assert.Contains(t, string(versionHTML), `data-spec-kind="asyncapi"`)
+	assert.Contains(t, string(versionHTML), `>AsyncAPI<`)
+
+	catalogJSON, err := os.ReadFile(filepath.Join(outputDir, pppaths.FileBundleJSON))
+	require.NoError(t, err)
+	assert.Contains(t, string(catalogJSON), `"specKind":"openapi"`)
+	assert.Contains(t, string(catalogJSON), `"specKind":"asyncapi"`)
+
+	llms, err := os.ReadFile(filepath.Join(outputDir, pppaths.FileLLMIndex))
+	require.NoError(t, err)
+	assert.Contains(t, string(llms), "Events Stream")
+	assert.Contains(t, string(llms), "AsyncAPI")
+}
+
+func TestAggregatePrintingPress_IncludesSourceSpecPerEntry(t *testing.T) {
+	root := t.TempDir()
+	relativePath := "services/users/specs/openapi.yaml"
+	writeAggregateSpec(t, root, relativePath, "Users API", "v1")
+	outputDir := filepath.Join(root, "site")
+
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:   outputDir,
+		BuildMode:   AggregateBuildModeFull,
+		IncludeSpec: true,
+		StateStore:  NewMemorySpecStateStore(),
+	})
+	require.NoError(t, err)
+	catalog, err := ap.PressModel()
+	require.NoError(t, err)
+	users := findCatalogService(t, catalog, "users")
+	require.NotNil(t, users.LatestVersion)
+	require.Len(t, users.LatestVersion.Entries, 1)
+	entry := users.LatestVersion.Entries[0]
+
+	_, err = ap.PrintSelectedOutputs(AggregateRenderOptions{HTML: true, JSON: true})
+	require.NoError(t, err)
+	assert.FileExists(t, filepath.Join(outputDir, filepath.FromSlash(entry.OutputSubdir), "spec", "openapi.yaml"))
+
+	bundleBytes, err := os.ReadFile(filepath.Join(outputDir, filepath.FromSlash(entry.OutputSubdir), pppaths.FileBundleJSON))
+	require.NoError(t, err)
+	assert.Contains(t, string(bundleBytes), `"href":"spec/openapi.yaml"`)
+}
+
 func TestAggregatePrintingPress_PressModel_GroupsAPIsGuruStyleVersionFolders(t *testing.T) {
 	root := t.TempDir()
 	writeAggregateSpec(t, root, "APIs/adyen.com/AccountService/5/openapi.yaml", "Account API", "5")
@@ -1365,6 +1441,40 @@ func TestAggregatePrintingPress_PrintHTML_SkipsUnsupportedSpecsAndContinues(t *t
 	assert.Equal(t, 1, stats.Specs)
 }
 
+func TestAggregatePrintingPress_PressModel_OmitsUnsupportedAsyncAPI2FromCatalogAndState(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateSpec(t, root, "services/users/src/specs/usersv1.yaml", "Users API", "v1")
+	writeAggregateAsyncAPI2Spec(t, root, "services/events/specs/asyncapi.yaml", "Legacy Events", "v1")
+	outputDir := filepath.Join(root, "site")
+	store := NewMemorySpecStateStore()
+
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:               outputDir,
+		BuildMode:               AggregateBuildModeFull,
+		StateStore:              store,
+		StateNamespace:          "test",
+		NoiseSegments:           []string{"src", "specs"},
+		DisableSkippedRendering: false,
+	})
+	require.NoError(t, err)
+
+	catalog, err := ap.PressModel()
+	require.NoError(t, err)
+	require.Len(t, catalog.Warnings, 1)
+	assert.Contains(t, catalog.Warnings[0].Message, "unsupported AsyncAPI 2.x")
+	assert.Contains(t, catalog.Warnings[0].Context, "services/events/specs/asyncapi.yaml")
+	assert.NotContains(t, catalogServiceKeys(catalog), "events")
+
+	stats, err := ap.PrintSelectedOutputs(AggregateRenderOptions{HTML: true})
+	require.NoError(t, err)
+	assert.Equal(t, 1, stats.Specs)
+
+	loaded, err := store.Load("test")
+	require.NoError(t, err)
+	assert.Contains(t, loaded, "services/users/src/specs/usersv1.yaml")
+	assert.NotContains(t, loaded, "services/events/specs/asyncapi.yaml")
+}
+
 func TestAggregatePrintingPress_PrintHTML_HidesSkippedVersionsFromHeaderSwitchers(t *testing.T) {
 	root := t.TempDir()
 	writeAggregateSpec(t, root, "services/users/specs/usersv1.yaml", "Users API", "v1")
@@ -1507,6 +1617,7 @@ func TestAggregateEntryConfigHashIncludesEntryOutputOptions(t *testing.T) {
 		{name: "llm aggregate threshold", config: &AggregatePrintingPressConfig{LLMAggregateSpecSizeThresholdBytes: 4096}},
 		{name: "llm shard size", config: &AggregatePrintingPressConfig{LLMMaxAggregateFileBytes: 8192}},
 		{name: "llm monolith mode", config: &AggregatePrintingPressConfig{LLMGenerateMonoliths: LLMGenerateMonolithsNever}},
+		{name: "include spec", config: &AggregatePrintingPressConfig{IncludeSpec: true}},
 		{name: "entry config fingerprint", config: &AggregatePrintingPressConfig{EntryConfigFingerprint: "diagnostics-v1"}},
 	}
 
@@ -1515,6 +1626,16 @@ func TestAggregateEntryConfigHashIncludesEntryOutputOptions(t *testing.T) {
 			assert.NotEqual(t, baseHash, normalizedAggregateEntryConfigHash(t, tc.config))
 		})
 	}
+}
+
+func TestAggregateEntryRenderConfigHashIncludesSpecKind(t *testing.T) {
+	baseHash := normalizedAggregateEntryConfigHash(t, &AggregatePrintingPressConfig{})
+
+	openapiHash := aggregateEntryRenderConfigHash(baseHash, false, nil, "", SpecKindOpenAPI)
+	asyncapiHash := aggregateEntryRenderConfigHash(baseHash, false, nil, "", SpecKindAsyncAPI)
+
+	assert.NotEqual(t, baseHash, openapiHash, "spec kind should invalidate legacy aggregate render/config hashes once")
+	assert.NotEqual(t, openapiHash, asyncapiHash)
 }
 
 func TestAggregatePrintingPress_BuildEntrySiteUsesSpecLintResults(t *testing.T) {
@@ -1568,6 +1689,7 @@ func TestSQLiteSpecStateStore_RoundTripsRecords(t *testing.T) {
 		Hash:            "abc123",
 		ConfigHash:      "cfg-123",
 		MetadataVersion: aggregateMetadataVersion,
+		SpecKind:        SpecKindAsyncAPI,
 		Title:           "Users API",
 		Summary:         "Core account resources.",
 		ContactName:     "API Support",
@@ -1587,6 +1709,7 @@ func TestSQLiteSpecStateStore_RoundTripsRecords(t *testing.T) {
 	assert.Equal(t, record.Hash, loaded[record.RelativePath].Hash)
 	assert.Equal(t, record.ConfigHash, loaded[record.RelativePath].ConfigHash)
 	assert.Equal(t, record.MetadataVersion, loaded[record.RelativePath].MetadataVersion)
+	assert.Equal(t, record.SpecKind, loaded[record.RelativePath].SpecKind)
 	assert.Equal(t, record.Summary, loaded[record.RelativePath].Summary)
 	assert.Equal(t, record.ContactName, loaded[record.RelativePath].ContactName)
 	assert.Equal(t, record.ContactEmail, loaded[record.RelativePath].ContactEmail)
@@ -1636,6 +1759,7 @@ func TestSQLiteSpecStateStore_LoadsLegacyRowsWithNullSummary(t *testing.T) {
 	require.Contains(t, loaded, "services/users/spec.yaml")
 	assert.Equal(t, "", loaded["services/users/spec.yaml"].ConfigHash)
 	assert.Equal(t, 0, loaded["services/users/spec.yaml"].MetadataVersion)
+	assert.Equal(t, SpecKindOpenAPI, loaded["services/users/spec.yaml"].SpecKind)
 	assert.Equal(t, "", loaded["services/users/spec.yaml"].Summary)
 	assert.Equal(t, "", loaded["services/users/spec.yaml"].ContactName)
 	assert.Equal(t, "", loaded["services/users/spec.yaml"].ContactEmail)
@@ -1791,6 +1915,51 @@ paths:
 	return absPath
 }
 
+func writeAggregateAsyncAPISpec(t *testing.T, root, relPath, title, version string) string {
+	t.Helper()
+	spec := strings.TrimSpace(`
+asyncapi: 3.0.0
+info:
+  title: `+strconv.Quote(title)+`
+  version: `+strconv.Quote(version)+`
+channels:
+  events:
+    address: events.{id}
+operations:
+  publishEvent:
+    action: send
+    channel:
+      $ref: '#/channels/events'
+    messages:
+      - $ref: '#/components/messages/EventMessage'
+components:
+  messages:
+    EventMessage:
+      name: EventMessage
+      payload:
+        $ref: '#/components/schemas/Event'
+  schemas:
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+`) + "\n"
+	return writeAggregateSpecDocument(t, root, relPath, spec)
+}
+
+func writeAggregateAsyncAPI2Spec(t *testing.T, root, relPath, title, version string) string {
+	t.Helper()
+	spec := strings.TrimSpace(`
+asyncapi: 2.6.0
+info:
+  title: `+strconv.Quote(title)+`
+  version: `+strconv.Quote(version)+`
+channels: {}
+`) + "\n"
+	return writeAggregateSpecDocument(t, root, relPath, spec)
+}
+
 func aggregateSpecDocument(title, version string, paths []string, schemas []string) string {
 	var b strings.Builder
 	b.WriteString("openapi: 3.1.0\n")
@@ -1824,6 +1993,20 @@ func findCatalogService(t *testing.T, catalog *ppmodel.CatalogSite, key string) 
 	}
 	t.Fatalf("service %s not found", key)
 	return nil
+}
+
+func catalogServiceKeys(catalog *ppmodel.CatalogSite) []string {
+	if catalog == nil {
+		return nil
+	}
+	keys := make([]string, 0, len(catalog.Services))
+	for _, service := range catalog.Services {
+		if service == nil {
+			continue
+		}
+		keys = append(keys, service.Key)
+	}
+	return keys
 }
 
 func findCatalogEntry(t *testing.T, service *ppmodel.CatalogService, versionLabel string) *ppmodel.CatalogSpecEntry {

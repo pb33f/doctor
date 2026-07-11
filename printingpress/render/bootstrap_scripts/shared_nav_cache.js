@@ -205,6 +205,46 @@
     );
   }
 
+  function protocolLabel(protocol) {
+    const normalized = String(protocol || '').trim().toLowerCase().replace(/[-_.\s]+/g, '');
+    const labels = {
+      amqp: 'AMQP', amqp1: 'AMQP 1.0', anypointmq: 'ANYPOINT MQ', googlepubsub: 'GOOGLE PUB/SUB',
+      http: 'HTTP', https: 'HTTPS', ibmmq: 'IBM MQ', jms: 'JMS', kafka: 'KAFKA',
+      kafkasecure: 'KAFKA', mercure: 'MERCURE', mqtt: 'MQTT', mqtt5: 'MQTT 5', nats: 'NATS',
+      pulsar: 'PULSAR', redis: 'REDIS', sns: 'SNS', solace: 'SOLACE', sqs: 'SQS', stomp: 'STOMP',
+      websocket: 'WEBSOCKET', ws: 'WEBSOCKET', wss: 'WEBSOCKET',
+    };
+    return labels[normalized] || String(protocol || '').trim().toUpperCase();
+  }
+
+  function renderProtocol(protocol) {
+    if (!protocol) {
+      return '';
+    }
+    return (
+      "<pp-asyncapi-protocol protocol='" +
+      escapeHtml(protocol) +
+      "' size='nav'>" +
+      escapeHtml(protocolLabel(protocol)) +
+      '</pp-asyncapi-protocol>'
+    );
+  }
+
+  function renderOperationBadge(op) {
+    if (op && op.specKind === 'asyncapi') {
+      const action = String(op.method || '').toLowerCase();
+      const receive = action === 'receive';
+      return (
+        "<pp-asyncapi-action action='" +
+        escapeHtml(action) +
+        "' size='small'>" +
+        (receive ? '&#8592; RCV' : 'SND &#8594;') +
+        '</pp-asyncapi-action>'
+      );
+    }
+    return renderMethodBadge(op && op.method);
+  }
+
   function renderOperationItem(op, activeSlug) {
     if (!op) {
       return '';
@@ -224,7 +264,7 @@
       "'><span class='pp-nav-preview-item-title pp-nav-preview-operation-title'>" +
       escapeHtml(op.summary || op.path || op.slug || 'Untitled') +
       '</span>' +
-      renderMethodBadge(op.method) +
+      renderOperationBadge(op) +
       '</a></li>'
     );
   }
@@ -244,7 +284,10 @@
       "'>" +
       renderPreviewChevron(open) +
       "<span class='tag-name'>" +
-      escapeHtml(tag.summary || tag.name || 'Untitled') +
+      (tag.protocol
+        ? renderProtocol(tag.protocol)
+        : escapeHtml(tag.summary || tag.name || 'Untitled') +
+          (Array.isArray(tag.protocols) ? tag.protocols.map(renderProtocol).join('') : '')) +
       '</span></div>';
     if (!open) {
       return html;
@@ -311,7 +354,10 @@
         "' class='" +
         classes.join(' ') +
         "'><span class='pp-nav-preview-item-title pp-nav-preview-model-title'>" +
-        escapeHtml(model.name || model.slug || 'Untitled') +
+        (model.protocol
+          ? renderProtocol(model.protocol)
+          : escapeHtml(model.name || model.slug || 'Untitled') +
+            (Array.isArray(model.protocols) ? model.protocols.map(renderProtocol).join('') : '')) +
         '</span></a></li>';
     }
     html += '</ul></div>';

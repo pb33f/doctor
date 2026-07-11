@@ -496,6 +496,232 @@ func BuildFocusedGraph(allNodes []*v3.Node, allEdges []*v3.Edge, targetNodeID st
 	return idx.buildFocusedGraph(targetNodeID, maxDepth)
 }
 
+// BuildAsyncAPIFocusedModelGraph builds a focused dependency graph for an
+// AsyncAPI model page from Printing Press cross-reference data.
+func BuildAsyncAPIFocusedModelGraph(page *ModelPage, pagesByID map[string]*ModelPage, maxDepth int) (string, error) {
+	if page == nil || page.CrossRefs == nil {
+		return "", nil
+	}
+	if maxDepth <= 0 {
+		maxDepth = defaultMaxDepth
+	}
+	targetID := SchemaNodeID(page.ComponentType, page.Name)
+	result := &focusedGraphResult{
+		Mode: drModel.GraphModeStandard,
+	}
+	if pagesByID == nil {
+		pagesByID = buildAsyncAPIModelGraphPages(page, nil)
+	}
+	pagesByID[targetID] = page
+	seenNodes := make(map[string]bool)
+	nodeIndexes := make(map[string]int)
+	isDependency := make(map[string]bool)
+	seenEdges := make(map[string]bool)
+
+	addModelPageNode := func(page *ModelPage, dependency bool) (string, error) {
+		if page == nil {
+			return "", nil
+		}
+		nodeID := SchemaNodeID(page.ComponentType, page.Name)
+		if nodeID != targetID && dependency {
+			isDependency[nodeID] = true
+		}
+		if !seenNodes[nodeID] {
+			node, err := buildSyntheticModelPageNode(nodeID, page.Name, page.TypeSlug, page.Slug, page.ComponentType, isDependency[nodeID])
+			if err != nil {
+				return "", err
+			}
+			nodeIndexes[nodeID] = len(result.Nodes)
+			result.Nodes = append(result.Nodes, node)
+			seenNodes[nodeID] = true
+		} else if isDependency[nodeID] {
+			if idx, ok := nodeIndexes[nodeID]; ok {
+				node, err := buildSyntheticModelPageNode(nodeID, page.Name, page.TypeSlug, page.Slug, page.ComponentType, true)
+				if err != nil {
+					return "", err
+				}
+				result.Nodes[idx] = node
+			}
+		}
+		return nodeID, nil
+	}
+	addModelRefNode := func(ref *ComponentRef, dependency bool) (string, error) {
+		if ref == nil {
+			return "", nil
+		}
+		nodeID := SchemaNodeID(ref.ComponentType, ref.Name)
+		if modelPage := pagesByID[nodeID]; modelPage != nil {
+			return addModelPageNode(modelPage, dependency)
+		}
+		if nodeID != targetID && dependency {
+			isDependency[nodeID] = true
+		}
+		if !seenNodes[nodeID] {
+			node, err := buildSyntheticModelPageNode(nodeID, ref.Name, ref.TypeSlug, ref.Slug, ref.ComponentType, isDependency[nodeID])
+			if err != nil {
+				return "", err
+			}
+			nodeIndexes[nodeID] = len(result.Nodes)
+			result.Nodes = append(result.Nodes, node)
+			seenNodes[nodeID] = true
+		} else if isDependency[nodeID] {
+			if idx, ok := nodeIndexes[nodeID]; ok {
+				node, err := buildSyntheticModelPageNode(nodeID, ref.Name, ref.TypeSlug, ref.Slug, ref.ComponentType, true)
+				if err != nil {
+					return "", err
+				}
+				result.Nodes[idx] = node
+			}
+		}
+		return nodeID, nil
+	}
+	addEdge := func(sourceID, targetID, ref string, dependency bool) {
+		if sourceID == "" || targetID == "" {
+			return
+		}
+		edgeID := sourceID + "->" + targetID + "|" + ref
+		if seenEdges[edgeID] {
+			return
+		}
+		result.Edges = append(result.Edges, &focusedEdge{
+			Id:         edgeID,
+			Sources:    []string{sourceID},
+			Targets:    []string{targetID},
+			Ref:        ref,
+			Dependency: dependency,
+		})
+		seenEdges[edgeID] = true
+	}
+
+	if _, err := addModelPageNode(page, false); err != nil {
+		return "", err
+	}
+
+	type queueItem struct {
+		nodeID string
+		depth  int
+	}
+	queue := []queueItem{{nodeID: targetID}}
+	seenDepth := map[string]int{targetID: 0}
+	for len(queue) > 0 {
+		item := queue[0]
+		queue = queue[1:]
+		if item.depth >= maxDepth {
+			continue
+		}
+		currentPage := pagesByID[item.nodeID]
+		if currentPage == nil || currentPage.CrossRefs == nil {
+			continue
+		}
+		nextDepth := item.depth + 1
+		for _, ref := range currentPage.CrossRefs.UsesModels {
+			nodeID, err := addModelRefNode(ref, false)
+			if err != nil {
+				return "", err
+			}
+			addEdge(item.nodeID, nodeID, "asyncapi-model-ref:"+ref.ComponentType+"/"+ref.Name, isDependency[item.nodeID])
+			if _, ok := pagesByID[nodeID]; ok {
+				if depth, seen := seenDepth[nodeID]; !seen || nextDepth < depth {
+					seenDepth[nodeID] = nextDepth
+					queue = append(queue, queueItem{nodeID: nodeID, depth: nextDepth})
+				}
+			}
+		}
+		for _, ref := range currentPage.CrossRefs.UsedByModels {
+			nodeID, err := addModelRefNode(ref, SchemaNodeID(ref.ComponentType, ref.Name) != targetID)
+			if err != nil {
+				return "", err
+			}
+			currentRef := "asyncapi-model-ref:" + currentPage.ComponentType + "/" + currentPage.Name
+			addEdge(nodeID, item.nodeID, currentRef, nodeID != targetID)
+			if _, ok := pagesByID[nodeID]; ok {
+				if depth, seen := seenDepth[nodeID]; !seen || nextDepth < depth {
+					seenDepth[nodeID] = nextDepth
+					queue = append(queue, queueItem{nodeID: nodeID, depth: nextDepth})
+				}
+			}
+		}
+	}
+
+	for nodeID := range seenNodes {
+		modelPage := pagesByID[nodeID]
+		if modelPage == nil || modelPage.CrossRefs == nil {
+			continue
+		}
+		for _, op := range modelPage.CrossRefs.UsedByOperations {
+			if op == nil {
+				continue
+			}
+			opNodeID := syntheticOperationConsumerNodeID(op)
+			if !seenNodes[opNodeID] {
+				node, err := buildSyntheticOperationConsumerNode(op)
+				if err != nil {
+					return "", err
+				}
+				result.Nodes = append(result.Nodes, node)
+				seenNodes[opNodeID] = true
+			}
+			addEdge(opNodeID, nodeID, syntheticOperationConsumerRef(op), true)
+		}
+	}
+
+	if len(result.Nodes) <= 1 {
+		return "", nil
+	}
+	b, err := json.Marshal(result)
+	if err != nil {
+		return "", fmt.Errorf("marshaling asyncapi focused graph: %w", err)
+	}
+	return string(b), nil
+}
+
+func buildAsyncAPIModelGraphPages(target *ModelPage, models map[string][]*ModelPage) map[string]*ModelPage {
+	pagesByID := make(map[string]*ModelPage)
+	if target != nil {
+		pagesByID[SchemaNodeID(target.ComponentType, target.Name)] = target
+	}
+	for _, pages := range models {
+		for _, page := range pages {
+			if page == nil {
+				continue
+			}
+			pagesByID[SchemaNodeID(page.ComponentType, page.Name)] = page
+		}
+	}
+	return pagesByID
+}
+
+func buildSyntheticModelPageNode(nodeID, name, typeSlug, slug, componentType string, dependency bool) (json.RawMessage, error) {
+	parentID := "$.components." + componentType
+	node := v3.NewSyntheticNode(nodeID, parentID, name, "schema")
+	node.RenderProps = true
+	node.IsArray = false
+	node.ArrayValues = 0
+	width := len(name)*10 + 120
+	if width < 320 {
+		width = 320
+	}
+	if width > 720 {
+		width = 720
+	}
+	node.Width = width
+	nodeBytes, err := json.Marshal(node)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling synthetic model node: %w", err)
+	}
+	attrs := map[string]any{
+		"href": pppaths.ModelHTML(firstNonEmpty(typeSlug, componentType), slug),
+	}
+	if dependency {
+		attrs["dependency"] = true
+	}
+	nodeBytes, err = injectNodeAttrs(nodeBytes, attrs)
+	if err != nil {
+		return nil, fmt.Errorf("injecting synthetic model node attrs: %w", err)
+	}
+	return nodeBytes, nil
+}
+
 func marshalFocusedNodeJSON(node *v3.Node, href string) ([]byte, error) {
 	nodeCopy := node.CloneShallow()
 	nodeCopy.RenderProps = true

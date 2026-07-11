@@ -116,6 +116,62 @@ func TestWriteLLMSite_BurgerShop(t *testing.T) {
 	}
 }
 
+func TestWriteLLMSite_AsyncAPIStreetlights(t *testing.T) {
+	pp, err := CreatePrintingPressFromBytes(streetlightsAsyncAPISpec(), &PrintingPressConfig{
+		SpecPath: "streetlights.yaml",
+	})
+	require.NoError(t, err)
+	site, err := pp.PressModel()
+	require.NoError(t, err)
+	outputDir := t.TempDir()
+
+	err = WriteLLMSite(site, outputDir)
+	require.NoError(t, err)
+
+	agentsBytes, err := os.ReadFile(filepath.Join(outputDir, "AGENTS.md"))
+	require.NoError(t, err)
+	agents := string(agentsBytes)
+	assert.Contains(t, agents, "action, channel, message, reply, and protocol context")
+	assert.NotContains(t, agents, "request and response shapes")
+
+	fullBytes, err := os.ReadFile(filepath.Join(outputDir, "llms-full.txt"))
+	require.NoError(t, err)
+	full := string(fullBytes)
+	assert.Contains(t, full, "## How to Use This AsyncAPI")
+	assert.Contains(t, full, "### SEND turnOn")
+	assert.Contains(t, full, "#### Messages")
+	assert.Contains(t, full, "turnOnOff")
+	assert.NotContains(t, full, "#### cURL")
+	assert.NotContains(t, full, "#### Request Body")
+	assert.NotContains(t, full, "#### Responses")
+	assert.NotContains(t, full, "Primary Resources")
+
+	opBytes, err := os.ReadFile(filepath.Join(outputDir, "operations", "turn-on.md"))
+	require.NoError(t, err)
+	op := string(opBytes)
+	assert.Contains(t, op, "### SEND turnOn")
+	assert.Contains(t, op, "#### Channel")
+	assert.Contains(t, op, "smartylighting.streetlights.1.0.action.{streetlightId}.turn.on")
+	assert.Contains(t, op, "#### Bindings")
+	assert.Contains(t, op, "`kafka`")
+	assert.Contains(t, op, "**Models referenced:**")
+	assert.Contains(t, op, "turnOnOff")
+	assert.Contains(t, op, "turnOnOffPayload")
+	assert.Contains(t, op, "saslScram")
+	assert.NotContains(t, op, "curl ")
+
+	msgBytes, err := os.ReadFile(filepath.Join(outputDir, "models", "messages", "turn-on-off.md"))
+	require.NoError(t, err)
+	msg := string(msgBytes)
+	assert.Contains(t, msg, "**AsyncAPI model:** `message`")
+	assert.Contains(t, msg, "#### Schemas")
+	assert.Contains(t, msg, "**Schema ref:**")
+	assert.Contains(t, msg, "turnOnOffPayload")
+	assert.Contains(t, msg, "**Used by:**")
+	assert.Contains(t, msg, "turnOn")
+	assert.Contains(t, msg, "**References:**")
+}
+
 func TestWriteLLMSite_PetStore(t *testing.T) {
 	site := buildTestSite(t, "../test_specs/petstorev3.json")
 	outputDir := t.TempDir()

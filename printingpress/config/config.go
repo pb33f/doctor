@@ -25,6 +25,7 @@ type File struct {
 	Theme         string         `mapstructure:"theme" yaml:"theme"`
 	NoLogo        bool           `mapstructure:"noLogo" yaml:"noLogo"`
 	DisableExport bool           `mapstructure:"disableExport" yaml:"disableExport"`
+	IncludeSpec   bool           `mapstructure:"includeSpec" yaml:"includeSpec"`
 	NoHTML        bool           `mapstructure:"noHTML" yaml:"noHTML"`
 	NoLLM         bool           `mapstructure:"noLLM" yaml:"noLLM"`
 	NoJSON        bool           `mapstructure:"noJSON" yaml:"noJSON"`
