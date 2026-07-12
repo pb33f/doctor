@@ -1860,12 +1860,28 @@ func (pp *PrintingPress) computeOriginalLine(bundledLine int, piOrigin *bundler.
 // formatLocation strips the SpecRoot prefix from an origin's file path so rendered
 // paths are relative (e.g. "schemas/user.yaml" not "/home/user/project/api-spec/schemas/user.yaml").
 func (pp *PrintingPress) formatLocation(origin *bundler.ComponentOrigin) string {
-	loc := origin.OriginalFile
-	if pp.engineConfig.SpecRoot != "" && strings.HasPrefix(loc, pp.engineConfig.SpecRoot) {
-		loc = strings.TrimPrefix(loc, pp.engineConfig.SpecRoot)
-		loc = strings.TrimPrefix(loc, "/")
+	loc := strings.TrimSpace(origin.OriginalFile)
+	if pp.engineConfig.SpecRoot != "" {
+		if relative, ok := relativePathWithinRoot(pp.engineConfig.SpecRoot, loc); ok {
+			return relative
+		}
+		// Bundled Windows origins may be root-relative without a drive letter.
+		if strings.HasPrefix(loc, `\`) && filepath.VolumeName(loc) == "" {
+			loc = strings.TrimLeft(loc, `/\`)
+		}
 	}
-	return loc
+	return strings.ReplaceAll(filepath.ToSlash(loc), `\`, "/")
+}
+
+func relativePathWithinRoot(root, target string) (string, bool) {
+	if root == "" || target == "" {
+		return "", false
+	}
+	relative, err := filepath.Rel(root, target)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return filepath.ToSlash(relative), true
 }
 
 func (pp *PrintingPress) sourceTargetForLocation(location string, origin *bundler.ComponentOrigin) string {
@@ -1880,7 +1896,8 @@ func (pp *PrintingPress) sourceTargetForLocation(location string, origin *bundle
 			return pp.engineConfig.SpecPath
 		}
 		if pp.engineConfig.SpecRoot != "" {
-			return filepath.Join(pp.engineConfig.SpecRoot, filepath.FromSlash(location))
+			cleanLocation := strings.TrimLeft(location, `/\`)
+			return filepath.Join(pp.engineConfig.SpecRoot, filepath.FromSlash(cleanLocation))
 		}
 	}
 	return location
@@ -1920,9 +1937,17 @@ func (pp *PrintingPress) buildModelSourceRef(origin *bundler.ComponentOrigin) *S
 			if pp.engineConfig != nil && pp.engineConfig.SpecLocation != "" && origin.OriginalFile == pp.engineConfig.SpecLocation {
 				location = pp.engineConfig.SpecLocation
 				target = pp.engineConfig.SpecPath
-			} else if pp.engineConfig != nil && pp.engineConfig.SpecRoot != "" && strings.HasPrefix(origin.OriginalFile, pp.engineConfig.SpecRoot) {
-				location = pp.formatLocation(origin)
-				target = origin.OriginalFile
+			} else if pp.engineConfig != nil && pp.engineConfig.SpecRoot != "" {
+				if relative, ok := relativePathWithinRoot(pp.engineConfig.SpecRoot, origin.OriginalFile); ok {
+					location = relative
+					target = origin.OriginalFile
+				} else if strings.HasPrefix(origin.OriginalFile, `\`) && filepath.VolumeName(origin.OriginalFile) == "" {
+					location = pp.formatLocation(origin)
+					target = pp.sourceTargetForLocation(location, nil)
+				} else {
+					location = origin.OriginalFile
+					target = origin.OriginalFile
+				}
 			} else {
 				location = origin.OriginalFile
 				target = origin.OriginalFile

@@ -12,6 +12,7 @@ import (
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/libasyncapi"
 	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/bundler"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
 )
@@ -164,6 +165,18 @@ func TestIncludeReferencedSpecRejectsSymlinkOutsideSpecRoot(t *testing.T) {
 	}
 	assert.Empty(t, pp.includeReferencedSpec(link))
 	assert.Empty(t, pp.site.IncludedSpecs)
+}
+
+func TestRemoteSpecTargetDetectionPreservesWindowsLocalPaths(t *testing.T) {
+	assert.False(t, isRemoteSpecTarget(`C:\contracts\schemas\pet.yaml`))
+	assert.False(t, isRemoteSpecTarget(`C:/contracts/schemas/pet.yaml`))
+	assert.True(t, isRemoteSpecTarget(`https://example.com/schemas/pet.yaml`))
+}
+
+func TestFormatLocationNormalizesRootRelativeWindowsOrigin(t *testing.T) {
+	pp := &PrintingPress{engineConfig: &pressEngineConfig{SpecRoot: t.TempDir()}}
+	location := pp.formatLocation(&bundler.ComponentOrigin{OriginalFile: `\paths\pets.yaml`})
+	assert.Equal(t, "paths/pets.yaml", location)
 }
 
 func TestPrintHTMLIncludesSpecForModelConstructors(t *testing.T) {

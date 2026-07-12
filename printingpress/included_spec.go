@@ -58,8 +58,8 @@ func (pp *PrintingPress) includeReferencedSpec(target string) string {
 	if pp == nil || pp.engineConfig == nil || pp.site == nil || !pp.engineConfig.IncludeSpec {
 		return ""
 	}
-	parsed, err := url.Parse(strings.TrimSpace(target))
-	if err != nil || parsed.Scheme != "" || pp.engineConfig.SpecRoot == "" {
+	localTarget := strings.TrimSpace(target)
+	if localTarget == "" || pp.engineConfig.SpecRoot == "" || isRemoteSpecTarget(localTarget) {
 		return ""
 	}
 
@@ -67,8 +67,10 @@ func (pp *PrintingPress) includeReferencedSpec(target string) string {
 	if err != nil {
 		return ""
 	}
-	localTarget := target
 	if !filepath.IsAbs(localTarget) {
+		// libopenapi origins can expose root-relative paths with a leading
+		// separator. They are relative to SpecRoot, not the filesystem root.
+		localTarget = strings.TrimLeft(localTarget, `/\`)
 		localTarget = filepath.Join(pp.engineConfig.SpecRoot, filepath.FromSlash(localTarget))
 	}
 	absoluteTarget, err := filepath.Abs(localTarget)
@@ -97,4 +99,20 @@ func (pp *PrintingPress) includeReferencedSpec(target string) string {
 	}
 	pp.site.IncludedSpecs = append(pp.site.IncludedSpecs, &ppmodel.IncludedSpecAsset{Path: relativePath, Data: data})
 	return includedPath
+}
+
+func isRemoteSpecTarget(target string) bool {
+	if filepath.IsAbs(target) || filepath.VolumeName(target) != "" || isWindowsDrivePath(target) {
+		return false
+	}
+	parsed, err := url.Parse(target)
+	return err != nil || parsed.Scheme != ""
+}
+
+func isWindowsDrivePath(target string) bool {
+	if len(target) < 3 || target[1] != ':' || target[2] != '\\' && target[2] != '/' {
+		return false
+	}
+	drive := target[0]
+	return drive >= 'a' && drive <= 'z' || drive >= 'A' && drive <= 'Z'
 }
