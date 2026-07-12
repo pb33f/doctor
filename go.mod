@@ -14,14 +14,14 @@ require (
 	github.com/google/go-github/v72 v72.0.0
 	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/pb33f/libasyncapi v0.0.1
-	github.com/pb33f/libopenapi v0.38.1
+	github.com/pb33f/libasyncapi v0.0.2
+	github.com/pb33f/libopenapi v0.38.6
 	github.com/pb33f/ordered-map/v2 v2.3.1
 	github.com/pb33f/testify v0.1.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/yuin/goldmark v1.8.2
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
-	go.yaml.in/yaml/v4 v4.0.0-rc.5
+	go.yaml.in/yaml/v4 v4.0.0-rc.6
 	golang.org/x/net v0.56.0
 	golang.org/x/sync v0.21.0
 	golang.org/x/text v0.38.0
