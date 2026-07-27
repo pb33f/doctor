@@ -115,8 +115,9 @@ func (p *Parameter) Walk(ctx context.Context, param *v3.Parameter) {
 	}
 
 	drCtx.ParameterChan <- &WalkedParam{
-		Param:     p,
-		ParamNode: param.GoLow().RootNode,
+		Param:       p,
+		ParamNode:   param.GoLow().RootNode,
+		SourceIndex: param.GoLow().GetIndex(),
 	}
 
 	if param.GoLow().IsReference() {
