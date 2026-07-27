@@ -58,22 +58,7 @@ func (r *ObjectReference) GetReferenceNode() *yaml.Node {
 func (sp *SchemaProxy) IsCircular(ctx context.Context) bool {
 
 	drCtx := ctx.Value("drCtx").(*DrContext)
-	idx := drCtx.Index
-	if drCtx.CircularRefs != nil {
-		return drCtx.CircularRefs.isCircularDefinition(idx, sp.Value.GetReference())
-	}
-	circularRefs := idx.GetCircularReferences()
-	polyRefs := idx.GetIgnoredPolymorphicCircularReferences()
-	arrayRefs := idx.GetIgnoredArrayCircularReferences()
-	circularRefs = append(circularRefs, polyRefs...)
-	circularRefs = append(circularRefs, arrayRefs...)
-	for _, ref := range circularRefs {
-		if ref.LoopPoint.Definition == sp.Value.GetReference() {
-			return true
-		}
-	}
-
-	return false
+	return drCtx.CircularRefs.isCircularDefinition(drCtx.Index, sp.Value.GetReference())
 }
 
 func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, depth int) {
@@ -97,8 +82,9 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 					newSchema.setCanonicalJSONPathFromContext(drCtx, lowSch.RootNode)
 				}
 				drCtx.SkippedSchemaChan <- &WalkedSchema{
-					Schema:     newSchema,
-					SchemaNode: schemaProxy.GetSchemaKeyNode(),
+					Schema:      newSchema,
+					SchemaNode:  schemaProxy.GetSchemaKeyNode(),
+					SourceIndex: schemaProxy.GoLow().GetIndex(),
 				}
 				return
 			}
@@ -124,8 +110,9 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 		if !schemaProxy.IsReference() {
 			newSchema.Walk(ctx, sch, depth)
 			drCtx.SchemaChan <- &WalkedSchema{
-				Schema:     newSchema,
-				SchemaNode: schemaProxy.GetSchemaKeyNode(),
+				Schema:      newSchema,
+				SchemaNode:  schemaProxy.GetSchemaKeyNode(),
+				SourceIndex: schemaProxy.GoLow().GetIndex(),
 			}
 		} else {
 
@@ -159,21 +146,8 @@ func (sp *SchemaProxy) Walk(ctx context.Context, schemaProxy *base.SchemaProxy, 
 
 			// check if this is a circular ref.
 			schRootNode := sch.GoLow().RootNode
-			if drCtx.CircularRefs != nil {
-				if drCtx.CircularRefs.isCircularLoopNode(schemaProxy.GoLow().GetIndex().GetRolodex(), schRootNode) {
-					return // nope
-				}
-			} else {
-				allCircs := schemaProxy.GoLow().GetIndex().GetRolodex().GetRootIndex().GetCircularReferences()
-				safeCircularRefs := schemaProxy.GoLow().GetIndex().GetRolodex().GetSafeCircularReferences()
-				ignoredCircularRefs := schemaProxy.GoLow().GetIndex().GetRolodex().GetIgnoredCircularReferences()
-				combinedCircularRefs := append(safeCircularRefs, ignoredCircularRefs...)
-				combinedCircularRefs = append(combinedCircularRefs, allCircs...)
-				for _, ref := range combinedCircularRefs {
-					if schRootNode == ref.LoopPoint.Node {
-						return // nope
-					}
-				}
+			if drCtx.CircularRefs.isCircularLoopNode(schemaProxy.GoLow().GetIndex().GetRolodex(), schRootNode) {
+				return // nope
 			}
 
 			// walk, but don't continue with the graph down this path, as it's a reference

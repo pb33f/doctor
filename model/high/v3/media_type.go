@@ -103,6 +103,7 @@ func (m *MediaType) Walk(ctx context.Context, mediaType *v3.MediaType) {
 	drCtx.MediaTypeChan <- &WalkedMediaType{
 		MediaType:     m,
 		MediaTypeNode: mediaType.GoLow().RootNode,
+		SourceIndex:   mediaType.GoLow().GetIndex(),
 	}
 
 	drCtx.ObjectChan <- m
