@@ -119,8 +119,9 @@ func (h *Header) Walk(ctx context.Context, header *v3.Header) {
 	}
 
 	drCtx.HeaderChan <- &WalkedHeader{
-		Header:     h,
-		HeaderNode: header.GoLow().RootNode,
+		Header:      h,
+		HeaderNode:  header.GoLow().RootNode,
+		SourceIndex: header.GoLow().GetIndex(),
 	}
 
 	drCtx.ObjectChan <- h

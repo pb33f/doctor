@@ -100,30 +100,79 @@ type HasValue interface {
 	GetValue() interface{}
 }
 
-// createKey packs line and column into a single uint64 key for efficient map lookups.
-// This eliminates string allocations from fmt.Sprintf("%d:%d", line, column).
-func createKey(line, column int) uint64 {
-	return uint64(line)<<32 | uint64(column)
+type foundationalCollectionState struct {
+	rootSource        *index.SpecIndex
+	rootPositions     map[uint64]int
+	externalPositions map[*index.SpecIndex]map[uint64]int
 }
 
-// collectFoundational is a generic collector that handles deduplication with canonical selection.
-// When the same object (by line:column) is encountered via multiple concurrent paths,
-// it keeps the one with the earliest parent position (the lowest line:column).
+type foundationalCollectionStates struct {
+	skippedSchemas foundationalCollectionState
+	schemas        foundationalCollectionState
+	parameters     foundationalCollectionState
+	headers        foundationalCollectionState
+	mediaTypes     foundationalCollectionState
+}
+
+func newFoundationalCollectionState(
+	rootSource *index.SpecIndex,
+	estimatedItems int,
+) foundationalCollectionState {
+	return foundationalCollectionState{
+		rootSource:    rootSource,
+		rootPositions: make(map[uint64]int, estimatedItems),
+	}
+}
+
+// sourcePositions returns the position map for one source domain.
+//
+// A nil source needs no special case: it compares equal to a nil rootSource and is a legal map key
+// otherwise, so it behaves as a domain like any other. In practice it does not arise, because every
+// emit site reads the source off a built low level model.
+func (s *foundationalCollectionState) sourcePositions(source *index.SpecIndex) map[uint64]int {
+	if source == s.rootSource {
+		return s.rootPositions
+	}
+	if s.externalPositions == nil {
+		s.externalPositions = make(map[*index.SpecIndex]map[uint64]int)
+	}
+	positions := s.externalPositions[source]
+	if positions == nil {
+		positions = make(map[uint64]int)
+		s.externalPositions[source] = positions
+	}
+	return positions
+}
+
+// collectFoundational deduplicates on (source, line, column) with canonical selection. The same
+// object arrives more than once because concurrent walk paths reach it by different routes, and a
+// line and column alone is not unique across a multi file document.
+//
+// An object with no node has no identity to deduplicate on, so it is kept, favouring a duplicate
+// over dropping something real. Every emit site reads the node straight off a built low level
+// model, so in practice this only guards a model with no yaml behind it at all.
 func collectFoundational[T drV3.Foundational](
 	items []T,
-	state map[uint64]int,
+	state *foundationalCollectionState,
 	item T,
-	nodeKey uint64,
+	source *index.SpecIndex,
+	node *yaml.Node,
 ) []T {
-	if existingIdx, exists := state[nodeKey]; !exists {
-		state[nodeKey] = len(items)
-		items = append(items, item)
-	} else {
+	if node == nil {
+		return append(items, item)
+	}
+
+	positions := state.sourcePositions(source)
+	position := uint64(node.Line)<<32 | uint64(node.Column)
+	if existingIdx, exists := positions[position]; exists {
 		if drV3.CompareByParentPosition(item, items[existingIdx]) {
 			items[existingIdx] = item
 		}
+		return items
 	}
-	return items
+
+	positions[position] = len(items)
+	return append(items, item)
 }
 
 // NewDrDocument Create a new DrDocument from an OpenAPI v3+ document
@@ -535,14 +584,7 @@ func (w *DrDocument) walkV3WithConfigAndOptions(doc *v3.Document, config *DrConf
 	var nodeValueMap = make(map[int]*drV3.Node)
 	var nodeIdMap = make(map[string]*drV3.Node)
 
-	// Maps use uint64 keys (packed line:column) for zero-allocation lookups.
-	// Pre-allocated for large specs (Stripe has ~5000+ schemas). Maps auto-grow if needed.
 	const estimatedSchemas = 5000
-	skippedSchemasState := make(map[uint64]int, estimatedSchemas)
-	seenSchemasState := make(map[uint64]int, estimatedSchemas)
-	seenParametersState := make(map[uint64]int, estimatedSchemas/4)
-	seenHeadersState := make(map[uint64]int, estimatedSchemas/4)
-	seenMediaTypesState := make(map[uint64]int, estimatedSchemas/2)
 	w.lineObjects = make(map[int][]any)
 	w.lineObjectPtrs = make(map[int]map[uintptr]struct{})
 
@@ -556,7 +598,22 @@ func (w *DrDocument) walkV3WithConfigAndOptions(doc *v3.Document, config *DrConf
 	//ln := make([]any, doc.Rolodex.GetFullLineCount()+1)
 	var ln []any
 	drDoc := &drV3.Document{}
-	go func(sChan chan *drV3.WalkedSchema, skippedChan chan *drV3.WalkedSchema, done chan bool) {
+	go func(
+		sChan chan *drV3.WalkedSchema,
+		skippedChan chan *drV3.WalkedSchema,
+		done chan bool,
+		rootSource *index.SpecIndex,
+	) {
+		// root objects keep the compact packed-position map used by the hot single-source path,
+		// pre-allocated for large specs. external source maps allocate only when one is encountered,
+		// so a single file document never pays for them.
+		states := foundationalCollectionStates{
+			skippedSchemas: newFoundationalCollectionState(rootSource, estimatedSchemas),
+			schemas:        newFoundationalCollectionState(rootSource, estimatedSchemas),
+			parameters:     newFoundationalCollectionState(rootSource, estimatedSchemas/4),
+			headers:        newFoundationalCollectionState(rootSource, estimatedSchemas/4),
+			mediaTypes:     newFoundationalCollectionState(rootSource, estimatedSchemas/2),
+		}
 		for {
 			select {
 			case <-done:
@@ -564,28 +621,32 @@ func (w *DrDocument) walkV3WithConfigAndOptions(doc *v3.Document, config *DrConf
 				return
 			case s := <-sChan:
 				if s != nil {
-					key := createKey(s.SchemaNode.Line, s.SchemaNode.Column)
-					schemas = collectFoundational(schemas, seenSchemasState, s.Schema, key)
+					schemas = collectFoundational(
+						schemas, &states.schemas, s.Schema, s.SourceIndex, s.SchemaNode)
 				}
 			case schema := <-skippedChan:
 				if schema != nil {
-					key := createKey(schema.SchemaNode.Line, schema.SchemaNode.Column)
-					skippedSchemas = collectFoundational(skippedSchemas, skippedSchemasState, schema.Schema, key)
+					skippedSchemas = collectFoundational(
+						skippedSchemas, &states.skippedSchemas,
+						schema.Schema, schema.SourceIndex, schema.SchemaNode)
 				}
 			case p := <-parameterChan:
 				if p != nil {
-					key := createKey(p.ParamNode.Line, p.ParamNode.Column)
-					parameters = collectFoundational(parameters, seenParametersState, p.Param.(*drV3.Parameter), key)
+					parameters = collectFoundational(
+						parameters, &states.parameters,
+						p.Param.(*drV3.Parameter), p.SourceIndex, p.ParamNode)
 				}
 			case h := <-headerChan:
 				if h != nil {
-					key := createKey(h.HeaderNode.Line, h.HeaderNode.Column)
-					headers = collectFoundational(headers, seenHeadersState, h.Header.(*drV3.Header), key)
+					headers = collectFoundational(
+						headers, &states.headers,
+						h.Header.(*drV3.Header), h.SourceIndex, h.HeaderNode)
 				}
 			case mt := <-mediaTypeChan:
 				if mt != nil {
-					key := createKey(mt.MediaTypeNode.Line, mt.MediaTypeNode.Column)
-					mediaTypes = collectFoundational(mediaTypes, seenMediaTypesState, mt.MediaType.(*drV3.MediaType), key)
+					mediaTypes = collectFoundational(
+						mediaTypes, &states.mediaTypes,
+						mt.MediaType.(*drV3.MediaType), mt.SourceIndex, mt.MediaTypeNode)
 				}
 			case nt := <-dctx.NodeChan:
 				if nt != nil {
@@ -625,7 +686,7 @@ func (w *DrDocument) walkV3WithConfigAndOptions(doc *v3.Document, config *DrConf
 				}
 			}
 		}
-	}(schemaChan, skippedSchemaChan, done)
+	}(schemaChan, skippedSchemaChan, done, w.index)
 
 	// PRE-POPULATE canonical paths for ALL component types BEFORE concurrent walking.
 	// This must happen synchronously before any goroutines run to avoid races.
