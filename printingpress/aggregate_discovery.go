@@ -57,6 +57,7 @@ type aggregateDiscoveredSpec struct {
 	Contact                  *ppmodel.ContactInfo
 	ServiceIdentityCandidate string
 	ExternalRefs             []string
+	MessageHrefs             map[string]string
 	DisplayName              string
 	ServiceKey               string
 	ServiceSlug              string
@@ -75,6 +76,7 @@ type aggregateDiscoveredSpec struct {
 	Source                   *ppmodel.SourceRef
 	previousState            *SpecStateRecord
 	prebuiltSite             *ppmodel.Site
+	externalMessageHrefs     map[string]string
 	HTMLCompletionHash       string
 	JSONCompletionHash       string
 	LLMCompletionHash        string
@@ -135,6 +137,7 @@ type aggregateContractVersionGroup struct {
 
 const (
 	aggregateMetadataVersion                = 3
+	aggregateRendererContractVersion        = 1
 	aggregateServiceIdentityFallbackWarning = "configured service identity metadata pointers did not resolve to a non-empty scalar string; using path-based discovery"
 )
 
@@ -167,10 +170,12 @@ func (ap *AggregatePrintingPress) buildPlan(intent aggregatePlanIntent) (*aggreg
 	if err != nil {
 		return nil, err
 	}
+	resolveAggregateExternalMessageHrefs(plan.catalog, discovered)
 	ap.applyAggregateNavigationFingerprints(plan.catalog, discovered)
 	if intent.preflight {
 		ap.preflightChangedEntries(plan, intent.selection)
 	}
+	resolveAggregateExternalMessageHrefs(plan.catalog, discovered)
 	ap.finalizeCatalog(plan.catalog)
 	ap.applyAggregateNavigationFingerprints(plan.catalog, discovered)
 	plan.catalog.Warnings = append(plan.catalog.Warnings, discoveryWarnings...)
@@ -324,6 +329,7 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 			Contact:                  cloneCatalogContact(metadata.Contact),
 			ServiceIdentityCandidate: metadata.ServiceIdentityCandidate,
 			ExternalRefs:             append([]string(nil), metadata.ExternalRefs...),
+			MessageHrefs:             cloneAggregateMessageHrefs(recordMessageHrefs(record)),
 			DisplayName:              displayName,
 			ServiceKey:               serviceKey,
 			ServiceSlug:              slugpkg.Sanitize(serviceKey),
@@ -641,6 +647,67 @@ func resolveAggregateCatalogRelationships(catalog *ppmodel.CatalogSite, discover
 	}
 }
 
+func resolveAggregateExternalMessageHrefs(catalog *ppmodel.CatalogSite, discovered []*aggregateDiscoveredSpec) {
+	if catalog == nil {
+		return
+	}
+	type root struct {
+		spec  *aggregateDiscoveredSpec
+		entry *ppmodel.CatalogSpecEntry
+	}
+	accepted := make(map[string]*root, len(discovered))
+	for _, service := range catalog.Services {
+		if service == nil {
+			continue
+		}
+		for _, contract := range service.Contracts {
+			if contract == nil {
+				continue
+			}
+			for _, version := range contract.Versions {
+				if version == nil || version.Entry == nil || version.Entry.RenderSkipped {
+					continue
+				}
+				accepted[path.Clean(filepath.ToSlash(version.Entry.RelativePath))] = &root{entry: version.Entry}
+			}
+		}
+	}
+	for _, spec := range discovered {
+		if spec == nil {
+			continue
+		}
+		spec.externalMessageHrefs = nil
+		if item := accepted[path.Clean(filepath.ToSlash(spec.RelativePath))]; item != nil {
+			item.spec = spec
+		}
+	}
+	for sourcePath, source := range accepted {
+		if source.spec == nil || source.entry == nil {
+			continue
+		}
+		for _, rawRef := range source.spec.ExternalRefs {
+			document, fragment, found := strings.Cut(strings.TrimSpace(rawRef), "#")
+			if !found || document == "" || aggregateRelationshipRefIsNonLocal(document) {
+				continue
+			}
+			targetPath := path.Clean(path.Join(path.Dir(sourcePath), filepath.ToSlash(document)))
+			target := accepted[targetPath]
+			if target == nil || target == source || target.spec == nil || target.entry == nil {
+				continue
+			}
+			targetLocalHref := target.spec.MessageHrefs["#"+fragment]
+			if targetLocalHref == "" {
+				continue
+			}
+			targetHref := path.Join(filepath.ToSlash(filepath.Dir(target.entry.OverviewHref)), targetLocalHref)
+			if source.spec.externalMessageHrefs == nil {
+				source.spec.externalMessageHrefs = make(map[string]string)
+			}
+			source.spec.externalMessageHrefs[strings.TrimSpace(rawRef)] = relativeCatalogHref(source.entry.OutputSubdir, targetHref)
+		}
+	}
+}
+
 func aggregateRelationshipRefIsNonLocal(document string) bool {
 	if strings.HasPrefix(document, "//") || path.IsAbs(filepath.ToSlash(document)) || filepath.IsAbs(document) {
 		return true
@@ -778,11 +845,26 @@ func (ap *AggregatePrintingPress) applyAggregateNavigationFingerprints(catalog *
 		if service == nil || entry == nil {
 			continue
 		}
-		spec.ConfigHash = aggregateEntryNavigationConfigHash(spec.EntryConfigHash, fingerprintByService[service.Key])
+		navigationFingerprint := strings.Join([]string{
+			fingerprintByService[service.Key],
+			aggregateExternalMessageHrefFingerprint(spec.externalMessageHrefs),
+		}, "\x00")
+		spec.ConfigHash = aggregateEntryNavigationConfigHash(spec.EntryConfigHash, navigationFingerprint)
 		spec.HTMLCompletionHash = aggregateOutputCompletionHash(spec, "html")
 		spec.JSONCompletionHash = aggregateOutputCompletionHash(spec, "json")
 		spec.LLMCompletionHash = aggregateOutputCompletionHash(spec, "llm")
 	}
+}
+
+func aggregateExternalMessageHrefFingerprint(hrefs map[string]string) string {
+	if len(hrefs) == 0 {
+		return ""
+	}
+	encoded, err := json.Marshal(hrefs)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%x", xxhash.Sum64(encoded))
 }
 
 func aggregateOutputCompletionHash(spec *aggregateDiscoveredSpec, family string) string {
@@ -1696,6 +1778,7 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 		return ""
 	}
 	payload := struct {
+		RendererContractVersion            int                            `json:"rendererContractVersion"`
 		BaseURL                            string                         `json:"baseURL,omitempty"`
 		AssetMode                          string                         `json:"assetMode,omitempty"`
 		IncludeSpec                        bool                           `json:"includeSpec,omitempty"`
@@ -1719,14 +1802,15 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 		LLMMaxAggregateFileBytes           int64                          `json:"llmMaxAggregateFileBytes,omitempty"`
 		LLMGenerateMonoliths               string                         `json:"llmGenerateMonoliths,omitempty"`
 	}{
-		BaseURL:                config.BaseURL,
-		AssetMode:              config.AssetMode,
-		IncludeSpec:            config.IncludeSpec,
-		EntryConfigFingerprint: config.EntryConfigFingerprint,
-		NoiseSegments:          append([]string(nil), config.NoiseSegments...),
-		ServiceOverrides:       append([]AggregatePathOverride(nil), config.ServiceOverrides...),
-		DisplayNameOverrides:   append([]AggregatePathOverride(nil), config.DisplayNameOverrides...),
-		VersionOverrides:       append([]AggregatePathOverride(nil), config.VersionOverrides...),
+		RendererContractVersion: aggregateRendererContractVersion,
+		BaseURL:                 config.BaseURL,
+		AssetMode:               config.AssetMode,
+		IncludeSpec:             config.IncludeSpec,
+		EntryConfigFingerprint:  config.EntryConfigFingerprint,
+		NoiseSegments:           append([]string(nil), config.NoiseSegments...),
+		ServiceOverrides:        append([]AggregatePathOverride(nil), config.ServiceOverrides...),
+		DisplayNameOverrides:    append([]AggregatePathOverride(nil), config.DisplayNameOverrides...),
+		VersionOverrides:        append([]AggregatePathOverride(nil), config.VersionOverrides...),
 		ServiceIdentity: AggregateServiceIdentityConfig{
 			MetadataPointers:  append([]string(nil), config.ServiceIdentity.MetadataPointers...),
 			StripPrefixes:     append([]string(nil), config.ServiceIdentity.StripPrefixes...),

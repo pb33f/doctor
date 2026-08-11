@@ -283,6 +283,16 @@ func OperationDocHref(baseURL, href string) string {
 	return DocHref(baseURL, href)
 }
 
+func componentLinkHref(ref *ppmodel.ComponentLink) string {
+	if ref == nil {
+		return ""
+	}
+	if ref.Href != "" {
+		return ref.Href
+	}
+	return pppaths.ModelHTML(ref.TypeSlug, ref.Slug)
+}
+
 func resolveDocHref(baseURL, href string, resolveRelativeBase bool) string {
 	if baseURL == "" || href == "" || isLiteralHref(href) {
 		return href
