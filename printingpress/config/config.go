@@ -57,10 +57,11 @@ type GroupingConfig struct {
 }
 
 type ServiceIdentityConfig struct {
-	MetadataPointers  []string `mapstructure:"metadataPointers" yaml:"metadataPointers"`
-	StripPrefixes     []string `mapstructure:"stripPrefixes" yaml:"stripPrefixes"`
-	StripSuffixes     []string `mapstructure:"stripSuffixes" yaml:"stripSuffixes"`
-	PreferOpenAPISlug bool     `mapstructure:"preferOpenAPISlug" yaml:"preferOpenAPISlug"`
+	MetadataPointers           []string `mapstructure:"metadataPointers" yaml:"metadataPointers"`
+	StripPrefixes              []string `mapstructure:"stripPrefixes" yaml:"stripPrefixes"`
+	StripSuffixes              []string `mapstructure:"stripSuffixes" yaml:"stripSuffixes"`
+	PreferOpenAPISlug          bool     `mapstructure:"preferOpenAPISlug" yaml:"preferOpenAPISlug"`
+	MetadataOptionalForOpenAPI bool     `mapstructure:"metadataOptionalForOpenAPI" yaml:"metadataOptionalForOpenAPI"`
 }
 
 type ContractRoleRule struct {

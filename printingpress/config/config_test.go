@@ -25,6 +25,7 @@ grouping:
     stripSuffixes:
       - -api
     preferOpenAPISlug: true
+    metadataOptionalForOpenAPI: true
   contractRoles:
     - pattern: "**/openapi.yaml"
       role: http-api
@@ -38,10 +39,11 @@ grouping:
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	assert.Equal(t, ServiceIdentityConfig{
-		MetadataPointers:  []string{"/info/x-owner/service"},
-		StripPrefixes:     []string{"platform-"},
-		StripSuffixes:     []string{"-api"},
-		PreferOpenAPISlug: true,
+		MetadataPointers:           []string{"/info/x-owner/service"},
+		StripPrefixes:              []string{"platform-"},
+		StripSuffixes:              []string{"-api"},
+		PreferOpenAPISlug:          true,
+		MetadataOptionalForOpenAPI: true,
 	}, cfg.Grouping.ServiceIdentity)
 	assert.Equal(t, []ContractRoleRule{
 		{Pattern: "**/openapi.yaml", Role: "http-api", ContractID: "primary", Default: true},
