@@ -3323,6 +3323,109 @@ paths: {}
 	assert.Contains(t, catalog.Warnings[0].Context, "services/orders/specs/openapi.yaml")
 }
 
+func TestAggregateMetadataOptionalForOpenAPISuppressesOnlyOpenAPIMissingMetadataWarning(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateCatalogSpec(t, root, "services/orders/specs/openapi.yaml", SpecKindOpenAPI, "Orders API", "", "v1", "")
+	writeAggregateCatalogSpec(t, root, "events/payments/specs/asyncapi.yaml", SpecKindAsyncAPI, "Payments Events", "", "v1", "")
+	writeAggregateCatalogSpec(t, root, "services/billing/specs/openapi.yaml", SpecKindOpenAPI, "Billing API", "", "v1", "platform-")
+
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  filepath.Join(root, "site"),
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: NewMemorySpecStateStore(),
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers:           []string{"/info/x-owner"},
+			StripPrefixes:              []string{"platform-"},
+			MetadataOptionalForOpenAPI: true,
+		},
+	})
+	require.NoError(t, err)
+
+	catalog, err := ap.PressModel()
+	require.NoError(t, err)
+	require.Len(t, catalog.Warnings, 2)
+	warningsByContext := make(map[string]string, len(catalog.Warnings))
+	for _, warning := range catalog.Warnings {
+		warningsByContext[warning.Context] = warning.Message
+	}
+	assert.NotContains(t, warningsByContext, "services/orders/specs/openapi.yaml")
+	assert.Contains(t, warningsByContext["events/payments/specs/asyncapi.yaml"], "service identity metadata")
+	assert.Contains(t, warningsByContext["services/billing/specs/openapi.yaml"], "normalized to an empty value")
+}
+
+func TestAggregatePreferOpenAPISlugAloneKeepsMissingMetadataSplitWarning(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateCatalogSpec(t, root, "services/orders/specs/openapi.yaml", SpecKindOpenAPI, "Orders API", "", "v1", "")
+	writeAggregateCatalogSpec(t, root, "events/orders/specs/asyncapi.yaml", SpecKindAsyncAPI, "Orders Events", "", "v1", "billing")
+
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  filepath.Join(root, "site"),
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: NewMemorySpecStateStore(),
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers:  []string{"/info/x-owner"},
+			PreferOpenAPISlug: true,
+		},
+	})
+	require.NoError(t, err)
+
+	catalog, err := ap.PressModel()
+	require.NoError(t, err)
+	require.Len(t, catalog.Services, 2, "mismatched identities must remain separate services")
+	require.Len(t, catalog.Warnings, 1)
+	assert.Contains(t, catalog.Warnings[0].Message, "service identity metadata")
+	assert.Equal(t, "services/orders/specs/openapi.yaml", catalog.Warnings[0].Context)
+}
+
+func TestAggregateMetadataOptionalForOpenAPISuppressesCachedMissingMetadataWarning(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateCatalogSpec(t, root, "services/orders/specs/openapi.yaml", SpecKindOpenAPI, "Orders API", "", "v1", "")
+	store := NewMemorySpecStateStore()
+	config := &AggregatePrintingPressConfig{
+		OutputDir:      filepath.Join(root, "site"),
+		BuildMode:      AggregateBuildModeFast,
+		StateNamespace: "test",
+		StateStore:     store,
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers:           []string{"/info/x-owner"},
+			MetadataOptionalForOpenAPI: true,
+		},
+	}
+
+	first, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	firstStats, err := first.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
+	require.NoError(t, err)
+	assert.Empty(t, firstStats.Warnings)
+
+	cached, err := store.Load("test")
+	require.NoError(t, err)
+	record := cached["services/orders/specs/openapi.yaml"]
+	require.NotNil(t, record)
+	record.ExternalRefs = []string{"cached-only.yaml#/Thing"}
+	require.NoError(t, store.Upsert("test", []*SpecStateRecord{record}))
+
+	second, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	secondCatalog, err := second.PressModel()
+	require.NoError(t, err)
+	assert.Empty(t, secondCatalog.Warnings)
+	require.Len(t, second.plan.discovered, 1)
+	assert.Equal(t, []string{"cached-only.yaml#/Thing"}, second.plan.discovered[0].ExternalRefs, "cached refs prove the second run did not reparse metadata")
+
+	requiredConfig := cloneAggregateConfig(config)
+	requiredConfig.OutputDir = filepath.Join(root, "required-site")
+	requiredConfig.ServiceIdentity.MetadataOptionalForOpenAPI = false
+	third, err := CreateAggregatePrintingPressFromPath(root, requiredConfig)
+	require.NoError(t, err)
+	thirdCatalog, err := third.PressModel()
+	require.NoError(t, err)
+	require.Len(t, thirdCatalog.Warnings, 1)
+	assert.Contains(t, thirdCatalog.Warnings[0].Message, "service identity metadata")
+	require.Len(t, third.plan.discovered, 1)
+	assert.Empty(t, third.plan.discovered[0].ExternalRefs, "changing the optional-metadata policy must invalidate cached metadata")
+}
+
 func TestAggregateMetadataConfigHashControlsCachedMetadataReparse(t *testing.T) {
 	root := t.TempDir()
 	content := []byte(`
@@ -5272,6 +5375,7 @@ func TestAggregateEntryConfigHashIncludesEntryOutputOptions(t *testing.T) {
 		{name: "service strip prefixes", config: &AggregatePrintingPressConfig{ServiceIdentity: AggregateServiceIdentityConfig{StripPrefixes: []string{"platform-"}}}},
 		{name: "service strip suffixes", config: &AggregatePrintingPressConfig{ServiceIdentity: AggregateServiceIdentityConfig{StripSuffixes: []string{"-api"}}}},
 		{name: "prefer openapi slug", config: &AggregatePrintingPressConfig{ServiceIdentity: AggregateServiceIdentityConfig{PreferOpenAPISlug: true}}},
+		{name: "metadata optional for openapi", config: &AggregatePrintingPressConfig{ServiceIdentity: AggregateServiceIdentityConfig{MetadataOptionalForOpenAPI: true}}},
 		{name: "contract role pattern", config: &AggregatePrintingPressConfig{ContractRoles: []AggregateContractRoleRule{{Pattern: "**/*.yaml", Role: "events"}}}},
 		{name: "contract role value", config: &AggregatePrintingPressConfig{ContractRoles: []AggregateContractRoleRule{{Role: "http-api"}}}},
 		{name: "contract role contract id", config: &AggregatePrintingPressConfig{ContractRoles: []AggregateContractRoleRule{{Role: "events", ContractID: "event-stream"}}}},
@@ -5285,7 +5389,7 @@ func TestAggregateEntryConfigHashIncludesEntryOutputOptions(t *testing.T) {
 	}
 }
 
-func TestAggregateMetadataConfigHashIncludesOnlyMetadataPointers(t *testing.T) {
+func TestAggregateMetadataConfigHashIncludesMetadataWarningPolicy(t *testing.T) {
 	base := &AggregatePrintingPressConfig{
 		ServiceIdentity: AggregateServiceIdentityConfig{MetadataPointers: []string{"/info/x-owner/service"}},
 	}
@@ -5293,6 +5397,12 @@ func TestAggregateMetadataConfigHashIncludesOnlyMetadataPointers(t *testing.T) {
 	assert.NotEqual(t, "", baseHash)
 	assert.NotEqual(t, baseHash, aggregateMetadataConfigHash(&AggregatePrintingPressConfig{
 		ServiceIdentity: AggregateServiceIdentityConfig{MetadataPointers: []string{"/info/x-team/service"}},
+	}))
+	assert.NotEqual(t, baseHash, aggregateMetadataConfigHash(&AggregatePrintingPressConfig{
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers:           []string{"/info/x-owner/service"},
+			MetadataOptionalForOpenAPI: true,
+		},
 	}))
 	assert.Equal(t, baseHash, aggregateMetadataConfigHash(&AggregatePrintingPressConfig{
 		ServiceIdentity: AggregateServiceIdentityConfig{

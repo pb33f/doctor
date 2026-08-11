@@ -33,10 +33,11 @@ type AggregatePathOverride struct {
 
 // AggregateServiceIdentityConfig configures generic metadata-based service discovery.
 type AggregateServiceIdentityConfig struct {
-	MetadataPointers  []string
-	StripPrefixes     []string
-	StripSuffixes     []string
-	PreferOpenAPISlug bool
+	MetadataPointers           []string
+	StripPrefixes              []string
+	StripSuffixes              []string
+	PreferOpenAPISlug          bool
+	MetadataOptionalForOpenAPI bool
 }
 
 // AggregateContractRoleRule assigns a contract role to matching specification paths.

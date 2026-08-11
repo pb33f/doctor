@@ -284,6 +284,7 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 		if !metadata.SpecKind.IsKnown() {
 			metadata.SpecKind = identity.Kind
 		}
+		metadata.Warnings = aggregateServiceIdentityWarningsForSpec(metadata.Warnings, identity.Kind, ap.config.ServiceIdentity.MetadataOptionalForOpenAPI)
 		for _, warning := range metadata.Warnings {
 			discoveryWarnings = append(discoveryWarnings, &ppmodel.BuildWarning{
 				Message: warning,
@@ -1812,10 +1813,11 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 		DisplayNameOverrides:    append([]AggregatePathOverride(nil), config.DisplayNameOverrides...),
 		VersionOverrides:        append([]AggregatePathOverride(nil), config.VersionOverrides...),
 		ServiceIdentity: AggregateServiceIdentityConfig{
-			MetadataPointers:  append([]string(nil), config.ServiceIdentity.MetadataPointers...),
-			StripPrefixes:     append([]string(nil), config.ServiceIdentity.StripPrefixes...),
-			StripSuffixes:     append([]string(nil), config.ServiceIdentity.StripSuffixes...),
-			PreferOpenAPISlug: config.ServiceIdentity.PreferOpenAPISlug,
+			MetadataPointers:           append([]string(nil), config.ServiceIdentity.MetadataPointers...),
+			StripPrefixes:              append([]string(nil), config.ServiceIdentity.StripPrefixes...),
+			StripSuffixes:              append([]string(nil), config.ServiceIdentity.StripSuffixes...),
+			PreferOpenAPISlug:          config.ServiceIdentity.PreferOpenAPISlug,
+			MetadataOptionalForOpenAPI: config.ServiceIdentity.MetadataOptionalForOpenAPI,
 		},
 		ContractRoles:                      append([]AggregateContractRoleRule(nil), config.ContractRoles...),
 		Footer:                             cloneFooterConfig(config.Footer),
@@ -1839,11 +1841,15 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 }
 
 func aggregateMetadataConfigHash(config *AggregatePrintingPressConfig) string {
-	var pointers []string
+	payload := struct {
+		MetadataPointers           []string `json:"metadataPointers,omitempty"`
+		MetadataOptionalForOpenAPI bool     `json:"metadataOptionalForOpenAPI,omitempty"`
+	}{}
 	if config != nil {
-		pointers = append([]string(nil), config.ServiceIdentity.MetadataPointers...)
+		payload.MetadataPointers = append([]string(nil), config.ServiceIdentity.MetadataPointers...)
+		payload.MetadataOptionalForOpenAPI = config.ServiceIdentity.MetadataOptionalForOpenAPI
 	}
-	b, err := json.Marshal(pointers)
+	b, err := json.Marshal(payload)
 	if err != nil {
 		return ""
 	}
@@ -2162,6 +2168,19 @@ func aggregateServiceIdentityWarnings(metadataPointers []string, candidate strin
 		return nil
 	}
 	return []string{aggregateServiceIdentityFallbackWarning}
+}
+
+func aggregateServiceIdentityWarningsForSpec(warnings []string, specKind SpecKind, metadataOptionalForOpenAPI bool) []string {
+	if !metadataOptionalForOpenAPI || !specKind.IsOpenAPI() {
+		return warnings
+	}
+	filtered := make([]string, 0, len(warnings))
+	for _, warning := range warnings {
+		if warning != aggregateServiceIdentityFallbackWarning {
+			filtered = append(filtered, warning)
+		}
+	}
+	return filtered
 }
 
 func resolveAggregateMetadataPointerString(document any, pointers []string) string {
