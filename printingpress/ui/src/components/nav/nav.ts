@@ -446,6 +446,13 @@ export class PpNav extends LitElement {
         return multiContractGroups(document.body?.dataset.ppContracts);
     }
 
+    private handleContractVersionSelect(event: CustomEvent<{item?: {value?: string}}>) {
+        const target = event.detail?.item?.value;
+        if (typeof target === 'string' && target !== '') {
+            window.location.href = target;
+        }
+    }
+
     private renderContractVersionPicker(contract: SiteContractLink) {
         const versions = contract.versions;
         if (!contract.active || versions.length <= 1) {
@@ -462,10 +469,13 @@ export class PpNav extends LitElement {
                     aria-label=${`Select version for ${contract.label}, current version ${currentVersion}`}>
                     ${currentVersion}
                 </sl-button>
-                <sl-menu class="contract-version-menu" aria-label=${`Versions for ${contract.label}`}>
+                <sl-menu
+                    class="contract-version-menu"
+                    aria-label=${`Versions for ${contract.label}`}
+                    @sl-select=${this.handleContractVersionSelect}>
                     ${versions.map((version) => html`
                         <sl-menu-item
-                            href=${docHref(version.href)}
+                            value=${docHref(version.href)}
                             type="checkbox"
                             .checked=${Boolean(version.active)}
                             aria-current=${version.active ? 'page' : nothing}>

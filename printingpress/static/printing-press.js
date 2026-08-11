@@ -4941,7 +4941,7 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
                 ${this.renderDocsExpiry()}
                 ${t.length?this.renderContractNavigation(t,e,!0):e}
             </div>
-        `}overviewLabel(){return document.body?.dataset.ppOverviewLabel?.trim()||`API OVERVIEW`}contractGroups(){return Hie(document.body?.dataset.ppContracts)}renderContractVersionPicker(e){let t=e.versions;if(!e.active||t.length<=1)return Nt;let n=e.currentVersion||t.find(e=>e.active)?.label||``;return M`
+        `}overviewLabel(){return document.body?.dataset.ppOverviewLabel?.trim()||`API OVERVIEW`}contractGroups(){return Hie(document.body?.dataset.ppContracts)}handleContractVersionSelect(e){let t=e.detail?.item?.value;typeof t==`string`&&t!==``&&(window.location.href=t)}renderContractVersionPicker(e){let t=e.versions;if(!e.active||t.length<=1)return Nt;let n=e.currentVersion||t.find(e=>e.active)?.label||``;return M`
             <sl-dropdown class="contract-version-dropdown" skidding="0" distance="4" hoist>
                 <sl-button
                     slot="trigger"
@@ -4951,10 +4951,13 @@ var PrintingPress=(function(e){Object.defineProperty(e,Symbol.toStringTag,{value
                     aria-label=${`Select version for ${e.label}, current version ${n}`}>
                     ${n}
                 </sl-button>
-                <sl-menu class="contract-version-menu" aria-label=${`Versions for ${e.label}`}>
+                <sl-menu
+                    class="contract-version-menu"
+                    aria-label=${`Versions for ${e.label}`}
+                    @sl-select=${this.handleContractVersionSelect}>
                     ${t.map(e=>M`
                         <sl-menu-item
-                            href=${Lr(e.href)}
+                            value=${Lr(e.href)}
                             type="checkbox"
                             .checked=${!!e.active}
                             aria-current=${e.active?`page`:Nt}>
