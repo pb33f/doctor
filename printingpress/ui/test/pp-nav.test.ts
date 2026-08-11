@@ -561,7 +561,7 @@ describe('pp-nav', () => {
     expect(links[0]?.getAttribute('href')).toBe('http://localhost:3000/index.html');
     expect(links[1]?.getAttribute('href')).toBe('http://localhost:3000/v3/specs/admin-http/index.html');
     const versionItems = Array.from(el.shadowRoot?.querySelectorAll('.contract-version-menu sl-menu-item') ?? []);
-    expect(versionItems.map((item) => item.getAttribute('href'))).toEqual([
+    expect(versionItems.map((item) => item.getAttribute('value'))).toEqual([
       'http://localhost:3000/v2/specs/users-http/index.html',
       'http://localhost:3000/index.html',
     ]);
@@ -617,6 +617,37 @@ describe('pp-nav', () => {
     expect(el.shadowRoot?.activeElement).toBe(trigger);
     const list = active?.closest('ul');
     expect(list?.getAttribute('aria-labelledby')).toBeTruthy();
+  });
+
+  it('navigates to the exact selected contract version through Shoelace sl-select', async () => {
+    document.body.dataset.ppContracts = JSON.stringify(contractGroups);
+    const el = document.createElement('pp-nav');
+    el.setAttribute('data-nav', '[]');
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const menu = el.shadowRoot?.querySelector('.contract-version-menu');
+    const olderVersion = menu?.querySelector('sl-menu-item') as (HTMLElement & {value: string}) | null;
+    const expectedTarget = 'http://localhost:3000/v2/specs/users-http/index.html';
+    expect(menu).toBeTruthy();
+    expect(olderVersion).toBeTruthy();
+
+    const navigationWindow = {location: {href: window.location.href}};
+    try {
+      vi.stubGlobal('window', navigationWindow);
+      menu!.dispatchEvent(new CustomEvent('sl-select', {
+        detail: {item: olderVersion},
+        bubbles: true,
+        composed: true,
+      }));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expect(navigationWindow.location.href).toBe(expectedTarget);
+    expect(olderVersion?.getAttribute('value')).toBe(expectedTarget);
+    expect(olderVersion?.getAttribute('aria-current')).toBeNull();
+    expect(el.shadowRoot?.querySelector('.contract-link[aria-current="page"]')?.textContent).toContain('Users HTTP');
   });
 
   it('preserves legacy navigation classes and order for one contract', async () => {
