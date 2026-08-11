@@ -253,6 +253,124 @@ export default css`
         color: var(--primary-color);
     }
 
+    .contract-navigation {
+        min-width: 0;
+    }
+
+    .contract-service-name {
+        min-width: 0;
+        margin-bottom: var(--global-padding-double);
+        color: var(--font-color);
+        font-family: var(--font-stack-bold), monospace;
+        overflow-wrap: anywhere;
+    }
+
+    .contract-group {
+        min-width: 0;
+        margin-bottom: var(--global-padding-double);
+    }
+
+    .contract-role-heading {
+        margin-bottom: 0;
+    }
+
+    .contract-list {
+        display: grid;
+        gap: 0;
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .contract-item {
+        min-width: 0;
+    }
+
+    .contract-row {
+        display: flex;
+        align-items: stretch;
+        min-width: 0;
+        border-left: 2px solid var(--background-color);
+    }
+
+    .contract-row:hover,
+    .contract-item.active > .contract-row {
+        border-left-color: var(--primary-color);
+        background: var(--primary-color-verylowalpha);
+    }
+
+    .contract-link {
+        display: block;
+        flex: 1 1 auto;
+        min-width: 0;
+        padding: var(--global-padding);
+        color: var(--font-color-sub1);
+        text-decoration: none;
+        overflow-wrap: anywhere;
+    }
+
+    .contract-link:hover,
+    .contract-link:focus-visible,
+    .contract-link.active {
+        color: var(--primary-color);
+        text-decoration: none;
+        outline-color: var(--primary-color);
+    }
+
+    .contract-version-dropdown {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        min-width: 0;
+        padding-right: var(--global-padding);
+    }
+
+    .contract-version-trigger::part(base) {
+        min-width: 0;
+        padding: 0 var(--global-padding);
+        border-color: var(--primary-color);
+        border-radius: 0;
+        background: var(--background-color);
+        color: var(--primary-color);
+        font-family: var(--font-stack), monospace;
+    }
+
+    .contract-version-trigger::part(base):hover,
+    .contract-version-trigger::part(base):focus-visible {
+        background: var(--primary-color);
+        color: var(--background-color);
+    }
+
+    .contract-version-menu {
+        border: 1px solid var(--primary-color);
+        border-radius: 0;
+        background: var(--background-color);
+    }
+
+    .contract-version-menu::part(base) {
+        border-radius: 0;
+        background: var(--background-color);
+    }
+
+    .contract-version-menu sl-menu-item::part(base) {
+        color: var(--primary-color);
+        font-family: var(--font-stack), monospace;
+        --sl-color-neutral-100: var(--secondary-color-lowalpha);
+        --sl-color-neutral-200: var(--secondary-color-lowalpha);
+    }
+
+    .contract-version-menu sl-menu-item::part(checked-icon) {
+        color: var(--primary-color);
+    }
+
+    .contract-local-navigation {
+        min-width: 0;
+        margin-left: var(--global-padding);
+        border-left: 1px dashed var(--primary-color-lowalpha);
+        padding-left: var(--global-padding);
+    }
+
     .nav-section {
         margin-bottom: var(--global-padding);
     }

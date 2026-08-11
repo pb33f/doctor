@@ -7,6 +7,7 @@ describe('pp-layout', () => {
     delete document.body.dataset.ppCatalogHref;
     delete document.body.dataset.ppCurrentVersion;
     delete document.body.dataset.ppVersions;
+    delete document.body.dataset.ppContracts;
     localStorage.clear();
     sessionStorage.clear();
     document.documentElement.setAttribute('theme', 'dark');
@@ -120,6 +121,30 @@ describe('pp-layout', () => {
     expect(logoLink?.href).toBe('http://localhost:3000/index.html');
     expect(el.shadowRoot?.querySelector('.service-name')).toBeNull();
     expect(el.shadowRoot?.querySelector('.versions-link')).toBeNull();
+  });
+
+  it('moves version controls into multi-contract navigation and preserves malformed-data fallback', async () => {
+    document.body.dataset.ppCurrentVersion = 'v2';
+    document.body.dataset.ppVersions = JSON.stringify([
+      {label: 'v2', href: 'index.html', active: true},
+      {label: 'v1', href: '../v1/index.html'},
+    ]);
+    document.body.dataset.ppContracts = JSON.stringify([
+      {role: 'http-api', label: 'HTTP API', contracts: [{id: 'http', label: 'HTTP', specKind: 'openapi', href: 'index.html', active: true}]},
+      {role: 'events', label: 'Events', contracts: [{id: 'events', label: 'Events', specKind: 'asyncapi', href: '../events/index.html'}]},
+    ]);
+
+    const multi = document.createElement('pp-layout');
+    document.body.appendChild(multi);
+    await multi.updateComplete;
+    expect(multi.shadowRoot?.querySelector('.version-picker')).toBeNull();
+
+    multi.remove();
+    document.body.dataset.ppContracts = '[';
+    const malformed = document.createElement('pp-layout');
+    document.body.appendChild(malformed);
+    await malformed.updateComplete;
+    expect(malformed.shadowRoot?.querySelector('.version-picker')).toBeTruthy();
   });
 
   it('keeps catalog href on the header title without rendering a header backlink', async () => {

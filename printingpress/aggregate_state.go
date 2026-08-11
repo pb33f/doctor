@@ -5,6 +5,7 @@
 package printingpress
 
 import (
+	"strings"
 	"sync"
 )
 
@@ -29,6 +30,8 @@ func (m *MemorySpecStateStore) Load(namespace string) (map[string]*SpecStateReco
 	cloned := make(map[string]*SpecStateRecord, len(records))
 	for key, record := range records {
 		copy := *record
+		copy.ExternalRefs = append([]string(nil), record.ExternalRefs...)
+		normalizeSpecStateOutputLocations(&copy)
 		cloned[key] = &copy
 	}
 	return cloned, nil
@@ -46,6 +49,7 @@ func (m *MemorySpecStateStore) Upsert(namespace string, records []*SpecStateReco
 			continue
 		}
 		copy := *record
+		copy.ExternalRefs = append([]string(nil), record.ExternalRefs...)
 		m.namespaces[namespace][record.RelativePath] = &copy
 	}
 	return nil
@@ -66,4 +70,17 @@ func (m *MemorySpecStateStore) Delete(namespace string, paths []string) error {
 
 func (m *MemorySpecStateStore) Close() error {
 	return nil
+}
+
+func normalizeSpecStateOutputLocations(record *SpecStateRecord) {
+	if record == nil {
+		return
+	}
+	legacy := strings.TrimSpace(record.OutputSubdir)
+	if legacy != "" && strings.TrimSpace(record.HTMLOutputSubdir) == "" &&
+		strings.TrimSpace(record.JSONOutputSubdir) == "" && strings.TrimSpace(record.LLMOutputSubdir) == "" {
+		record.HTMLOutputSubdir = legacy
+		record.JSONOutputSubdir = legacy
+		record.LLMOutputSubdir = legacy
+	}
 }

@@ -3,6 +3,7 @@ import '../src/components/nav/nav.js';
 import '../src/components/nav/nav-tag.js';
 import '../src/components/nav/nav-model-group.js';
 import '@pb33f/cowboy-components/components/http-method/http-method.js';
+import navCss from '../src/components/nav/nav.css.js';
 
 describe('pp-nav', () => {
   beforeEach(() => {
@@ -10,6 +11,10 @@ describe('pp-nav', () => {
     document.head.innerHTML = '';
     document.body.innerHTML = '';
     delete document.body.dataset.ppBaseUrl;
+    delete document.body.dataset.ppContracts;
+    delete document.body.dataset.ppOverviewLabel;
+    delete document.body.dataset.ppServiceName;
+    delete document.body.dataset.ppDeveloperMode;
     window.history.replaceState({}, '', '/');
   });
 
@@ -437,13 +442,16 @@ describe('pp-nav', () => {
     el.includeDiagnostics = true;
     el.includeAIDocs = true;
 
-    const response = new Response(new Blob(['archive']), {
+    const response = new Response('archive', {
       status: 200,
-      headers: new Headers({'content-disposition': 'attachment; filename="docs.zip"'}),
+      headers: new Headers({
+        'content-disposition': 'attachment; filename="docs.zip"',
+        'content-type': 'application/zip',
+      }),
     });
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-    const createObjectURL = vi.fn(() => 'blob:docs');
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:docs');
     const revokeObjectURL = vi.fn();
     const originalCreateObjectURL = URL.createObjectURL;
     const originalRevokeObjectURL = URL.revokeObjectURL;
@@ -461,7 +469,11 @@ describe('pp-nav', () => {
       'http://localhost:3000/_printing-press/export?format=zip&diagnostics=1&llm=1',
       {method: 'GET', credentials: 'include'},
     );
-    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    const archiveBlob = createObjectURL.mock.calls[0]?.[0];
+    expect(archiveBlob?.size).toBe(new TextEncoder().encode('archive').byteLength);
+    expect(archiveBlob?.type).toBe('application/zip');
+    expect(await archiveBlob?.text()).toBe('archive');
     expect(clickSpy).toHaveBeenCalled();
   });
 
@@ -493,5 +505,147 @@ describe('pp-nav', () => {
 
     const controls = el.shadowRoot?.querySelector('.host-archive-controls');
     expect(controls).toBeTruthy();
+  });
+
+  const contractGroups = [
+    {role: 'http-api', label: 'HTTP API', contracts: [
+      {id: 'users-http', label: 'Users HTTP', specKind: 'openapi', href: 'index.html', active: true,
+        currentVersion: 'v1', versions: [
+          {label: 'v2', href: '../../../v2/specs/users-http/index.html'},
+          {label: 'v1', href: 'index.html', active: true},
+        ]},
+      {id: 'admin-http', label: 'Admin HTTP', specKind: 'openapi', href: '../../../v3/specs/admin-http/index.html'},
+    ]},
+    {role: 'published-events', label: 'Published Events', contracts: [
+      {id: 'published', label: 'Published Orders', specKind: 'asyncapi', href: '../../../v4/specs/published/index.html'},
+    ]},
+    {role: 'consumed-events', label: 'Consumed Events', contracts: [
+      {id: 'consumed', label: 'Consumed Orders', specKind: 'asyncapi', href: '../../../v2/specs/consumed/index.html'},
+    ]},
+    {role: 'external-source', label: 'External Sources', contracts: [
+      {id: 'external', label: 'External Orders', specKind: 'asyncapi', href: '../../../v1/specs/external/index.html'},
+    ]},
+    {role: 'events', label: 'Events', contracts: [
+      {id: 'events', label: 'General Events', specKind: 'asyncapi', href: '../../../v1/specs/events/index.html'},
+    ]},
+  ];
+
+  it('renders all contract groups permanently and nests local navigation only under the active contract', async () => {
+    document.body.dataset.ppServiceName = 'Users';
+    document.body.dataset.ppOverviewLabel = 'API OVERVIEW';
+    document.body.dataset.ppContracts = JSON.stringify(contractGroups);
+    document.body.dataset.ppDeveloperMode = 'true';
+    const el = document.createElement('pp-nav');
+    el.setAttribute('data-nav', JSON.stringify([{name: 'Users', summary: '', children: null, operations: [], isNavOnly: false}]));
+    el.setAttribute('data-pages', JSON.stringify([{title: 'Guide', slug: 'guide', href: 'guide.html'}]));
+    el.setAttribute('data-models', JSON.stringify([{name: 'Schemas', typeSlug: 'schemas', models: []}]));
+    el.setAttribute('data-webhooks', JSON.stringify([{method: 'post', path: '/hook', operationId: 'hook', summary: 'Hook', slug: 'hook', deprecated: false}]));
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    expect(Array.from(el.shadowRoot?.querySelectorAll('.contract-role-heading') ?? []).map((node) => node.textContent?.trim()))
+      .toEqual(['HTTP API', 'Published Events', 'Consumed Events', 'External Sources', 'Events']);
+    expect(Array.from(el.shadowRoot?.querySelectorAll('.contract-link') ?? []).map((node) => node.textContent?.trim()))
+      .toEqual(['Users HTTP', 'Admin HTTP', 'Published Orders', 'Consumed Orders', 'External Orders', 'General Events']);
+    expect(el.shadowRoot?.querySelectorAll('.contract-local-navigation')).toHaveLength(1);
+    const local = el.shadowRoot?.querySelector('.contract-link[aria-current="page"]')?.closest('li')?.querySelector('.contract-local-navigation');
+    expect(local?.querySelector('.nav-home')?.textContent).toContain('API OVERVIEW');
+    expect(local?.textContent).toContain('DIAGNOSTICS');
+    expect(local?.textContent).toContain('Guides');
+    expect(local?.textContent).toContain('Operations');
+    expect(local?.textContent).toContain('Models');
+    expect(local?.textContent).toContain('Webhooks');
+    expect(el.shadowRoot?.querySelector('.contract-link:not([aria-current])')?.closest('li')?.querySelector('.contract-local-navigation')).toBeNull();
+
+    const links = Array.from(el.shadowRoot?.querySelectorAll('.contract-link') ?? []);
+    expect(links[0]?.getAttribute('href')).toBe('http://localhost:3000/index.html');
+    expect(links[1]?.getAttribute('href')).toBe('http://localhost:3000/v3/specs/admin-http/index.html');
+    const versionItems = Array.from(el.shadowRoot?.querySelectorAll('.contract-version-menu sl-menu-item') ?? []);
+    expect(versionItems.map((item) => item.getAttribute('href'))).toEqual([
+      'http://localhost:3000/v2/specs/users-http/index.html',
+      'http://localhost:3000/index.html',
+    ]);
+    expect(versionItems[1]?.getAttribute('aria-current')).toBe('page');
+  });
+
+  it('uses the supplied OpenAPI and AsyncAPI overview labels', async () => {
+    const renderLabel = async (label: string) => {
+      document.body.dataset.ppOverviewLabel = label;
+      const el = document.createElement('pp-nav');
+      el.setAttribute('data-nav', '[]');
+      document.body.appendChild(el);
+      await el.updateComplete;
+      const text = el.shadowRoot?.querySelector('.nav-home')?.textContent?.trim();
+      el.remove();
+      return text;
+    };
+    expect(await renderLabel('API OVERVIEW')).toContain('API OVERVIEW');
+    expect(await renderLabel('EVENT OVERVIEW')).toContain('EVENT OVERVIEW');
+  });
+
+  it.each([undefined, '', 'null', '{}', '[', '[]', JSON.stringify([{role: 'http-api', label: 'HTTP API', contracts: [{id: 'only', label: 'Only', specKind: 'openapi', href: 'index.html', active: true}]}])])(
+    'falls back to the legacy DOM for absent, empty, malformed, or one-contract data: %s',
+    async (raw) => {
+      if (raw === undefined) delete document.body.dataset.ppContracts;
+      else document.body.dataset.ppContracts = raw;
+      const el = document.createElement('pp-nav');
+      el.setAttribute('data-nav', '[]');
+      document.body.appendChild(el);
+      await el.updateComplete;
+      expect(el.shadowRoot?.querySelector('.contract-navigation')).toBeNull();
+      expect(el.shadowRoot?.querySelector('.nav-home')).toBeTruthy();
+    },
+  );
+
+  it('keeps contract anchors and the active version trigger as separate keyboard-focusable controls', async () => {
+    document.body.dataset.ppServiceName = 'Users';
+    document.body.dataset.ppOverviewLabel = 'API OVERVIEW';
+    document.body.dataset.ppContracts = JSON.stringify(contractGroups);
+    const el = document.createElement('pp-nav');
+    el.setAttribute('data-nav', '[]');
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const active = el.shadowRoot?.querySelector('.contract-link[aria-current="page"]') as HTMLAnchorElement | null;
+    const trigger = el.shadowRoot?.querySelector('.contract-version-trigger') as HTMLElement | null;
+    expect(active?.querySelector('button, sl-button')).toBeNull();
+    expect(active?.getAttribute('aria-current')).toBe('page');
+    expect(trigger?.getAttribute('aria-label')).toBe('Select version for Users HTTP, current version v1');
+    active?.focus();
+    expect(el.shadowRoot?.activeElement).toBe(active);
+    trigger?.focus();
+    expect(el.shadowRoot?.activeElement).toBe(trigger);
+    const list = active?.closest('ul');
+    expect(list?.getAttribute('aria-labelledby')).toBeTruthy();
+  });
+
+  it('preserves legacy navigation classes and order for one contract', async () => {
+    document.body.dataset.ppContracts = JSON.stringify([{role: 'http-api', label: 'HTTP API', contracts: [
+      {id: 'users', label: 'Users', specKind: 'openapi', href: 'index.html', active: true},
+    ]}]);
+    const el = document.createElement('pp-nav');
+    el.setAttribute('data-pages', JSON.stringify([{title: 'Guide', slug: 'guide', href: 'guide.html'}]));
+    el.setAttribute('data-nav', JSON.stringify([{name: 'Users', summary: '', children: null, operations: [], isNavOnly: false}]));
+    el.setAttribute('data-models', JSON.stringify([{name: 'Schemas', typeSlug: 'schemas', models: []}]));
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const children = Array.from(el.shadowRoot?.children ?? []);
+    expect(children[0]?.classList.contains('nav-home')).toBe(true);
+    expect(children.slice(1).map((child) => child.className).filter(Boolean)).toEqual([
+      'nav-section nav-pages-section',
+      'nav-section nav-operations-section',
+      'nav-section nav-models-section',
+    ]);
+    expect(el.shadowRoot?.querySelector('.contract-navigation')).toBeNull();
+  });
+
+  it('styles contract navigation only with the existing theme custom properties', () => {
+    const source = navCss.cssText;
+    expect(source).toContain('var(--primary-color)');
+    expect(source).toContain('var(--background-color)');
+    expect(source).toContain('var(--font-color)');
+    expect(source).toContain('var(--global-padding)');
+    expect(source).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
   });
 });

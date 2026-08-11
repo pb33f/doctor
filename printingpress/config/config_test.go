@@ -9,8 +9,45 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
 )
+
+func TestLoadServiceIdentityAndContractRoles(t *testing.T) {
+	projectDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "printing-press.yaml"), []byte(`
+grouping:
+  serviceIdentity:
+    metadataPointers:
+      - /info/x-owner/service
+    stripPrefixes:
+      - platform-
+    stripSuffixes:
+      - -api
+    preferOpenAPISlug: true
+  contractRoles:
+    - pattern: "**/openapi.yaml"
+      role: http-api
+      contractID: primary
+      default: true
+    - pattern: "**/published/*.yaml"
+      role: published-events
+`), 0o644))
+
+	cfg, err := Load(filepath.Join(projectDir, "printing-press.yaml"), "")
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	assert.Equal(t, ServiceIdentityConfig{
+		MetadataPointers:  []string{"/info/x-owner/service"},
+		StripPrefixes:     []string{"platform-"},
+		StripSuffixes:     []string{"-api"},
+		PreferOpenAPISlug: true,
+	}, cfg.Grouping.ServiceIdentity)
+	assert.Equal(t, []ContractRoleRule{
+		{Pattern: "**/openapi.yaml", Role: "http-api", ContractID: "primary", Default: true},
+		{Pattern: "**/published/*.yaml", Role: "published-events"},
+	}, cfg.Grouping.ContractRoles)
+}
 
 func TestLoadDiscoversAndResolvesRelativePaths(t *testing.T) {
 	projectDir := t.TempDir()

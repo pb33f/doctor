@@ -4,14 +4,85 @@
 
 package model
 
+// ContractRole identifies a specification's role within a service catalog.
+type ContractRole string
+
+// ContractRoleValue is the public catalog value for a logical contract role.
+type ContractRoleValue = ContractRole
+
+const (
+	ContractRoleHTTPAPI         ContractRole = "http-api"
+	ContractRolePublishedEvents ContractRole = "published-events"
+	ContractRoleConsumedEvents  ContractRole = "consumed-events"
+	ContractRoleExternalSource  ContractRole = "external-source"
+	ContractRoleEvents          ContractRole = "events"
+)
+
+func (r ContractRole) MachineValue() string {
+	return string(r)
+}
+
+func (r ContractRole) IsKnown() bool {
+	switch r {
+	case ContractRoleHTTPAPI, ContractRolePublishedEvents, ContractRoleConsumedEvents, ContractRoleExternalSource, ContractRoleEvents:
+		return true
+	default:
+		return false
+	}
+}
+
+func (r ContractRole) DisplayLabel() string {
+	switch r {
+	case ContractRoleHTTPAPI:
+		return "HTTP API"
+	case ContractRolePublishedEvents:
+		return "Published Events"
+	case ContractRoleConsumedEvents:
+		return "Consumed Events"
+	case ContractRoleExternalSource:
+		return "External Sources"
+	default:
+		return "Events"
+	}
+}
+
 // SiteHeaderContext configures optional aggregate header controls for a rendered site.
 type SiteHeaderContext struct {
-	CatalogHref    string             `json:"catalogHref,omitempty"`
-	OverviewHref   string             `json:"overviewHref,omitempty"`
-	ServiceName    string             `json:"serviceName,omitempty"`
+	CatalogHref    string                      `json:"catalogHref,omitempty"`
+	OverviewHref   string                      `json:"overviewHref,omitempty"`
+	OverviewLabel  string                      `json:"overviewLabel,omitempty"`
+	ServiceName    string                      `json:"serviceName,omitempty"`
+	CurrentVersion string                      `json:"currentVersion,omitempty"`
+	VersionsHref   string                      `json:"versionsHref,omitempty"`
+	Versions       []*SiteVersionLink          `json:"versions,omitempty"`
+	ContractGroups []*SiteContractGroup        `json:"contractGroups,omitempty"`
+	Relationships  []*SiteContractRelationship `json:"relationships,omitempty"`
+}
+
+// SiteContractGroup groups contract links by their role in page navigation.
+type SiteContractGroup struct {
+	Role      ContractRoleValue   `json:"role"`
+	Label     string              `json:"label"`
+	Contracts []*SiteContractLink `json:"contracts"`
+}
+
+// SiteContractLink describes one logical contract in page navigation.
+type SiteContractLink struct {
+	ID             string             `json:"id"`
+	Label          string             `json:"label"`
+	SpecKind       SpecKindValue      `json:"specKind"`
+	Href           string             `json:"href"`
+	Active         bool               `json:"active,omitempty"`
 	CurrentVersion string             `json:"currentVersion,omitempty"`
-	VersionsHref   string             `json:"versionsHref,omitempty"`
 	Versions       []*SiteVersionLink `json:"versions,omitempty"`
+}
+
+// SiteContractRelationship describes a contract relationship rendered in an entry site.
+type SiteContractRelationship struct {
+	Relation string        `json:"relation"`
+	Label    string        `json:"label"`
+	Href     string        `json:"href"`
+	SpecKind SpecKindValue `json:"specKind,omitempty"`
 }
 
 // SiteVersionLink describes one available version in the header switcher.
@@ -36,18 +107,49 @@ type CatalogSite struct {
 
 // CatalogService represents one grouped service in the aggregate catalog.
 type CatalogService struct {
-	Key             string            `json:"key"`
-	Slug            string            `json:"slug"`
-	DisplayName     string            `json:"displayName"`
-	Summary         string            `json:"summary,omitempty"`
-	PrimaryPath     string            `json:"primaryPath,omitempty"`
-	SpecCount       int               `json:"specCount"`
-	OverviewHref    string            `json:"overviewHref,omitempty"`
-	VersionsHref    string            `json:"versionsHref,omitempty"`
-	LatestVersion   *CatalogVersion   `json:"latestVersion,omitempty"`
-	Versions        []*CatalogVersion `json:"versions,omitempty"`
-	CollisionGroups []string          `json:"collisionGroups,omitempty"`
-	Counts          *ViolationCounts  `json:"counts,omitempty"`
+	Key               string             `json:"key"`
+	Slug              string             `json:"slug"`
+	DisplayName       string             `json:"displayName"`
+	Summary           string             `json:"summary,omitempty"`
+	PrimaryPath       string             `json:"primaryPath,omitempty"`
+	SpecCount         int                `json:"specCount"`
+	OverviewHref      string             `json:"overviewHref,omitempty"`
+	VersionsHref      string             `json:"versionsHref,omitempty"`
+	LatestVersion     *CatalogVersion    `json:"latestVersion,omitempty"`
+	Versions          []*CatalogVersion  `json:"versions,omitempty"`
+	CollisionGroups   []string           `json:"collisionGroups,omitempty"`
+	Counts            *ViolationCounts   `json:"counts,omitempty"`
+	IdentityKey       string             `json:"identityKey,omitempty"`
+	DefaultContractID string             `json:"defaultContractId,omitempty"`
+	Contracts         []*CatalogContract `json:"contracts,omitempty"`
+}
+
+// CatalogContract groups the independent versions of one logical service contract.
+type CatalogContract struct {
+	ID            string                    `json:"id"`
+	DisplayName   string                    `json:"displayName"`
+	SpecKind      SpecKindValue             `json:"specKind"`
+	Role          ContractRoleValue         `json:"role"`
+	Default       bool                      `json:"default,omitempty"`
+	LatestVersion *CatalogContractVersion   `json:"latestVersion,omitempty"`
+	Versions      []*CatalogContractVersion `json:"versions,omitempty"`
+}
+
+// CatalogContractVersion represents one discovered specification root.
+type CatalogContractVersion struct {
+	Label         string                         `json:"label"`
+	Slug          string                         `json:"slug"`
+	OverviewHref  string                         `json:"overviewHref"`
+	Entry         *CatalogSpecEntry              `json:"entry,omitempty"`
+	Relationships []*CatalogContractRelationship `json:"relationships,omitempty"`
+}
+
+// CatalogContractRelationship is the structural catalog representation of a related contract.
+type CatalogContractRelationship struct {
+	Relation string        `json:"relation"`
+	Label    string        `json:"label"`
+	Href     string        `json:"href"`
+	SpecKind SpecKindValue `json:"specKind,omitempty"`
 }
 
 // CatalogVersion groups one or more spec entries under the same service version.
@@ -73,6 +175,8 @@ type CatalogSpecEntry struct {
 	Contact       *ContactInfo       `json:"contact,omitempty"`
 	ServiceKey    string             `json:"serviceKey,omitempty"`
 	ServiceSlug   string             `json:"serviceSlug,omitempty"`
+	ContractID    string             `json:"contractId,omitempty"`
+	ContractRole  ContractRoleValue  `json:"contractRole,omitempty"`
 	Version       string             `json:"version,omitempty"`
 	VersionSlug   string             `json:"versionSlug,omitempty"`
 	Format        string             `json:"format,omitempty"`

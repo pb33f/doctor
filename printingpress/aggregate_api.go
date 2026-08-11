@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,6 +31,22 @@ type AggregatePathOverride struct {
 	Value   string
 }
 
+// AggregateServiceIdentityConfig configures generic metadata-based service discovery.
+type AggregateServiceIdentityConfig struct {
+	MetadataPointers  []string
+	StripPrefixes     []string
+	StripSuffixes     []string
+	PreferOpenAPISlug bool
+}
+
+// AggregateContractRoleRule assigns a contract role to matching specification paths.
+type AggregateContractRoleRule struct {
+	Pattern    string
+	Role       string
+	ContractID string
+	Default    bool
+}
+
 // AggregatePrintingPressConfig configures repo-tree discovery and multi-spec output.
 type AggregatePrintingPressConfig struct {
 	Title                   string
@@ -47,6 +64,8 @@ type AggregatePrintingPressConfig struct {
 	ServiceOverrides        []AggregatePathOverride
 	DisplayNameOverrides    []AggregatePathOverride
 	VersionOverrides        []AggregatePathOverride
+	ServiceIdentity         AggregateServiceIdentityConfig
+	ContractRoles           []AggregateContractRoleRule
 	StateNamespace          string
 	StateSQLitePath         string
 	StateStore              SpecStateStore
@@ -124,32 +143,42 @@ type SpecStateStore interface {
 
 // SpecStateRecord stores one discovered root spec fingerprint and metadata.
 type SpecStateRecord struct {
-	RelativePath    string
-	Hash            string
-	ConfigHash      string
-	MetadataVersion int
-	SpecKind        SpecKind
-	Title           string
-	Summary         string
-	ContactName     string
-	ContactEmail    string
-	ServiceKey      string
-	DisplayName     string
-	Version         string
-	Format          string
-	OutputSubdir    string
-	UpdatedAt       time.Time
+	RelativePath             string
+	Hash                     string
+	ConfigHash               string
+	HTMLCompletionHash       string
+	JSONCompletionHash       string
+	LLMCompletionHash        string
+	HTMLOutputSubdir         string
+	JSONOutputSubdir         string
+	LLMOutputSubdir          string
+	MetadataConfigHash       string
+	MetadataVersion          int
+	SpecKind                 SpecKind
+	Title                    string
+	Summary                  string
+	ContactName              string
+	ContactEmail             string
+	ServiceIdentityCandidate string
+	ExternalRefs             []string
+	ServiceKey               string
+	DisplayName              string
+	Version                  string
+	Format                   string
+	OutputSubdir             string
+	UpdatedAt                time.Time
 }
 
 // AggregatePrintingPress discovers and renders a multi-spec documentation catalog.
 type AggregatePrintingPress struct {
-	mu              sync.Mutex
-	config          *AggregatePrintingPressConfig
-	stateStore      SpecStateStore
-	plan            *aggregateBuildPlan
-	catalog         *ppmodel.CatalogSite
-	developerMode   bool
-	specLintResults map[string][]*v3.RuleFunctionResult
+	mu                      sync.Mutex
+	config                  *AggregatePrintingPressConfig
+	stateStore              SpecStateStore
+	plan                    *aggregateBuildPlan
+	catalog                 *ppmodel.CatalogSite
+	developerMode           bool
+	specLintResults         map[string][]*v3.RuleFunctionResult
+	preflightBuildEntrySite func(*aggregateDiscoveredSpec, *ppmodel.CatalogSpecEntry) (*ppmodel.Site, error)
 }
 
 // CreateAggregatePrintingPressFromPath creates a multi-spec printing press rooted at scanRoot.
@@ -169,7 +198,7 @@ func (ap *AggregatePrintingPress) PressModel() (*ppmodel.CatalogSite, error) {
 	ap.mu.Lock()
 	defer ap.mu.Unlock()
 
-	plan, err := ap.refreshPlanLocked()
+	plan, err := ap.refreshPlanLocked(aggregatePlanIntent{})
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +216,10 @@ func cloneAggregateConfig(config *AggregatePrintingPressConfig) *AggregatePrinti
 	cloned.ServiceOverrides = append([]AggregatePathOverride(nil), config.ServiceOverrides...)
 	cloned.DisplayNameOverrides = append([]AggregatePathOverride(nil), config.DisplayNameOverrides...)
 	cloned.VersionOverrides = append([]AggregatePathOverride(nil), config.VersionOverrides...)
+	cloned.ServiceIdentity.MetadataPointers = append([]string(nil), config.ServiceIdentity.MetadataPointers...)
+	cloned.ServiceIdentity.StripPrefixes = append([]string(nil), config.ServiceIdentity.StripPrefixes...)
+	cloned.ServiceIdentity.StripSuffixes = append([]string(nil), config.ServiceIdentity.StripSuffixes...)
+	cloned.ContractRoles = append([]AggregateContractRoleRule(nil), config.ContractRoles...)
 	cloned.Footer = cloneFooterConfig(config.Footer)
 	return &cloned
 }
@@ -201,6 +234,17 @@ func validateAndNormalizeAggregateConfig(scanRoot string, config *AggregatePrint
 	}
 	if normalized.Logger == nil {
 		normalized.Logger = slog.Default()
+	}
+	for _, pointer := range normalized.ServiceIdentity.MetadataPointers {
+		if err := validateRFC6901JSONPointer(pointer); err != nil {
+			return nil, nil, fmt.Errorf("printingpress: invalid service identity metadata pointer %q: %w", pointer, err)
+		}
+	}
+	for idx := range normalized.ContractRoles {
+		role := ppmodel.ContractRole(normalized.ContractRoles[idx].Role)
+		if !role.IsKnown() {
+			return nil, nil, fmt.Errorf("printingpress: invalid aggregate contract role %q", normalized.ContractRoles[idx].Role)
+		}
 	}
 	limits := resolveMockGenerationLimits(
 		normalized.MaxPatternRepeatBudget,
@@ -324,6 +368,27 @@ func validateAndNormalizeAggregateConfig(scanRoot string, config *AggregatePrint
 		}
 	}
 	return normalized, store, nil
+}
+
+func validateRFC6901JSONPointer(pointer string) error {
+	if pointer == "" {
+		return nil
+	}
+	if !strings.HasPrefix(pointer, "/") {
+		return fmt.Errorf("must be empty or begin with /")
+	}
+	for _, token := range strings.Split(pointer[1:], "/") {
+		for idx := 0; idx < len(token); idx++ {
+			if token[idx] != '~' {
+				continue
+			}
+			if idx+1 >= len(token) || (token[idx+1] != '0' && token[idx+1] != '1') {
+				return fmt.Errorf("contains invalid ~ escape")
+			}
+			idx++
+		}
+	}
+	return nil
 }
 
 func defaultAggregateNoiseSegments() []string {

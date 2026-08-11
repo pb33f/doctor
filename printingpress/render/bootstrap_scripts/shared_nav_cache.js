@@ -146,6 +146,65 @@
     }
   }
 
+  function contractGroupsForPreview() {
+    const data = document.body && document.body.dataset;
+    const groups = parseJSONAttr(data && data.ppContracts);
+    let count = 0;
+    const visible = [];
+    for (let i = 0; i < groups.length; i++) {
+      const group = groups[i];
+      if (!group || !Array.isArray(group.contracts) || !group.contracts.length) {
+        continue;
+      }
+      count += group.contracts.length;
+      visible.push(group);
+    }
+    return count > 1 ? visible : [];
+  }
+
+  function overviewLabelForPreview() {
+    const data = document.body && document.body.dataset;
+    return (data && data.ppOverviewLabel) || 'API OVERVIEW';
+  }
+
+  function renderContractNavigationPreview(groups, navAttrs) {
+    const data = document.body && document.body.dataset;
+    let html =
+      "<div class='pp-nav-fallback pp-nav-preview pp-nav-fallback-contracts'>" +
+      renderArchiveControlsPreview(navAttrs) +
+      "<nav class='contract-navigation' aria-label='Service contracts'>";
+    if (data && data.ppServiceName) {
+      html += "<div class='contract-service-name'>" + escapeHtml(data.ppServiceName) + '</div>';
+    }
+    for (let i = 0; i < groups.length; i++) {
+      const group = groups[i];
+      const headingID = 'pp-contract-preview-' + i;
+      html +=
+        "<section class='contract-group' aria-labelledby='" + headingID + "'>" +
+        "<h4 id='" + headingID + "' class='contract-role-heading'>" + escapeHtml(group.label || '') + '</h4>' +
+        "<ul class='contract-list' aria-labelledby='" + headingID + "'>";
+      for (let j = 0; j < group.contracts.length; j++) {
+        const contract = group.contracts[j];
+        if (!contract) {
+          continue;
+        }
+        html +=
+          "<li class='contract-item" + (contract.active ? ' active' : '') + "'>" +
+          "<div class='contract-row'><a class='contract-link nav-home" + (contract.active ? ' active' : '') +
+          "' href='" + escapeHtml(docHref(contract.href || '')) + "'" +
+          (contract.active ? " aria-current='page'" : '') + '>' + escapeHtml(contract.label || contract.id || '') + '</a></div>';
+        if (contract.active) {
+          html +=
+            "<div class='contract-local-navigation'><div class='pp-nav-fallback-home'>" +
+            escapeHtml(overviewLabelForPreview()) + '</div></div>';
+        }
+        html += '</li>';
+      }
+      html += '</ul></section>';
+    }
+    return html + '</nav></div>';
+  }
+
   function tagContainsSlug(tag, activeSlug) {
     if (!tag || !activeSlug) {
       return false;
@@ -391,6 +450,10 @@
     const pages = parseJSONAttr(navAttrs['data-pages']);
     const modelGroups = parseJSONAttr(navAttrs['data-models']);
     const webhooks = parseJSONAttr(navAttrs['data-webhooks']);
+    const contractGroups = contractGroupsForPreview();
+    if (contractGroups.length) {
+      return renderContractNavigationPreview(contractGroups, navAttrs);
+    }
     if (!tags.length && !pages.length && !modelGroups.length && !webhooks.length) {
       return '';
     }

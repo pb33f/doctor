@@ -3,12 +3,157 @@ package render
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	stdhtml "html"
 	"io"
 	"strings"
 	"testing"
 
 	"github.com/a-h/templ"
+	ppmodel "github.com/pb33f/doctor/printingpress/model"
 )
+
+func TestLayoutPageRelationshipOverviewRendering(t *testing.T) {
+	header := &ppmodel.SiteHeaderContext{Relationships: []*ppmodel.SiteContractRelationship{
+		{Relation: "consumes-from", Label: `Consumes from <Published & Events>`, Href: "../../target/index.html", SpecKind: ppmodel.SpecKindValueAsyncAPI},
+		{Relation: "references", Label: "References Shared API", Href: "../../shared/index.html", SpecKind: ppmodel.SpecKindValueOpenAPI},
+	}}
+
+	overview := renderLayoutPageForTest(t, LayoutPageParams{
+		PageTitle:       "Consumer",
+		SiteTitle:       "Consumer",
+		HeaderContext:   header,
+		IsEntryOverview: true,
+	})
+	assertInOrder(t, overview, "Consumes from &lt;Published &amp; Events&gt;", "References Shared API")
+	for _, expected := range []string{
+		`<div class="pp-operations-overview pp-contract-relationships">`,
+		`<h2>RELATED CONTRACTS</h2>`,
+		`<ul class="pp-operation-list">`,
+		`href="../../target/index.html"`,
+		`href="../../shared/index.html"`,
+	} {
+		if !strings.Contains(overview, expected) {
+			t.Fatalf("expected overview relationship markup to contain %q", expected)
+		}
+	}
+	if strings.Contains(overview, `<Published & Events>`) {
+		t.Fatalf("relationship label was not escaped")
+	}
+
+	nested := renderLayoutPageForTest(t, LayoutPageParams{
+		PageTitle:     "Operation",
+		SiteTitle:     "Consumer",
+		ActiveSlug:    "consume-event",
+		BaseURL:       "../",
+		HeaderContext: header,
+	})
+	if strings.Contains(nested, "pp-contract-relationships") {
+		t.Fatalf("did not expect relationships on nested pages")
+	}
+
+	emptySlugIndex := renderLayoutPageForTest(t, LayoutPageParams{
+		PageTitle:     "Models",
+		SiteTitle:     "Consumer",
+		HeaderContext: header,
+	})
+	if strings.Contains(emptySlugIndex, "pp-contract-relationships") {
+		t.Fatalf("did not expect relationships on an empty-slug non-overview page")
+	}
+}
+
+func TestLayoutPageRelationshipAttributeEscaping(t *testing.T) {
+	html := renderLayoutPageForTest(t, LayoutPageParams{
+		PageTitle: "Consumer", SiteTitle: "Consumer", IsEntryOverview: true,
+		HeaderContext: &ppmodel.SiteHeaderContext{Relationships: []*ppmodel.SiteContractRelationship{
+			{Label: `<img src=x onerror="alert(1)">`, Href: `target.html" onmouseover="alert(1)`},
+		}},
+	})
+	if strings.Contains(html, `onmouseover="alert(1)`) || strings.Contains(html, `<img src=x`) {
+		t.Fatalf("relationship markup was not escaped: %s", html)
+	}
+	for _, escaped := range []string{`target.html&#34; onmouseover=&#34;alert(1)`, `&lt;img src=x onerror=&#34;alert(1)&#34;&gt;`} {
+		if !strings.Contains(html, escaped) {
+			t.Fatalf("expected escaped relationship value %q", escaped)
+		}
+	}
+}
+
+func TestLayoutPageContractNavigationAttributesAndFallback(t *testing.T) {
+	header := &ppmodel.SiteHeaderContext{
+		OverviewLabel: "EVENT OVERVIEW",
+		ContractGroups: []*ppmodel.SiteContractGroup{{
+			Role:  ppmodel.ContractRolePublishedEvents,
+			Label: "Published Events",
+			Contracts: []*ppmodel.SiteContractLink{{
+				ID: "orders-published", Label: `Orders <Published>`, SpecKind: ppmodel.SpecKindValueAsyncAPI,
+				Href: "index.html", Active: true, CurrentVersion: `v2 & "current"`,
+				Versions: []*ppmodel.SiteVersionLink{{Label: "v2", Href: "index.html", Active: true}},
+			}, {
+				ID: "orders-http", Label: "Orders HTTP", SpecKind: ppmodel.SpecKindValueOpenAPI,
+				Href: "../../../v3/specs/orders-http/index.html",
+			}},
+		}},
+	}
+
+	rendered := renderLayoutPageForTest(t, LayoutPageParams{
+		PageTitle: "Orders Published", SiteTitle: "Orders", HeaderContext: header,
+	})
+	for _, expected := range []string{
+		`data-pp-overview-label="EVENT OVERVIEW"`,
+		`data-pp-contracts="[{&#34;role&#34;:&#34;published-events&#34;`,
+		`Orders &lt;Published&gt;`,
+		`class="pp-nav-fallback-contracts"`,
+		`EVENT OVERVIEW`,
+	} {
+		if !strings.Contains(rendered, expected) {
+			t.Fatalf("expected contract navigation output to contain %q", expected)
+		}
+	}
+	if strings.Contains(rendered, `Orders <Published>`) || strings.Contains(rendered, `v2 & "current"`) {
+		t.Fatalf("contract navigation values were not escaped")
+	}
+	const contractAttr = `data-pp-contracts="`
+	start := strings.Index(rendered, contractAttr)
+	if start < 0 {
+		t.Fatalf("contract JSON attribute was not rendered")
+	}
+	start += len(contractAttr)
+	end := strings.Index(rendered[start:], `"`)
+	if end < 0 {
+		t.Fatalf("contract JSON attribute was not terminated")
+	}
+	var roundTrip []*ppmodel.SiteContractGroup
+	if err := json.Unmarshal([]byte(stdhtml.UnescapeString(rendered[start:start+end])), &roundTrip); err != nil {
+		t.Fatalf("contract JSON attribute did not round-trip: %v", err)
+	}
+	if got := roundTrip[0].Contracts[0].CurrentVersion; got != `v2 & "current"` {
+		t.Fatalf("contract JSON attribute changed current version: %q", got)
+	}
+
+	legacy := renderLayoutPageForTest(t, LayoutPageParams{
+		PageTitle: "Orders", SiteTitle: "Orders",
+		HeaderContext: &ppmodel.SiteHeaderContext{OverviewLabel: "API OVERVIEW"},
+	})
+	if !strings.Contains(legacy, `data-pp-overview-label="API OVERVIEW"`) {
+		t.Fatalf("expected overview label for single-contract navigation")
+	}
+	if strings.Contains(legacy, `data-pp-contracts=`) || strings.Contains(legacy, `class="pp-nav-fallback-contracts"`) {
+		t.Fatalf("single-contract navigation must retain the compact fallback")
+	}
+}
+
+func assertInOrder(t *testing.T, value string, expected ...string) {
+	t.Helper()
+	previous := -1
+	for _, item := range expected {
+		index := strings.Index(value, item)
+		if index < 0 || index <= previous {
+			t.Fatalf("expected %q after prior item in %q", item, value)
+		}
+		previous = index
+	}
+}
 
 func TestLayoutPageDeveloperModeFallbackIncludesDiagnostics(t *testing.T) {
 	html := renderLayoutPageForTest(t, LayoutPageParams{
@@ -179,6 +324,19 @@ func TestSharedNavPreviewIncludesArchiveFallback(t *testing.T) {
 	}
 	if !strings.Contains(bootstrapSharedNavCacheSource, `pp-nav-fallback-archive`) {
 		t.Fatalf("expected shared nav preview bootstrap to include archive fallback markup")
+	}
+}
+
+func TestSharedNavPreviewSupportsContractSkeletonAndOverviewLabel(t *testing.T) {
+	for _, expected := range []string{
+		`data.ppContracts`,
+		`data.ppOverviewLabel`,
+		`function renderContractNavigationPreview`,
+		`pp-nav-fallback-contracts`,
+	} {
+		if !strings.Contains(bootstrapSharedNavCacheSource, expected) {
+			t.Fatalf("expected shared nav preview bootstrap to contain %q", expected)
+		}
 	}
 }
 

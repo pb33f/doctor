@@ -7,6 +7,7 @@ package printingpress
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -37,8 +38,8 @@ func (ap *AggregatePrintingPress) PrintLLM() (*AggregatePressStatistics, error) 
 	return ap.PrintSelectedOutputs(AggregateRenderOptions{LLM: true})
 }
 
-func (ap *AggregatePrintingPress) refreshPlanLocked() (*aggregateBuildPlan, error) {
-	plan, err := ap.buildPlan()
+func (ap *AggregatePrintingPress) refreshPlanLocked(intent aggregatePlanIntent) (*aggregateBuildPlan, error) {
+	plan, err := ap.buildPlan(intent)
 	if err != nil {
 		return nil, err
 	}
@@ -135,44 +136,501 @@ func relativeSharedAssetBase(outputSubdir string) string {
 	return strings.Repeat("../", depth) + pppaths.DirStatic
 }
 
-func (ap *AggregatePrintingPress) pruneObsoleteOutputs(plan *aggregateBuildPlan, clearChangedOutputs bool) error {
-	seen := make(map[string]struct{})
-	removeSubdir := func(subdir string) error {
-		subdir = strings.TrimSpace(subdir)
-		if subdir == "" {
-			return nil
-		}
-		if _, ok := seen[subdir]; ok {
-			return nil
-		}
-		seen[subdir] = struct{}{}
-		return os.RemoveAll(filepath.Join(ap.config.OutputDir, filepath.FromSlash(subdir)))
+type aggregateOutputLocations struct {
+	html string
+	json string
+	llm  string
+}
+
+const (
+	aggregateOutputFamilyHTML = "html"
+	aggregateOutputFamilyJSON = "json"
+	aggregateOutputFamilyLLM  = "llm"
+)
+
+type aggregateActiveOutputOwner struct {
+	RelativePath string
+	ServiceKey   string
+	ContractID   string
+	OutputSubdir string
+}
+
+type aggregateActiveOutputOwnership struct {
+	byFamily map[string]map[string][]aggregateActiveOutputOwner
+}
+
+func aggregateActiveOutputOwnershipFromPlan(plan *aggregateBuildPlan, selection aggregateOutputSelection) aggregateActiveOutputOwnership {
+	ownership := aggregateActiveOutputOwnership{byFamily: make(map[string]map[string][]aggregateActiveOutputOwner)}
+	if plan == nil {
+		return ownership
 	}
-	for _, removed := range plan.removed {
-		if err := removeSubdir(removed.OutputSubdir); err != nil {
+	for _, spec := range plan.discovered {
+		if spec == nil || spec.RenderSkipped {
+			continue
+		}
+		if selection.html {
+			ownership.add(aggregateOutputFamilyHTML, spec)
+		}
+		if selection.json {
+			ownership.add(aggregateOutputFamilyJSON, spec)
+		}
+		if selection.llm {
+			ownership.add(aggregateOutputFamilyLLM, spec)
+		}
+	}
+	for _, byLocation := range ownership.byFamily {
+		for location := range byLocation {
+			sort.Slice(byLocation[location], func(i, j int) bool {
+				return byLocation[location][i].RelativePath < byLocation[location][j].RelativePath
+			})
+		}
+	}
+	return ownership
+}
+
+func (ownership *aggregateActiveOutputOwnership) add(family string, spec *aggregateDiscoveredSpec) {
+	if ownership == nil || spec == nil {
+		return
+	}
+	clean, ok := cleanAggregateEntryOutputSubdir(spec.OutputSubdir)
+	if !ok {
+		return
+	}
+	if ownership.byFamily == nil {
+		ownership.byFamily = make(map[string]map[string][]aggregateActiveOutputOwner)
+	}
+	if ownership.byFamily[family] == nil {
+		ownership.byFamily[family] = make(map[string][]aggregateActiveOutputOwner)
+	}
+	ownership.byFamily[family][clean] = append(ownership.byFamily[family][clean], aggregateActiveOutputOwner{
+		RelativePath: spec.RelativePath,
+		ServiceKey:   spec.ServiceKey,
+		ContractID:   spec.ContractID,
+		OutputSubdir: clean,
+	})
+}
+
+func (ownership aggregateActiveOutputOwnership) owners(family, subdir string) []aggregateActiveOutputOwner {
+	clean, ok := cleanAggregateEntryOutputSubdir(subdir)
+	if !ok {
+		return nil
+	}
+	return ownership.byFamily[family][clean]
+}
+
+func aggregateRecordOutputLocations(record *SpecStateRecord) aggregateOutputLocations {
+	if record == nil {
+		return aggregateOutputLocations{}
+	}
+	copy := *record
+	normalizeSpecStateOutputLocations(&copy)
+	return aggregateOutputLocations{
+		html: strings.TrimSpace(copy.HTMLOutputSubdir),
+		json: strings.TrimSpace(copy.JSONOutputSubdir),
+		llm:  strings.TrimSpace(copy.LLMOutputSubdir),
+	}
+}
+
+func (locations aggregateOutputLocations) each(visit func(string)) {
+	visit(locations.html)
+	visit(locations.json)
+	visit(locations.llm)
+}
+
+func aggregateCompletedPaths(plan *aggregateBuildPlan) map[string]struct{} {
+	completed := make(map[string]struct{}, len(plan.changed))
+	for _, spec := range plan.changed {
+		if spec != nil {
+			completed[spec.RelativePath] = struct{}{}
+		}
+	}
+	return completed
+}
+
+func aggregateResultingOutputLocations(spec *aggregateDiscoveredSpec, selection aggregateOutputSelection, completed bool) aggregateOutputLocations {
+	if spec == nil {
+		return aggregateOutputLocations{}
+	}
+	locations := aggregateRecordOutputLocations(spec.previousState)
+	if completed {
+		if selection.html {
+			locations.html = spec.OutputSubdir
+		}
+		if selection.json {
+			locations.json = spec.OutputSubdir
+		}
+		if selection.llm {
+			locations.llm = spec.OutputSubdir
+		}
+	}
+	return locations
+}
+
+func cleanAggregateEntryOutputSubdir(subdir string) (string, bool) {
+	trimmed := strings.TrimSpace(filepath.ToSlash(subdir))
+	if trimmed == "" || path.IsAbs(trimmed) {
+		return "", false
+	}
+	clean := path.Clean(trimmed)
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
+		return "", false
+	}
+	parts := strings.Split(clean, "/")
+	if len(parts) != 6 || parts[0] != pppaths.DirServices || parts[1] == "" ||
+		parts[2] != pppaths.DirVersions || parts[3] == "" || parts[4] != pppaths.DirSpecs || parts[5] == "" {
+		return "", false
+	}
+	return clean, true
+}
+
+func (ap *AggregatePrintingPress) removeAggregateEntryOutputSubdir(subdir string) error {
+	target, ok := ap.aggregateEntryOutputPath(subdir)
+	if !ok {
+		return nil
+	}
+	return os.RemoveAll(target)
+}
+
+func (ap *AggregatePrintingPress) aggregateEntryOutputPath(subdir string) (string, bool) {
+	clean, ok := cleanAggregateEntryOutputSubdir(subdir)
+	if !ok || ap == nil || ap.config == nil || strings.TrimSpace(ap.config.OutputDir) == "" {
+		return "", false
+	}
+	root := filepath.Clean(ap.config.OutputDir)
+	target := filepath.Join(root, filepath.FromSlash(clean))
+	rel, err := filepath.Rel(root, target)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return target, true
+}
+
+func aggregateCleanupTombstones(plan *aggregateBuildPlan) []*SpecStateRecord {
+	if plan == nil {
+		return nil
+	}
+	byPath := make(map[string]*SpecStateRecord, len(plan.removed))
+	for _, record := range plan.removed {
+		if record != nil {
+			byPath[record.RelativePath] = record
+		}
+	}
+	for _, spec := range plan.discovered {
+		if spec != nil && spec.RenderSkipped && spec.previousState != nil {
+			byPath[spec.RelativePath] = spec.previousState
+		}
+	}
+	paths := make([]string, 0, len(byPath))
+	for relPath := range byPath {
+		paths = append(paths, relPath)
+	}
+	sort.Strings(paths)
+	records := make([]*SpecStateRecord, 0, len(paths))
+	for _, relPath := range paths {
+		records = append(records, byPath[relPath])
+	}
+	return records
+}
+
+func aggregateCleanupTombstoneAfterSelection(record *SpecStateRecord, selection aggregateOutputSelection) *SpecStateRecord {
+	if record == nil {
+		return nil
+	}
+	copy := *record
+	copy.ExternalRefs = append([]string(nil), record.ExternalRefs...)
+	normalizeSpecStateOutputLocations(&copy)
+	if selection.html {
+		copy.HTMLCompletionHash = ""
+		copy.HTMLOutputSubdir = ""
+	}
+	if selection.json {
+		copy.JSONCompletionHash = ""
+		copy.JSONOutputSubdir = ""
+	}
+	if selection.llm {
+		copy.LLMCompletionHash = ""
+		copy.LLMOutputSubdir = ""
+	}
+	copy.OutputSubdir = ""
+	copy.UpdatedAt = time.Now().UTC()
+	return &copy
+}
+
+func aggregateRecordHasOutputFamilyState(record *SpecStateRecord) bool {
+	if record == nil {
+		return false
+	}
+	return strings.TrimSpace(record.HTMLCompletionHash) != "" || strings.TrimSpace(record.JSONCompletionHash) != "" ||
+		strings.TrimSpace(record.LLMCompletionHash) != "" || strings.TrimSpace(record.HTMLOutputSubdir) != "" ||
+		strings.TrimSpace(record.JSONOutputSubdir) != "" || strings.TrimSpace(record.LLMOutputSubdir) != ""
+}
+
+func (ap *AggregatePrintingPress) reconcileCleanupTombstoneEntryArtifacts(plan *aggregateBuildPlan, selection aggregateOutputSelection) error {
+	ownership := aggregateActiveOutputOwnershipFromPlan(plan, selection)
+	return ap.reconcileCleanupTombstoneEntryArtifactsWithOwnership(plan, selection, ownership)
+}
+
+func (ap *AggregatePrintingPress) reconcileCleanupTombstoneEntryArtifactsWithOwnership(plan *aggregateBuildPlan, selection aggregateOutputSelection, ownership aggregateActiveOutputOwnership) error {
+	groups := make(map[string]aggregateOutputSelection)
+	for _, record := range aggregateCleanupTombstones(plan) {
+		locations := aggregateRecordOutputLocations(record)
+		add := func(family, subdir string, update func(*aggregateOutputSelection)) {
+			clean, ok := cleanAggregateEntryOutputSubdir(subdir)
+			if !ok || len(ownership.owners(family, clean)) > 0 {
+				return
+			}
+			group := groups[clean]
+			update(&group)
+			groups[clean] = group
+		}
+		if selection.html {
+			add(aggregateOutputFamilyHTML, locations.html, func(group *aggregateOutputSelection) { group.html = true })
+		}
+		if selection.json {
+			add(aggregateOutputFamilyJSON, locations.json, func(group *aggregateOutputSelection) { group.json = true })
+		}
+		if selection.llm {
+			add(aggregateOutputFamilyLLM, locations.llm, func(group *aggregateOutputSelection) { group.llm = true })
+		}
+	}
+	locations := make([]string, 0, len(groups))
+	for subdir := range groups {
+		locations = append(locations, subdir)
+	}
+	sort.Strings(locations)
+	for _, subdir := range locations {
+		entryOutput, ok := ap.aggregateEntryOutputPath(subdir)
+		if !ok {
+			continue
+		}
+		if _, err := os.Stat(entryOutput); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return err
+		}
+		stagedOutput, err := stageAggregateEntryOutput(entryOutput, groups[subdir])
+		if err != nil {
+			return err
+		}
+		if err := prepareAggregateEntryOutputDir(stagedOutput, groups[subdir]); err != nil {
+			_ = os.RemoveAll(stagedOutput)
+			return err
+		}
+		if err := promoteAggregateEntryOutput(stagedOutput, entryOutput); err != nil {
+			_ = os.RemoveAll(stagedOutput)
 			return err
 		}
 	}
-	for _, spec := range plan.changed {
-		if clearChangedOutputs {
-			if err := removeSubdir(spec.OutputSubdir); err != nil {
-				return err
-			}
+	return nil
+}
+
+func (ap *AggregatePrintingPress) pruneObsoleteOutputs(plan *aggregateBuildPlan, selection aggregateOutputSelection) error {
+	if plan == nil {
+		return nil
+	}
+	completed := aggregateCompletedPaths(plan)
+	resultingReferences := make(map[string]struct{})
+	for _, spec := range plan.discovered {
+		if spec == nil || spec.RenderSkipped {
+			continue
 		}
-		if record := plan.existing[spec.RelativePath]; record != nil && record.OutputSubdir != spec.OutputSubdir {
-			if err := removeSubdir(record.OutputSubdir); err != nil {
+		_, wasCompleted := completed[spec.RelativePath]
+		aggregateResultingOutputLocations(spec, selection, wasCompleted).each(func(subdir string) {
+			if clean, ok := cleanAggregateEntryOutputSubdir(subdir); ok {
+				resultingReferences[clean] = struct{}{}
+			}
+		})
+	}
+	for _, record := range aggregateCleanupTombstones(plan) {
+		tombstone := aggregateCleanupTombstoneAfterSelection(record, selection)
+		aggregateRecordOutputLocations(tombstone).each(func(subdir string) {
+			if clean, ok := cleanAggregateEntryOutputSubdir(subdir); ok {
+				resultingReferences[clean] = struct{}{}
+			}
+		})
+	}
+
+	candidates := make(map[string]struct{})
+	addCandidate := func(subdir string) {
+		if clean, ok := cleanAggregateEntryOutputSubdir(subdir); ok {
+			candidates[clean] = struct{}{}
+		}
+	}
+	for _, record := range aggregateCleanupTombstones(plan) {
+		aggregateRecordOutputLocations(record).each(addCandidate)
+	}
+	for _, spec := range plan.changed {
+		if spec != nil {
+			aggregateRecordOutputLocations(spec.previousState).each(addCandidate)
+		}
+	}
+
+	ordered := make([]string, 0, len(candidates))
+	for subdir := range candidates {
+		if _, referenced := resultingReferences[subdir]; !referenced {
+			ordered = append(ordered, subdir)
+		}
+	}
+	sort.Strings(ordered)
+	for _, subdir := range ordered {
+		if err := ap.removeAggregateEntryOutputSubdir(subdir); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func stageAggregateEntryOutput(entryOutput string, selection aggregateOutputSelection) (string, error) {
+	parent := filepath.Dir(entryOutput)
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		return "", err
+	}
+	staged, err := os.MkdirTemp(parent, "."+filepath.Base(entryOutput)+".ppress-stage-")
+	if err != nil {
+		return "", err
+	}
+	if err := copyAggregateEntryOutput(entryOutput, staged, selection); err != nil {
+		_ = os.RemoveAll(staged)
+		return "", err
+	}
+	return staged, nil
+}
+
+func copyAggregateEntryOutput(source, target string, selection aggregateOutputSelection) error {
+	info, err := os.Stat(source)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("entry output is not a directory: %s", source)
+	}
+	return filepath.WalkDir(source, func(filePath string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relPath, err := filepath.Rel(source, filePath)
+		if err != nil || relPath == "." {
+			return err
+		}
+		targetPath := filepath.Join(target, relPath)
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if selection.html && relPath != "." {
+				return nil
+			}
+			return os.MkdirAll(targetPath, info.Mode().Perm())
+		}
+		if selection.html && !aggregateEntryArtifactPreservedForSelection(relPath, selection) {
+			return nil
+		}
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+			return err
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			linkTarget, err := os.Readlink(filePath)
+			if err != nil {
 				return err
 			}
+			return os.Symlink(linkTarget, targetPath)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("unsupported entry output file type: %s", filePath)
+		}
+		input, err := os.Open(filePath)
+		if err != nil {
+			return err
+		}
+		defer input.Close()
+		output, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode().Perm())
+		if err != nil {
+			_ = input.Close()
+			return err
+		}
+		_, copyErr := io.Copy(output, input)
+		inputCloseErr := input.Close()
+		outputCloseErr := output.Close()
+		return errors.Join(copyErr, inputCloseErr, outputCloseErr)
+	})
+}
+
+func aggregateEntryArtifactPreservedForSelection(relPath string, selection aggregateOutputSelection) bool {
+	extension := strings.ToLower(filepath.Ext(relPath))
+	return !selection.json && extension == ".json" || !selection.llm && (extension == ".md" || extension == ".txt")
+}
+
+func promoteAggregateEntryOutput(stagedOutput, entryOutput string) error {
+	parent := filepath.Dir(entryOutput)
+	backup, err := os.MkdirTemp(parent, "."+filepath.Base(entryOutput)+".ppress-backup-")
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(backup); err != nil {
+		return err
+	}
+	hadExisting := false
+	if _, err := os.Stat(entryOutput); err == nil {
+		hadExisting = true
+		if err := os.Rename(entryOutput, backup); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.Rename(stagedOutput, entryOutput); err != nil {
+		if hadExisting {
+			return errors.Join(err, os.Rename(backup, entryOutput))
+		}
+		return err
+	}
+	if hadExisting {
+		if err := os.RemoveAll(backup); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
 func (ap *AggregatePrintingPress) pruneObsoleteAggregateArtifacts(plan *aggregateBuildPlan, selection aggregateOutputSelection) error {
-	previous := aggregateTopologyFromState(plan.existing)
-	current := aggregateTopologyFromCatalog(plan.catalog)
+	if plan == nil {
+		return nil
+	}
+	current := aggregateTopologyFromDiscovered(plan.discovered)
+	families := []struct {
+		selected  bool
+		name      string
+		selection aggregateOutputSelection
+	}{
+		{selection.html, aggregateOutputFamilyHTML, aggregateOutputSelection{html: true}},
+		{selection.json, aggregateOutputFamilyJSON, aggregateOutputSelection{json: true}},
+		{selection.llm, aggregateOutputFamilyLLM, aggregateOutputSelection{llm: true}},
+	}
+	for _, family := range families {
+		if !family.selected {
+			continue
+		}
+		previous := aggregateTopologyFromState(plan.existing, family.name)
+		if err := ap.pruneObsoleteAggregateFamily(previous, current, family.selection); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-	for serviceSlug, previousVersions := range previous {
+func (ap *AggregatePrintingPress) pruneObsoleteAggregateFamily(previous, current map[string]map[string]struct{}, selection aggregateOutputSelection) error {
+	serviceSlugs := make([]string, 0, len(previous))
+	for serviceSlug := range previous {
+		serviceSlugs = append(serviceSlugs, serviceSlug)
+	}
+	sort.Strings(serviceSlugs)
+	for _, serviceSlug := range serviceSlugs {
+		previousVersions := previous[serviceSlug]
 		currentVersions, serviceStillVisible := current[serviceSlug]
 		if !serviceStillVisible {
 			if err := ap.removeAggregateServiceArtifacts(serviceSlug, previousVersions, selection); err != nil {
@@ -180,7 +638,12 @@ func (ap *AggregatePrintingPress) pruneObsoleteAggregateArtifacts(plan *aggregat
 			}
 			continue
 		}
+		versionSlugs := make([]string, 0, len(previousVersions))
 		for versionSlug := range previousVersions {
+			versionSlugs = append(versionSlugs, versionSlug)
+		}
+		sort.Strings(versionSlugs)
+		for _, versionSlug := range versionSlugs {
 			if _, ok := currentVersions[versionSlug]; ok {
 				continue
 			}
@@ -192,49 +655,52 @@ func (ap *AggregatePrintingPress) pruneObsoleteAggregateArtifacts(plan *aggregat
 	return nil
 }
 
-func aggregateTopologyFromState(records map[string]*SpecStateRecord) map[string]map[string]struct{} {
+func aggregateTopologyFromState(records map[string]*SpecStateRecord, family string) map[string]map[string]struct{} {
 	topology := make(map[string]map[string]struct{})
 	for _, record := range records {
-		serviceSlug, versionSlug, ok := aggregateTopologyKeys(record.OutputSubdir)
-		if !ok {
-			continue
+		locations := aggregateRecordOutputLocations(record)
+		var outputSubdir string
+		switch family {
+		case aggregateOutputFamilyHTML:
+			outputSubdir = locations.html
+		case aggregateOutputFamilyJSON:
+			outputSubdir = locations.json
+		case aggregateOutputFamilyLLM:
+			outputSubdir = locations.llm
 		}
-		if _, ok := topology[serviceSlug]; !ok {
-			topology[serviceSlug] = make(map[string]struct{})
-		}
-		topology[serviceSlug][versionSlug] = struct{}{}
+		addAggregateTopologyLocation(topology, outputSubdir)
 	}
 	return topology
 }
 
-func aggregateTopologyFromCatalog(catalog *ppmodel.CatalogSite) map[string]map[string]struct{} {
+func aggregateTopologyFromDiscovered(discovered []*aggregateDiscoveredSpec) map[string]map[string]struct{} {
 	topology := make(map[string]map[string]struct{})
-	if catalog == nil {
-		return topology
-	}
-	for _, service := range catalog.Services {
-		visibleVersions := visibleCatalogVersions(service)
-		if len(visibleVersions) == 0 {
+	for _, spec := range discovered {
+		if spec == nil || spec.RenderSkipped {
 			continue
 		}
-		if _, ok := topology[service.Slug]; !ok {
-			topology[service.Slug] = make(map[string]struct{})
-		}
-		for _, version := range visibleVersions {
-			topology[service.Slug][version.Slug] = struct{}{}
-		}
+		addAggregateTopologyLocation(topology, spec.OutputSubdir)
 	}
 	return topology
+}
+
+func addAggregateTopologyLocation(topology map[string]map[string]struct{}, outputSubdir string) {
+	serviceSlug, versionSlug, ok := aggregateTopologyKeys(outputSubdir)
+	if !ok {
+		return
+	}
+	if _, ok := topology[serviceSlug]; !ok {
+		topology[serviceSlug] = make(map[string]struct{})
+	}
+	topology[serviceSlug][versionSlug] = struct{}{}
 }
 
 func aggregateTopologyKeys(outputSubdir string) (string, string, bool) {
-	parts := strings.Split(strings.Trim(filepath.ToSlash(outputSubdir), "/"), "/")
-	if len(parts) < 6 {
+	clean, ok := cleanAggregateEntryOutputSubdir(outputSubdir)
+	if !ok {
 		return "", "", false
 	}
-	if parts[0] != pppaths.DirServices || parts[2] != pppaths.DirVersions || parts[4] != pppaths.DirSpecs {
-		return "", "", false
-	}
+	parts := strings.Split(clean, "/")
 	return parts[1], parts[3], true
 }
 
@@ -285,11 +751,15 @@ func (ap *AggregatePrintingPress) removeAggregateVersionArtifacts(serviceSlug, v
 			return err
 		}
 	}
-	return ap.removeAggregateDirIfEmpty(versionRoot)
+	return ap.removeAggregateDirIfEmpty(path.Join(versionRoot, pppaths.DirSpecs), versionRoot)
 }
 
 func (ap *AggregatePrintingPress) removeAggregateFile(relPath string) error {
-	err := os.Remove(filepath.Join(ap.config.OutputDir, filepath.FromSlash(relPath)))
+	absPath, ok := ap.safeAggregateOutputPath(relPath)
+	if !ok {
+		return nil
+	}
+	err := os.Remove(absPath)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -298,7 +768,10 @@ func (ap *AggregatePrintingPress) removeAggregateFile(relPath string) error {
 
 func (ap *AggregatePrintingPress) removeAggregateDirIfEmpty(relPaths ...string) error {
 	for _, relPath := range relPaths {
-		absPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(relPath))
+		absPath, ok := ap.safeAggregateOutputPath(relPath)
+		if !ok {
+			continue
+		}
 		entries, err := os.ReadDir(absPath)
 		if os.IsNotExist(err) {
 			continue
@@ -316,44 +789,97 @@ func (ap *AggregatePrintingPress) removeAggregateDirIfEmpty(relPaths ...string) 
 	return nil
 }
 
-func (ap *AggregatePrintingPress) persistState(plan *aggregateBuildPlan) error {
-	records := make([]*SpecStateRecord, 0, len(plan.discovered))
-	skipped := make([]string, 0)
+func (ap *AggregatePrintingPress) safeAggregateOutputPath(relPath string) (string, bool) {
+	if ap == nil || ap.config == nil || strings.TrimSpace(ap.config.OutputDir) == "" {
+		return "", false
+	}
+	clean := path.Clean(strings.TrimSpace(filepath.ToSlash(relPath)))
+	if clean == "." || clean == ".." || path.IsAbs(clean) || strings.HasPrefix(clean, "../") {
+		return "", false
+	}
+	root := filepath.Clean(ap.config.OutputDir)
+	target := filepath.Join(root, filepath.FromSlash(clean))
+	rel, err := filepath.Rel(root, target)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return target, true
+}
+
+func (ap *AggregatePrintingPress) persistState(plan *aggregateBuildPlan, selection aggregateOutputSelection) error {
+	tombstones := aggregateCleanupTombstones(plan)
+	records := make([]*SpecStateRecord, 0, len(plan.discovered)+len(tombstones))
+	completed := make(map[string]struct{}, len(plan.changed))
+	for _, spec := range plan.changed {
+		if spec != nil {
+			completed[spec.RelativePath] = struct{}{}
+		}
+	}
 	for _, spec := range plan.discovered {
 		if spec.RenderSkipped {
-			skipped = append(skipped, spec.RelativePath)
 			continue
 		}
-		records = append(records, &SpecStateRecord{
-			RelativePath:    spec.RelativePath,
-			Hash:            spec.Hash,
-			ConfigHash:      spec.ConfigHash,
-			MetadataVersion: aggregateMetadataVersion,
-			SpecKind:        spec.SpecKind,
-			Title:           spec.Title,
-			Summary:         spec.Summary,
-			ContactName:     catalogContactName(spec.Contact),
-			ContactEmail:    catalogContactEmail(spec.Contact),
-			ServiceKey:      spec.ServiceKey,
-			DisplayName:     spec.DisplayName,
-			Version:         spec.Version,
-			Format:          spec.Format,
-			OutputSubdir:    spec.OutputSubdir,
-			UpdatedAt:       time.Now().UTC(),
-		})
+		record := &SpecStateRecord{
+			RelativePath:             spec.RelativePath,
+			Hash:                     spec.Hash,
+			ConfigHash:               spec.ConfigHash,
+			MetadataConfigHash:       spec.MetadataConfigHash,
+			MetadataVersion:          aggregateMetadataVersion,
+			SpecKind:                 spec.SpecKind,
+			Title:                    spec.Title,
+			Summary:                  spec.Summary,
+			ContactName:              catalogContactName(spec.Contact),
+			ContactEmail:             catalogContactEmail(spec.Contact),
+			ServiceIdentityCandidate: spec.ServiceIdentityCandidate,
+			ExternalRefs:             append([]string(nil), spec.ExternalRefs...),
+			ServiceKey:               spec.ServiceKey,
+			DisplayName:              spec.DisplayName,
+			Version:                  spec.Version,
+			Format:                   spec.Format,
+			OutputSubdir:             spec.OutputSubdir,
+			UpdatedAt:                time.Now().UTC(),
+		}
+		if previous := spec.previousState; previous != nil {
+			record.HTMLCompletionHash = previous.HTMLCompletionHash
+			record.JSONCompletionHash = previous.JSONCompletionHash
+			record.LLMCompletionHash = previous.LLMCompletionHash
+			locations := aggregateRecordOutputLocations(previous)
+			record.HTMLOutputSubdir = locations.html
+			record.JSONOutputSubdir = locations.json
+			record.LLMOutputSubdir = locations.llm
+		}
+		if _, ok := completed[spec.RelativePath]; ok {
+			if selection.html {
+				record.HTMLCompletionHash = spec.HTMLCompletionHash
+				record.HTMLOutputSubdir = spec.OutputSubdir
+			}
+			if selection.json {
+				record.JSONCompletionHash = spec.JSONCompletionHash
+				record.JSONOutputSubdir = spec.OutputSubdir
+			}
+			if selection.llm {
+				record.LLMCompletionHash = spec.LLMCompletionHash
+				record.LLMOutputSubdir = spec.OutputSubdir
+			}
+		}
+		records = append(records, record)
+	}
+	deletePaths := make([]string, 0, len(tombstones))
+	for _, previous := range tombstones {
+		tombstone := aggregateCleanupTombstoneAfterSelection(previous, selection)
+		if aggregateRecordHasOutputFamilyState(tombstone) {
+			records = append(records, tombstone)
+			continue
+		}
+		deletePaths = append(deletePaths, previous.RelativePath)
 	}
 	if err := ap.stateStore.Upsert(ap.config.StateNamespace, records); err != nil {
 		return err
 	}
-	paths := make([]string, 0, len(plan.removed))
-	for _, record := range plan.removed {
-		paths = append(paths, record.RelativePath)
-	}
-	paths = append(paths, skipped...)
-	if len(paths) == 0 {
+	if len(deletePaths) == 0 {
 		return nil
 	}
-	return ap.stateStore.Delete(ap.config.StateNamespace, paths)
+	return ap.stateStore.Delete(ap.config.StateNamespace, deletePaths)
 }
 
 func (ap *AggregatePrintingPress) buildAggregateStatistics(plan *aggregateBuildPlan, written []string, discoveryDuration, generationDuration, totalDuration time.Duration) *AggregatePressStatistics {
@@ -1174,6 +1700,9 @@ func catalogRootContent(catalog *ppmodel.CatalogSite, disableSkippedRendering bo
 }
 
 func servicePrimaryHref(service *ppmodel.CatalogService) string {
+	if entry := catalogDefaultContractLatestEntry(service); entry != nil && strings.TrimSpace(entry.OverviewHref) != "" {
+		return entry.OverviewHref
+	}
 	version := catalogVisibleLatestVersion(service)
 	if version == nil {
 		return ""
@@ -1203,7 +1732,7 @@ func catalogVersionEntriesContent(service *ppmodel.CatalogService, version *ppmo
 			return nil
 		}
 		entries := visibleCatalogEntries(version)
-		if len(entries) > 1 {
+		if catalogVersionHasCollision(service, version) {
 			if _, err := io.WriteString(w, `<pb33f-attention-box class="pp-catalog-warning" type="warning" headerText="Multiple Specification Entries"><p>Multiple specs were discovered for this service version. Each entry remains available separately.</p></pb33f-attention-box>`); err != nil {
 				return err
 			}
@@ -1391,6 +1920,9 @@ func catalogVisibleLatestVersion(service *ppmodel.CatalogService) *ppmodel.Catal
 }
 
 func catalogServiceSummary(service *ppmodel.CatalogService) string {
+	if entry := catalogDefaultContractLatestEntry(service); entry != nil {
+		return entry.Summary
+	}
 	if latest := catalogVisibleLatestVersion(service); latest != nil && strings.TrimSpace(latest.Summary) != "" {
 		return latest.Summary
 	}
@@ -1398,6 +1930,9 @@ func catalogServiceSummary(service *ppmodel.CatalogService) string {
 }
 
 func catalogServiceContact(service *ppmodel.CatalogService) *ppmodel.ContactInfo {
+	if entry := catalogDefaultContractLatestEntry(service); entry != nil {
+		return entry.Contact
+	}
 	latest := catalogVisibleLatestVersion(service)
 	if latest == nil {
 		return nil
@@ -1407,6 +1942,37 @@ func catalogServiceContact(service *ppmodel.CatalogService) *ppmodel.ContactInfo
 		return nil
 	}
 	return entries[0].Contact
+}
+
+func catalogDefaultContractLatestEntry(service *ppmodel.CatalogService) *ppmodel.CatalogSpecEntry {
+	if service == nil {
+		return nil
+	}
+	for _, contract := range service.Contracts {
+		if contract == nil || contract.ID != service.DefaultContractID {
+			continue
+		}
+		for _, version := range contract.Versions {
+			if version == nil || version.Entry == nil || version.Entry.RenderSkipped {
+				continue
+			}
+			return version.Entry
+		}
+	}
+	return nil
+}
+
+func catalogVersionHasCollision(service *ppmodel.CatalogService, version *ppmodel.CatalogVersion) bool {
+	if service == nil || version == nil {
+		return false
+	}
+	context := service.Key + ":" + version.Label
+	for _, collision := range service.CollisionGroups {
+		if collision == context {
+			return true
+		}
+	}
+	return false
 }
 
 func visibleCatalogServiceEntries(service *ppmodel.CatalogService) []*ppmodel.CatalogSpecEntry {
@@ -1926,10 +2492,12 @@ func relativeMarkdownLink(fromPath, toPath string) string {
 var managedHeaderContextAttrs = []string{
 	"data-pp-catalog-href",
 	"data-pp-overview-href",
+	"data-pp-overview-label",
 	"data-pp-service-name",
 	"data-pp-current-version",
 	"data-pp-versions-href",
 	"data-pp-versions",
+	"data-pp-contracts",
 }
 
 func (ap *AggregatePrintingPress) refreshRenderedEntryHeaderContexts(catalog *ppmodel.CatalogSite, impactedServices map[string]struct{}) error {
@@ -2038,6 +2606,7 @@ func headerContextAttributeValues(header *ppmodel.SiteHeaderContext) (map[string
 	}
 	values["data-pp-catalog-href"] = header.CatalogHref
 	values["data-pp-overview-href"] = header.OverviewHref
+	values["data-pp-overview-label"] = header.OverviewLabel
 	values["data-pp-service-name"] = header.ServiceName
 	values["data-pp-current-version"] = header.CurrentVersion
 	values["data-pp-versions-href"] = header.VersionsHref
@@ -2047,6 +2616,13 @@ func headerContextAttributeValues(header *ppmodel.SiteHeaderContext) (map[string
 			return nil, err
 		}
 		values["data-pp-versions"] = string(encoded)
+	}
+	if len(header.ContractGroups) > 0 {
+		encoded, err := json.Marshal(header.ContractGroups)
+		if err != nil {
+			return nil, err
+		}
+		values["data-pp-contracts"] = string(encoded)
 	}
 	return values, nil
 }
