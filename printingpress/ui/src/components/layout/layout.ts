@@ -3,6 +3,7 @@ import {customElement, state} from 'lit/decorators.js';
 import layoutCss from './layout.css.js';
 import sharedCss from "../../styles/shared.css";
 import {docHref, headerTitleHref} from '../../utils/doc-links.js';
+import {multiContractGroups} from '../../utils/contract-navigation.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
@@ -398,21 +399,7 @@ export class PpLayout extends LitElement {
   }
 
   private hasMultiContractNavigation(): boolean {
-    const raw = document.body?.dataset.ppContracts;
-    if (!raw) {
-      return false;
-    }
-    try {
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        return false;
-      }
-      const count = parsed.reduce((total, group) =>
-        total + (group && Array.isArray(group.contracts) ? group.contracts.length : 0), 0);
-      return count > 1;
-    } catch {
-      return false;
-    }
+    return multiContractGroups(document.body?.dataset.ppContracts).length > 0;
   }
 
   private onVersionChange(event: Event) {

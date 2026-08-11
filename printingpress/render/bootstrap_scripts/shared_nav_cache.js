@@ -146,20 +146,87 @@
     }
   }
 
-  function contractGroupsForPreview() {
-    const data = document.body && document.body.dataset;
-    const groups = parseJSONAttr(data && data.ppContracts);
-    let count = 0;
-    const visible = [];
-    for (let i = 0; i < groups.length; i++) {
-      const group = groups[i];
-      if (!group || !Array.isArray(group.contracts) || !group.contracts.length) {
+  function nonEmptyString(value) {
+    return typeof value === 'string' && value.trim() !== '';
+  }
+
+  function normalizePreviewVersions(raw, currentVersion) {
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+    const versions = [];
+    for (let i = 0; i < raw.length; i++) {
+      const version = raw[i];
+      if (!version || typeof version !== 'object' ||
+          !nonEmptyString(version.label) || !nonEmptyString(version.href)) {
         continue;
       }
-      count += group.contracts.length;
-      visible.push(group);
+      versions.push({
+        label: version.label,
+        href: version.href,
+        active: version.active === true,
+      });
     }
-    return count > 1 ? visible : [];
+    if (!versions.length) {
+      return versions;
+    }
+    let currentIndex = versions.findIndex(function (version) { return version.active; });
+    if (currentIndex < 0 && currentVersion) {
+      currentIndex = versions.findIndex(function (version) { return version.label === currentVersion; });
+    }
+    if (currentIndex < 0) {
+      currentIndex = 0;
+    }
+    return versions.map(function (version, index) {
+      return {label: version.label, href: version.href, active: index === currentIndex};
+    });
+  }
+
+  function normalizePreviewContractGroups(raw) {
+    const groups = parseJSONAttr(raw);
+    const normalized = [];
+    for (let i = 0; i < groups.length; i++) {
+      const group = groups[i];
+      if (!group || typeof group !== 'object' ||
+          !nonEmptyString(group.role) || !nonEmptyString(group.label) || !Array.isArray(group.contracts)) {
+        continue;
+      }
+      const contracts = [];
+      for (let j = 0; j < group.contracts.length; j++) {
+        const contract = group.contracts[j];
+        if (!contract || typeof contract !== 'object' ||
+            !nonEmptyString(contract.id) || !nonEmptyString(contract.label) ||
+            !nonEmptyString(contract.specKind) || !nonEmptyString(contract.href)) {
+          continue;
+        }
+        const requestedVersion = nonEmptyString(contract.currentVersion) ? contract.currentVersion : undefined;
+        const versions = normalizePreviewVersions(contract.versions, requestedVersion);
+        const selectedVersion = versions.find(function (version) { return version.active; });
+        contracts.push({
+          id: contract.id,
+          label: contract.label,
+          specKind: contract.specKind,
+          href: contract.href,
+          active: contract.active === true,
+          currentVersion: selectedVersion ? selectedVersion.label : requestedVersion,
+          versions: versions,
+        });
+      }
+      if (contracts.length) {
+        normalized.push({role: group.role, label: group.label, contracts: contracts});
+      }
+    }
+    return normalized;
+  }
+
+  function contractGroupsForPreview() {
+    const data = document.body && document.body.dataset;
+    const groups = normalizePreviewContractGroups(data && data.ppContracts);
+    let count = 0;
+    for (let i = 0; i < groups.length; i++) {
+      count += groups[i].contracts.length;
+    }
+    return count > 1 ? groups : [];
   }
 
   function overviewLabelForPreview() {
@@ -189,7 +256,9 @@
           continue;
         }
         html +=
-          "<li class='contract-item" + (contract.active ? ' active' : '') + "'>" +
+          "<li class='contract-item" + (contract.active ? ' active' : '') + "'" +
+          " data-current-version='" + escapeHtml(contract.currentVersion || '') + "'" +
+          " data-version-count='" + contract.versions.length + "'>" +
           "<div class='contract-row'><a class='contract-link nav-home" + (contract.active ? ' active' : '') +
           "' href='" + escapeHtml(docHref(contract.href || '')) + "'" +
           (contract.active ? " aria-current='page'" : '') + '>' + escapeHtml(contract.label || contract.id || '') + '</a></div>';

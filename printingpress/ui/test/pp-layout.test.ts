@@ -147,6 +147,41 @@ describe('pp-layout', () => {
     expect(malformed.shadowRoot?.querySelector('.version-picker')).toBeTruthy();
   });
 
+  it('uses sanitized contract counts so the header and navigation consumers agree', async () => {
+    document.body.dataset.ppCurrentVersion = 'v2';
+    document.body.dataset.ppVersions = JSON.stringify([
+      {label: 'v2', href: 'index.html', active: true},
+      {label: 'v1', href: '../v1/index.html'},
+    ]);
+    document.body.dataset.ppContracts = JSON.stringify([{
+      role: 'http-api',
+      label: 'HTTP API',
+      contracts: [
+        {id: 'http', label: 'HTTP', specKind: 'openapi', href: 'index.html', active: true},
+        {id: '', label: 'Broken', specKind: 'asyncapi', href: 'events.html'},
+      ],
+    }]);
+
+    const sanitizedOne = document.createElement('pp-layout');
+    document.body.appendChild(sanitizedOne);
+    await sanitizedOne.updateComplete;
+    expect(sanitizedOne.shadowRoot?.querySelector('.version-picker')).toBeTruthy();
+
+    sanitizedOne.remove();
+    document.body.dataset.ppContracts = JSON.stringify([{
+      role: 'http-api',
+      label: 'HTTP API',
+      contracts: [
+        {id: 'http', label: 'HTTP', specKind: 'openapi', href: 'index.html', active: true},
+        {id: 'events', label: 'Events', specKind: 'asyncapi', href: 'events.html'},
+      ],
+    }]);
+    const sanitizedTwo = document.createElement('pp-layout');
+    document.body.appendChild(sanitizedTwo);
+    await sanitizedTwo.updateComplete;
+    expect(sanitizedTwo.shadowRoot?.querySelector('.version-picker')).toBeNull();
+  });
+
   it('keeps catalog href on the header title without rendering a header backlink', async () => {
     document.body.dataset.ppCatalogHref = '../../../../index.html';
 
