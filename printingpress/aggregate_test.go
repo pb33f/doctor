@@ -9,7 +9,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	stdhtml "html"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -1134,6 +1136,169 @@ func TestAggregateNavigationFingerprintInvalidatesServiceTree(t *testing.T) {
 	assert.NoDirExists(t, filepath.Join(root, "site", filepath.FromSlash(eventsEntry.OutputSubdir)))
 	final, _, _ := run()
 	assert.Equal(t, 0, final.ChangedSpecs)
+}
+
+func TestAggregateFastContractNavigationUpdatesEveryGeneratedPage(t *testing.T) {
+	root := t.TempDir()
+	outputDir := filepath.Join(root, "site")
+	store := NewMemorySpecStateStore()
+	httpPath := "services/orders/http/v1/openapi.yaml"
+	eventsPath := "services/orders/events/asyncapi.yaml"
+	writeAggregateSpecWithDetails(t, root, httpPath, "Orders HTTP", "", "", "v1")
+	roles := []AggregateContractRoleRule{
+		{Pattern: "**/http/**", Role: "http-api", ContractID: "http", Default: true},
+		{Pattern: "**/events/**", Role: "published-events", ContractID: "events"},
+	}
+	run := func() (*AggregatePressStatistics, *ppmodel.CatalogSite) {
+		ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+			OutputDir:        outputDir,
+			BuildMode:        AggregateBuildModeFast,
+			StateStore:       store,
+			StateNamespace:   "contract-fast-lifecycle",
+			ServiceOverrides: []AggregatePathOverride{{Pattern: "services/orders/**", Value: "orders"}},
+			ContractRoles:    roles,
+		})
+		require.NoError(t, err)
+		stats, err := ap.PrintSelectedOutputs(AggregateRenderOptions{HTML: true})
+		require.NoError(t, err)
+		catalog, err := ap.PressModel()
+		require.NoError(t, err)
+		return stats, catalog
+	}
+
+	initial, _ := run()
+	assert.Equal(t, 1, initial.ChangedSpecs)
+	writeAggregateAsyncAPISpec(t, root, eventsPath, "Orders Events", "v1")
+	added, catalog := run()
+	assert.Equal(t, 2, added.ChangedSpecs)
+	service := findCatalogService(t, catalog, "orders")
+	httpEntry := findCatalogContract(t, service, "http").Versions[0].Entry
+	eventsEntry := findCatalogContract(t, service, "events").Versions[0].Entry
+	assertEntryTreeManagedContractHeaders(t, outputDir, service, httpEntry, true,
+		[]ppmodel.ContractRoleValue{ppmodel.ContractRoleHTTPAPI, ppmodel.ContractRolePublishedEvents}, "Orders HTTP")
+	assertEntryTreeManagedContractHeaders(t, outputDir, service, eventsEntry, true,
+		[]ppmodel.ContractRoleValue{ppmodel.ContractRoleHTTPAPI, ppmodel.ContractRolePublishedEvents}, "Orders HTTP")
+
+	roles = []AggregateContractRoleRule{
+		{Pattern: "**/http/**", Role: "http-api", ContractID: "http"},
+		{Pattern: "**/events/**", Role: "consumed-events", ContractID: "events", Default: true},
+	}
+	roleChanged, catalog := run()
+	assert.Equal(t, 2, roleChanged.ChangedSpecs)
+	service = findCatalogService(t, catalog, "orders")
+	assert.Equal(t, "events", service.DefaultContractID)
+	httpEntry = findCatalogContract(t, service, "http").Versions[0].Entry
+	eventsEntry = findCatalogContract(t, service, "events").Versions[0].Entry
+	assertEntryTreeManagedContractHeaders(t, outputDir, service, httpEntry, true,
+		[]ppmodel.ContractRoleValue{ppmodel.ContractRoleHTTPAPI, ppmodel.ContractRoleConsumedEvents}, "Orders Events")
+	assertEntryTreeManagedContractHeaders(t, outputDir, service, eventsEntry, true,
+		[]ppmodel.ContractRoleValue{ppmodel.ContractRoleHTTPAPI, ppmodel.ContractRoleConsumedEvents}, "Orders Events")
+
+	oldEventsDir := filepath.Join(outputDir, filepath.FromSlash(eventsEntry.OutputSubdir))
+	writeAggregateAsyncAPISpec(t, root, eventsPath, "Orders Events", "v3")
+	versionChanged, catalog := run()
+	assert.Equal(t, 2, versionChanged.ChangedSpecs)
+	service = findCatalogService(t, catalog, "orders")
+	httpEntry = findCatalogContract(t, service, "http").Versions[0].Entry
+	eventsEntry = findCatalogContract(t, service, "events").Versions[0].Entry
+	assert.Equal(t, "v3", eventsEntry.Version)
+	assert.NoDirExists(t, oldEventsDir)
+	assertEntryTreeManagedContractHeaders(t, outputDir, service, httpEntry, true,
+		[]ppmodel.ContractRoleValue{ppmodel.ContractRoleHTTPAPI, ppmodel.ContractRoleConsumedEvents}, "Orders Events")
+	assertEntryTreeManagedContractHeaders(t, outputDir, service, eventsEntry, true,
+		[]ppmodel.ContractRoleValue{ppmodel.ContractRoleHTTPAPI, ppmodel.ContractRoleConsumedEvents}, "Orders Events")
+
+	require.NoError(t, os.Remove(filepath.Join(root, filepath.FromSlash(eventsPath))))
+	removed, catalog := run()
+	assert.Equal(t, 1, removed.ChangedSpecs)
+	service = findCatalogService(t, catalog, "orders")
+	httpEntry = findCatalogContract(t, service, "http").Versions[0].Entry
+	assertEntryTreeManagedContractHeaders(t, outputDir, service, httpEntry, false, nil, "Orders HTTP")
+	assert.NoDirExists(t, filepath.Join(outputDir, filepath.FromSlash(eventsEntry.OutputSubdir)))
+	stable, _ := run()
+	assert.Equal(t, 0, stable.ChangedSpecs)
+}
+
+func TestAggregateWatchContractNavigationUpdatesEveryGeneratedPageSameInstance(t *testing.T) {
+	root := t.TempDir()
+	outputDir := filepath.Join(root, "site")
+	httpPath := "services/orders/http/v1/openapi.yaml"
+	eventsPath := "services/orders/events/asyncapi.yaml"
+	writeAggregateSpecWithDetails(t, root, httpPath, "Orders HTTP", "", "", "v1")
+	config := &AggregatePrintingPressConfig{
+		OutputDir:        outputDir,
+		BuildMode:        AggregateBuildModeWatch,
+		StateStore:       NewMemorySpecStateStore(),
+		StateNamespace:   "contract-watch-lifecycle",
+		ServiceOverrides: []AggregatePathOverride{{Pattern: "services/orders/**", Value: "orders"}},
+		ContractRoles: []AggregateContractRoleRule{
+			{Pattern: "**/http/**", Role: "http-api", ContractID: "http", Default: true},
+			{Pattern: "**/events/**", Role: "published-events", ContractID: "events"},
+		},
+	}
+	ap, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	run := func() (*AggregatePressStatistics, *ppmodel.CatalogSite) {
+		stats, err := ap.PrintSelectedOutputs(AggregateRenderOptions{HTML: true})
+		require.NoError(t, err)
+		catalog, err := ap.PressModel()
+		require.NoError(t, err)
+		return stats, catalog
+	}
+
+	initial, _ := run()
+	assert.Equal(t, 1, initial.ChangedSpecs)
+	writeAggregateAsyncAPISpec(t, root, eventsPath, "Orders Events", "v1")
+	added, catalog := run()
+	assert.Equal(t, 2, added.ChangedSpecs)
+	service := findCatalogService(t, catalog, "orders")
+	httpEntry := findCatalogContract(t, service, "http").Versions[0].Entry
+	eventsEntry := findCatalogContract(t, service, "events").Versions[0].Entry
+	assertEntryTreeManagedContractHeaders(t, outputDir, service, httpEntry, true,
+		[]ppmodel.ContractRoleValue{ppmodel.ContractRoleHTTPAPI, ppmodel.ContractRolePublishedEvents}, "Orders HTTP")
+	assertEntryTreeManagedContractHeaders(t, outputDir, service, eventsEntry, true,
+		[]ppmodel.ContractRoleValue{ppmodel.ContractRoleHTTPAPI, ppmodel.ContractRolePublishedEvents}, "Orders HTTP")
+
+	ap.config.ContractRoles = []AggregateContractRoleRule{
+		{Pattern: "**/http/**", Role: "http-api", ContractID: "http"},
+		{Pattern: "**/events/**", Role: "external-source", ContractID: "events", Default: true},
+	}
+	roleChanged, catalog := run()
+	assert.Equal(t, 2, roleChanged.ChangedSpecs)
+	service = findCatalogService(t, catalog, "orders")
+	assert.Equal(t, "events", service.DefaultContractID)
+	httpEntry = findCatalogContract(t, service, "http").Versions[0].Entry
+	eventsEntry = findCatalogContract(t, service, "events").Versions[0].Entry
+	assertEntryTreeManagedContractHeaders(t, outputDir, service, httpEntry, true,
+		[]ppmodel.ContractRoleValue{ppmodel.ContractRoleHTTPAPI, ppmodel.ContractRoleExternalSource}, "Orders Events")
+	assertEntryTreeManagedContractHeaders(t, outputDir, service, eventsEntry, true,
+		[]ppmodel.ContractRoleValue{ppmodel.ContractRoleHTTPAPI, ppmodel.ContractRoleExternalSource}, "Orders Events")
+
+	oldEventsDir := filepath.Join(outputDir, filepath.FromSlash(eventsEntry.OutputSubdir))
+	writeAggregateAsyncAPISpec(t, root, eventsPath, "Orders Events", "v3")
+	versionChanged, catalog := run()
+	assert.Equal(t, 2, versionChanged.ChangedSpecs)
+	service = findCatalogService(t, catalog, "orders")
+	httpEntry = findCatalogContract(t, service, "http").Versions[0].Entry
+	eventsEntry = findCatalogContract(t, service, "events").Versions[0].Entry
+	assert.Equal(t, "v3", eventsEntry.Version)
+	assert.NoDirExists(t, oldEventsDir)
+	assertEntryTreeManagedContractHeaders(t, outputDir, service, httpEntry, true,
+		[]ppmodel.ContractRoleValue{ppmodel.ContractRoleHTTPAPI, ppmodel.ContractRoleExternalSource}, "Orders Events")
+	assertEntryTreeManagedContractHeaders(t, outputDir, service, eventsEntry, true,
+		[]ppmodel.ContractRoleValue{ppmodel.ContractRoleHTTPAPI, ppmodel.ContractRoleExternalSource}, "Orders Events")
+
+	require.NoError(t, os.Remove(filepath.Join(root, filepath.FromSlash(eventsPath))))
+	removed, catalog := run()
+	assert.Equal(t, 1, removed.ChangedSpecs)
+	service = findCatalogService(t, catalog, "orders")
+	httpEntry = findCatalogContract(t, service, "http").Versions[0].Entry
+	assertEntryTreeManagedContractHeaders(t, outputDir, service, httpEntry, false, nil, "Orders HTTP")
+	assert.NoDirExists(t, filepath.Join(outputDir, filepath.FromSlash(eventsEntry.OutputSubdir)))
+	before := entryTreeHTMLSnapshot(t, outputDir, httpEntry)
+	stable, _ := run()
+	assert.Equal(t, 0, stable.ChangedSpecs)
+	assert.Equal(t, before, entryTreeHTMLSnapshot(t, outputDir, httpEntry))
 }
 
 func TestAggregateNavigationFingerprintInvalidatesVersionRoleAndDefaultChanges(t *testing.T) {
@@ -2446,6 +2611,119 @@ func runAggregateHTMLNavigationTest(t *testing.T, root string, config *Aggregate
 	return stats, ap.catalog
 }
 
+func assertEntryTreeManagedContractHeaders(
+	t *testing.T,
+	outputDir string,
+	service *ppmodel.CatalogService,
+	entry *ppmodel.CatalogSpecEntry,
+	expectContracts bool,
+	expectedRoles []ppmodel.ContractRoleValue,
+	expectedServiceName string,
+) {
+	t.Helper()
+	require.NotNil(t, service)
+	require.NotNil(t, entry)
+	entryRoot := filepath.Join(outputDir, filepath.FromSlash(entry.OutputSubdir))
+	requiredPages := []string{pppaths.FileIndexHTML, "operations/list-health.html", "models/schemas/status.html"}
+	if entry.SpecKind.IsAsyncAPI() {
+		requiredPages = []string{pppaths.FileIndexHTML, "operations/publish-event.html", "models/channels/events.html", "models/messages/event-message.html"}
+	}
+	for _, page := range requiredPages {
+		require.FileExists(t, filepath.Join(entryRoot, filepath.FromSlash(page)))
+	}
+
+	pageCount := 0
+	require.NoError(t, filepath.Walk(entryRoot, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || filepath.Ext(filePath) != ".html" {
+			return err
+		}
+		pageCount++
+		rendered := readAggregateFile(t, filePath)
+		assert.Equal(t, siteOverviewLabel(entry.SpecKind), aggregateBodyAttribute(t, rendered, "data-pp-overview-label"), filePath)
+		assert.Equal(t, entry.Version, aggregateBodyAttribute(t, rendered, "data-pp-current-version"), filePath)
+		assert.Equal(t, expectedServiceName, aggregateBodyAttribute(t, rendered, "data-pp-service-name"), filePath)
+
+		versionPayload := aggregateBodyAttribute(t, rendered, "data-pp-versions")
+		activeContract := findCatalogContract(t, service, entry.ContractID)
+		if len(activeContract.Versions) > 1 {
+			var versions []*ppmodel.SiteVersionLink
+			require.NoError(t, json.Unmarshal([]byte(versionPayload), &versions), filePath)
+			require.Len(t, versions, len(activeContract.Versions), filePath)
+			activeVersions := 0
+			for _, version := range versions {
+				if version != nil && version.Active {
+					activeVersions++
+					assert.Equal(t, entry.Version, version.Label, filePath)
+				}
+			}
+			assert.Equal(t, 1, activeVersions, filePath)
+		} else {
+			assert.Empty(t, versionPayload, filePath)
+		}
+
+		contractPayload := aggregateBodyAttribute(t, rendered, "data-pp-contracts")
+		if !expectContracts {
+			assert.Empty(t, contractPayload, filePath)
+			return nil
+		}
+		require.NotEmpty(t, contractPayload, filePath)
+		var groups []*ppmodel.SiteContractGroup
+		require.NoError(t, json.Unmarshal([]byte(contractPayload), &groups), filePath)
+		roles := make([]ppmodel.ContractRoleValue, 0, len(groups))
+		activeContracts := 0
+		for _, group := range groups {
+			require.NotNil(t, group, filePath)
+			roles = append(roles, group.Role)
+			for _, link := range group.Contracts {
+				if link == nil || !link.Active {
+					continue
+				}
+				activeContracts++
+				assert.Equal(t, entry.ContractID, link.ID, filePath)
+				assert.Equal(t, entry.Version, link.CurrentVersion, filePath)
+				if len(activeContract.Versions) > 1 {
+					linkActiveVersions := 0
+					for _, version := range link.Versions {
+						if version != nil && version.Active {
+							linkActiveVersions++
+							assert.Equal(t, entry.Version, version.Label, filePath)
+						}
+					}
+					assert.Equal(t, 1, linkActiveVersions, filePath)
+				} else {
+					assert.Empty(t, link.Versions, filePath)
+				}
+			}
+		}
+		assert.Equal(t, expectedRoles, roles, filePath)
+		assert.Equal(t, 1, activeContracts, filePath)
+		return nil
+	}))
+	assert.GreaterOrEqual(t, pageCount, len(requiredPages))
+}
+
+func entryTreeHTMLSnapshot(t *testing.T, outputDir string, entry *ppmodel.CatalogSpecEntry) map[string]string {
+	t.Helper()
+	result := make(map[string]string)
+	root := filepath.Join(outputDir, filepath.FromSlash(entry.OutputSubdir))
+	require.NoError(t, filepath.Walk(root, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || filepath.Ext(filePath) != ".html" {
+			return err
+		}
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(root, filePath)
+		if err != nil {
+			return err
+		}
+		result[filepath.ToSlash(rel)] = string(data)
+		return nil
+	}))
+	return result
+}
+
 func buildAggregateNavigationTestCatalog(t *testing.T, root string, config *AggregatePrintingPressConfig) *ppmodel.CatalogSite {
 	t.Helper()
 	ap, err := CreateAggregatePrintingPressFromPath(root, config)
@@ -3216,6 +3494,159 @@ func TestAggregatePrintingPress_ServedEntryNestedPagesUsePageAwareSharedAssets(t
 	assert.Contains(t, rendered, `src="../../../../../../../static/printing-press.js"`)
 	assert.Contains(t, rendered, `data-pp-shared="data/nav"`)
 	require.FileExists(t, filepath.Join(entryDir, "data", "nav.json"))
+}
+
+func TestAggregateContractNavigationMixedDepthAndModeMatrix(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		assetMode string
+		hosted    bool
+	}{
+		{name: "portable", assetMode: HTMLAssetModePortable},
+		{name: "hosted", assetMode: HTMLAssetModeServed, hosted: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeAggregateSpecWithDetails(t, root, "services/orders/http/v1/openapi.yaml", "Orders HTTP", "", "", "v1")
+			writeAggregateSpecWithDetails(t, root, "services/orders/http/v2/openapi.yaml", "Orders HTTP", "", "", "v2")
+			writeAggregateAsyncAPISpec(t, root, "services/orders/events/v1/asyncapi.yaml", "Orders Events", "v1")
+			writeAggregateAsyncAPISpec(t, root, "services/orders/events/v3/asyncapi.yaml", "Orders Events", "v3")
+			outputDir := filepath.Join(root, "site")
+			ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+				OutputDir:        outputDir,
+				BuildMode:        AggregateBuildModeFull,
+				StateStore:       NewMemorySpecStateStore(),
+				AssetMode:        tc.assetMode,
+				BaseURL:          "/docs/",
+				ServiceOverrides: []AggregatePathOverride{{Pattern: "services/orders/**", Value: "orders"}},
+				ContractRoles: []AggregateContractRoleRule{
+					{Pattern: "**/http/**", Role: "http-api", ContractID: "http", Default: true},
+					{Pattern: "**/events/**", Role: "published-events", ContractID: "events"},
+				},
+			})
+			require.NoError(t, err)
+			catalog, err := ap.PressModel()
+			require.NoError(t, err)
+			_, err = ap.PrintHTML()
+			require.NoError(t, err)
+
+			service := findCatalogService(t, catalog, "orders")
+			assert.Equal(t, "http", service.DefaultContractID)
+			httpContract := findCatalogContract(t, service, "http")
+			eventsContract := findCatalogContract(t, service, "events")
+			require.Len(t, httpContract.Versions, 2)
+			require.Len(t, eventsContract.Versions, 2)
+			require.NotNil(t, httpContract.LatestVersion)
+			require.NotNil(t, eventsContract.LatestVersion)
+			assert.Equal(t, "v2", httpContract.LatestVersion.Label)
+			assert.Equal(t, "v3", eventsContract.LatestVersion.Label)
+
+			matrix := []struct {
+				contract *ppmodel.CatalogContract
+				label    string
+				deep     []string
+			}{
+				{httpContract, "API OVERVIEW", []string{"operations/list-health.html", "models/schemas/status.html"}},
+				{eventsContract, "EVENT OVERVIEW", []string{"operations/publish-event.html", "models/channels/events.html", "models/messages/event-message.html"}},
+			}
+			for _, item := range matrix {
+				for _, version := range item.contract.Versions {
+					entry := version.Entry
+					require.NotNil(t, entry)
+					pages := append([]string{"index.html"}, item.deep...)
+					for _, page := range pages {
+						relPage := filepath.ToSlash(filepath.Join(entry.OutputSubdir, page))
+						rendered := readAggregateFile(t, filepath.Join(outputDir, filepath.FromSlash(relPage)))
+						assert.Equal(t, item.label, aggregateBodyAttribute(t, rendered, "data-pp-overview-label"), relPage)
+						assert.Equal(t, entry.Version, aggregateBodyAttribute(t, rendered, "data-pp-current-version"), relPage)
+						assert.Equal(t, "/docs/"+strings.TrimSuffix(entry.OutputSubdir, "/")+"/", aggregateBodyAttribute(t, rendered, "data-pp-base-url"), relPage)
+
+						var groups []*ppmodel.SiteContractGroup
+						require.NoError(t, json.Unmarshal([]byte(aggregateBodyAttribute(t, rendered, "data-pp-contracts")), &groups), relPage)
+						require.Len(t, groups, 2, relPage)
+						assert.Equal(t, []ppmodel.ContractRoleValue{ppmodel.ContractRoleHTTPAPI, ppmodel.ContractRolePublishedEvents},
+							[]ppmodel.ContractRoleValue{groups[0].Role, groups[1].Role}, relPage)
+						var activeContractCount int
+						for _, group := range groups {
+							for _, link := range group.Contracts {
+								target := contractOverviewForLink(t, service, link)
+								assertContractHrefResolves(t, outputDir, relPage, aggregateBodyAttribute(t, rendered, "data-pp-base-url"), link.Href, target, tc.hosted)
+								if !link.Active {
+									continue
+								}
+								activeContractCount++
+								assert.Equal(t, entry.ContractID, link.ID, relPage)
+								assert.Equal(t, entry.Version, link.CurrentVersion, relPage)
+								assert.Equal(t, entry.OverviewHref, target, relPage)
+								activeVersionCount := 0
+								for _, versionLink := range link.Versions {
+									versionTarget := contractVersionOverviewForLabel(t, item.contract, versionLink.Label)
+									assertContractHrefResolves(t, outputDir, relPage, aggregateBodyAttribute(t, rendered, "data-pp-base-url"), versionLink.Href, versionTarget, tc.hosted)
+									if versionLink.Active {
+										activeVersionCount++
+										assert.Equal(t, entry.Version, versionLink.Label, relPage)
+									}
+								}
+								assert.Equal(t, 1, activeVersionCount, relPage)
+							}
+						}
+						assert.Equal(t, 1, activeContractCount, relPage)
+					}
+				}
+			}
+		})
+	}
+}
+
+func aggregateBodyAttribute(t *testing.T, rendered, name string) string {
+	t.Helper()
+	prefix := name + `="`
+	start := strings.Index(rendered, prefix)
+	if start < 0 {
+		return ""
+	}
+	start += len(prefix)
+	end := strings.Index(rendered[start:], `"`)
+	require.GreaterOrEqual(t, end, 0, name)
+	return stdhtml.UnescapeString(rendered[start : start+end])
+}
+
+func contractOverviewForLink(t *testing.T, service *ppmodel.CatalogService, link *ppmodel.SiteContractLink) string {
+	t.Helper()
+	contract := findCatalogContract(t, service, link.ID)
+	if link.Active {
+		return contractVersionOverviewForLabel(t, contract, link.CurrentVersion)
+	}
+	require.NotNil(t, contract.LatestVersion)
+	return contract.LatestVersion.OverviewHref
+}
+
+func contractVersionOverviewForLabel(t *testing.T, contract *ppmodel.CatalogContract, label string) string {
+	t.Helper()
+	for _, version := range contract.Versions {
+		if version != nil && version.Label == label {
+			return version.OverviewHref
+		}
+	}
+	t.Fatalf("missing version %q in contract %q", label, contract.ID)
+	return ""
+}
+
+func assertContractHrefResolves(t *testing.T, outputDir, relPage, pageBase, href, target string, hosted bool) {
+	t.Helper()
+	pageURL := &url.URL{Scheme: "https", Host: "docs.example", Path: "/docs/" + relPage}
+	docBase := pageURL
+	if pageBase != "" {
+		docBase = pageURL.ResolveReference(&url.URL{Path: pageBase})
+	}
+	resolved := docBase.ResolveReference(&url.URL{Path: href})
+	localRel := strings.TrimPrefix(resolved.Path, "/docs/")
+	assert.Equal(t, target, localRel)
+	localTarget := filepath.Join(outputDir, filepath.FromSlash(localRel))
+	require.FileExists(t, localTarget)
+	if hosted {
+		assert.Equal(t, "/docs/"+target, resolved.Path)
+	}
 }
 
 func TestAggregatePrintingPress_PrintHTML_RendersCatalogContentAndNav(t *testing.T) {

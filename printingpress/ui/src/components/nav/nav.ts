@@ -12,6 +12,7 @@ import navCss from './nav.css.js';
 import tooltipCss from '../../styles/tooltip.css.js';
 import {docHref, overviewHref} from '../../utils/doc-links.js';
 import type {ViolationCounts} from '../../utils/violations.js';
+import {multiContractGroups, type SiteContractGroup, type SiteContractLink} from '../../utils/contract-navigation.js';
 
 interface NavTag {
     name: string;
@@ -56,28 +57,6 @@ interface NavContentPage {
     slug: string;
     href: string;
     description?: string;
-}
-
-interface SiteVersionLink {
-    label: string;
-    href: string;
-    active?: boolean;
-}
-
-interface SiteContractLink {
-    id: string;
-    label: string;
-    specKind: string;
-    href: string;
-    active?: boolean;
-    currentVersion?: string;
-    versions?: SiteVersionLink[];
-}
-
-interface SiteContractGroup {
-    role: string;
-    label: string;
-    contracts: SiteContractLink[];
 }
 
 let navInstanceID = 0;
@@ -464,36 +443,11 @@ export class PpNav extends LitElement {
     }
 
     private contractGroups(): SiteContractGroup[] {
-        const raw = document.body?.dataset.ppContracts;
-        if (!raw) {
-            return [];
-        }
-        try {
-            const parsed = JSON.parse(raw);
-            if (!Array.isArray(parsed)) {
-                return [];
-            }
-            const groups = parsed.filter((group): group is SiteContractGroup =>
-                Boolean(group) && typeof group === 'object' &&
-                typeof group.role === 'string' && typeof group.label === 'string' &&
-                Array.isArray(group.contracts),
-            ).map((group) => ({
-                ...group,
-                contracts: group.contracts.filter((contract): contract is SiteContractLink =>
-                    Boolean(contract) && typeof contract === 'object' &&
-                    typeof contract.id === 'string' && typeof contract.label === 'string' &&
-                    typeof contract.specKind === 'string' && typeof contract.href === 'string',
-                ),
-            })).filter((group) => group.contracts.length > 0);
-            const contractCount = groups.reduce((count, group) => count + group.contracts.length, 0);
-            return contractCount > 1 ? groups : [];
-        } catch {
-            return [];
-        }
+        return multiContractGroups(document.body?.dataset.ppContracts);
     }
 
     private renderContractVersionPicker(contract: SiteContractLink) {
-        const versions = Array.isArray(contract.versions) ? contract.versions : [];
+        const versions = contract.versions;
         if (!contract.active || versions.length <= 1) {
             return nothing;
         }

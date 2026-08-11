@@ -640,6 +640,63 @@ describe('pp-nav', () => {
     expect(el.shadowRoot?.querySelector('.contract-navigation')).toBeNull();
   });
 
+  it('renders only sanitized contract versions with one deterministic current item', async () => {
+    document.body.dataset.ppContracts = JSON.stringify([{
+      role: 'http-api',
+      label: 'HTTP API',
+      contracts: [{
+        id: 'http',
+        label: 'HTTP',
+        specKind: 'openapi',
+        href: 'index.html',
+        active: true,
+        currentVersion: 'v1',
+        versions: [
+          null,
+          4,
+          {label: '', href: 'bad.html'},
+          {label: 'v3', href: 'v3.html', active: 'true'},
+          {label: 'v2', href: 'v2.html', active: true},
+          {label: 'v1', href: 'v1.html', active: true},
+        ],
+      }],
+    }, {
+      role: 'events',
+      label: 'Events',
+      contracts: [{id: 'events', label: 'Events', specKind: 'asyncapi', href: 'events.html'}],
+    }]);
+
+    const el = document.createElement('pp-nav');
+    el.setAttribute('data-nav', '[]');
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const trigger = el.shadowRoot?.querySelector('.contract-version-trigger');
+    const items = Array.from(el.shadowRoot?.querySelectorAll('.contract-version-menu sl-menu-item') ?? []);
+    expect(trigger?.textContent?.trim()).toBe('v2');
+    expect(items.map((item) => item.textContent?.trim())).toEqual(['v3', 'v2', 'v1']);
+    expect(items.filter((item) => item.getAttribute('aria-current') === 'page')).toHaveLength(1);
+    expect(items[1]?.getAttribute('aria-current')).toBe('page');
+  });
+
+  it('agrees with the header consumer when invalid contracts sanitize multi mode down to one', async () => {
+    document.body.dataset.ppContracts = JSON.stringify([{
+      role: 'http-api',
+      label: 'HTTP API',
+      contracts: [
+        {id: 'http', label: 'HTTP', specKind: 'openapi', href: 'index.html', active: true},
+        {id: '', label: 'Broken', specKind: 'asyncapi', href: 'events.html'},
+      ],
+    }]);
+    const el = document.createElement('pp-nav');
+    el.setAttribute('data-nav', '[]');
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    expect(el.shadowRoot?.querySelector('.contract-navigation')).toBeNull();
+    expect(el.shadowRoot?.querySelector('.nav-home')).toBeTruthy();
+  });
+
   it('styles contract navigation only with the existing theme custom properties', () => {
     const source = navCss.cssText;
     expect(source).toContain('var(--primary-color)');
