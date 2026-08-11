@@ -290,6 +290,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	if site.Root != nil {
 		p := *params
 		p.BaseURL = resolvedBaseURL
+		p.IsEntryOverview = true
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
 		hydration := htmlHydrationJob{}
 		if site.DeveloperMode {
@@ -713,6 +714,7 @@ type pageParams struct {
 	Lite               bool
 	NoMermaid          bool
 	HeaderContext      *ppmodel.SiteHeaderContext
+	IsEntryOverview    bool
 	Embedded           bool
 	DeveloperMode      bool
 	DocumentID         string
@@ -752,6 +754,7 @@ func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content t
 		Lite:               p.Lite,
 		NoMermaid:          p.NoMermaid,
 		HeaderContext:      p.HeaderContext,
+		IsEntryOverview:    p.IsEntryOverview,
 		Embedded:           p.Embedded,
 		DeveloperMode:      p.DeveloperMode,
 		DocumentID:         p.DocumentID,

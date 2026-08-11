@@ -397,6 +397,24 @@ export class PpLayout extends LitElement {
     }
   }
 
+  private hasMultiContractNavigation(): boolean {
+    const raw = document.body?.dataset.ppContracts;
+    if (!raw) {
+      return false;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return false;
+      }
+      const count = parsed.reduce((total, group) =>
+        total + (group && Array.isArray(group.contracts) ? group.contracts.length : 0), 0);
+      return count > 1;
+    } catch {
+      return false;
+    }
+  }
+
   private onVersionChange(event: Event) {
     const detail = (event as CustomEvent).detail;
     const item = detail?.item as { value?: string } | undefined;
@@ -425,7 +443,7 @@ export class PpLayout extends LitElement {
           </div>
           <div class="header-space">
             <div class="header-tools">
-              ${this.versions.length
+              ${this.versions.length && !this.hasMultiContractNavigation()
                 ? html`
                     <div class="header-context">
                       <div class="version-picker">

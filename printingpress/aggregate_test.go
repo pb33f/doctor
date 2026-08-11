@@ -7,11 +7,14 @@ package printingpress
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -105,6 +108,2933 @@ func TestAggregatePrintingPress_PressModel_DiscoversMixedOpenAPIAndAsyncAPIEntri
 	require.NoError(t, err)
 	assert.Contains(t, string(llms), "Events Stream")
 	assert.Contains(t, string(llms), "AsyncAPI")
+}
+
+func TestAggregateConfigRejectsMalformedMetadataPointersAndUnknownRoles(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *AggregatePrintingPressConfig
+		offender string
+	}{
+		{
+			name: "pointer without leading slash",
+			config: &AggregatePrintingPressConfig{
+				ServiceIdentity: AggregateServiceIdentityConfig{MetadataPointers: []string{"info/x-owner"}},
+			},
+			offender: "info/x-owner",
+		},
+		{
+			name: "invalid pointer escape",
+			config: &AggregatePrintingPressConfig{
+				ServiceIdentity: AggregateServiceIdentityConfig{MetadataPointers: []string{"/info/x~2owner"}},
+			},
+			offender: "/info/x~2owner",
+		},
+		{
+			name: "unknown role",
+			config: &AggregatePrintingPressConfig{
+				ContractRoles: []AggregateContractRoleRule{{Pattern: "**/*.yaml", Role: "internal-rpc"}},
+			},
+			offender: "internal-rpc",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, err := validateAndNormalizeAggregateConfig(t.TempDir(), tc.config)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.offender)
+		})
+	}
+}
+
+func TestAggregateContractRoleMachineValuesAndLabels(t *testing.T) {
+	assert.Equal(t, "HTTP API", ppmodel.ContractRoleHTTPAPI.DisplayLabel())
+	assert.Equal(t, "Published Events", ppmodel.ContractRolePublishedEvents.DisplayLabel())
+	assert.Equal(t, "Consumed Events", ppmodel.ContractRoleConsumedEvents.DisplayLabel())
+	assert.Equal(t, "External Sources", ppmodel.ContractRoleExternalSource.DisplayLabel())
+	assert.Equal(t, "Events", ppmodel.ContractRoleEvents.DisplayLabel())
+	assert.Equal(t, "http-api", ppmodel.ContractRoleHTTPAPI.MachineValue())
+	assert.Equal(t, "published-events", ppmodel.ContractRolePublishedEvents.MachineValue())
+	assert.Equal(t, "consumed-events", ppmodel.ContractRoleConsumedEvents.MachineValue())
+	assert.Equal(t, "external-source", ppmodel.ContractRoleExternalSource.MachineValue())
+	assert.Equal(t, "events", ppmodel.ContractRoleEvents.MachineValue())
+}
+
+func TestAggregateServiceIdentityAndIndependentContracts(t *testing.T) {
+	tests := []struct {
+		name       string
+		configure  func(*AggregatePrintingPressConfig)
+		writeSpecs func(*testing.T, string)
+		assert     func(*testing.T, *ppmodel.CatalogSite)
+	}{
+		{
+			name: "mixed roots share normalized identity and keep independent versions",
+			configure: func(config *AggregatePrintingPressConfig) {
+				config.ServiceIdentity = AggregateServiceIdentityConfig{
+					MetadataPointers: []string{"/info/x-owner"},
+					StripPrefixes:    []string{"platform-"},
+					StripSuffixes:    []string{"-api"},
+				}
+			},
+			writeSpecs: func(t *testing.T, root string) {
+				writeAggregateCatalogSpec(t, root, "apis/orders/v2/openapi.yaml", SpecKindOpenAPI, "Orders API", "HTTP summary", "v2", "  PLATFORM-platform-orders-api-API  ")
+				writeAggregateCatalogSpec(t, root, "streams/orders/v0.1/asyncapi.yaml", SpecKindAsyncAPI, "Orders Events", "Event summary", "v0.1", "platform-platform-orders-api-api")
+			},
+			assert: func(t *testing.T, catalog *ppmodel.CatalogSite) {
+				require.Len(t, catalog.Services, 1)
+				service := catalog.Services[0]
+				assert.Equal(t, "orders", service.IdentityKey)
+				require.Len(t, service.Contracts, 2)
+				versionsByKind := make(map[ppmodel.SpecKindValue][]string)
+				for _, contract := range service.Contracts {
+					for _, version := range contract.Versions {
+						versionsByKind[contract.SpecKind] = append(versionsByKind[contract.SpecKind], version.Label)
+						require.NotNil(t, version.Entry)
+						assert.Empty(t, version.Relationships)
+					}
+				}
+				assert.Equal(t, []string{"v2"}, versionsByKind[ppmodel.SpecKindValueOpenAPI])
+				assert.Equal(t, []string{"v0.1"}, versionsByKind[ppmodel.SpecKindValueAsyncAPI])
+			},
+		},
+		{
+			name: "preferred openapi path slug becomes canonical",
+			configure: func(config *AggregatePrintingPressConfig) {
+				config.ServiceIdentity = AggregateServiceIdentityConfig{
+					MetadataPointers:  []string{"/info/x-owner"},
+					PreferOpenAPISlug: true,
+				}
+			},
+			writeSpecs: func(t *testing.T, root string) {
+				writeAggregateCatalogSpec(t, root, "services/orders-http/specs/openapi.yaml", SpecKindOpenAPI, "Orders API", "", "v1", "order-domain")
+				writeAggregateCatalogSpec(t, root, "events/orders-stream/specs/asyncapi.yaml", SpecKindAsyncAPI, "Orders Events", "", "v9", "order-domain")
+			},
+			assert: func(t *testing.T, catalog *ppmodel.CatalogSite) {
+				require.Len(t, catalog.Services, 1)
+				assert.Equal(t, "order-domain", catalog.Services[0].IdentityKey)
+				assert.Equal(t, "orders-http", catalog.Services[0].Slug)
+			},
+		},
+		{
+			name: "path derived identity receives repeated normalization",
+			configure: func(config *AggregatePrintingPressConfig) {
+				config.ServiceIdentity = AggregateServiceIdentityConfig{
+					StripPrefixes: []string{"platform-"},
+					StripSuffixes: []string{"-api"},
+				}
+			},
+			writeSpecs: func(t *testing.T, root string) {
+				writeAggregateCatalogSpec(t, root, "services/PLATFORM-platform-orders-api-API/specs/openapi.yaml", SpecKindOpenAPI, "Orders API", "", "v1", "")
+			},
+			assert: func(t *testing.T, catalog *ppmodel.CatalogSite) {
+				require.Len(t, catalog.Services, 1)
+				assert.Equal(t, "orders", catalog.Services[0].IdentityKey)
+				assert.Equal(t, "orders", catalog.Services[0].Slug)
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			tc.writeSpecs(t, root)
+			config := &AggregatePrintingPressConfig{
+				OutputDir:  filepath.Join(root, "site"),
+				BuildMode:  AggregateBuildModeFull,
+				StateStore: NewMemorySpecStateStore(),
+			}
+			tc.configure(config)
+			ap, err := CreateAggregatePrintingPressFromPath(root, config)
+			require.NoError(t, err)
+			catalog, err := ap.PressModel()
+			require.NoError(t, err)
+			tc.assert(t, catalog)
+		})
+	}
+}
+
+func TestAggregateServiceIdentityCanonicalFallbackIsDiscoveryOrderIndependent(t *testing.T) {
+	build := func(t *testing.T, paths []string) string {
+		t.Helper()
+		root := t.TempDir()
+		for _, relPath := range paths {
+			writeAggregateCatalogSpec(t, root, relPath, SpecKindAsyncAPI, "Shared Events", "", "v1", "")
+		}
+		ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+			OutputDir:  filepath.Join(root, "site"),
+			BuildMode:  AggregateBuildModeFull,
+			StateStore: NewMemorySpecStateStore(),
+			ServiceIdentity: AggregateServiceIdentityConfig{
+				StripPrefixes: []string{"admin-", "public-"},
+			},
+		})
+		require.NoError(t, err)
+		catalog, err := ap.PressModel()
+		require.NoError(t, err)
+		require.Len(t, catalog.Services, 1)
+		return catalog.Services[0].Slug
+	}
+
+	forward := []string{"services/admin-shared/specs/asyncapi.yaml", "services/public-shared/specs/asyncapi.yaml"}
+	reverse := []string{forward[1], forward[0]}
+	assert.Equal(t, "shared", build(t, forward))
+	assert.Equal(t, build(t, forward), build(t, reverse))
+}
+
+func TestAggregateServiceIdentityOpenAPISlugAmbiguity(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateCatalogSpec(t, root, "services/admin-shared/specs/openapi.yaml", SpecKindOpenAPI, "Admin API", "", "v1", "")
+	writeAggregateCatalogSpec(t, root, "services/public-shared/specs/openapi.yaml", SpecKindOpenAPI, "Public API", "", "v1", "")
+
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  filepath.Join(root, "site"),
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: NewMemorySpecStateStore(),
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			StripPrefixes:     []string{"admin-", "public-"},
+			PreferOpenAPISlug: true,
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = ap.PressModel()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "shared")
+	assert.Contains(t, err.Error(), "admin-shared")
+	assert.Contains(t, err.Error(), "public-shared")
+}
+
+func TestAggregateServiceIdentityGlobalCanonicalSlugCollision(t *testing.T) {
+	firstPath := "services/shared/specs/alpha.openapi.yaml"
+	secondPath := "services/shared/specs/beta.openapi.yaml"
+	build := func(t *testing.T, paths []string) string {
+		t.Helper()
+		root := t.TempDir()
+		for _, relPath := range paths {
+			if relPath == firstPath {
+				writeAggregateCatalogSpec(t, root, relPath, SpecKindOpenAPI, "Alpha API", "", "v1", "alpha-domain")
+			} else {
+				writeAggregateCatalogSpec(t, root, relPath, SpecKindOpenAPI, "Beta API", "", "v1", "beta-domain")
+			}
+		}
+		outputDir := filepath.Join(root, "site")
+		ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+			OutputDir:  outputDir,
+			BuildMode:  AggregateBuildModeFull,
+			StateStore: NewMemorySpecStateStore(),
+			ServiceIdentity: AggregateServiceIdentityConfig{
+				MetadataPointers:  []string{"/info/x-owner"},
+				PreferOpenAPISlug: true,
+			},
+		})
+		require.NoError(t, err)
+		_, err = ap.PressModel()
+		require.Error(t, err)
+		assert.NoDirExists(t, outputDir)
+		return err.Error()
+	}
+
+	forwardError := build(t, []string{firstPath, secondPath})
+	reverseError := build(t, []string{secondPath, firstPath})
+	assert.Equal(t, forwardError, reverseError)
+	for _, part := range []string{"shared", "alpha-domain", "beta-domain", firstPath, secondPath} {
+		assert.Contains(t, forwardError, part)
+	}
+}
+
+func TestAggregateServiceIdentityEmptyMetadataFallsBackWithoutMerging(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateCatalogSpec(t, root, "services/OrdersService/specs/openapi.yaml", SpecKindOpenAPI, "Orders API", "", "v1", "platform-")
+	writeAggregateCatalogSpec(t, root, "services/BillingService/specs/openapi.yaml", SpecKindOpenAPI, "Billing API", "", "v1", "platform-")
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  filepath.Join(root, "site"),
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: NewMemorySpecStateStore(),
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers: []string{"/info/x-owner"},
+			StripPrefixes:    []string{"platform-"},
+		},
+	})
+	require.NoError(t, err)
+	catalog, err := ap.PressModel()
+	require.NoError(t, err)
+	require.Len(t, catalog.Services, 2)
+	assert.Equal(t, []string{"billing-service", "orders-service"}, []string{catalog.Services[0].IdentityKey, catalog.Services[1].IdentityKey})
+	for _, service := range catalog.Services {
+		assert.NotEqual(t, "unnamed", service.IdentityKey)
+	}
+	require.Len(t, catalog.Warnings, 2)
+	warnings := catalog.Warnings[0].Message + "\n" + catalog.Warnings[1].Message
+	for _, part := range []string{"platform-", "billing-service", "orders-service", "services/BillingService/specs/openapi.yaml", "services/OrdersService/specs/openapi.yaml"} {
+		assert.Contains(t, warnings, part)
+	}
+}
+
+func TestAggregateContractRolesIdentityAndCollisionRules(t *testing.T) {
+	t.Run("first role rule wins and fallbacks use spec kind", func(t *testing.T) {
+		root := t.TempDir()
+		writeAggregateCatalogSpec(t, root, "services/widgets/specs/http.yaml", SpecKindOpenAPI, "Widgets HTTP", "", "v1", "widgets")
+		writeAggregateCatalogSpec(t, root, "services/widgets/published/events.yaml", SpecKindAsyncAPI, "Published Widgets", "", "v1", "widgets")
+		writeAggregateCatalogSpec(t, root, "services/widgets/other/asyncapi.yaml", SpecKindAsyncAPI, "Widget Events", "", "v1", "widgets")
+		catalog := buildAggregateCatalogForTest(t, root, []AggregateContractRoleRule{
+			{Pattern: "**/published/**", Role: "published-events", ContractID: "published"},
+			{Pattern: "**/published/**", Role: "consumed-events", ContractID: "ignored"},
+		})
+		service := findCatalogService(t, catalog, "widgets")
+		roles := make(map[string]ppmodel.ContractRoleValue)
+		for _, contract := range service.Contracts {
+			roles[contract.ID] = contract.Role
+		}
+		assert.Equal(t, ppmodel.ContractRolePublishedEvents, roles["published"])
+		assert.Contains(t, roles, "http-api-services-widgets-http")
+		assert.Equal(t, ppmodel.ContractRoleHTTPAPI, roles["http-api-services-widgets-http"])
+		assert.Contains(t, roles, "events-services-widgets-other")
+		assert.Equal(t, ppmodel.ContractRoleEvents, roles["events-services-widgets-other"])
+	})
+
+	t.Run("noise and version directories do not split a contract", func(t *testing.T) {
+		root := t.TempDir()
+		writeAggregateCatalogSpec(t, root, "services/orders/specs/v1/public.openapi.yaml", SpecKindOpenAPI, "Public Orders", "", "v1", "")
+		writeAggregateCatalogSpec(t, root, "services/orders/docs/v2/public.openapi.yaml", SpecKindOpenAPI, "Public Orders", "", "v2", "")
+		catalog := buildAggregateCatalogForTest(t, root, nil)
+		service := findCatalogService(t, catalog, "orders")
+		require.Len(t, service.Contracts, 1)
+		assert.Equal(t, "http-api-services-orders-public", service.Contracts[0].ID)
+		assert.Equal(t, []string{"v2", "v1"}, []string{service.Contracts[0].Versions[0].Label, service.Contracts[0].Versions[1].Label})
+	})
+
+	t.Run("distinct contracts may share a legacy service version", func(t *testing.T) {
+		root := t.TempDir()
+		writeAggregateCatalogSpec(t, root, "services/orders/public/v1/openapi.yaml", SpecKindOpenAPI, "Public Orders", "", "v1", "orders")
+		writeAggregateCatalogSpec(t, root, "services/orders/admin/v1/openapi.yaml", SpecKindOpenAPI, "Admin Orders", "", "v1", "orders")
+		catalog := buildAggregateCatalogForTest(t, root, nil)
+		service := findCatalogService(t, catalog, "orders")
+		require.Len(t, service.Contracts, 2)
+		require.Len(t, service.Versions, 1)
+		require.Len(t, service.Versions[0].Entries, 2)
+		assert.Empty(t, service.CollisionGroups)
+		for _, warning := range catalog.Warnings {
+			assert.NotContains(t, warning.Message, "multiple specs")
+		}
+	})
+
+	for _, tc := range []struct {
+		name          string
+		roles         []AggregateContractRoleRule
+		secondVer     string
+		errorParts    []string
+		shouldSucceed bool
+	}{
+		{
+			name: "duplicate contract and version is rejected",
+			roles: []AggregateContractRoleRule{
+				{Pattern: "**/one/**", Role: "events", ContractID: "shared"},
+				{Pattern: "**/two/**", Role: "events", ContractID: "shared"},
+			},
+			secondVer:  "v1",
+			errorParts: []string{"shared", "v1", "services/orders/one/asyncapi.yaml", "services/orders/two/asyncapi.yaml"},
+		},
+		{
+			name: "one explicit default contract across versions is valid",
+			roles: []AggregateContractRoleRule{
+				{Pattern: "**/one/**", Role: "events", ContractID: "shared", Default: true},
+				{Pattern: "**/two/**", Role: "events", ContractID: "shared", Default: true},
+			},
+			secondVer:     "v2",
+			shouldSucceed: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeAggregateCatalogSpec(t, root, "services/orders/one/asyncapi.yaml", SpecKindAsyncAPI, "Orders Events", "", "v1", "orders")
+			writeAggregateCatalogSpec(t, root, "services/orders/two/asyncapi.yaml", SpecKindAsyncAPI, "Orders Events", "", tc.secondVer, "orders")
+			ap := newAggregateForCatalogTest(t, root, tc.roles)
+			catalog, err := ap.PressModel()
+			if tc.shouldSucceed {
+				require.NoError(t, err)
+				service := findCatalogService(t, catalog, "orders")
+				assert.Equal(t, "shared", service.DefaultContractID)
+				return
+			}
+			require.Error(t, err)
+			for _, part := range tc.errorParts {
+				assert.Contains(t, err.Error(), part)
+			}
+		})
+	}
+}
+
+func TestAggregateContractIdentityRejectsMixedKindsAndRoles(t *testing.T) {
+	tests := []struct {
+		name       string
+		firstKind  SpecKind
+		secondKind SpecKind
+		firstRole  string
+		secondRole string
+	}{
+		{
+			name:       "openapi and asyncapi cannot share an id",
+			firstKind:  SpecKindOpenAPI,
+			secondKind: SpecKindAsyncAPI,
+			firstRole:  "http-api",
+			secondRole: "events",
+		},
+		{
+			name:       "asyncapi roles cannot share an id",
+			firstKind:  SpecKindAsyncAPI,
+			secondKind: SpecKindAsyncAPI,
+			firstRole:  "published-events",
+			secondRole: "consumed-events",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			firstPath := "services/orders/first/spec.yaml"
+			secondPath := "services/orders/second/spec.yaml"
+			writeAggregateCatalogSpec(t, root, firstPath, tc.firstKind, "First Contract", "", "v1", "orders")
+			writeAggregateCatalogSpec(t, root, secondPath, tc.secondKind, "Second Contract", "", "v2", "orders")
+			ap := newAggregateForCatalogTest(t, root, []AggregateContractRoleRule{
+				{Pattern: "**/first/**", Role: tc.firstRole, ContractID: "shared-contract"},
+				{Pattern: "**/second/**", Role: tc.secondRole, ContractID: "shared-contract"},
+			})
+			_, err := ap.PressModel()
+			require.Error(t, err)
+			for _, part := range []string{"shared-contract", tc.firstKind.MachineValue(), tc.secondKind.MachineValue(), tc.firstRole, tc.secondRole, firstPath, secondPath} {
+				assert.Contains(t, err.Error(), part)
+			}
+		})
+	}
+}
+
+func TestAggregateContractRoleGlobDoublestarMatchesZeroOrMoreDirectories(t *testing.T) {
+	tests := []struct {
+		name      string
+		pattern   string
+		candidate string
+		want      bool
+	}{
+		{name: "root zero directories", pattern: "**/*.yaml", candidate: "root.yaml", want: true},
+		{name: "nested directories", pattern: "**/*.yaml", candidate: "nested/deeper/root.yaml", want: true},
+		{name: "extension near miss", pattern: "**/*.yaml", candidate: "root.yml", want: false},
+		{name: "middle zero directories", pattern: "specs/**/openapi.?aml", candidate: "specs/openapi.yaml", want: true},
+		{name: "middle nested directories", pattern: "specs/**/openapi.?aml", candidate: "specs/public/v1/openapi.yaml", want: true},
+		{name: "middle near miss", pattern: "specs/**/openapi.?aml", candidate: "specs/openapi.json", want: false},
+		{name: "single star remains one segment", pattern: "specs/*.yaml", candidate: "specs/nested/root.yaml", want: false},
+		{name: "slash normalization", pattern: "**/*.yaml", candidate: `nested\root.yaml`, want: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, ruleMatches(tc.candidate, tc.pattern))
+		})
+	}
+}
+
+func TestAggregateContractIndependentNaturalVersionsAndSingleDefault(t *testing.T) {
+	root := t.TempDir()
+	for _, fixture := range []struct {
+		path    string
+		title   string
+		version string
+	}{
+		{path: "services/orders/public/v1.9/openapi.yaml", title: "Public Orders", version: "v1.9"},
+		{path: "services/orders/public/v1.10/openapi.yaml", title: "Public Orders", version: "v1.10"},
+		{path: "services/orders/admin/v2/openapi.yaml", title: "Admin Orders", version: "v2"},
+		{path: "services/orders/admin/v10/openapi.yaml", title: "Admin Orders", version: "v10"},
+	} {
+		writeAggregateCatalogSpec(t, root, fixture.path, SpecKindOpenAPI, fixture.title, "", fixture.version, "orders")
+	}
+	catalog := buildAggregateCatalogForTest(t, root, nil)
+	require.Len(t, catalog.Services, 1)
+	service := catalog.Services[0]
+	require.Len(t, service.Contracts, 2)
+
+	expectedLatest := map[string]string{"Admin Orders": "v10", "Public Orders": "v1.10"}
+	defaults := 0
+	for _, contract := range service.Contracts {
+		require.Len(t, contract.Versions, 2)
+		require.Same(t, contract.Versions[0], contract.LatestVersion)
+		assert.Equal(t, expectedLatest[contract.DisplayName], contract.LatestVersion.Label)
+		if contract.Default {
+			defaults++
+		}
+	}
+	assert.Equal(t, 1, defaults)
+}
+
+func TestAggregateDefaultContractSelectionAndPresentation(t *testing.T) {
+	t.Run("openapi wins and supplies service presentation regardless of path order", func(t *testing.T) {
+		root := t.TempDir()
+		writeAggregateCatalogSpec(t, root, "services/orders/aaa-events/asyncapi.yaml", SpecKindAsyncAPI, "Orders Stream", "Event summary", "v9", "orders")
+		writeAggregateCatalogSpec(t, root, "services/orders/zzz-http/openapi.yaml", SpecKindOpenAPI, "Orders HTTP", "HTTP summary", "v2", "orders")
+		catalog := buildAggregateCatalogForTest(t, root, nil)
+		service := findCatalogService(t, catalog, "orders")
+		assert.Equal(t, "Orders HTTP", service.DisplayName)
+		assert.Equal(t, "HTTP summary", service.Summary)
+		require.NotEmpty(t, service.DefaultContractID)
+		contract := findCatalogContract(t, service, service.DefaultContractID)
+		assert.Equal(t, ppmodel.SpecKindValueOpenAPI, contract.SpecKind)
+		assert.True(t, contract.Default)
+	})
+
+	t.Run("event only role order selects published and supplies presentation", func(t *testing.T) {
+		root := t.TempDir()
+		writeAggregateCatalogSpec(t, root, "services/orders/consumed/asyncapi.yaml", SpecKindAsyncAPI, "Consumed Orders", "Consumed summary", "v9", "orders")
+		writeAggregateCatalogSpec(t, root, "services/orders/published/asyncapi.yaml", SpecKindAsyncAPI, "Published Orders", "Published summary", "v1", "orders")
+		catalog := buildAggregateCatalogForTest(t, root, []AggregateContractRoleRule{
+			{Pattern: "**/consumed/**", Role: "consumed-events"},
+			{Pattern: "**/published/**", Role: "published-events"},
+		})
+		service := findCatalogService(t, catalog, "orders")
+		contract := findCatalogContract(t, service, service.DefaultContractID)
+		assert.Equal(t, ppmodel.ContractRolePublishedEvents, contract.Role)
+		assert.Equal(t, "Published Orders", service.DisplayName)
+		assert.Equal(t, "Published summary", service.Summary)
+	})
+
+	t.Run("explicit default beats openapi and distinct explicit defaults fail", func(t *testing.T) {
+		root := t.TempDir()
+		writeAggregateCatalogSpec(t, root, "services/orders/http/openapi.yaml", SpecKindOpenAPI, "Orders HTTP", "HTTP summary", "v2", "orders")
+		writeAggregateCatalogSpec(t, root, "services/orders/events/asyncapi.yaml", SpecKindAsyncAPI, "Orders Events", "Event summary", "v1", "orders")
+		catalog := buildAggregateCatalogForTest(t, root, []AggregateContractRoleRule{
+			{Pattern: "**/events/**", Role: "events", ContractID: "chosen-events", Default: true},
+		})
+		service := findCatalogService(t, catalog, "orders")
+		assert.Equal(t, "chosen-events", service.DefaultContractID)
+		assert.Equal(t, "Orders Events", service.DisplayName)
+
+		ap := newAggregateForCatalogTest(t, root, []AggregateContractRoleRule{
+			{Pattern: "**/http/**", Role: "http-api", ContractID: "chosen-http", Default: true},
+			{Pattern: "**/events/**", Role: "events", ContractID: "chosen-events", Default: true},
+		})
+		_, err := ap.PressModel()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "chosen-http")
+		assert.Contains(t, err.Error(), "chosen-events")
+	})
+
+	t.Run("openapi tie break is deterministic by title path and id", func(t *testing.T) {
+		root := t.TempDir()
+		writeAggregateCatalogSpec(t, root, "services/orders/zeta/openapi.yaml", SpecKindOpenAPI, "Zeta API", "", "v2", "orders")
+		writeAggregateCatalogSpec(t, root, "services/orders/alpha/openapi.yaml", SpecKindOpenAPI, "Alpha API", "", "v2", "orders")
+		catalog := buildAggregateCatalogForTest(t, root, nil)
+		service := findCatalogService(t, catalog, "orders")
+		assert.Equal(t, "Alpha API", service.DisplayName)
+		assert.Contains(t, service.DefaultContractID, "alpha")
+	})
+
+	t.Run("latest openapi contract precedes title tie breakers", func(t *testing.T) {
+		root := t.TempDir()
+		writeAggregateCatalogSpec(t, root, "services/orders/alpha/openapi.yaml", SpecKindOpenAPI, "Alpha API", "", "v1", "orders")
+		writeAggregateCatalogSpec(t, root, "services/orders/zeta/openapi.yaml", SpecKindOpenAPI, "Zeta API", "", "v2", "orders")
+		catalog := buildAggregateCatalogForTest(t, root, nil)
+		service := findCatalogService(t, catalog, "orders")
+		assert.Equal(t, "Zeta API", service.DisplayName)
+		assert.Contains(t, service.DefaultContractID, "zeta")
+	})
+}
+
+func TestAggregateDefaultContractEventRoleOrder(t *testing.T) {
+	t.Run("same published role uses title before version", func(t *testing.T) {
+		root := t.TempDir()
+		writeAggregateCatalogSpec(t, root, "services/orders/alpha/asyncapi.yaml", SpecKindAsyncAPI, "Alpha Published", "", "v1", "orders")
+		writeAggregateCatalogSpec(t, root, "services/orders/zeta/asyncapi.yaml", SpecKindAsyncAPI, "Zeta Published", "", "v2", "orders")
+		catalog := buildAggregateCatalogForTest(t, root, []AggregateContractRoleRule{
+			{Pattern: "**/alpha/**", Role: "published-events", ContractID: "alpha"},
+			{Pattern: "**/zeta/**", Role: "published-events", ContractID: "zeta"},
+		})
+		service := findCatalogService(t, catalog, "orders")
+		assert.Equal(t, "alpha", service.DefaultContractID)
+	})
+
+	tests := []struct {
+		name       string
+		firstRole  string
+		secondRole string
+	}{
+		{name: "published before consumed", firstRole: "published-events", secondRole: "consumed-events"},
+		{name: "consumed before external", firstRole: "consumed-events", secondRole: "external-source"},
+		{name: "external before events", firstRole: "external-source", secondRole: "events"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeAggregateCatalogSpec(t, root, "services/orders/first/asyncapi.yaml", SpecKindAsyncAPI, "Later Title", "", "v1", "orders")
+			writeAggregateCatalogSpec(t, root, "services/orders/second/asyncapi.yaml", SpecKindAsyncAPI, "Earlier Title", "", "v9", "orders")
+			catalog := buildAggregateCatalogForTest(t, root, []AggregateContractRoleRule{
+				{Pattern: "**/first/**", Role: tc.firstRole, ContractID: "first"},
+				{Pattern: "**/second/**", Role: tc.secondRole, ContractID: "second"},
+			})
+			service := findCatalogService(t, catalog, "orders")
+			assert.Equal(t, "first", service.DefaultContractID)
+			assert.Equal(t, ppmodel.ContractRoleValue(tc.firstRole), findCatalogContract(t, service, service.DefaultContractID).Role)
+		})
+	}
+}
+
+func TestAggregateDefaultContractEventSameRoleTieBreakers(t *testing.T) {
+	tests := []struct {
+		name     string
+		left     *aggregateContractGroup
+		right    *aggregateContractGroup
+		expected string
+	}{
+		{
+			name:     "title precedes differing versions paths and ids",
+			left:     aggregateContractForDefaultTest("z-id", "Alpha Events", "services/orders/zeta/asyncapi.yaml", "v1"),
+			right:    aggregateContractForDefaultTest("a-id", "Zulu Events", "services/orders/alpha/asyncapi.yaml", "v9"),
+			expected: "z-id",
+		},
+		{
+			name:     "path precedes differing versions and ids when titles tie",
+			left:     aggregateContractForDefaultTest("z-id", "Shared Events", "services/orders/alpha/asyncapi.yaml", "v1"),
+			right:    aggregateContractForDefaultTest("a-id", "Shared Events", "services/orders/zeta/asyncapi.yaml", "v9"),
+			expected: "z-id",
+		},
+		{
+			name:     "id decides when title and path tie",
+			left:     aggregateContractForDefaultTest("z-id", "Shared Events", "services/orders/shared/asyncapi.yaml", "v9"),
+			right:    aggregateContractForDefaultTest("a-id", "Shared Events", "services/orders/shared/asyncapi.yaml", "v1"),
+			expected: "a-id",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := resolveAggregateDefaultContract([]*aggregateContractGroup{tc.left, tc.right})
+			require.NotNil(t, actual)
+			assert.Equal(t, tc.expected, actual.id)
+		})
+	}
+}
+
+func TestAggregateCatalogContractJSONCompatibility(t *testing.T) {
+	entry := &ppmodel.CatalogSpecEntry{
+		ID:           "services/orders/openapi.yaml",
+		Slug:         "orders-api",
+		SpecKind:     ppmodel.SpecKindValueOpenAPI,
+		ContractID:   "orders-http",
+		ContractRole: ppmodel.ContractRoleHTTPAPI,
+	}
+	contractVersion := &ppmodel.CatalogContractVersion{
+		Label:        "v1",
+		Slug:         "v1",
+		OverviewHref: "services/orders/versions/v1/specs/orders-api/index.html",
+		Entry:        entry,
+		Relationships: []*ppmodel.CatalogContractRelationship{
+			{Relation: "publishes", Label: "Events", Href: "events.html", SpecKind: ppmodel.SpecKindValueAsyncAPI},
+		},
+	}
+	service := &ppmodel.CatalogService{
+		Key:               "orders",
+		Slug:              "orders",
+		DisplayName:       "Orders",
+		SpecCount:         1,
+		IdentityKey:       "orders",
+		DefaultContractID: "orders-http",
+		Versions: []*ppmodel.CatalogVersion{
+			{Label: "v1", Slug: "v1", SpecCount: 1},
+		},
+		Contracts: []*ppmodel.CatalogContract{
+			{
+				ID:            "orders-http",
+				DisplayName:   "Orders API",
+				SpecKind:      ppmodel.SpecKindValueOpenAPI,
+				Role:          ppmodel.ContractRoleHTTPAPI,
+				Default:       true,
+				LatestVersion: contractVersion,
+				Versions:      []*ppmodel.CatalogContractVersion{contractVersion},
+			},
+		},
+	}
+
+	data, err := json.Marshal(service)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{
+		"key":"orders","slug":"orders","displayName":"Orders","specCount":1,
+		"versions":[{"label":"v1","slug":"v1","specCount":1}],
+		"identityKey":"orders","defaultContractId":"orders-http",
+		"contracts":[{
+			"id":"orders-http","displayName":"Orders API","specKind":"openapi","role":"http-api","default":true,
+			"latestVersion":{"label":"v1","slug":"v1","overviewHref":"services/orders/versions/v1/specs/orders-api/index.html","entry":{"id":"services/orders/openapi.yaml","slug":"orders-api","specKind":"openapi","contractId":"orders-http","contractRole":"http-api"},"relationships":[{"relation":"publishes","label":"Events","href":"events.html","specKind":"asyncapi"}]},
+			"versions":[{"label":"v1","slug":"v1","overviewHref":"services/orders/versions/v1/specs/orders-api/index.html","entry":{"id":"services/orders/openapi.yaml","slug":"orders-api","specKind":"openapi","contractId":"orders-http","contractRole":"http-api"},"relationships":[{"relation":"publishes","label":"Events","href":"events.html","specKind":"asyncapi"}]}]
+		}]
+	}`, string(data))
+}
+
+func TestAggregateDiscoveredRootRelationships(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateSpecDocument(t, root, "services/orders/events/published/v2/asyncapi.yaml", `
+asyncapi: 3.0.0
+info:
+  title: Orders Published
+  version: v2
+  x-owner: orders
+channels: {}
+operations: {}
+components: {}
+`)
+	writeAggregateSpecDocument(t, root, "services/orders/events/consumed/v1/asyncapi.yaml", `
+asyncapi: 3.0.0
+info:
+  title: Orders Subscription
+  version: v1
+  x-owner: orders
+channels:
+  orders:
+    address: orders
+    messages:
+      Order:
+        $ref: ../../published/v2/asyncapi.yaml#/components/messages/Order
+operations: {}
+components:
+  schemas:
+    Ignored:
+      $ref: ../schemas/shared.yaml#/Ignored
+`)
+	writeAggregateSpecDocument(t, root, "services/orders/events/schemas/shared.yaml", `
+type: object
+properties:
+  id:
+    type: string
+`)
+	writeAggregateCatalogSpec(t, root, "services/orders/http/v3/openapi.yaml", SpecKindOpenAPI, "Orders HTTP", "", "v3", "orders")
+
+	catalog := buildAggregateCatalogForTest(t, root, []AggregateContractRoleRule{
+		{Pattern: "**/published/**", Role: "published-events", ContractID: "published"},
+		{Pattern: "**/consumed/**", Role: "consumed-events", ContractID: "subscription"},
+	})
+	service := findCatalogService(t, catalog, "orders")
+	published := findCatalogContract(t, service, "published")
+	consumed := findCatalogContract(t, service, "subscription")
+	var unrelated *ppmodel.CatalogContract
+	for _, contract := range service.Contracts {
+		if contract.SpecKind.IsOpenAPI() {
+			unrelated = contract
+			break
+		}
+	}
+	require.NotNil(t, unrelated)
+	assert.Empty(t, unrelated.Versions[0].Relationships)
+	require.Len(t, consumed.Versions[0].Relationships, 1)
+	assert.Equal(t, &ppmodel.CatalogContractRelationship{
+		Relation: "consumes-from",
+		Label:    "Consumes from Orders Published",
+		Href:     published.Versions[0].OverviewHref,
+		SpecKind: ppmodel.SpecKindValueAsyncAPI,
+	}, consumed.Versions[0].Relationships[0])
+	require.Len(t, published.Versions[0].Relationships, 1)
+	assert.Equal(t, &ppmodel.CatalogContractRelationship{
+		Relation: "consumed-by",
+		Label:    "Consumed by Orders Subscription",
+		Href:     consumed.Versions[0].OverviewHref,
+		SpecKind: ppmodel.SpecKindValueAsyncAPI,
+	}, published.Versions[0].Relationships[0])
+	require.NotNil(t, consumed.Versions[0].Entry.HeaderContext)
+	require.Len(t, consumed.Versions[0].Entry.HeaderContext.Relationships, 1)
+	assert.Equal(t, "../../../v2/specs/orders-published/index.html", consumed.Versions[0].Entry.HeaderContext.Relationships[0].Href)
+}
+
+func TestPopulateHeaderContextsBuildsPermanentContractNavigation(t *testing.T) {
+	entry := func(id, contractID, output, overview, version string, kind ppmodel.SpecKindValue) *ppmodel.CatalogSpecEntry {
+		return &ppmodel.CatalogSpecEntry{
+			ID: id, ContractID: contractID, OutputSubdir: output, OverviewHref: overview,
+			RelativePath: id, Version: version, SpecKind: kind,
+		}
+	}
+	activeHTTP := entry("http-v1.yaml", "http-z", "services/orders/versions/v1/specs/http-z", "services/orders/versions/v1/specs/http-z/index.html", "v1", ppmodel.SpecKindValueOpenAPI)
+	httpV2 := entry("http-v2.yaml", "http-z", "services/orders/versions/v2/specs/http-z", "services/orders/versions/v2/specs/http-z/index.html", "v2", ppmodel.SpecKindValueOpenAPI)
+	published := entry("published.yaml", "published", "services/orders/versions/v4/specs/published", "services/orders/versions/v4/specs/published/index.html", "v4", ppmodel.SpecKindValueAsyncAPI)
+	consumed := entry("consumed.yaml", "consumed", "services/orders/versions/v3/specs/consumed", "services/orders/versions/v3/specs/consumed/index.html", "v3", ppmodel.SpecKindValueAsyncAPI)
+	external := entry("external.yaml", "external", "services/orders/versions/v2/specs/external", "services/orders/versions/v2/specs/external/index.html", "v2", ppmodel.SpecKindValueAsyncAPI)
+	events := entry("events.yaml", "events", "services/orders/versions/v1/specs/events", "services/orders/versions/v1/specs/events/index.html", "v1", ppmodel.SpecKindValueAsyncAPI)
+	skipped := entry("skipped.yaml", "skipped", "services/orders/versions/v9/specs/skipped", "services/orders/versions/v9/specs/skipped/index.html", "v9", ppmodel.SpecKindValueAsyncAPI)
+	skipped.RenderSkipped = true
+
+	contract := func(id, label string, role ppmodel.ContractRoleValue, kind ppmodel.SpecKindValue, entries ...*ppmodel.CatalogSpecEntry) *ppmodel.CatalogContract {
+		versions := make([]*ppmodel.CatalogContractVersion, 0, len(entries))
+		for _, item := range entries {
+			versions = append(versions, &ppmodel.CatalogContractVersion{Label: item.Version, OverviewHref: item.OverviewHref, Entry: item})
+		}
+		return &ppmodel.CatalogContract{ID: id, DisplayName: label, Role: role, SpecKind: kind, Versions: versions, LatestVersion: versions[0]}
+	}
+	service := &ppmodel.CatalogService{
+		Key: "orders", DisplayName: "Orders", Contracts: []*ppmodel.CatalogContract{
+			contract("events", "General Events", ppmodel.ContractRoleEvents, ppmodel.SpecKindValueAsyncAPI, events),
+			contract("external", "External Source", ppmodel.ContractRoleExternalSource, ppmodel.SpecKindValueAsyncAPI, external),
+			contract("consumed", "Consumed Events", ppmodel.ContractRoleConsumedEvents, ppmodel.SpecKindValueAsyncAPI, consumed),
+			contract("published", "Published Events", ppmodel.ContractRolePublishedEvents, ppmodel.SpecKindValueAsyncAPI, published),
+			contract("http-z", "Zeta HTTP", ppmodel.ContractRoleHTTPAPI, ppmodel.SpecKindValueOpenAPI, httpV2, activeHTTP),
+			contract("http-a", "Alpha HTTP", ppmodel.ContractRoleHTTPAPI, ppmodel.SpecKindValueOpenAPI,
+				entry("http-a.yaml", "http-a", "services/orders/versions/v5/specs/http-a", "services/orders/versions/v5/specs/http-a/index.html", "v5", ppmodel.SpecKindValueOpenAPI)),
+			contract("skipped", "Skipped", ppmodel.ContractRolePublishedEvents, ppmodel.SpecKindValueAsyncAPI, skipped),
+		},
+		Versions: []*ppmodel.CatalogVersion{
+			{Label: "v5", Entries: []*ppmodel.CatalogSpecEntry{serviceEntryForTest("http-a.yaml", "http-a", "v5")}},
+			{Label: "v4", Entries: []*ppmodel.CatalogSpecEntry{published}},
+			{Label: "v3", Entries: []*ppmodel.CatalogSpecEntry{consumed}},
+			{Label: "v2", Entries: []*ppmodel.CatalogSpecEntry{httpV2, external}},
+			{Label: "v1", Entries: []*ppmodel.CatalogSpecEntry{activeHTTP, events}},
+			{Label: "v9", Entries: []*ppmodel.CatalogSpecEntry{skipped}},
+		},
+	}
+	// Reuse the same entry pointer for the second HTTP contract in the legacy version index.
+	service.Versions[0].Entries[0] = service.Contracts[5].Versions[0].Entry
+
+	(&AggregatePrintingPress{}).populateHeaderContexts(&ppmodel.CatalogSite{Services: []*ppmodel.CatalogService{service}})
+	header := activeHTTP.HeaderContext
+	require.NotNil(t, header)
+	assert.Equal(t, "API OVERVIEW", header.OverviewLabel)
+	require.Len(t, header.ContractGroups, 5)
+	assert.Equal(t, []ppmodel.ContractRoleValue{
+		ppmodel.ContractRoleHTTPAPI, ppmodel.ContractRolePublishedEvents, ppmodel.ContractRoleConsumedEvents,
+		ppmodel.ContractRoleExternalSource, ppmodel.ContractRoleEvents,
+	}, []ppmodel.ContractRoleValue{header.ContractGroups[0].Role, header.ContractGroups[1].Role, header.ContractGroups[2].Role, header.ContractGroups[3].Role, header.ContractGroups[4].Role})
+	assert.Equal(t, []string{"Alpha HTTP", "Zeta HTTP"}, []string{header.ContractGroups[0].Contracts[0].Label, header.ContractGroups[0].Contracts[1].Label})
+	assert.NotContains(t, fmt.Sprint(header.ContractGroups), "Skipped")
+
+	active := header.ContractGroups[0].Contracts[1]
+	assert.True(t, active.Active)
+	assert.Equal(t, "v1", active.CurrentVersion)
+	assert.Equal(t, "index.html", active.Href)
+	assert.Equal(t, []string{"v2", "v1"}, []string{active.Versions[0].Label, active.Versions[1].Label})
+	assert.Equal(t, []bool{false, true}, []bool{active.Versions[0].Active, active.Versions[1].Active})
+	assert.Equal(t, active.Versions, header.Versions)
+
+	sibling := header.ContractGroups[0].Contracts[0]
+	assert.False(t, sibling.Active)
+	assert.Empty(t, sibling.CurrentVersion)
+	assert.Empty(t, sibling.Versions)
+	assert.Equal(t, "../../../v5/specs/http-a/index.html", sibling.Href)
+	assert.Equal(t, "EVENT OVERVIEW", published.HeaderContext.OverviewLabel)
+}
+
+func TestRewriteHTMLHeaderContextUpdatesAndRemovesContractAttributes(t *testing.T) {
+	doc := []byte(`<html><body class="docs" data-pp-contracts="stale" data-pp-overview-label="OLD" data-unmanaged="keep"><main></main></body></html>`)
+	header := &ppmodel.SiteHeaderContext{
+		OverviewLabel: "EVENT OVERVIEW",
+		ContractGroups: []*ppmodel.SiteContractGroup{{
+			Role: ppmodel.ContractRoleEvents, Label: "Events",
+			Contracts: []*ppmodel.SiteContractLink{{ID: "events", Label: `Events & "More"`, SpecKind: ppmodel.SpecKindValueAsyncAPI, Href: "index.html", Active: true}},
+		}},
+	}
+	updated, changed, err := rewriteHTMLHeaderContext(doc, header)
+	require.NoError(t, err)
+	assert.True(t, changed)
+	assert.Contains(t, string(updated), `data-pp-overview-label="EVENT OVERVIEW"`)
+	assert.Contains(t, string(updated), `data-pp-contracts="[{&#34;role&#34;:&#34;events&#34;`)
+	assert.Contains(t, string(updated), `data-unmanaged="keep"`)
+	assert.NotContains(t, string(updated), `data-pp-contracts="stale"`)
+
+	legacy, changed, err := rewriteHTMLHeaderContext(updated, &ppmodel.SiteHeaderContext{OverviewLabel: "API OVERVIEW"})
+	require.NoError(t, err)
+	assert.True(t, changed)
+	assert.NotContains(t, string(legacy), `data-pp-contracts=`)
+	assert.Contains(t, string(legacy), `data-pp-overview-label="API OVERVIEW"`)
+	assert.Contains(t, string(legacy), `data-unmanaged="keep"`)
+
+	unchanged, changed, err := rewriteHTMLHeaderContext(legacy, &ppmodel.SiteHeaderContext{OverviewLabel: "API OVERVIEW"})
+	require.NoError(t, err)
+	assert.False(t, changed)
+	assert.Equal(t, legacy, unchanged)
+}
+
+func TestPopulateHeaderContextsCoalescesOnlyAutomaticLegacyVersions(t *testing.T) {
+	build := func() (*ppmodel.CatalogSite, *ppmodel.CatalogSpecEntry) {
+		v2 := &ppmodel.CatalogSpecEntry{
+			ID: "services/users/usersv2.yaml", RelativePath: "services/users/usersv2.yaml", ContractID: "auto-v2",
+			OutputSubdir: "services/users/versions/v2/specs/users-api", OverviewHref: "services/users/versions/v2/specs/users-api/index.html",
+			Version: "v2", SpecKind: ppmodel.SpecKindValueOpenAPI,
+		}
+		v1 := &ppmodel.CatalogSpecEntry{
+			ID: "services/users/usersv1.yaml", RelativePath: "services/users/usersv1.yaml", ContractID: "auto-v1",
+			OutputSubdir: "services/users/versions/v1/specs/users-api", OverviewHref: "services/users/versions/v1/specs/users-api/index.html",
+			Version: "v1", SpecKind: ppmodel.SpecKindValueOpenAPI,
+		}
+		contract := func(id string, entry *ppmodel.CatalogSpecEntry) *ppmodel.CatalogContract {
+			version := &ppmodel.CatalogContractVersion{Label: entry.Version, OverviewHref: entry.OverviewHref, Entry: entry}
+			return &ppmodel.CatalogContract{ID: id, DisplayName: "Users API", Role: ppmodel.ContractRoleHTTPAPI, SpecKind: ppmodel.SpecKindValueOpenAPI, LatestVersion: version, Versions: []*ppmodel.CatalogContractVersion{version}}
+		}
+		service := &ppmodel.CatalogService{
+			Key: "users", DisplayName: "Users API", Contracts: []*ppmodel.CatalogContract{contract("auto-v2", v2), contract("auto-v1", v1)},
+			Versions: []*ppmodel.CatalogVersion{{Label: "v2", Entries: []*ppmodel.CatalogSpecEntry{v2}}, {Label: "v1", Entries: []*ppmodel.CatalogSpecEntry{v1}}},
+		}
+		return &ppmodel.CatalogSite{Services: []*ppmodel.CatalogService{service}}, v2
+	}
+
+	legacy, active := build()
+	(&AggregatePrintingPress{}).populateHeaderContexts(legacy)
+	assert.Empty(t, active.HeaderContext.ContractGroups)
+	assert.Equal(t, []string{"v2", "v1"}, []string{active.HeaderContext.Versions[0].Label, active.HeaderContext.Versions[1].Label})
+
+	explicit, active := build()
+	active.ContractID = "users-v2"
+	explicit.Services[0].Contracts[0].ID = "users-v2"
+	explicit.Services[0].Contracts[1].Versions[0].Entry.ContractID = "users-v1"
+	explicit.Services[0].Contracts[1].ID = "users-v1"
+	ap := &AggregatePrintingPress{config: &AggregatePrintingPressConfig{ContractRoles: []AggregateContractRoleRule{
+		{Pattern: "**/usersv2.yaml", Role: "http-api", ContractID: "users-v2"},
+		{Pattern: "**/usersv1.yaml", Role: "http-api", ContractID: "users-v1"},
+	}}}
+	ap.populateHeaderContexts(explicit)
+	require.Len(t, active.HeaderContext.ContractGroups, 1)
+	assert.Len(t, active.HeaderContext.ContractGroups[0].Contracts, 2)
+}
+
+func serviceEntryForTest(id, contractID, version string) *ppmodel.CatalogSpecEntry {
+	return &ppmodel.CatalogSpecEntry{ID: id, ContractID: contractID, Version: version}
+}
+
+func TestAggregateDiscoveredRootRelationshipFilteringDeduplicationAndOrdering(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateCatalogSpec(t, root, "services/alpha/nested/v1/openapi.yaml", SpecKindOpenAPI, "Alpha API", "", "v1", "alpha")
+	writeAggregateSpecDocument(t, root, "services/beta/specs/v3/asyncapi.yaml", `
+asyncapi: 3.0.0
+info:
+  title: Beta Events
+  version: v3
+  x-owner: beta
+channels: {}
+operations: {}
+components: {}
+`)
+	writeAggregateSpecDocument(t, root, "services/source/specs/v2/openapi.yaml", `
+openapi: 3.1.0
+info:
+  title: Source <API>
+  version: v2
+  x-owner: source
+paths:
+  /test:
+    get:
+      responses:
+        "200":
+          $ref: ../../../alpha/nested/v1/../v1/openapi.yaml#/components/responses/OK
+        "201":
+          $ref: ../../../alpha/nested/v1/openapi.yaml#/components/responses/Created
+        "202":
+          $ref: ../../../beta/specs/v3/asyncapi.yaml#/components/messages/Event
+        "203":
+          $ref: '#/components/responses/Local'
+        "204":
+          $ref: missing.yaml#/Nope
+        "205":
+          $ref: https://example.com/spec.yaml#/Nope
+        "206":
+          $ref: custom:spec.yaml#/Nope
+        "207":
+          $ref: //example.com/spec.yaml#/Nope
+        "208":
+          $ref: /absolute/spec.yaml#/Nope
+        "209":
+          $ref: openapi.yaml#/components/responses/Self
+components: {}
+`)
+	catalog := buildAggregateCatalogForTest(t, root, nil)
+	source := findCatalogService(t, catalog, "source")
+	rels := source.Contracts[0].Versions[0].Relationships
+	require.Len(t, rels, 2)
+	assert.Equal(t, []string{"References Alpha API", "References Beta Events"}, []string{rels[0].Label, rels[1].Label})
+	assert.Equal(t, ppmodel.SpecKindValueOpenAPI, rels[0].SpecKind)
+	assert.Equal(t, ppmodel.SpecKindValueAsyncAPI, rels[1].SpecKind)
+	assert.NotEqual(t, rels[0].Href, rels[1].Href)
+	assert.NotContains(t, rels[0].Href+rels[1].Href, "missing")
+
+	alpha := findCatalogService(t, catalog, "alpha")
+	require.Len(t, alpha.Contracts[0].Versions[0].Relationships, 1)
+	assert.Equal(t, "Referenced by Source <API>", alpha.Contracts[0].Versions[0].Relationships[0].Label)
+	beta := findCatalogService(t, catalog, "beta")
+	require.Len(t, beta.Contracts[0].Versions[0].Relationships, 1)
+	assert.Equal(t, "referenced-by", beta.Contracts[0].Versions[0].Relationships[0].Relation)
+}
+
+func TestAggregateRelationshipIgnoresOtherwiseValidExcludedRoots(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		config func(*AggregatePrintingPressConfig)
+	}{
+		{name: "include", config: func(config *AggregatePrintingPressConfig) { config.Include = []string{"services/source/**"} }},
+		{name: "ignore", config: func(config *AggregatePrintingPressConfig) { config.IgnoreRules = []string{"services/target/**"} }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeAggregateSpecDocument(t, root, "services/source/v1/openapi.yaml", `
+openapi: 3.1.0
+info:
+  title: Source API
+  version: v1
+  x-owner: source
+x-related:
+  $ref: ../../target/v1/openapi.yaml#/info
+paths: {}
+`)
+			writeAggregateCatalogSpec(t, root, "services/target/v1/openapi.yaml", SpecKindOpenAPI, "Excluded Target", "", "v1", "target")
+			config := aggregateNavigationTestConfig(root, NewMemorySpecStateStore(), nil)
+			tc.config(config)
+			ap, err := CreateAggregatePrintingPressFromPath(root, config)
+			require.NoError(t, err)
+			catalog, err := ap.PressModel()
+			require.NoError(t, err)
+			source := findCatalogService(t, catalog, "source")
+			assert.Empty(t, source.Contracts[0].Versions[0].Relationships)
+			assert.Len(t, catalog.Services, 1)
+		})
+	}
+}
+
+func TestAggregateNavigationFingerprintInvalidatesServiceTree(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	roles := []AggregateContractRoleRule{
+		{Pattern: "**/http/**", Role: "http-api", ContractID: "http", Default: true},
+		{Pattern: "**/events/**", Role: "published-events", ContractID: "events"},
+	}
+	writeAggregateCatalogSpec(t, root, "services/orders/http/v1/openapi.yaml", SpecKindOpenAPI, "Orders HTTP", "", "v1", "orders")
+	run := func() (*AggregatePressStatistics, map[string]*SpecStateRecord, *ppmodel.CatalogSite) {
+		ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+			OutputDir: filepath.Join(root, "site"), BuildMode: AggregateBuildModeFast,
+			StateNamespace: "navigation", StateStore: store,
+			ServiceIdentity: AggregateServiceIdentityConfig{MetadataPointers: []string{"/info/x-owner"}},
+			ContractRoles:   roles,
+		})
+		require.NoError(t, err)
+		stats, err := ap.PrintSelectedOutputs(AggregateRenderOptions{HTML: true})
+		require.NoError(t, err)
+		records, err := store.Load("navigation")
+		require.NoError(t, err)
+		return stats, records, ap.catalog
+	}
+	first, firstRecords, _ := run()
+	assert.Equal(t, 1, first.ChangedSpecs)
+	unchanged, _, _ := run()
+	assert.Equal(t, 0, unchanged.ChangedSpecs)
+
+	writeAggregateCatalogSpec(t, root, "services/orders/events/v2/asyncapi.yaml", SpecKindAsyncAPI, "Orders Events", "", "v2", "orders")
+	added, addedRecords, addedCatalog := run()
+	assert.Equal(t, 2, added.ChangedSpecs)
+	assert.NotEqual(t, firstRecords["services/orders/http/v1/openapi.yaml"].ConfigHash, addedRecords["services/orders/http/v1/openapi.yaml"].ConfigHash)
+	eventsEntry := findCatalogContract(t, findCatalogService(t, addedCatalog, "orders"), "events").Versions[0].Entry
+	httpEntry := findCatalogContract(t, findCatalogService(t, addedCatalog, "orders"), "http").Versions[0].Entry
+	addedHTML := readAggregateFile(t, filepath.Join(root, "site", pppaths.FileIndexHTML))
+	assert.Contains(t, addedHTML, eventsEntry.OverviewHref)
+	addedEntryHTML := readAggregateFile(t, filepath.Join(root, "site", httpEntry.OverviewHref))
+	assert.Contains(t, addedEntryHTML, `data-pp-contracts=`)
+	assert.Contains(t, addedEntryHTML, `Orders Events`)
+	assert.Contains(t, addedEntryHTML, `data-pp-overview-label="API OVERVIEW"`)
+
+	require.NoError(t, os.Remove(filepath.Join(root, "services/orders/events/v2/asyncapi.yaml")))
+	removed, removedRecords, _ := run()
+	assert.Equal(t, 1, removed.ChangedSpecs)
+	assert.NotEqual(t, addedRecords["services/orders/http/v1/openapi.yaml"].ConfigHash, removedRecords["services/orders/http/v1/openapi.yaml"].ConfigHash)
+	removedHTML := readAggregateFile(t, filepath.Join(root, "site", pppaths.FileIndexHTML))
+	assert.NotContains(t, removedHTML, eventsEntry.OverviewHref)
+	removedEntryHTML := readAggregateFile(t, filepath.Join(root, "site", httpEntry.OverviewHref))
+	assert.NotContains(t, removedEntryHTML, `data-pp-contracts=`)
+	assert.Contains(t, removedEntryHTML, `data-pp-overview-label="API OVERVIEW"`)
+	assert.NoDirExists(t, filepath.Join(root, "site", filepath.FromSlash(eventsEntry.OutputSubdir)))
+	final, _, _ := run()
+	assert.Equal(t, 0, final.ChangedSpecs)
+}
+
+func TestAggregateNavigationFingerprintInvalidatesVersionRoleAndDefaultChanges(t *testing.T) {
+	t.Run("version", func(t *testing.T) {
+		root := t.TempDir()
+		store := NewMemorySpecStateStore()
+		writeAggregateCatalogSpec(t, root, "services/orders/http/openapi.yaml", SpecKindOpenAPI, "Orders HTTP", "", "v1", "orders")
+		writeAggregateCatalogSpec(t, root, "services/orders/events/asyncapi.yaml", SpecKindAsyncAPI, "Orders Events", "", "v1", "orders")
+		config := aggregateNavigationTestConfig(root, store, nil)
+		initial, initialCatalog := runAggregateHTMLNavigationTest(t, root, config)
+		assert.Equal(t, 2, initial.ChangedSpecs)
+		oldEventsDir := ""
+		for _, contract := range findCatalogService(t, initialCatalog, "orders").Contracts {
+			if contract.SpecKind.IsAsyncAPI() {
+				oldEventsDir = contract.Versions[0].Entry.OutputSubdir
+			}
+		}
+		writeAggregateCatalogSpec(t, root, "services/orders/events/asyncapi.yaml", SpecKindAsyncAPI, "Orders Events", "", "v2", "orders")
+		changed, catalog := runAggregateHTMLNavigationTest(t, root, config)
+		assert.Equal(t, 2, changed.ChangedSpecs)
+		service := findCatalogService(t, catalog, "orders")
+		var events *ppmodel.CatalogContract
+		for _, contract := range service.Contracts {
+			if contract.SpecKind.IsAsyncAPI() {
+				events = contract
+				break
+			}
+		}
+		require.NotNil(t, events)
+		assert.Equal(t, "v2", events.Versions[0].Label)
+		assert.NoDirExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(oldEventsDir)))
+		unchanged, _ := runAggregateHTMLNavigationTest(t, root, config)
+		assert.Equal(t, 0, unchanged.ChangedSpecs)
+	})
+
+	t.Run("role and explicit default", func(t *testing.T) {
+		root := t.TempDir()
+		store := NewMemorySpecStateStore()
+		writeAggregateCatalogSpec(t, root, "services/orders/http/openapi.yaml", SpecKindOpenAPI, "Orders HTTP", "", "v1", "orders")
+		writeAggregateCatalogSpec(t, root, "services/orders/events/asyncapi.yaml", SpecKindAsyncAPI, "Orders Events", "", "v1", "orders")
+		initialRoles := []AggregateContractRoleRule{
+			{Pattern: "**/http/**", Role: "http-api", ContractID: "http", Default: true},
+			{Pattern: "**/events/**", Role: "events", ContractID: "events"},
+		}
+		initial := aggregateNavigationTestConfig(root, store, initialRoles)
+		initialStats, _ := runAggregateHTMLNavigationTest(t, root, initial)
+		assert.Equal(t, 2, initialStats.ChangedSpecs)
+		changedRoles := []AggregateContractRoleRule{
+			{Pattern: "**/http/**", Role: "http-api", ContractID: "http"},
+			{Pattern: "**/events/**", Role: "published-events", ContractID: "events", Default: true},
+		}
+		changed := aggregateNavigationTestConfig(root, store, changedRoles)
+		changedStats, catalog := runAggregateHTMLNavigationTest(t, root, changed)
+		assert.Equal(t, 2, changedStats.ChangedSpecs)
+		service := findCatalogService(t, catalog, "orders")
+		assert.Equal(t, "events", service.DefaultContractID)
+		assert.Equal(t, ppmodel.ContractRolePublishedEvents, findCatalogContract(t, service, "events").Role)
+		for _, version := range visibleCatalogVersions(service) {
+			for _, entry := range visibleCatalogEntries(version) {
+				html := readAggregateFile(t, filepath.Join(changed.OutputDir, filepath.FromSlash(entry.OverviewHref)))
+				assert.Contains(t, html, `data-pp-service-name="Orders Events"`)
+			}
+		}
+		unchanged, _ := runAggregateHTMLNavigationTest(t, root, changed)
+		assert.Equal(t, 0, unchanged.ChangedSpecs)
+	})
+}
+
+func TestAggregateWatchRelationshipChangesInvalidateBothEndpointServices(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	targetAPath := "services/publisher-a/events/v1/asyncapi.yaml"
+	targetBPath := "services/publisher-b/events/v2/asyncapi.yaml"
+	sourcePath := "services/consumer/events/v1/asyncapi.yaml"
+	writeAggregateRelationshipAsyncRoot(t, root, targetAPath, "Publisher A", "v1", "publisher-a", "")
+	writeAggregateRelationshipAsyncRoot(t, root, targetBPath, "Publisher B", "v2", "publisher-b", "")
+	writeAggregateRelationshipAsyncRoot(t, root, sourcePath, "Consumer", "v1", "consumer", "")
+	roles := []AggregateContractRoleRule{
+		{Pattern: "services/consumer/**", Role: "consumed-events", ContractID: "subscription"},
+		{Pattern: "services/publisher-a/**", Role: "published-events", ContractID: "published-a"},
+		{Pattern: "services/publisher-b/**", Role: "external-source", ContractID: "published-b"},
+	}
+	config := aggregateNavigationTestConfig(root, store, roles)
+	config.OutputDir = filepath.Join(root, "site")
+	config.BuildMode = AggregateBuildModeWatch
+	runHTML := func() (*AggregatePressStatistics, *ppmodel.CatalogSite) {
+		ap, err := CreateAggregatePrintingPressFromPath(root, config)
+		require.NoError(t, err)
+		stats, err := ap.PrintSelectedOutputs(AggregateRenderOptions{HTML: true})
+		require.NoError(t, err)
+		catalog, err := ap.PressModel()
+		require.NoError(t, err)
+		return stats, catalog
+	}
+	initial, _ := runHTML()
+	assert.Equal(t, 3, initial.ChangedSpecs)
+	unchanged, _ := runHTML()
+	assert.Equal(t, 0, unchanged.ChangedSpecs)
+
+	writeAggregateRelationshipAsyncRoot(t, root, sourcePath, "Consumer", "v1", "consumer", "../../../publisher-a/events/v1/asyncapi.yaml#/components/messages/Event")
+	added, addedCatalog := runHTML()
+	assert.Equal(t, 2, added.ChangedSpecs)
+	assertAggregateRelationshipHTML(t, config.OutputDir, addedCatalog, "consumer", "Consumes from Publisher A", true)
+	assertAggregateRelationshipHTML(t, config.OutputDir, addedCatalog, "publisher-a", "Consumed by Consumer", true)
+	assertAggregateRelationshipsOnlyOnEntryOverview(t, config.OutputDir, addedCatalog, "consumer")
+
+	writeAggregateRelationshipAsyncRoot(t, root, sourcePath, "Consumer", "v1", "consumer", "../../../publisher-b/events/v2/asyncapi.yaml#/components/messages/Event")
+	retargeted, retargetedCatalog := runHTML()
+	assert.Equal(t, 3, retargeted.ChangedSpecs)
+	assertAggregateRelationshipHTML(t, config.OutputDir, retargetedCatalog, "publisher-a", "Consumed by Consumer", false)
+	assertAggregateRelationshipHTML(t, config.OutputDir, retargetedCatalog, "publisher-b", "Consumed by Consumer", true)
+
+	writeAggregateRelationshipAsyncRoot(t, root, sourcePath, "Consumer", "v1", "consumer", "")
+	removed, removedCatalog := runHTML()
+	assert.Equal(t, 2, removed.ChangedSpecs)
+	assertAggregateRelationshipHTML(t, config.OutputDir, removedCatalog, "consumer", "RELATED CONTRACTS", false)
+	assertAggregateRelationshipHTML(t, config.OutputDir, removedCatalog, "publisher-b", "Consumed by Consumer", false)
+
+	writeAggregateRelationshipAsyncRoot(t, root, sourcePath, "Consumer", "v1", "consumer", "../../../publisher-a/events/v1/asyncapi.yaml#/components/messages/Event")
+	_, _ = runHTML()
+	renamedTargetPath := "services/publisher-a/events/v1/renamed.yaml"
+	writeAggregateRelationshipAsyncRoot(t, root, renamedTargetPath, "Publisher A Renamed", "v1", "publisher-a", "")
+	writeAggregateRelationshipAsyncRoot(t, root, sourcePath, "Consumer", "v1", "consumer", "../../../publisher-a/events/v1/renamed.yaml#/components/messages/Event")
+	require.NoError(t, os.Remove(filepath.Join(root, filepath.FromSlash(targetAPath))))
+	renamed, renamedCatalog := runHTML()
+	assert.Equal(t, 2, renamed.ChangedSpecs)
+	assertAggregateRelationshipHTML(t, config.OutputDir, renamedCatalog, "consumer", "Consumes from Publisher A Renamed", true)
+
+	require.NoError(t, os.Remove(filepath.Join(root, filepath.FromSlash(renamedTargetPath))))
+	targetRemoved, targetRemovedCatalog := runHTML()
+	assert.Equal(t, 1, targetRemoved.ChangedSpecs)
+	assertAggregateRelationshipHTML(t, config.OutputDir, targetRemovedCatalog, "consumer", "RELATED CONTRACTS", false)
+
+	stable, stableCatalog := runHTML()
+	assert.Equal(t, 0, stable.ChangedSpecs)
+	assertAggregateRelationshipHTML(t, config.OutputDir, stableCatalog, "consumer", "RELATED CONTRACTS", false)
+}
+
+func TestAggregateFastCompletesSelectedOutputFamiliesIndependently(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	sourcePath := "services/source/http/v1/openapi.yaml"
+	writeSource := func(target string) {
+		writeAggregateSpecDocument(t, root, sourcePath, `
+openapi: 3.1.0
+info:
+  title: Source API
+  version: v1
+  x-owner: source
+x-related:
+  $ref: ../../../`+target+`/http/v1/openapi.yaml#/info
+paths: {}
+`)
+	}
+	writeSource("target-a")
+	writeAggregateCatalogSpec(t, root, "services/target-a/http/v1/openapi.yaml", SpecKindOpenAPI, "Target A", "", "v1", "target-a")
+	writeAggregateCatalogSpec(t, root, "services/target-b/http/v1/openapi.yaml", SpecKindOpenAPI, "Target B", "", "v1", "target-b")
+	config := aggregateNavigationTestConfig(root, store, nil)
+	run := func(options AggregateRenderOptions) (*AggregatePressStatistics, *ppmodel.CatalogSite) {
+		ap, err := CreateAggregatePrintingPressFromPath(root, config)
+		require.NoError(t, err)
+		stats, err := ap.PrintSelectedOutputs(options)
+		require.NoError(t, err)
+		return stats, ap.catalog
+	}
+
+	htmlInitial, htmlCatalog := run(AggregateRenderOptions{HTML: true})
+	assert.Equal(t, 3, htmlInitial.ChangedSpecs)
+	assertAggregateRelationshipHTML(t, config.OutputDir, htmlCatalog, "source", "References Target A", true)
+	initialRecords, err := store.Load("navigation")
+	require.NoError(t, err)
+	initialHTMLHash := initialRecords[sourcePath].HTMLCompletionHash
+	assert.NotEmpty(t, initialHTMLHash)
+	assert.Empty(t, initialRecords[sourcePath].JSONCompletionHash)
+	assert.Empty(t, initialRecords[sourcePath].LLMCompletionHash)
+
+	writeSource("target-b")
+	jsonChanged, jsonCatalog := run(AggregateRenderOptions{JSON: true})
+	assert.Equal(t, 3, jsonChanged.ChangedSpecs)
+	jsonStable, _ := run(AggregateRenderOptions{JSON: true})
+	assert.Equal(t, 0, jsonStable.ChangedSpecs)
+	jsonRecords, err := store.Load("navigation")
+	require.NoError(t, err)
+	assert.Equal(t, initialHTMLHash, jsonRecords[sourcePath].HTMLCompletionHash)
+	assert.NotEmpty(t, jsonRecords[sourcePath].JSONCompletionHash)
+	assert.Empty(t, jsonRecords[sourcePath].LLMCompletionHash)
+	assertAggregateRelationshipHTML(t, config.OutputDir, jsonCatalog, "source", "References Target A", true)
+	sourceEntry := catalogEntryIndex(jsonCatalog)[sourcePath]
+	require.NotNil(t, sourceEntry)
+	entryOutput := filepath.Join(config.OutputDir, filepath.FromSlash(sourceEntry.OutputSubdir))
+	require.FileExists(t, filepath.Join(entryOutput, pppaths.FileBundleJSON))
+
+	llmChanged, _ := run(AggregateRenderOptions{LLM: true})
+	assert.Equal(t, 3, llmChanged.ChangedSpecs)
+	llmStable, _ := run(AggregateRenderOptions{LLM: true})
+	assert.Equal(t, 0, llmStable.ChangedSpecs)
+	llmRecords, err := store.Load("navigation")
+	require.NoError(t, err)
+	assert.Equal(t, initialHTMLHash, llmRecords[sourcePath].HTMLCompletionHash)
+	assert.NotEmpty(t, llmRecords[sourcePath].JSONCompletionHash)
+	assert.NotEmpty(t, llmRecords[sourcePath].LLMCompletionHash)
+	require.FileExists(t, filepath.Join(entryOutput, pppaths.FileLLMIndex))
+
+	htmlChanged, htmlRetargetedCatalog := run(AggregateRenderOptions{HTML: true})
+	assert.Equal(t, 3, htmlChanged.ChangedSpecs)
+	assertAggregateRelationshipHTML(t, config.OutputDir, htmlRetargetedCatalog, "source", "References Target A", false)
+	assertAggregateRelationshipHTML(t, config.OutputDir, htmlRetargetedCatalog, "source", "References Target B", true)
+	htmlStable, _ := run(AggregateRenderOptions{HTML: true})
+	assert.Equal(t, 0, htmlStable.ChangedSpecs)
+	require.FileExists(t, filepath.Join(entryOutput, pppaths.FileBundleJSON))
+	require.FileExists(t, filepath.Join(entryOutput, pppaths.FileLLMIndex))
+}
+
+func TestAggregateFastPreservesPerOutputLocationsAcrossSubsetMoves(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	sourcePath := "services/contracts/http/v1/openapi.yaml"
+	companionPath := "services/contracts/events/v1/asyncapi.yaml"
+	write := func(owner string) {
+		writeAggregateCatalogSpec(t, root, sourcePath, SpecKindOpenAPI, "Contracts API", "", "v1", owner)
+		writeAggregateCatalogSpec(t, root, companionPath, SpecKindAsyncAPI, "Contracts Events", "", "v1", owner)
+	}
+	write("old-owner")
+	config := aggregateNavigationTestConfig(root, store, nil)
+	run := func(options AggregateRenderOptions) (*AggregatePressStatistics, *ppmodel.CatalogSite) {
+		ap, err := CreateAggregatePrintingPressFromPath(root, config)
+		require.NoError(t, err)
+		stats, err := ap.PrintSelectedOutputs(options)
+		require.NoError(t, err)
+		return stats, ap.catalog
+	}
+
+	initial, _ := run(AggregateRenderOptions{HTML: true, JSON: true, LLM: true})
+	require.Equal(t, 2, initial.ChangedSpecs)
+	initialRecords, err := store.Load("navigation")
+	require.NoError(t, err)
+	initialRecord := initialRecords[sourcePath]
+	require.NotNil(t, initialRecord)
+	oldLocation := initialRecord.HTMLOutputSubdir
+	require.NotEmpty(t, oldLocation)
+	oldServiceSlug, oldVersionSlug, ok := aggregateTopologyKeys(oldLocation)
+	require.True(t, ok)
+	require.Equal(t, oldLocation, initialRecord.JSONOutputSubdir)
+	require.Equal(t, oldLocation, initialRecord.LLMOutputSubdir)
+	oldOutput := filepath.Join(config.OutputDir, filepath.FromSlash(oldLocation))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileIndexHTML))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileBundleJSON))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileLLMIndex))
+	assert.Contains(t, readAggregateFile(t, filepath.Join(config.OutputDir, pppaths.FileIndexHTML)), oldLocation)
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionIndexHTML(oldServiceSlug, oldVersionSlug))))
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceIndexJSON(oldServiceSlug))))
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceVersionsIndexJSON(oldServiceSlug))))
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionIndexJSON(oldServiceSlug, oldVersionSlug))))
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceLLM(oldServiceSlug))))
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionLLM(oldServiceSlug, oldVersionSlug))))
+
+	write("new-owner")
+	jsonChanged, jsonCatalog := run(AggregateRenderOptions{JSON: true})
+	require.Equal(t, 2, jsonChanged.ChangedSpecs)
+	newLocation := catalogEntryIndex(jsonCatalog)[sourcePath].OutputSubdir
+	require.NotEqual(t, oldLocation, newLocation)
+	newOutput := filepath.Join(config.OutputDir, filepath.FromSlash(newLocation))
+	require.FileExists(t, filepath.Join(newOutput, pppaths.FileBundleJSON))
+	require.NoFileExists(t, filepath.Join(newOutput, pppaths.FileIndexHTML))
+	require.NoFileExists(t, filepath.Join(newOutput, pppaths.FileLLMIndex))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileIndexHTML))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileLLMIndex))
+	require.DirExists(t, oldOutput)
+	assert.Contains(t, readAggregateFile(t, filepath.Join(config.OutputDir, pppaths.FileIndexHTML)), oldLocation)
+	require.NoFileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceIndexJSON(oldServiceSlug))))
+	require.NoFileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceVersionsIndexJSON(oldServiceSlug))))
+	require.NoFileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionIndexJSON(oldServiceSlug, oldVersionSlug))))
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionIndexHTML(oldServiceSlug, oldVersionSlug))))
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceLLM(oldServiceSlug))))
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionLLM(oldServiceSlug, oldVersionSlug))))
+	jsonRecords, err := store.Load("navigation")
+	require.NoError(t, err)
+	assert.Equal(t, initialRecord.HTMLCompletionHash, jsonRecords[sourcePath].HTMLCompletionHash)
+	assert.Equal(t, initialRecord.LLMCompletionHash, jsonRecords[sourcePath].LLMCompletionHash)
+	assert.Equal(t, oldLocation, jsonRecords[sourcePath].HTMLOutputSubdir)
+	assert.Equal(t, newLocation, jsonRecords[sourcePath].JSONOutputSubdir)
+	assert.Equal(t, oldLocation, jsonRecords[sourcePath].LLMOutputSubdir)
+
+	htmlChanged, _ := run(AggregateRenderOptions{HTML: true})
+	require.Equal(t, 2, htmlChanged.ChangedSpecs)
+	require.FileExists(t, filepath.Join(newOutput, pppaths.FileIndexHTML))
+	require.FileExists(t, filepath.Join(newOutput, pppaths.FileBundleJSON))
+	require.NoFileExists(t, filepath.Join(newOutput, pppaths.FileLLMIndex))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileLLMIndex))
+	require.DirExists(t, oldOutput)
+	newServiceSlug, newVersionSlug, ok := aggregateTopologyKeys(newLocation)
+	require.True(t, ok)
+	htmlIndex := readAggregateFile(t, filepath.Join(config.OutputDir, pppaths.FileIndexHTML))
+	assert.Contains(t, htmlIndex, newLocation)
+	assert.NotContains(t, htmlIndex, oldLocation)
+	require.NoFileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionIndexHTML(oldServiceSlug, oldVersionSlug))))
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionIndexHTML(newServiceSlug, newVersionSlug))))
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceLLM(oldServiceSlug))))
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionLLM(oldServiceSlug, oldVersionSlug))))
+	htmlRecords, err := store.Load("navigation")
+	require.NoError(t, err)
+	assert.Equal(t, newLocation, htmlRecords[sourcePath].HTMLOutputSubdir)
+	assert.Equal(t, newLocation, htmlRecords[sourcePath].JSONOutputSubdir)
+	assert.Equal(t, oldLocation, htmlRecords[sourcePath].LLMOutputSubdir)
+
+	llmChanged, _ := run(AggregateRenderOptions{LLM: true})
+	require.Equal(t, 2, llmChanged.ChangedSpecs)
+	require.FileExists(t, filepath.Join(newOutput, pppaths.FileLLMIndex))
+	require.NoDirExists(t, oldOutput)
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceLLM(newServiceSlug))))
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionLLM(newServiceSlug, newVersionSlug))))
+	require.NoFileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceLLM(oldServiceSlug))))
+	require.NoFileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionLLM(oldServiceSlug, oldVersionSlug))))
+	require.NoDirExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceDir(oldServiceSlug))))
+	finalRecords, err := store.Load("navigation")
+	require.NoError(t, err)
+	assert.Equal(t, newLocation, finalRecords[sourcePath].HTMLOutputSubdir)
+	assert.Equal(t, newLocation, finalRecords[sourcePath].JSONOutputSubdir)
+	assert.Equal(t, newLocation, finalRecords[sourcePath].LLMOutputSubdir)
+
+	htmlStable, _ := run(AggregateRenderOptions{HTML: true})
+	jsonStable, _ := run(AggregateRenderOptions{JSON: true})
+	llmStable, _ := run(AggregateRenderOptions{LLM: true})
+	assert.Equal(t, 0, htmlStable.ChangedSpecs)
+	assert.Equal(t, 0, jsonStable.ChangedSpecs)
+	assert.Equal(t, 0, llmStable.ChangedSpecs)
+}
+
+func TestAggregateFastRemovesOnlyUnreferencedIntermediateOutputLocations(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	sourcePath := "services/contracts/http/v1/openapi.yaml"
+	write := func(owner string) {
+		writeAggregateCatalogSpec(t, root, sourcePath, SpecKindOpenAPI, "Contracts API", "", "v1", owner)
+	}
+	config := aggregateNavigationTestConfig(root, store, nil)
+	run := func(options AggregateRenderOptions) *ppmodel.CatalogSite {
+		ap, err := CreateAggregatePrintingPressFromPath(root, config)
+		require.NoError(t, err)
+		_, err = ap.PrintSelectedOutputs(options)
+		require.NoError(t, err)
+		return ap.catalog
+	}
+
+	write("alpha")
+	initialCatalog := run(AggregateRenderOptions{HTML: true, JSON: true, LLM: true})
+	oldestLocation := catalogEntryIndex(initialCatalog)[sourcePath].OutputSubdir
+	oldestOutput := filepath.Join(config.OutputDir, filepath.FromSlash(oldestLocation))
+
+	write("beta")
+	intermediateCatalog := run(AggregateRenderOptions{JSON: true})
+	intermediateLocation := catalogEntryIndex(intermediateCatalog)[sourcePath].OutputSubdir
+	intermediateOutput := filepath.Join(config.OutputDir, filepath.FromSlash(intermediateLocation))
+	require.DirExists(t, oldestOutput)
+	require.DirExists(t, intermediateOutput)
+
+	write("gamma")
+	currentCatalog := run(AggregateRenderOptions{JSON: true})
+	currentLocation := catalogEntryIndex(currentCatalog)[sourcePath].OutputSubdir
+	currentOutput := filepath.Join(config.OutputDir, filepath.FromSlash(currentLocation))
+	require.FileExists(t, filepath.Join(currentOutput, pppaths.FileBundleJSON))
+	require.NoDirExists(t, intermediateOutput)
+	require.DirExists(t, oldestOutput)
+
+	run(AggregateRenderOptions{HTML: true})
+	require.FileExists(t, filepath.Join(currentOutput, pppaths.FileIndexHTML))
+	require.DirExists(t, oldestOutput)
+	run(AggregateRenderOptions{LLM: true})
+	require.FileExists(t, filepath.Join(currentOutput, pppaths.FileLLMIndex))
+	require.NoDirExists(t, oldestOutput)
+}
+
+func TestAggregateFastRetainsSelectedFamilyTopologyUntilLastEntryMoves(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	firstPath := "services/contracts/http/v1/first.yaml"
+	secondPath := "services/contracts/http/v1/second.yaml"
+	write := func(relPath, title, owner string) {
+		writeAggregateCatalogSpec(t, root, relPath, SpecKindOpenAPI, title, "", "v1", owner)
+	}
+	write(firstPath, "First API", "old-owner")
+	write(secondPath, "Second API", "old-owner")
+	config := aggregateNavigationTestConfig(root, store, nil)
+	runJSON := func() *ppmodel.CatalogSite {
+		ap, err := CreateAggregatePrintingPressFromPath(root, config)
+		require.NoError(t, err)
+		_, err = ap.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
+		require.NoError(t, err)
+		return ap.catalog
+	}
+
+	initialCatalog := runJSON()
+	oldLocation := catalogEntryIndex(initialCatalog)[firstPath].OutputSubdir
+	oldServiceSlug, oldVersionSlug, ok := aggregateTopologyKeys(oldLocation)
+	require.True(t, ok)
+	oldServiceJSON := filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceIndexJSON(oldServiceSlug)))
+	oldVersionJSON := filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionIndexJSON(oldServiceSlug, oldVersionSlug)))
+	require.FileExists(t, oldServiceJSON)
+	require.FileExists(t, oldVersionJSON)
+
+	write(firstPath, "First API", "new-owner")
+	partiallyMoved := runJSON()
+	newLocation := catalogEntryIndex(partiallyMoved)[firstPath].OutputSubdir
+	newServiceSlug, newVersionSlug, ok := aggregateTopologyKeys(newLocation)
+	require.True(t, ok)
+	require.FileExists(t, oldServiceJSON)
+	require.FileExists(t, oldVersionJSON)
+	oldVersionBody := readAggregateFile(t, oldVersionJSON)
+	assert.Contains(t, oldVersionBody, "Second API")
+	assert.NotContains(t, oldVersionBody, "First API")
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceIndexJSON(newServiceSlug))))
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionIndexJSON(newServiceSlug, newVersionSlug))))
+
+	write(secondPath, "Second API", "new-owner")
+	runJSON()
+	require.NoFileExists(t, oldServiceJSON)
+	require.NoFileExists(t, oldVersionJSON)
+	require.NoDirExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceDir(oldServiceSlug))))
+}
+
+func TestAggregateOutputCleanupDeduplicatesLeavesAndPreservesSharedRoots(t *testing.T) {
+	root := t.TempDir()
+	outputDir := filepath.Join(root, "site")
+	leaf := "services/orders/versions/v1/specs/orders-api"
+	leafDir := filepath.Join(outputDir, filepath.FromSlash(leaf))
+	require.NoError(t, os.MkdirAll(leafDir, 0o755))
+	sharedSentinel := filepath.Join(outputDir, pppaths.DirServices, "shared.txt")
+	require.NoError(t, os.WriteFile(sharedSentinel, []byte("keep"), 0o644))
+	outsideSentinel := filepath.Join(root, "outside.txt")
+	require.NoError(t, os.WriteFile(outsideSentinel, []byte("keep"), 0o644))
+	ap := &AggregatePrintingPress{config: &AggregatePrintingPressConfig{OutputDir: outputDir}}
+	plan := &aggregateBuildPlan{removed: []*SpecStateRecord{{
+		HTMLOutputSubdir: "services",
+		JSONOutputSubdir: leaf,
+		LLMOutputSubdir:  leaf,
+	}}}
+
+	require.NoError(t, ap.pruneObsoleteOutputs(plan, aggregateOutputSelection{json: true, llm: true}))
+	require.NoDirExists(t, leafDir)
+	require.FileExists(t, sharedSentinel)
+	require.NoError(t, ap.removeAggregateEntryOutputSubdir("services"))
+	require.FileExists(t, sharedSentinel)
+	assert.Empty(t, aggregateTopologyFromState(map[string]*SpecStateRecord{
+		"unsafe.yaml": {HTMLOutputSubdir: "services/../versions/v1/specs/unsafe"},
+	}, "html"))
+	require.NoError(t, ap.removeAggregateFile("../outside.txt"))
+	require.FileExists(t, outsideSentinel)
+}
+
+func TestAggregateCleanupTombstoneOwnershipIsFamilyAware(t *testing.T) {
+	root := t.TempDir()
+	outputDir := filepath.Join(root, "site")
+	location := "services/contracts/versions/v1/specs/contracts-api"
+	entryOutput := filepath.Join(outputDir, filepath.FromSlash(location))
+	require.NoError(t, os.MkdirAll(entryOutput, 0o755))
+	htmlPath := filepath.Join(entryOutput, pppaths.FileIndexHTML)
+	jsonPath := filepath.Join(entryOutput, pppaths.FileBundleJSON)
+	require.NoError(t, os.WriteFile(htmlPath, []byte("active html"), 0o644))
+	require.NoError(t, os.WriteFile(jsonPath, []byte("old json"), 0o644))
+	active := &aggregateDiscoveredSpec{
+		RelativePath: "services/contracts/current.yaml",
+		ServiceKey:   "contracts",
+		ContractID:   "contracts-api",
+		OutputSubdir: location,
+	}
+	plan := &aggregateBuildPlan{
+		discovered: []*aggregateDiscoveredSpec{active},
+		removed: []*SpecStateRecord{{
+			RelativePath:     "services/contracts/removed.yaml",
+			JSONOutputSubdir: location,
+		}},
+	}
+	ownership := aggregateActiveOutputOwnership{byFamily: make(map[string]map[string][]aggregateActiveOutputOwner)}
+	ownership.add(aggregateOutputFamilyHTML, active)
+	htmlOwners := ownership.owners(aggregateOutputFamilyHTML, location)
+	require.Len(t, htmlOwners, 1)
+	assert.Equal(t, active.RelativePath, htmlOwners[0].RelativePath)
+	assert.Equal(t, active.ServiceKey, htmlOwners[0].ServiceKey)
+	assert.Equal(t, active.ContractID, htmlOwners[0].ContractID)
+	assert.Equal(t, location, htmlOwners[0].OutputSubdir)
+	assert.Empty(t, ownership.owners(aggregateOutputFamilyJSON, location))
+	ap := &AggregatePrintingPress{config: &AggregatePrintingPressConfig{OutputDir: outputDir}}
+
+	require.NoError(t, ap.reconcileCleanupTombstoneEntryArtifactsWithOwnership(
+		plan,
+		aggregateOutputSelection{json: true},
+		ownership,
+	))
+	require.FileExists(t, htmlPath)
+	require.NoFileExists(t, jsonPath)
+}
+
+func TestAggregateFastCleanupTombstoneAdvancesOneOutputFamilyAtATime(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	sourcePath := "services/contracts/http/v1/openapi.yaml"
+	writeAggregateCatalogSpec(t, root, sourcePath, SpecKindOpenAPI, "Contracts API", "", "v1", "old-owner")
+	config := aggregateNavigationTestConfig(root, store, nil)
+	run := func(options AggregateRenderOptions) *AggregatePressStatistics {
+		ap, err := CreateAggregatePrintingPressFromPath(root, config)
+		require.NoError(t, err)
+		stats, err := ap.PrintSelectedOutputs(options)
+		require.NoError(t, err)
+		return stats
+	}
+
+	run(AggregateRenderOptions{HTML: true, JSON: true, LLM: true})
+	records, err := store.Load("navigation")
+	require.NoError(t, err)
+	initial := records[sourcePath]
+	require.NotNil(t, initial)
+	oldLocation := initial.HTMLOutputSubdir
+	oldOutput := filepath.Join(config.OutputDir, filepath.FromSlash(oldLocation))
+	serviceSlug, versionSlug, ok := aggregateTopologyKeys(oldLocation)
+	require.True(t, ok)
+	oldJSONService := filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceIndexJSON(serviceSlug)))
+	oldJSONVersion := filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionIndexJSON(serviceSlug, versionSlug)))
+	oldLLMService := filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceLLM(serviceSlug)))
+	oldLLMVersion := filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionLLM(serviceSlug, versionSlug)))
+	require.NoError(t, os.Remove(filepath.Join(root, filepath.FromSlash(sourcePath))))
+
+	jsonCleanup := run(AggregateRenderOptions{JSON: true})
+	assert.Equal(t, 0, jsonCleanup.ChangedSpecs)
+	require.NoFileExists(t, filepath.Join(oldOutput, pppaths.FileBundleJSON))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileIndexHTML))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileLLMIndex))
+	require.NoFileExists(t, oldJSONService)
+	require.NoFileExists(t, oldJSONVersion)
+	require.FileExists(t, oldLLMService)
+	require.FileExists(t, oldLLMVersion)
+	assert.Contains(t, readAggregateFile(t, filepath.Join(config.OutputDir, pppaths.FileIndexHTML)), oldLocation)
+	records, err = store.Load("navigation")
+	require.NoError(t, err)
+	jsonTombstone := records[sourcePath]
+	require.NotNil(t, jsonTombstone)
+	assert.Empty(t, jsonTombstone.JSONCompletionHash)
+	assert.Empty(t, jsonTombstone.JSONOutputSubdir)
+	assert.NotEmpty(t, jsonTombstone.HTMLCompletionHash)
+	assert.Equal(t, oldLocation, jsonTombstone.HTMLOutputSubdir)
+	assert.NotEmpty(t, jsonTombstone.LLMCompletionHash)
+	assert.Equal(t, oldLocation, jsonTombstone.LLMOutputSubdir)
+
+	htmlCleanup := run(AggregateRenderOptions{HTML: true})
+	assert.Equal(t, 0, htmlCleanup.ChangedSpecs)
+	require.NoFileExists(t, filepath.Join(oldOutput, pppaths.FileIndexHTML))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileLLMIndex))
+	require.FileExists(t, oldLLMService)
+	require.FileExists(t, oldLLMVersion)
+	assert.NotContains(t, readAggregateFile(t, filepath.Join(config.OutputDir, pppaths.FileIndexHTML)), oldLocation)
+	records, err = store.Load("navigation")
+	require.NoError(t, err)
+	htmlTombstone := records[sourcePath]
+	require.NotNil(t, htmlTombstone)
+	assert.Empty(t, htmlTombstone.HTMLCompletionHash)
+	assert.Empty(t, htmlTombstone.HTMLOutputSubdir)
+	assert.Equal(t, oldLocation, htmlTombstone.LLMOutputSubdir)
+
+	llmCleanup := run(AggregateRenderOptions{LLM: true})
+	assert.Equal(t, 0, llmCleanup.ChangedSpecs)
+	require.NoDirExists(t, oldOutput)
+	require.NoFileExists(t, oldLLMService)
+	require.NoFileExists(t, oldLLMVersion)
+	require.NoDirExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceDir(serviceSlug))))
+	records, err = store.Load("navigation")
+	require.NoError(t, err)
+	assert.NotContains(t, records, sourcePath)
+
+	assert.Equal(t, 0, run(AggregateRenderOptions{JSON: true}).ChangedSpecs)
+	assert.Equal(t, 0, run(AggregateRenderOptions{HTML: true}).ChangedSpecs)
+	assert.Equal(t, 0, run(AggregateRenderOptions{LLM: true}).ChangedSpecs)
+}
+
+func TestAggregateFastRenderSkippedRootUsesCleanupTombstone(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	sourcePath := "services/contracts/http/v1/openapi.yaml"
+	writeAggregateCatalogSpec(t, root, sourcePath, SpecKindOpenAPI, "Contracts API", "", "v1", "old-owner")
+	config := aggregateNavigationTestConfig(root, store, nil)
+	run := func(options AggregateRenderOptions) {
+		ap, err := CreateAggregatePrintingPressFromPath(root, config)
+		require.NoError(t, err)
+		_, err = ap.PrintSelectedOutputs(options)
+		require.NoError(t, err)
+	}
+	run(AggregateRenderOptions{HTML: true, JSON: true, LLM: true})
+	records, err := store.Load("navigation")
+	require.NoError(t, err)
+	oldLocation := records[sourcePath].HTMLOutputSubdir
+	oldOutput := filepath.Join(config.OutputDir, filepath.FromSlash(oldLocation))
+	serviceSlug, versionSlug, ok := aggregateTopologyKeys(oldLocation)
+	require.True(t, ok)
+	oldLLMService := filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceLLM(serviceSlug)))
+	oldLLMVersion := filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionLLM(serviceSlug, versionSlug)))
+	writeSwaggerTwoSpec(t, root, sourcePath, "Unsupported Contracts", "v2")
+
+	run(AggregateRenderOptions{JSON: true})
+	require.NoFileExists(t, filepath.Join(oldOutput, pppaths.FileBundleJSON))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileIndexHTML))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileLLMIndex))
+	records, err = store.Load("navigation")
+	require.NoError(t, err)
+	require.Contains(t, records, sourcePath)
+	assert.Empty(t, records[sourcePath].JSONOutputSubdir)
+	assert.Equal(t, oldLocation, records[sourcePath].HTMLOutputSubdir)
+	assert.Equal(t, oldLocation, records[sourcePath].LLMOutputSubdir)
+
+	run(AggregateRenderOptions{HTML: true})
+	require.NoFileExists(t, filepath.Join(oldOutput, pppaths.FileIndexHTML))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileLLMIndex))
+	records, err = store.Load("navigation")
+	require.NoError(t, err)
+	require.Contains(t, records, sourcePath)
+	assert.Empty(t, records[sourcePath].HTMLOutputSubdir)
+	assert.Equal(t, oldLocation, records[sourcePath].LLMOutputSubdir)
+
+	run(AggregateRenderOptions{LLM: true})
+	require.NoDirExists(t, oldOutput)
+	require.NoFileExists(t, oldLLMService)
+	require.NoFileExists(t, oldLLMVersion)
+	records, err = store.Load("navigation")
+	require.NoError(t, err)
+	assert.NotContains(t, records, sourcePath)
+}
+
+func TestAggregateFastCleanupTombstoneRetainsSharedFamilyTopology(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	removedPath := "services/contracts/http/v1/removed.yaml"
+	survivingPath := "services/contracts/http/v1/surviving.yaml"
+	writeAggregateCatalogSpec(t, root, removedPath, SpecKindOpenAPI, "Removed API", "", "v1", "shared-owner")
+	writeAggregateCatalogSpec(t, root, survivingPath, SpecKindOpenAPI, "Surviving API", "", "v1", "shared-owner")
+	config := aggregateNavigationTestConfig(root, store, nil)
+	run := func(options AggregateRenderOptions) *ppmodel.CatalogSite {
+		ap, err := CreateAggregatePrintingPressFromPath(root, config)
+		require.NoError(t, err)
+		_, err = ap.PrintSelectedOutputs(options)
+		require.NoError(t, err)
+		return ap.catalog
+	}
+	initialCatalog := run(AggregateRenderOptions{HTML: true, JSON: true, LLM: true})
+	removedLocation := catalogEntryIndex(initialCatalog)[removedPath].OutputSubdir
+	removedOutput := filepath.Join(config.OutputDir, filepath.FromSlash(removedLocation))
+	serviceSlug, versionSlug, ok := aggregateTopologyKeys(removedLocation)
+	require.True(t, ok)
+	serviceJSON := filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceIndexJSON(serviceSlug)))
+	versionJSON := filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionIndexJSON(serviceSlug, versionSlug)))
+	require.NoError(t, os.Remove(filepath.Join(root, filepath.FromSlash(removedPath))))
+
+	run(AggregateRenderOptions{JSON: true})
+	require.NoFileExists(t, filepath.Join(removedOutput, pppaths.FileBundleJSON))
+	require.FileExists(t, filepath.Join(removedOutput, pppaths.FileIndexHTML))
+	require.FileExists(t, filepath.Join(removedOutput, pppaths.FileLLMIndex))
+	require.FileExists(t, serviceJSON)
+	require.FileExists(t, versionJSON)
+	versionBody := readAggregateFile(t, versionJSON)
+	assert.Contains(t, versionBody, "Surviving API")
+	assert.NotContains(t, versionBody, "Removed API")
+	records, err := store.Load("navigation")
+	require.NoError(t, err)
+	require.Contains(t, records, removedPath)
+	assert.Empty(t, records[removedPath].JSONOutputSubdir)
+	assert.NotEmpty(t, records[removedPath].HTMLOutputSubdir)
+	assert.NotEmpty(t, records[removedPath].LLMOutputSubdir)
+	require.Contains(t, records, survivingPath)
+}
+
+func TestAggregateFastReappearingCleanupTombstoneReusesUnselectedState(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	sourcePath := "services/contracts/http/v1/openapi.yaml"
+	write := func(owner string) {
+		writeAggregateCatalogSpec(t, root, sourcePath, SpecKindOpenAPI, "Contracts API", "", "v1", owner)
+	}
+	write("old-owner")
+	config := aggregateNavigationTestConfig(root, store, nil)
+	run := func(options AggregateRenderOptions) *ppmodel.CatalogSite {
+		ap, err := CreateAggregatePrintingPressFromPath(root, config)
+		require.NoError(t, err)
+		_, err = ap.PrintSelectedOutputs(options)
+		require.NoError(t, err)
+		return ap.catalog
+	}
+	initialCatalog := run(AggregateRenderOptions{HTML: true, JSON: true, LLM: true})
+	oldLocation := catalogEntryIndex(initialCatalog)[sourcePath].OutputSubdir
+	oldOutput := filepath.Join(config.OutputDir, filepath.FromSlash(oldLocation))
+	require.NoError(t, os.Remove(filepath.Join(root, filepath.FromSlash(sourcePath))))
+	run(AggregateRenderOptions{JSON: true})
+
+	write("new-owner")
+	reappearedCatalog := run(AggregateRenderOptions{JSON: true})
+	newLocation := catalogEntryIndex(reappearedCatalog)[sourcePath].OutputSubdir
+	require.NotEqual(t, oldLocation, newLocation)
+	newOutput := filepath.Join(config.OutputDir, filepath.FromSlash(newLocation))
+	require.FileExists(t, filepath.Join(newOutput, pppaths.FileBundleJSON))
+	require.NoFileExists(t, filepath.Join(newOutput, pppaths.FileIndexHTML))
+	require.NoFileExists(t, filepath.Join(newOutput, pppaths.FileLLMIndex))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileIndexHTML))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileLLMIndex))
+	records, err := store.Load("navigation")
+	require.NoError(t, err)
+	reappeared := records[sourcePath]
+	require.NotNil(t, reappeared)
+	assert.Equal(t, oldLocation, reappeared.HTMLOutputSubdir)
+	assert.Equal(t, newLocation, reappeared.JSONOutputSubdir)
+	assert.Equal(t, oldLocation, reappeared.LLMOutputSubdir)
+	assert.NotEmpty(t, reappeared.HTMLCompletionHash)
+	assert.NotEmpty(t, reappeared.JSONCompletionHash)
+	assert.NotEmpty(t, reappeared.LLMCompletionHash)
+}
+
+func TestAggregateFastRenamedSourceProtectsActiveSameLeafOwnership(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	oldPath := "services/contracts/http/v1/old.yaml"
+	newPath := "services/contracts/http/v1/new.yaml"
+	writeAggregateCatalogSpec(t, root, oldPath, SpecKindOpenAPI, "Contracts API", "", "v1", "shared-owner")
+	config := aggregateNavigationTestConfig(root, store, nil)
+	run := func(options AggregateRenderOptions) (*AggregatePressStatistics, *ppmodel.CatalogSite) {
+		ap, err := CreateAggregatePrintingPressFromPath(root, config)
+		require.NoError(t, err)
+		stats, err := ap.PrintSelectedOutputs(options)
+		require.NoError(t, err)
+		return stats, ap.catalog
+	}
+	_, initialCatalog := run(AggregateRenderOptions{HTML: true, JSON: true, LLM: true})
+	location := catalogEntryIndex(initialCatalog)[oldPath].OutputSubdir
+	entryOutput := filepath.Join(config.OutputDir, filepath.FromSlash(location))
+	serviceSlug, versionSlug, ok := aggregateTopologyKeys(location)
+	require.True(t, ok)
+	require.NoError(t, os.Rename(
+		filepath.Join(root, filepath.FromSlash(oldPath)),
+		filepath.Join(root, filepath.FromSlash(newPath)),
+	))
+
+	htmlChanged, htmlCatalog := run(AggregateRenderOptions{HTML: true})
+	assert.Equal(t, 1, htmlChanged.ChangedSpecs)
+	require.FileExists(t, filepath.Join(entryOutput, pppaths.FileIndexHTML))
+	assert.Contains(t, readAggregateFile(t, filepath.Join(config.OutputDir, pppaths.FileIndexHTML)), location)
+	records, err := store.Load("navigation")
+	require.NoError(t, err)
+	require.Contains(t, records, oldPath)
+	require.Contains(t, records, newPath)
+	assert.Empty(t, records[oldPath].HTMLCompletionHash)
+	assert.Empty(t, records[oldPath].HTMLOutputSubdir)
+	assert.NotEmpty(t, records[oldPath].JSONCompletionHash)
+	assert.Equal(t, location, records[oldPath].JSONOutputSubdir)
+	assert.NotEmpty(t, records[oldPath].LLMCompletionHash)
+	assert.Equal(t, location, records[oldPath].LLMOutputSubdir)
+	assert.NotEmpty(t, records[newPath].HTMLCompletionHash)
+	assert.Equal(t, location, records[newPath].HTMLOutputSubdir)
+	assert.Equal(t, location, catalogEntryIndex(htmlCatalog)[newPath].OutputSubdir)
+	htmlStable, _ := run(AggregateRenderOptions{HTML: true})
+	assert.Equal(t, 0, htmlStable.ChangedSpecs)
+
+	jsonChanged, _ := run(AggregateRenderOptions{JSON: true})
+	assert.Equal(t, 1, jsonChanged.ChangedSpecs)
+	require.FileExists(t, filepath.Join(entryOutput, pppaths.FileBundleJSON))
+	records, err = store.Load("navigation")
+	require.NoError(t, err)
+	assert.Empty(t, records[oldPath].JSONCompletionHash)
+	assert.Empty(t, records[oldPath].JSONOutputSubdir)
+	assert.NotEmpty(t, records[newPath].JSONCompletionHash)
+	assert.Equal(t, location, records[newPath].JSONOutputSubdir)
+	jsonStable, _ := run(AggregateRenderOptions{JSON: true})
+	assert.Equal(t, 0, jsonStable.ChangedSpecs)
+
+	llmChanged, _ := run(AggregateRenderOptions{LLM: true})
+	assert.Equal(t, 1, llmChanged.ChangedSpecs)
+	require.FileExists(t, filepath.Join(entryOutput, pppaths.FileLLMIndex))
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateServiceLLM(serviceSlug))))
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(pppaths.AggregateVersionLLM(serviceSlug, versionSlug))))
+	records, err = store.Load("navigation")
+	require.NoError(t, err)
+	assert.NotContains(t, records, oldPath)
+	require.Contains(t, records, newPath)
+	assert.Equal(t, location, records[newPath].HTMLOutputSubdir)
+	assert.Equal(t, location, records[newPath].JSONOutputSubdir)
+	assert.Equal(t, location, records[newPath].LLMOutputSubdir)
+	llmStable, _ := run(AggregateRenderOptions{LLM: true})
+	assert.Equal(t, 0, llmStable.ChangedSpecs)
+}
+
+func TestAggregateFastRenamedSourceRenderFailureDoesNotAdvanceTombstone(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	oldPath := "services/contracts/http/v1/old.yaml"
+	newPath := "services/contracts/http/v1/new.yaml"
+	writeAggregateCatalogSpec(t, root, oldPath, SpecKindOpenAPI, "Contracts API", "", "v1", "shared-owner")
+	config := aggregateNavigationTestConfig(root, store, nil)
+	run := func(options AggregateRenderOptions) error {
+		ap, err := CreateAggregatePrintingPressFromPath(root, config)
+		require.NoError(t, err)
+		_, err = ap.PrintSelectedOutputs(options)
+		return err
+	}
+	require.NoError(t, run(AggregateRenderOptions{HTML: true, JSON: true, LLM: true}))
+	initialRecords, err := store.Load("navigation")
+	require.NoError(t, err)
+	initial := initialRecords[oldPath]
+	require.NotNil(t, initial)
+	entryOutput := filepath.Join(config.OutputDir, filepath.FromSlash(initial.OutputSubdir))
+	require.NoError(t, os.Rename(
+		filepath.Join(root, filepath.FromSlash(oldPath)),
+		filepath.Join(root, filepath.FromSlash(newPath)),
+	))
+	blockedBundle := filepath.Join(entryOutput, pppaths.FileBundleJSON)
+	require.NoError(t, os.Remove(blockedBundle))
+	require.NoError(t, os.Mkdir(blockedBundle, 0o755))
+	blockedSentinel := filepath.Join(blockedBundle, "blocked")
+	require.NoError(t, os.WriteFile(blockedSentinel, []byte("blocked"), 0o644))
+
+	err = run(AggregateRenderOptions{JSON: true})
+	require.ErrorContains(t, err, "preparing selected output")
+	require.FileExists(t, filepath.Join(entryOutput, pppaths.FileIndexHTML))
+	require.FileExists(t, filepath.Join(entryOutput, pppaths.FileLLMIndex))
+	failedRecords, err := store.Load("navigation")
+	require.NoError(t, err)
+	require.Contains(t, failedRecords, oldPath)
+	assert.NotContains(t, failedRecords, newPath)
+	assert.Equal(t, initial.JSONCompletionHash, failedRecords[oldPath].JSONCompletionHash)
+	assert.Equal(t, initial.JSONOutputSubdir, failedRecords[oldPath].JSONOutputSubdir)
+
+	require.NoError(t, os.Remove(blockedSentinel))
+	require.NoError(t, os.Remove(blockedBundle))
+	require.NoError(t, run(AggregateRenderOptions{JSON: true}))
+	require.FileExists(t, blockedBundle)
+	retriedRecords, err := store.Load("navigation")
+	require.NoError(t, err)
+	require.Contains(t, retriedRecords, oldPath)
+	require.Contains(t, retriedRecords, newPath)
+	assert.Empty(t, retriedRecords[oldPath].JSONCompletionHash)
+	assert.Empty(t, retriedRecords[oldPath].JSONOutputSubdir)
+	assert.NotEmpty(t, retriedRecords[newPath].JSONCompletionHash)
+	assert.Equal(t, initial.JSONOutputSubdir, retriedRecords[newPath].JSONOutputSubdir)
+}
+
+func TestAggregateFastCleanupTombstoneHandlesFamiliesAtDifferentLocations(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	sourcePath := "services/contracts/http/v1/openapi.yaml"
+	write := func(owner string) {
+		writeAggregateCatalogSpec(t, root, sourcePath, SpecKindOpenAPI, "Contracts API", "", "v1", owner)
+	}
+	config := aggregateNavigationTestConfig(root, store, nil)
+	run := func(options AggregateRenderOptions) {
+		ap, err := CreateAggregatePrintingPressFromPath(root, config)
+		require.NoError(t, err)
+		_, err = ap.PrintSelectedOutputs(options)
+		require.NoError(t, err)
+	}
+	write("alpha")
+	run(AggregateRenderOptions{HTML: true, JSON: true, LLM: true})
+	write("beta")
+	run(AggregateRenderOptions{JSON: true})
+	write("gamma")
+	run(AggregateRenderOptions{HTML: true})
+	records, err := store.Load("navigation")
+	require.NoError(t, err)
+	beforeRemoval := records[sourcePath]
+	require.NotNil(t, beforeRemoval)
+	require.NotEqual(t, beforeRemoval.HTMLOutputSubdir, beforeRemoval.JSONOutputSubdir)
+	require.NotEqual(t, beforeRemoval.JSONOutputSubdir, beforeRemoval.LLMOutputSubdir)
+	htmlOutput := filepath.Join(config.OutputDir, filepath.FromSlash(beforeRemoval.HTMLOutputSubdir))
+	jsonOutput := filepath.Join(config.OutputDir, filepath.FromSlash(beforeRemoval.JSONOutputSubdir))
+	llmOutput := filepath.Join(config.OutputDir, filepath.FromSlash(beforeRemoval.LLMOutputSubdir))
+	require.NoError(t, os.Remove(filepath.Join(root, filepath.FromSlash(sourcePath))))
+
+	run(AggregateRenderOptions{JSON: true})
+	require.NoDirExists(t, jsonOutput)
+	require.FileExists(t, filepath.Join(htmlOutput, pppaths.FileIndexHTML))
+	require.FileExists(t, filepath.Join(llmOutput, pppaths.FileLLMIndex))
+	records, err = store.Load("navigation")
+	require.NoError(t, err)
+	assert.Empty(t, records[sourcePath].JSONOutputSubdir)
+	assert.Equal(t, beforeRemoval.HTMLOutputSubdir, records[sourcePath].HTMLOutputSubdir)
+	assert.Equal(t, beforeRemoval.LLMOutputSubdir, records[sourcePath].LLMOutputSubdir)
+
+	run(AggregateRenderOptions{HTML: true})
+	require.NoDirExists(t, htmlOutput)
+	require.FileExists(t, filepath.Join(llmOutput, pppaths.FileLLMIndex))
+	run(AggregateRenderOptions{LLM: true})
+	require.NoDirExists(t, llmOutput)
+	records, err = store.Load("navigation")
+	require.NoError(t, err)
+	assert.NotContains(t, records, sourcePath)
+}
+
+type failNextUpsertSpecStateStore struct {
+	SpecStateStore
+	failNext bool
+}
+
+func (s *failNextUpsertSpecStateStore) Upsert(namespace string, records []*SpecStateRecord) error {
+	if s.failNext {
+		s.failNext = false
+		return fmt.Errorf("forced state upsert failure")
+	}
+	return s.SpecStateStore.Upsert(namespace, records)
+}
+
+func TestAggregateFastCleanupTombstoneRetriesAfterStatePersistenceFailure(t *testing.T) {
+	root := t.TempDir()
+	baseStore := NewMemorySpecStateStore()
+	store := &failNextUpsertSpecStateStore{SpecStateStore: baseStore}
+	sourcePath := "services/contracts/http/v1/openapi.yaml"
+	writeAggregateCatalogSpec(t, root, sourcePath, SpecKindOpenAPI, "Contracts API", "", "v1", "old-owner")
+	config := aggregateNavigationTestConfig(root, store, nil)
+	run := func(options AggregateRenderOptions) error {
+		ap, err := CreateAggregatePrintingPressFromPath(root, config)
+		require.NoError(t, err)
+		_, err = ap.PrintSelectedOutputs(options)
+		return err
+	}
+	require.NoError(t, run(AggregateRenderOptions{HTML: true, JSON: true, LLM: true}))
+	initialRecords, err := baseStore.Load("navigation")
+	require.NoError(t, err)
+	initial := initialRecords[sourcePath]
+	require.NotNil(t, initial)
+	oldOutput := filepath.Join(config.OutputDir, filepath.FromSlash(initial.JSONOutputSubdir))
+	require.NoError(t, os.Remove(filepath.Join(root, filepath.FromSlash(sourcePath))))
+	store.failNext = true
+
+	err = run(AggregateRenderOptions{JSON: true})
+	require.ErrorContains(t, err, "forced state upsert failure")
+	require.NoFileExists(t, filepath.Join(oldOutput, pppaths.FileBundleJSON))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileIndexHTML))
+	require.FileExists(t, filepath.Join(oldOutput, pppaths.FileLLMIndex))
+	failedRecords, err := baseStore.Load("navigation")
+	require.NoError(t, err)
+	assert.Equal(t, initial.JSONCompletionHash, failedRecords[sourcePath].JSONCompletionHash)
+	assert.Equal(t, initial.JSONOutputSubdir, failedRecords[sourcePath].JSONOutputSubdir)
+
+	require.NoError(t, run(AggregateRenderOptions{JSON: true}))
+	retriedRecords, err := baseStore.Load("navigation")
+	require.NoError(t, err)
+	retried := retriedRecords[sourcePath]
+	require.NotNil(t, retried)
+	assert.Empty(t, retried.JSONCompletionHash)
+	assert.Empty(t, retried.JSONOutputSubdir)
+	assert.Equal(t, initial.HTMLOutputSubdir, retried.HTMLOutputSubdir)
+	assert.Equal(t, initial.LLMOutputSubdir, retried.LLMOutputSubdir)
+}
+
+func TestAggregateFastRelationshipRenderSkipReconcilesVisibleRoots(t *testing.T) {
+	t.Run("target skipped", func(t *testing.T) {
+		root := t.TempDir()
+		store := NewMemorySpecStateStore()
+		sourcePath := "services/a-source/http/v1/openapi.yaml"
+		targetPath := "services/z-target/http/v1/swagger.yaml"
+		writeAggregateSpecDocument(t, root, sourcePath, `
+openapi: 3.1.0
+info:
+  title: Source API
+  version: v1
+  x-owner: source
+x-related:
+  $ref: ../../../z-target/http/v1/swagger.yaml#/info
+paths: {}
+`)
+		writeAggregateSpecDocument(t, root, targetPath, `
+swagger: "1.2"
+info:
+  title: Skipped Target
+  version: v1
+  x-owner: target
+paths: {}
+`)
+		config := aggregateNavigationTestConfig(root, store, nil)
+		first, catalog := runAggregateHTMLNavigationTest(t, root, config)
+		assert.Equal(t, 1, first.ChangedSpecs)
+		assertAggregateRelationshipHTML(t, config.OutputDir, catalog, "source", "RELATED CONTRACTS", false)
+		target := findCatalogService(t, catalog, "target")
+		assert.False(t, hasVisibleCatalogVersions(target))
+		records, err := store.Load("navigation")
+		require.NoError(t, err)
+		assert.Contains(t, records, sourcePath)
+		assert.NotContains(t, records, targetPath)
+		assert.NoDirExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(catalogEntryForService(t, target).OutputSubdir)))
+
+		second, secondCatalog := runAggregateHTMLNavigationTest(t, root, config)
+		assert.Equal(t, 0, second.ChangedSpecs, "the skipped target is retried during preflight without becoming a rendered change")
+		assertAggregateRelationshipHTML(t, config.OutputDir, secondCatalog, "source", "RELATED CONTRACTS", false)
+	})
+
+	t.Run("source skipped removes inverse", func(t *testing.T) {
+		root := t.TempDir()
+		store := NewMemorySpecStateStore()
+		writeAggregateSpecDocument(t, root, "services/a-source/http/v1/swagger.yaml", `
+swagger: "1.2"
+info:
+  title: Skipped Source
+  version: v1
+  x-owner: source
+x-related:
+  $ref: ../../../z-target/http/v1/openapi.yaml#/info
+paths: {}
+`)
+		writeAggregateCatalogSpec(t, root, "services/z-target/http/v1/openapi.yaml", SpecKindOpenAPI, "Target API", "", "v1", "target")
+		config := aggregateNavigationTestConfig(root, store, nil)
+		_, catalog := runAggregateHTMLNavigationTest(t, root, config)
+		assertAggregateRelationshipHTML(t, config.OutputDir, catalog, "target", "Referenced by Skipped Source", false)
+	})
+}
+
+func TestAggregateFastJSONOutputFailurePreservesHTMLAndCompletionState(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	sourcePath := "services/source/http/v1/openapi.yaml"
+	writeSource := func(target string) {
+		writeAggregateSpecDocument(t, root, sourcePath, `
+openapi: 3.1.0
+info:
+  title: Source API
+  version: v1
+  x-owner: source
+x-related:
+  $ref: ../../../`+target+`/http/v1/openapi.yaml#/info
+paths: {}
+`)
+	}
+	writeSource("target-a")
+	writeAggregateCatalogSpec(t, root, "services/target-a/http/v1/openapi.yaml", SpecKindOpenAPI, "Target A", "", "v1", "target-a")
+	writeAggregateCatalogSpec(t, root, "services/target-b/http/v1/openapi.yaml", SpecKindOpenAPI, "Target B", "", "v1", "target-b")
+	config := aggregateNavigationTestConfig(root, store, nil)
+	_, baselineCatalog := runAggregateHTMLNavigationTest(t, root, config)
+	sourceEntry := catalogEntryIndex(baselineCatalog)[sourcePath]
+	require.NotNil(t, sourceEntry)
+	entryOutput := filepath.Join(config.OutputDir, filepath.FromSlash(sourceEntry.OutputSubdir))
+	htmlPath := filepath.Join(entryOutput, pppaths.FileIndexHTML)
+	baselineHTML := readAggregateFile(t, htmlPath)
+	baselineRecords, err := store.Load("navigation")
+	require.NoError(t, err)
+	require.NotEmpty(t, baselineRecords[sourcePath].HTMLCompletionHash)
+	assert.Empty(t, baselineRecords[sourcePath].JSONCompletionHash)
+
+	writeSource("target-b")
+	blockedBundle := filepath.Join(entryOutput, pppaths.FileBundleJSON)
+	require.NoError(t, os.MkdirAll(blockedBundle, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(blockedBundle, "blocked"), []byte("blocked"), 0o644))
+	failed, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	_, err = failed.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "aggregate output failed")
+	assert.Equal(t, baselineHTML, readAggregateFile(t, htmlPath))
+	assert.DirExists(t, blockedBundle)
+	failedRecords, err := store.Load("navigation")
+	require.NoError(t, err)
+	assert.Equal(t, baselineRecords[sourcePath].HTMLCompletionHash, failedRecords[sourcePath].HTMLCompletionHash)
+	assert.Empty(t, failedRecords[sourcePath].JSONCompletionHash)
+	assert.False(t, catalogEntryIndex(failed.catalog)[sourcePath].RenderSkipped)
+
+	require.NoError(t, os.RemoveAll(blockedBundle))
+	retry, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	retryStats, err := retry.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
+	require.NoError(t, err)
+	assert.Equal(t, 3, retryStats.ChangedSpecs)
+	htmlRetry, htmlRetryCatalog := runAggregateHTMLNavigationTest(t, root, config)
+	assert.Equal(t, 3, htmlRetry.ChangedSpecs)
+	assertAggregateRelationshipHTML(t, config.OutputDir, htmlRetryCatalog, "source", "References Target B", true)
+}
+
+func TestAggregateFastFailedPoolPersistsNoOutputCompletions(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	firstPath := "services/a-first/http/v1/openapi.yaml"
+	secondPath := "services/z-second/http/v1/openapi.yaml"
+	writeAggregateCatalogSpec(t, root, firstPath, SpecKindOpenAPI, "First API", "", "v1", "first")
+	writeAggregateCatalogSpec(t, root, secondPath, SpecKindOpenAPI, "Second API", "", "v1", "second")
+	config := aggregateNavigationTestConfig(root, store, nil)
+	config.MaxPools = 1
+	_, catalog := runAggregateHTMLNavigationTest(t, root, config)
+	firstEntry := catalogEntryIndex(catalog)[firstPath]
+	secondEntry := catalogEntryIndex(catalog)[secondPath]
+	require.NotNil(t, firstEntry)
+	require.NotNil(t, secondEntry)
+	blockedBundle := filepath.Join(config.OutputDir, filepath.FromSlash(secondEntry.OutputSubdir), pppaths.FileBundleJSON)
+	require.NoError(t, os.MkdirAll(blockedBundle, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(blockedBundle, "blocked"), []byte("blocked"), 0o644))
+
+	failed, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	_, err = failed.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
+	require.Error(t, err)
+	require.FileExists(t, filepath.Join(config.OutputDir, filepath.FromSlash(firstEntry.OutputSubdir), pppaths.FileBundleJSON))
+	records, err := store.Load("navigation")
+	require.NoError(t, err)
+	assert.Empty(t, records[firstPath].JSONCompletionHash)
+	assert.Empty(t, records[secondPath].JSONCompletionHash)
+
+	require.NoError(t, os.RemoveAll(blockedBundle))
+	retry, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	stats, err := retry.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
+	require.NoError(t, err)
+	assert.Equal(t, 2, stats.ChangedSpecs)
+}
+
+func TestAggregatePressModelDoesNotPreflightOrRetainEntrySites(t *testing.T) {
+	root := t.TempDir()
+	for i := 0; i < 3; i++ {
+		writeAggregateCatalogSpec(t, root, fmt.Sprintf("services/service-%d/http/v1/openapi.yaml", i), SpecKindOpenAPI, fmt.Sprintf("Service %d", i), "", "v1", fmt.Sprintf("service-%d", i))
+	}
+	ap, err := CreateAggregatePrintingPressFromPath(root, aggregateNavigationTestConfig(root, NewMemorySpecStateStore(), nil))
+	require.NoError(t, err)
+	preflightCalls := 0
+	ap.preflightBuildEntrySite = func(spec *aggregateDiscoveredSpec, entry *ppmodel.CatalogSpecEntry) (*ppmodel.Site, error) {
+		preflightCalls++
+		return ap.buildEntrySite(spec, entry)
+	}
+
+	_, err = ap.PressModel()
+	require.NoError(t, err)
+	assert.Zero(t, preflightCalls)
+	require.NotNil(t, ap.plan)
+	for _, spec := range ap.plan.discovered {
+		assert.Nil(t, spec.prebuiltSite)
+	}
+}
+
+func TestAggregateRenderPreflightIsBoundedConcurrentAndReleasesSites(t *testing.T) {
+	root := t.TempDir()
+	for i := 0; i < 6; i++ {
+		writeAggregateCatalogSpec(t, root, fmt.Sprintf("services/service-%d/http/v1/openapi.yaml", i), SpecKindOpenAPI, fmt.Sprintf("Service %d", i), "", "v1", fmt.Sprintf("service-%d", i))
+	}
+	config := aggregateNavigationTestConfig(root, NewMemorySpecStateStore(), nil)
+	config.MaxPools = 3
+	config.WorkersPerPool = 1
+	ap, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	active, peak := 0, 0
+	var counterMu sync.Mutex
+	ap.preflightBuildEntrySite = func(spec *aggregateDiscoveredSpec, entry *ppmodel.CatalogSpecEntry) (*ppmodel.Site, error) {
+		counterMu.Lock()
+		active++
+		peak = max(peak, active)
+		counterMu.Unlock()
+		time.Sleep(20 * time.Millisecond)
+		site, err := ap.buildEntrySite(spec, entry)
+		counterMu.Lock()
+		active--
+		counterMu.Unlock()
+		return site, err
+	}
+
+	_, err = ap.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
+	require.NoError(t, err)
+	assert.Greater(t, peak, 1)
+	assert.LessOrEqual(t, peak, ap.resolvePoolCount(6))
+	for _, spec := range ap.plan.discovered {
+		assert.Nil(t, spec.prebuiltSite)
+	}
+}
+
+func TestAggregateFailedRenderReleasesPrebuiltSites(t *testing.T) {
+	root := t.TempDir()
+	path := "services/users/http/v1/openapi.yaml"
+	writeAggregateCatalogSpec(t, root, path, SpecKindOpenAPI, "Users API", "", "v1", "users")
+	config := aggregateNavigationTestConfig(root, NewMemorySpecStateStore(), nil)
+	ap, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	catalog, err := ap.PressModel()
+	require.NoError(t, err)
+	entry := catalogEntryIndex(catalog)[path]
+	require.NotNil(t, entry)
+	blockedBundle := filepath.Join(config.OutputDir, filepath.FromSlash(entry.OutputSubdir), pppaths.FileBundleJSON)
+	require.NoError(t, os.MkdirAll(blockedBundle, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(blockedBundle, "blocked"), []byte("blocked"), 0o644))
+
+	_, err = ap.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
+	require.Error(t, err)
+	for _, spec := range ap.plan.discovered {
+		assert.Nil(t, spec.prebuiltSite)
+	}
+}
+
+func TestPromoteAggregateEntryOutputSwapsAndRollsBack(t *testing.T) {
+	t.Run("successful swap cleans staging and backup", func(t *testing.T) {
+		parent := t.TempDir()
+		entryOutput := filepath.Join(parent, "entry")
+		require.NoError(t, os.MkdirAll(entryOutput, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(entryOutput, "old.txt"), []byte("old"), 0o644))
+		staged, err := stageAggregateEntryOutput(entryOutput, aggregateOutputSelection{})
+		require.NoError(t, err)
+		require.NoError(t, os.Remove(filepath.Join(staged, "old.txt")))
+		require.NoError(t, os.WriteFile(filepath.Join(staged, "new.txt"), []byte("new"), 0o644))
+
+		require.NoError(t, promoteAggregateEntryOutput(staged, entryOutput))
+		require.FileExists(t, filepath.Join(entryOutput, "new.txt"))
+		assert.NoFileExists(t, filepath.Join(entryOutput, "old.txt"))
+		assert.NoDirExists(t, staged)
+		entries, err := os.ReadDir(parent)
+		require.NoError(t, err)
+		for _, entry := range entries {
+			assert.NotContains(t, entry.Name(), ".ppress-backup-")
+		}
+	})
+
+	t.Run("failed promotion restores previous output", func(t *testing.T) {
+		parent := t.TempDir()
+		entryOutput := filepath.Join(parent, "entry")
+		require.NoError(t, os.MkdirAll(entryOutput, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(entryOutput, "old.txt"), []byte("old"), 0o644))
+
+		err := promoteAggregateEntryOutput(filepath.Join(parent, "missing-stage"), entryOutput)
+		require.Error(t, err)
+		assert.Equal(t, "old", readAggregateFile(t, filepath.Join(entryOutput, "old.txt")))
+		entries, readErr := os.ReadDir(parent)
+		require.NoError(t, readErr)
+		for _, entry := range entries {
+			assert.NotContains(t, entry.Name(), ".ppress-backup-")
+		}
+	})
+}
+
+func TestStageAggregateEntryOutputUsesCollisionFreeSiblingPaths(t *testing.T) {
+	parent := t.TempDir()
+	firstOutput := filepath.Join(parent, "first")
+	secondOutput := filepath.Join(parent, "second")
+	require.NoError(t, os.MkdirAll(firstOutput, 0o755))
+	require.NoError(t, os.MkdirAll(secondOutput, 0o755))
+
+	var wg sync.WaitGroup
+	staged := make(chan string, 2)
+	errs := make(chan error, 2)
+	for _, output := range []string{firstOutput, secondOutput} {
+		output := output
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			path, err := stageAggregateEntryOutput(output, aggregateOutputSelection{})
+			staged <- path
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(staged)
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
+	}
+	var paths []string
+	for path := range staged {
+		paths = append(paths, path)
+		defer os.RemoveAll(path)
+	}
+	require.Len(t, paths, 2)
+	assert.NotEqual(t, paths[0], paths[1])
+	assert.Equal(t, parent, filepath.Dir(paths[0]))
+	assert.Equal(t, parent, filepath.Dir(paths[1]))
+}
+
+func TestAggregateFastRelationshipDisplayRenameInvalidatesBothServiceTrees(t *testing.T) {
+	root := t.TempDir()
+	store := NewMemorySpecStateStore()
+	sourcePath := "services/source/events/v1/asyncapi.yaml"
+	targetPath := "services/target/events/v1/asyncapi.yaml"
+	writeAggregateCatalogSpec(t, root, "services/source/http/v1/openapi.yaml", SpecKindOpenAPI, "Source HTTP", "", "v1", "source")
+	writeAggregateCatalogSpec(t, root, "services/target/http/v1/openapi.yaml", SpecKindOpenAPI, "Target HTTP", "", "v1", "target")
+	writeAggregateRelationshipAsyncRoot(t, root, sourcePath, "Source Subscription", "v1", "source", "../../../target/events/v1/asyncapi.yaml#/components/messages/Event")
+	writeAggregateRelationshipAsyncRoot(t, root, targetPath, "Target Events", "v1", "target", "")
+	roles := []AggregateContractRoleRule{
+		{Pattern: "**/source/http/**", Role: "http-api", ContractID: "source-http", Default: true},
+		{Pattern: "**/source/events/**", Role: "consumed-events", ContractID: "subscription"},
+		{Pattern: "**/target/http/**", Role: "http-api", ContractID: "target-http", Default: true},
+		{Pattern: "**/target/events/**", Role: "published-events", ContractID: "published"},
+	}
+	config := aggregateNavigationTestConfig(root, store, roles)
+	first, _ := runAggregateHTMLNavigationTest(t, root, config)
+	assert.Equal(t, 4, first.ChangedSpecs)
+
+	writeAggregateRelationshipAsyncRoot(t, root, targetPath, "TARGET EVENTS!", "v1", "target", "")
+	renamed, catalog := runAggregateHTMLNavigationTest(t, root, config)
+	assert.Equal(t, 4, renamed.ChangedSpecs)
+	assertAggregateRelationshipHTML(t, config.OutputDir, catalog, "source", "Consumes from TARGET EVENTS!", true)
+	assertAggregateRelationshipHTML(t, config.OutputDir, catalog, "target", "Consumed by Source Subscription", true)
+	unchanged, _ := runAggregateHTMLNavigationTest(t, root, config)
+	assert.Equal(t, 0, unchanged.ChangedSpecs)
+}
+
+func aggregateNavigationTestConfig(root string, store SpecStateStore, roles []AggregateContractRoleRule) *AggregatePrintingPressConfig {
+	return &AggregatePrintingPressConfig{
+		OutputDir:      filepath.Join(root, "site"),
+		BuildMode:      AggregateBuildModeFast,
+		StateNamespace: "navigation",
+		StateStore:     store,
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers: []string{"/info/x-owner"},
+		},
+		ContractRoles: roles,
+	}
+}
+
+func runAggregateNavigationTest(t *testing.T, root string, config *AggregatePrintingPressConfig) *AggregatePressStatistics {
+	t.Helper()
+	ap, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	stats, err := ap.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
+	require.NoError(t, err)
+	return stats
+}
+
+func runAggregateHTMLNavigationTest(t *testing.T, root string, config *AggregatePrintingPressConfig) (*AggregatePressStatistics, *ppmodel.CatalogSite) {
+	t.Helper()
+	ap, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	stats, err := ap.PrintSelectedOutputs(AggregateRenderOptions{HTML: true})
+	require.NoError(t, err)
+	return stats, ap.catalog
+}
+
+func buildAggregateNavigationTestCatalog(t *testing.T, root string, config *AggregatePrintingPressConfig) *ppmodel.CatalogSite {
+	t.Helper()
+	ap, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	catalog, err := ap.PressModel()
+	require.NoError(t, err)
+	return catalog
+}
+
+func writeAggregateRelationshipAsyncRoot(t *testing.T, root, relPath, title, version, owner, ref string) {
+	t.Helper()
+	refBlock := ""
+	if ref != "" {
+		refBlock = "    messages:\n      Event:\n        $ref: " + strconv.Quote(ref) + "\n"
+	}
+	writeAggregateSpecDocument(t, root, relPath, "asyncapi: 3.0.0\ninfo:\n  title: "+strconv.Quote(title)+"\n  version: "+strconv.Quote(version)+"\n  x-owner: "+strconv.Quote(owner)+"\nchannels:\n  events:\n    address: events\n"+refBlock+"operations: {}\ncomponents:\n  messages:\n    Event:\n      payload:\n        type: object\n")
+}
+
+func assertAggregateRelationshipHTML(t *testing.T, outputDir string, catalog *ppmodel.CatalogSite, serviceKey, expected string, present bool) {
+	t.Helper()
+	service := findCatalogService(t, catalog, serviceKey)
+	found := false
+	for _, version := range visibleCatalogVersions(service) {
+		for _, entry := range visibleCatalogEntries(version) {
+			html := readAggregateFile(t, filepath.Join(outputDir, filepath.FromSlash(entry.OverviewHref)))
+			if strings.Contains(html, expected) {
+				found = true
+			}
+		}
+	}
+	assert.Equal(t, present, found, "relationship text %q in service %s", expected, serviceKey)
+}
+
+func catalogEntryForService(t *testing.T, service *ppmodel.CatalogService) *ppmodel.CatalogSpecEntry {
+	t.Helper()
+	for _, version := range service.Versions {
+		for _, entry := range version.Entries {
+			if entry != nil {
+				return entry
+			}
+		}
+	}
+	require.FailNow(t, "catalog service has no entry", "service=%s", service.Key)
+	return nil
+}
+
+func assertAggregateRelationshipsOnlyOnEntryOverview(t *testing.T, outputDir string, catalog *ppmodel.CatalogSite, serviceKey string) {
+	t.Helper()
+	entry := catalogEntryForService(t, findCatalogService(t, catalog, serviceKey))
+	entryDir := filepath.Join(outputDir, filepath.FromSlash(entry.OutputSubdir))
+	files, err := collectFiles(entryDir)
+	require.NoError(t, err)
+	nestedPages := 0
+	for _, filePath := range files {
+		if strings.ToLower(filepath.Ext(filePath)) != ".html" {
+			continue
+		}
+		rel, err := filepath.Rel(entryDir, filePath)
+		require.NoError(t, err)
+		html := readAggregateFile(t, filePath)
+		if filepath.ToSlash(rel) == pppaths.FileIndexHTML {
+			assert.Contains(t, html, "pp-contract-relationships")
+			continue
+		}
+		nestedPages++
+		assert.NotContains(t, html, "pp-contract-relationships", "nested page %s", rel)
+	}
+	assert.Greater(t, nestedPages, 2)
+}
+
+func TestAggregateServicePrimaryHrefAndLegacyCompatibility(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateCatalogSpec(t, root, "services/orders/events/v9/asyncapi.yaml", SpecKindAsyncAPI, "Orders Events", "Event summary", "v9", "orders")
+	writeAggregateCatalogSpec(t, root, "services/orders/http/v1/openapi.yaml", SpecKindOpenAPI, "Orders HTTP", "", "v1", "orders")
+	catalog := buildAggregateCatalogForTest(t, root, nil)
+	service := findCatalogService(t, catalog, "orders")
+	defaultContract := findCatalogContract(t, service, service.DefaultContractID)
+	require.NotNil(t, defaultContract.LatestVersion)
+
+	assert.Equal(t, defaultContract.LatestVersion.OverviewHref, servicePrimaryHref(service))
+	assert.Empty(t, catalogServiceSummary(service))
+	var html strings.Builder
+	require.NoError(t, catalogRootContent(catalog, false).Render(context.Background(), &html))
+	assert.Contains(t, html.String(), `href="`+defaultContract.LatestVersion.OverviewHref+`"`)
+	assert.Equal(t, "services/orders/index.html", service.OverviewHref)
+	assert.Equal(t, "services/orders/versions/index.html", service.VersionsHref)
+	require.Len(t, service.Versions, 2)
+	for _, version := range service.Versions {
+		assert.Equal(t, "services/orders/versions/"+version.Slug+"/index.html", version.OverviewHref)
+		for _, entry := range version.Entries {
+			assert.Equal(t, "services/orders/versions/"+version.Slug+"/specs/"+entry.Slug, entry.OutputSubdir)
+			assert.Equal(t, entry.OutputSubdir+"/index.html", entry.OverviewHref)
+		}
+	}
+}
+
+func TestAggregateRenderedSiblingContractCompatibility(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateCatalogSpec(t, root, "services/orders/public/openapi.yaml", SpecKindOpenAPI, "Orders HTTP", "", "v1", "orders")
+	writeAggregateCatalogSpec(t, root, "services/orders/events/asyncapi.yaml", SpecKindAsyncAPI, "Orders Events", "", "v1", "orders")
+	outputDir := filepath.Join(root, "site")
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: NewMemorySpecStateStore(),
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers: []string{"/info/x-owner"},
+		},
+	})
+	require.NoError(t, err)
+	catalog, err := ap.PressModel()
+	require.NoError(t, err)
+	service := findCatalogService(t, catalog, "orders")
+	require.Len(t, service.Versions, 1)
+	require.Len(t, service.Versions[0].Entries, 2)
+
+	_, err = ap.PrintHTML()
+	require.NoError(t, err)
+	assert.FileExists(t, filepath.Join(outputDir, pppaths.FileIndexHTML))
+	assert.DirExists(t, filepath.Join(outputDir, pppaths.AggregateServiceDir(service.Slug)))
+	assert.FileExists(t, filepath.Join(outputDir, filepath.FromSlash(service.Versions[0].OverviewHref)))
+	versionHTML := readAggregateFile(t, filepath.Join(outputDir, filepath.FromSlash(service.Versions[0].OverviewHref)))
+	assert.NotContains(t, versionHTML, "Multiple Specification Entries")
+	for _, entry := range service.Versions[0].Entries {
+		assert.FileExists(t, filepath.Join(outputDir, filepath.FromSlash(entry.OverviewHref)))
+		assert.Contains(t, versionHTML, `href="`+relativeCatalogHref(filepath.ToSlash(filepath.Dir(service.Versions[0].OverviewHref)), entry.OverviewHref)+`"`)
+	}
+	rootHTML := readAggregateFile(t, filepath.Join(outputDir, pppaths.FileIndexHTML))
+	assert.Contains(t, rootHTML, `href="`+servicePrimaryHref(service)+`"`)
+}
+
+func TestAggregateContractFinalizationReconcilesSkippedEntries(t *testing.T) {
+	t.Run("skipped latest contract version falls back to older visible version", func(t *testing.T) {
+		root := t.TempDir()
+		writeAggregateCatalogSpec(t, root, "services/orders/specs/v1/public.openapi.yaml", SpecKindOpenAPI, "Public Orders", "", "v1", "")
+		writeSwaggerTwoSpec(t, root, "services/orders/specs/v2/public.openapi.yaml", "Public Orders", "v2")
+		outputDir := filepath.Join(root, "site")
+		ap := newAggregateForSkippedContractTest(t, root, outputDir)
+		_, err := ap.PrintHTML()
+		require.NoError(t, err)
+		service := findCatalogService(t, ap.catalog, "orders")
+		require.Len(t, service.Contracts, 1)
+		contract := service.Contracts[0]
+		require.Len(t, contract.Versions, 1)
+		require.NotNil(t, contract.LatestVersion)
+		assert.Equal(t, "v1", contract.LatestVersion.Label)
+		require.Same(t, contract.Versions[0], contract.LatestVersion)
+		require.NotNil(t, service.LatestVersion)
+		assert.Equal(t, "v1", service.LatestVersion.Label)
+		assert.Equal(t, contract.LatestVersion.OverviewHref, servicePrimaryHref(service))
+		assert.FileExists(t, filepath.Join(outputDir, filepath.FromSlash(servicePrimaryHref(service))))
+	})
+
+	t.Run("wholly skipped default contract promotes another visible contract", func(t *testing.T) {
+		root := t.TempDir()
+		writeSwaggerTwoSpec(t, root, "services/orders/public/v2/openapi.yaml", "Public Orders", "v2")
+		writeAggregateCatalogSpec(t, root, "services/orders/admin/v1/openapi.yaml", SpecKindOpenAPI, "Admin Orders", "Admin summary", "v1", "")
+		outputDir := filepath.Join(root, "site")
+		ap := newAggregateForSkippedContractTest(t, root, outputDir)
+		_, err := ap.PrintHTML()
+		require.NoError(t, err)
+		service := findCatalogService(t, ap.catalog, "orders")
+		assert.Contains(t, service.DefaultContractID, "admin")
+		assert.Equal(t, "Admin Orders", service.DisplayName)
+		assert.Equal(t, "Admin summary", service.Summary)
+		defaults := 0
+		for _, contract := range service.Contracts {
+			if contract.Default {
+				defaults++
+				assert.NotEmpty(t, contract.Versions)
+			}
+		}
+		assert.Equal(t, 1, defaults)
+		assert.FileExists(t, filepath.Join(outputDir, filepath.FromSlash(servicePrimaryHref(service))))
+	})
+
+	t.Run("all skipped contracts clear visible defaults and hrefs", func(t *testing.T) {
+		root := t.TempDir()
+		writeSwaggerTwoSpec(t, root, "services/orders/public/v2/openapi.yaml", "Public Orders", "v2")
+		writeSwaggerTwoSpec(t, root, "services/orders/admin/v1/openapi.yaml", "Admin Orders", "v1")
+		outputDir := filepath.Join(root, "site")
+		ap := newAggregateForSkippedContractTest(t, root, outputDir)
+		_, err := ap.PrintHTML()
+		require.NoError(t, err)
+		service := findCatalogService(t, ap.catalog, "orders")
+		assert.Empty(t, visibleCatalogVersions(service))
+		assert.Nil(t, service.LatestVersion)
+		assert.Empty(t, service.DefaultContractID)
+		assert.Empty(t, servicePrimaryHref(service))
+		assert.Empty(t, service.DisplayName)
+		assert.Empty(t, service.Summary)
+		for _, contract := range service.Contracts {
+			assert.Empty(t, contract.Versions)
+			assert.Nil(t, contract.LatestVersion)
+			assert.False(t, contract.Default)
+		}
+		assert.FileExists(t, filepath.Join(outputDir, pppaths.FileIndexHTML))
+	})
+}
+
+func TestAggregateMetadataJSONPointersUseOrderScalarValuesAndRFC6901Escaping(t *testing.T) {
+	metadata, err := parseAggregateSpecMetadata([]byte(`
+openapi: 3.1.0
+info:
+  title: Generic Metadata API
+  version: v1
+  empty: "  "
+  container:
+    service: ignored
+  x/team:
+    "~service": escaped-service
+  x-custom-identity: later-service
+`), []string{"/info/container", "/info/empty", "/info/x~1team/~0service", "/info/x-custom-identity"})
+
+	require.NoError(t, err)
+	assert.Equal(t, "escaped-service", metadata.ServiceIdentityCandidate)
+	assert.Empty(t, metadata.Warnings)
+}
+
+func TestAggregateMetadataJSONPointersAreGenericAndDoNotHardCodeExtensionNames(t *testing.T) {
+	metadata, err := parseAggregateSpecMetadata([]byte(`
+openapi: 3.1.0
+info:
+  title: Generic Metadata API
+  version: v1
+arbitrary:
+  7: forces-generic-map
+  ownership:
+    service_key: widgets-platform
+  primary:
+    $ref: z-shared.yaml#/Thing
+  nested:
+    - $ref: a-shared.yaml#/Thing
+    - $ref: z-shared.yaml#/Thing
+`), []string{"/arbitrary/ownership/service_key"})
+
+	require.NoError(t, err)
+	assert.Equal(t, "widgets-platform", metadata.ServiceIdentityCandidate)
+	assert.Equal(t, []string{"a-shared.yaml#/Thing", "z-shared.yaml#/Thing"}, metadata.ExternalRefs)
+	root, ok := metadata.Document.(map[string]any)
+	require.True(t, ok, "yaml/v4 should decode the string-keyed root as map[string]any")
+	_, ok = root["arbitrary"].(map[any]any)
+	assert.True(t, ok, "the non-string sibling key must force yaml/v4's generic map[any]any form")
+}
+
+func TestAggregateMetadataCollectsRecursiveExternalRefsSortedAndDeduplicated(t *testing.T) {
+	metadata, err := parseAggregateSpecMetadata([]byte(`
+openapi: 3.1.0
+info:
+  title: Refs API
+  version: v1
+paths:
+  /one:
+    get:
+      responses:
+        "200":
+          $ref: common.yaml#/responses/OK
+components:
+  schemas:
+    One:
+      $ref: "#/components/schemas/Local"
+    Two:
+      allOf:
+        - $ref: common.yaml#/responses/OK
+        - nested:
+            $ref: https://example.com/contracts/shared.yaml#/Thing
+    NonString:
+      $ref:
+        nested: ignored
+`), nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"#/components/schemas/Local",
+		"common.yaml#/responses/OK",
+		"https://example.com/contracts/shared.yaml#/Thing",
+	}, metadata.ExternalRefs)
+}
+
+func TestAggregateMetadataWarningFallsBackToPathBasedServiceDiscovery(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateSpecDocument(t, root, "services/orders/specs/openapi.yaml", `
+openapi: 3.1.0
+info:
+  title: Orders API
+  version: v1
+  x-owner:
+    service:
+      nested: not-a-scalar
+paths: {}
+`)
+
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir: filepath.Join(root, "site"),
+		BuildMode: AggregateBuildModeFull,
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers: []string{"/info/x-owner/service", "/missing"},
+		},
+		StateStore: NewMemorySpecStateStore(),
+	})
+	require.NoError(t, err)
+
+	catalog, err := ap.PressModel()
+	require.NoError(t, err)
+	require.Len(t, catalog.Services, 1)
+	assert.Equal(t, "orders", catalog.Services[0].Key)
+	require.NotEmpty(t, catalog.Warnings)
+	assert.Contains(t, catalog.Warnings[0].Message, "service identity metadata")
+	assert.Contains(t, catalog.Warnings[0].Context, "services/orders/specs/openapi.yaml")
+}
+
+func TestAggregateMetadataConfigHashControlsCachedMetadataReparse(t *testing.T) {
+	root := t.TempDir()
+	content := []byte(`
+openapi: 3.1.0
+info:
+  title: Cache API
+  summary: Metadata cache test.
+  version: v1
+  x-team: newly-parsed-team
+  x-other: changed-pointer-team
+paths:
+  /health:
+    get:
+      responses:
+        "200":
+          $ref: common.yaml#/responses/OK
+`)
+	specPath := writeAggregateSpecDocument(t, root, "services/cache/spec.yaml", string(content))
+	content, err := os.ReadFile(specPath)
+	require.NoError(t, err)
+	store := NewMemorySpecStateStore()
+	baseConfig := &AggregatePrintingPressConfig{
+		ServiceIdentity: AggregateServiceIdentityConfig{MetadataPointers: []string{"/info/x-team"}},
+	}
+	require.NoError(t, store.Upsert("test", []*SpecStateRecord{{
+		RelativePath:             "services/cache/spec.yaml",
+		Hash:                     hashSpecBytes(content),
+		MetadataConfigHash:       aggregateMetadataConfigHash(baseConfig),
+		MetadataVersion:          aggregateMetadataVersion,
+		SpecKind:                 SpecKindOpenAPI,
+		Title:                    "Cached API",
+		Summary:                  "Cached summary.",
+		ServiceIdentityCandidate: "cached-team",
+		ExternalRefs:             []string{"cached.yaml#/Thing"},
+		Version:                  "v1",
+	}}))
+
+	unchanged, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:       filepath.Join(root, "unchanged"),
+		BuildMode:       AggregateBuildModeFast,
+		StateNamespace:  "test",
+		StateStore:      store,
+		ServiceIdentity: baseConfig.ServiceIdentity,
+	})
+	require.NoError(t, err)
+	unchangedCatalog, err := unchanged.PressModel()
+	require.NoError(t, err)
+	require.Len(t, unchangedCatalog.Services, 1)
+	assert.Equal(t, "cached-team", unchangedCatalog.Services[0].Key)
+	require.Len(t, unchanged.plan.discovered, 1)
+	assert.Equal(t, []string{"cached.yaml#/Thing"}, unchanged.plan.discovered[0].ExternalRefs)
+
+	changed, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:      filepath.Join(root, "changed"),
+		BuildMode:      AggregateBuildModeFast,
+		StateNamespace: "test",
+		StateStore:     store,
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers: []string{"/info/x-other"},
+		},
+	})
+	require.NoError(t, err)
+	changedCatalog, err := changed.PressModel()
+	require.NoError(t, err)
+	require.Len(t, changedCatalog.Services, 1)
+	assert.Equal(t, "changed-pointer-team", changedCatalog.Services[0].Key)
+	require.Len(t, changed.plan.discovered, 1)
+	assert.Equal(t, []string{"common.yaml#/responses/OK"}, changed.plan.discovered[0].ExternalRefs)
+}
+
+func TestAggregateMetadataCachePreservesUnresolvedPointerWarning(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateSpecDocument(t, root, "services/cache/spec.yaml", `
+openapi: 3.1.0
+info:
+  title: Warning Cache API
+  summary: Exercises cached warning replay.
+  version: v1
+x-contract:
+  $ref: "#/components/schemas/Shared"
+components:
+  schemas:
+    Shared:
+      type: object
+`)
+	store := NewMemorySpecStateStore()
+	config := &AggregatePrintingPressConfig{
+		OutputDir:      filepath.Join(root, "site"),
+		BuildMode:      AggregateBuildModeFast,
+		StateNamespace: "test",
+		StateStore:     store,
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers: []string{"/info/x-owner/service"},
+		},
+	}
+
+	first, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	firstStats, err := first.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
+	require.NoError(t, err)
+	require.Len(t, firstStats.Warnings, 1)
+	assert.Contains(t, firstStats.Warnings[0].Message, "service identity metadata")
+
+	cached, err := store.Load("test")
+	require.NoError(t, err)
+	record := cached["services/cache/spec.yaml"]
+	require.NotNil(t, record)
+	record.ExternalRefs = []string{"cached-only.yaml#/Thing"}
+	require.NoError(t, store.Upsert("test", []*SpecStateRecord{record}))
+
+	second, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	secondCatalog, err := second.PressModel()
+	require.NoError(t, err)
+	require.Len(t, secondCatalog.Warnings, 1)
+	assert.Equal(t, firstStats.Warnings[0].Message, secondCatalog.Warnings[0].Message)
+	assert.Equal(t, firstStats.Warnings[0].Context, secondCatalog.Warnings[0].Context)
+	require.Len(t, second.plan.discovered, 1)
+	assert.Equal(t, []string{"cached-only.yaml#/Thing"}, second.plan.discovered[0].ExternalRefs, "cached refs prove the second run did not reparse metadata")
+}
+
+func TestAggregateMetadataCacheAllowsIntentionallyEmptySummary(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateSpecDocument(t, root, "services/cache/spec.yaml", `
+openapi: 3.1.0
+info:
+  title: Summary-Free API
+  version: v1
+  x-service: platform-orders
+x-contract:
+  $ref: "#/components/schemas/Shared"
+components:
+  schemas:
+    Shared:
+      type: object
+`)
+	store := NewMemorySpecStateStore()
+	config := &AggregatePrintingPressConfig{
+		OutputDir:      filepath.Join(root, "site"),
+		BuildMode:      AggregateBuildModeFast,
+		StateNamespace: "test",
+		StateStore:     store,
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers: []string{"/info/x-service"},
+		},
+	}
+
+	first, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	firstStats, err := first.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
+	require.NoError(t, err)
+	assert.Empty(t, firstStats.Warnings)
+
+	cached, err := store.Load("test")
+	require.NoError(t, err)
+	record := cached["services/cache/spec.yaml"]
+	require.NotNil(t, record)
+	assert.Empty(t, record.Summary)
+	record.ServiceIdentityCandidate = "cached-identity"
+	record.ExternalRefs = []string{"cached-only.yaml#/Thing"}
+	require.NoError(t, store.Upsert("test", []*SpecStateRecord{record}))
+
+	second, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	secondCatalog, err := second.PressModel()
+	require.NoError(t, err)
+	assert.Empty(t, secondCatalog.Warnings)
+	require.Len(t, secondCatalog.Services, 1)
+	assert.Equal(t, "cached-identity", secondCatalog.Services[0].Key)
+	require.Len(t, second.plan.discovered, 1)
+	assert.Empty(t, second.plan.discovered[0].Summary)
+	assert.Equal(t, "cached-identity", second.plan.discovered[0].ServiceIdentityCandidate)
+	assert.Equal(t, []string{"cached-only.yaml#/Thing"}, second.plan.discovered[0].ExternalRefs)
+}
+
+func TestAggregateMetadataJSONPointerArrayIndices(t *testing.T) {
+	content := []byte(`
+openapi: 3.1.0
+info:
+  title: Array Pointer API
+  version: v1
+identities:
+  - zero-service
+  - one-service
+`)
+
+	for _, tc := range []struct {
+		name      string
+		token     string
+		candidate string
+	}{
+		{name: "zero", token: "0", candidate: "zero-service"},
+		{name: "one", token: "1", candidate: "one-service"},
+	} {
+		t.Run("valid "+tc.name, func(t *testing.T) {
+			metadata, err := parseAggregateSpecMetadata(content, []string{"/identities/" + tc.token})
+			require.NoError(t, err)
+			assert.Equal(t, tc.candidate, metadata.ServiceIdentityCandidate)
+			assert.Empty(t, metadata.Warnings)
+		})
+	}
+
+	for _, token := range []string{"+0", "-0", "00", "01", "", "-1", "+1", "one", "2"} {
+		t.Run("invalid "+token, func(t *testing.T) {
+			metadata, err := parseAggregateSpecMetadata(content, []string{"/identities/" + token})
+			require.NoError(t, err)
+			assert.Empty(t, metadata.ServiceIdentityCandidate)
+			require.Len(t, metadata.Warnings, 1)
+			assert.Contains(t, metadata.Warnings[0], "path-based discovery")
+		})
+	}
+}
+
+func TestAggregateMetadataPersistsCandidateConfigHashAndExternalRefs(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateSpecDocument(t, root, "services/orders/spec.yaml", `
+openapi: 3.1.0
+info:
+  title: Orders API
+  version: v1
+  x-owner:
+    service: platform-orders-api
+paths:
+  /orders:
+    get:
+      responses:
+        "200":
+          $ref: "#/components/responses/OK"
+components:
+  responses:
+    OK:
+      description: OK
+`)
+	store := NewMemorySpecStateStore()
+	config := &AggregatePrintingPressConfig{
+		OutputDir:      filepath.Join(root, "site"),
+		BuildMode:      AggregateBuildModeFull,
+		StateNamespace: "test",
+		StateStore:     store,
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers: []string{"/info/x-owner/service"},
+			StripPrefixes:    []string{"platform-"},
+			StripSuffixes:    []string{"-api"},
+		},
+	}
+	ap, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+	_, err = ap.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
+	require.NoError(t, err)
+
+	loaded, err := store.Load("test")
+	require.NoError(t, err)
+	record := loaded["services/orders/spec.yaml"]
+	require.NotNil(t, record)
+	assert.Equal(t, aggregateMetadataConfigHash(ap.config), record.MetadataConfigHash)
+	assert.Equal(t, "platform-orders-api", record.ServiceIdentityCandidate)
+	assert.Equal(t, []string{"#/components/responses/OK"}, record.ExternalRefs)
+}
+
+func TestAggregateConfigCloneDeepCopiesServiceIdentityAndContractRoles(t *testing.T) {
+	config := &AggregatePrintingPressConfig{
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers: []string{"/info/x-owner/service"},
+			StripPrefixes:    []string{"platform-"},
+			StripSuffixes:    []string{"-api"},
+		},
+		ContractRoles: []AggregateContractRoleRule{{Pattern: "**/*.yaml", Role: "events", ContractID: "events", Default: true}},
+	}
+	cloned := cloneAggregateConfig(config)
+	cloned.ServiceIdentity.MetadataPointers[0] = "/changed"
+	cloned.ServiceIdentity.StripPrefixes[0] = "changed-"
+	cloned.ServiceIdentity.StripSuffixes[0] = "-changed"
+	cloned.ContractRoles[0].Pattern = "changed"
+
+	assert.Equal(t, "/info/x-owner/service", config.ServiceIdentity.MetadataPointers[0])
+	assert.Equal(t, "platform-", config.ServiceIdentity.StripPrefixes[0])
+	assert.Equal(t, "-api", config.ServiceIdentity.StripSuffixes[0])
+	assert.Equal(t, "**/*.yaml", config.ContractRoles[0].Pattern)
 }
 
 func TestAggregatePrintingPress_IncludesSourceSpecPerEntry(t *testing.T) {
@@ -1619,6 +4549,14 @@ func TestAggregateEntryConfigHashIncludesEntryOutputOptions(t *testing.T) {
 		{name: "llm monolith mode", config: &AggregatePrintingPressConfig{LLMGenerateMonoliths: LLMGenerateMonolithsNever}},
 		{name: "include spec", config: &AggregatePrintingPressConfig{IncludeSpec: true}},
 		{name: "entry config fingerprint", config: &AggregatePrintingPressConfig{EntryConfigFingerprint: "diagnostics-v1"}},
+		{name: "service metadata pointers", config: &AggregatePrintingPressConfig{ServiceIdentity: AggregateServiceIdentityConfig{MetadataPointers: []string{"/info/x-owner/service"}}}},
+		{name: "service strip prefixes", config: &AggregatePrintingPressConfig{ServiceIdentity: AggregateServiceIdentityConfig{StripPrefixes: []string{"platform-"}}}},
+		{name: "service strip suffixes", config: &AggregatePrintingPressConfig{ServiceIdentity: AggregateServiceIdentityConfig{StripSuffixes: []string{"-api"}}}},
+		{name: "prefer openapi slug", config: &AggregatePrintingPressConfig{ServiceIdentity: AggregateServiceIdentityConfig{PreferOpenAPISlug: true}}},
+		{name: "contract role pattern", config: &AggregatePrintingPressConfig{ContractRoles: []AggregateContractRoleRule{{Pattern: "**/*.yaml", Role: "events"}}}},
+		{name: "contract role value", config: &AggregatePrintingPressConfig{ContractRoles: []AggregateContractRoleRule{{Role: "http-api"}}}},
+		{name: "contract role contract id", config: &AggregatePrintingPressConfig{ContractRoles: []AggregateContractRoleRule{{Role: "events", ContractID: "event-stream"}}}},
+		{name: "contract role default", config: &AggregatePrintingPressConfig{ContractRoles: []AggregateContractRoleRule{{Role: "events", Default: true}}}},
 	}
 
 	for _, tc := range cases {
@@ -1626,6 +4564,49 @@ func TestAggregateEntryConfigHashIncludesEntryOutputOptions(t *testing.T) {
 			assert.NotEqual(t, baseHash, normalizedAggregateEntryConfigHash(t, tc.config))
 		})
 	}
+}
+
+func TestAggregateMetadataConfigHashIncludesOnlyMetadataPointers(t *testing.T) {
+	base := &AggregatePrintingPressConfig{
+		ServiceIdentity: AggregateServiceIdentityConfig{MetadataPointers: []string{"/info/x-owner/service"}},
+	}
+	baseHash := aggregateMetadataConfigHash(base)
+	assert.NotEqual(t, "", baseHash)
+	assert.NotEqual(t, baseHash, aggregateMetadataConfigHash(&AggregatePrintingPressConfig{
+		ServiceIdentity: AggregateServiceIdentityConfig{MetadataPointers: []string{"/info/x-team/service"}},
+	}))
+	assert.Equal(t, baseHash, aggregateMetadataConfigHash(&AggregatePrintingPressConfig{
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers:  []string{"/info/x-owner/service"},
+			StripPrefixes:     []string{"platform-"},
+			StripSuffixes:     []string{"-api"},
+			PreferOpenAPISlug: true,
+		},
+		ContractRoles: []AggregateContractRoleRule{{Pattern: "**/*.yaml", Role: "events", ContractID: "events", Default: true}},
+	}))
+}
+
+func TestMemorySpecStateStoreDeepCopiesExternalRefs(t *testing.T) {
+	store := NewMemorySpecStateStore()
+	record := &SpecStateRecord{
+		RelativePath: "spec.yaml",
+		ExternalRefs: []string{"common.yaml#/Thing"},
+		OutputSubdir: "services/users/versions/v1/specs/users-api",
+	}
+	require.NoError(t, store.Upsert("test", []*SpecStateRecord{record}))
+	record.ExternalRefs[0] = "mutated-original"
+
+	loaded, err := store.Load("test")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"common.yaml#/Thing"}, loaded["spec.yaml"].ExternalRefs)
+	loaded["spec.yaml"].ExternalRefs[0] = "mutated-load"
+
+	reloaded, err := store.Load("test")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"common.yaml#/Thing"}, reloaded["spec.yaml"].ExternalRefs)
+	assert.Equal(t, record.OutputSubdir, reloaded["spec.yaml"].HTMLOutputSubdir)
+	assert.Equal(t, record.OutputSubdir, reloaded["spec.yaml"].JSONOutputSubdir)
+	assert.Equal(t, record.OutputSubdir, reloaded["spec.yaml"].LLMOutputSubdir)
 }
 
 func TestAggregateEntryRenderConfigHashIncludesSpecKind(t *testing.T) {
@@ -1678,28 +4659,37 @@ func TestAggregatePrintingPress_BuildEntrySiteUsesSpecLintResults(t *testing.T) 
 	assert.NotEmpty(t, site.Diagnostics.Problems)
 }
 
-func TestSQLiteSpecStateStore_RoundTripsRecords(t *testing.T) {
+func TestSQLiteSpecStateStore_RoundTripsMetadataRecords(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "state.db")
 	store, err := NewSQLiteSpecStateStore(dbPath)
 	require.NoError(t, err)
 	defer store.Close()
 
 	record := &SpecStateRecord{
-		RelativePath:    "services/users/spec.yaml",
-		Hash:            "abc123",
-		ConfigHash:      "cfg-123",
-		MetadataVersion: aggregateMetadataVersion,
-		SpecKind:        SpecKindAsyncAPI,
-		Title:           "Users API",
-		Summary:         "Core account resources.",
-		ContactName:     "API Support",
-		ContactEmail:    "support@example.com",
-		ServiceKey:      "users",
-		DisplayName:     "Users API",
-		Version:         "v1",
-		Format:          "yaml",
-		OutputSubdir:    "services/users/versions/v1/specs/users-api",
-		UpdatedAt:       time.Now().UTC().Round(time.Second),
+		RelativePath:             "services/users/spec.yaml",
+		Hash:                     "abc123",
+		ConfigHash:               "cfg-123",
+		HTMLCompletionHash:       "html-123",
+		JSONCompletionHash:       "json-123",
+		LLMCompletionHash:        "llm-123",
+		HTMLOutputSubdir:         "html/location",
+		JSONOutputSubdir:         "json/location",
+		LLMOutputSubdir:          "llm/location",
+		MetadataConfigHash:       "metadata-cfg-123",
+		MetadataVersion:          aggregateMetadataVersion,
+		SpecKind:                 SpecKindAsyncAPI,
+		Title:                    "Users API",
+		Summary:                  "Core account resources.",
+		ContactName:              "API Support",
+		ContactEmail:             "support@example.com",
+		ServiceIdentityCandidate: "users-platform",
+		ExternalRefs:             []string{"common.yaml#/Error", "#/components/schemas/User", "common.yaml#/Error"},
+		ServiceKey:               "users",
+		DisplayName:              "Users API",
+		Version:                  "v1",
+		Format:                   "yaml",
+		OutputSubdir:             "services/users/versions/v1/specs/users-api",
+		UpdatedAt:                time.Now().UTC().Round(time.Second),
 	}
 	require.NoError(t, store.Upsert("test", []*SpecStateRecord{record}))
 
@@ -1708,12 +4698,27 @@ func TestSQLiteSpecStateStore_RoundTripsRecords(t *testing.T) {
 	require.Contains(t, loaded, record.RelativePath)
 	assert.Equal(t, record.Hash, loaded[record.RelativePath].Hash)
 	assert.Equal(t, record.ConfigHash, loaded[record.RelativePath].ConfigHash)
+	assert.Equal(t, record.HTMLCompletionHash, loaded[record.RelativePath].HTMLCompletionHash)
+	assert.Equal(t, record.JSONCompletionHash, loaded[record.RelativePath].JSONCompletionHash)
+	assert.Equal(t, record.LLMCompletionHash, loaded[record.RelativePath].LLMCompletionHash)
+	assert.Equal(t, record.HTMLOutputSubdir, loaded[record.RelativePath].HTMLOutputSubdir)
+	assert.Equal(t, record.JSONOutputSubdir, loaded[record.RelativePath].JSONOutputSubdir)
+	assert.Equal(t, record.LLMOutputSubdir, loaded[record.RelativePath].LLMOutputSubdir)
+	assert.Equal(t, record.MetadataConfigHash, loaded[record.RelativePath].MetadataConfigHash)
 	assert.Equal(t, record.MetadataVersion, loaded[record.RelativePath].MetadataVersion)
 	assert.Equal(t, record.SpecKind, loaded[record.RelativePath].SpecKind)
 	assert.Equal(t, record.Summary, loaded[record.RelativePath].Summary)
 	assert.Equal(t, record.ContactName, loaded[record.RelativePath].ContactName)
 	assert.Equal(t, record.ContactEmail, loaded[record.RelativePath].ContactEmail)
+	assert.Equal(t, record.ServiceIdentityCandidate, loaded[record.RelativePath].ServiceIdentityCandidate)
+	assert.Equal(t, []string{"#/components/schemas/User", "common.yaml#/Error"}, loaded[record.RelativePath].ExternalRefs)
 	assert.Equal(t, record.OutputSubdir, loaded[record.RelativePath].OutputSubdir)
+	var storedRefs string
+	require.NoError(t, store.(*sqliteSpecStateStore).db.QueryRow(
+		`SELECT external_refs FROM spec_state WHERE namespace = ? AND relative_path = ?`,
+		"test", record.RelativePath,
+	).Scan(&storedRefs))
+	assert.Equal(t, `["#/components/schemas/User","common.yaml#/Error"]`, storedRefs)
 
 	require.NoError(t, store.Delete("test", []string{record.RelativePath}))
 	loaded, err = store.Load("test")
@@ -1758,11 +4763,153 @@ func TestSQLiteSpecStateStore_LoadsLegacyRowsWithNullSummary(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, loaded, "services/users/spec.yaml")
 	assert.Equal(t, "", loaded["services/users/spec.yaml"].ConfigHash)
+	assert.Equal(t, "", loaded["services/users/spec.yaml"].HTMLCompletionHash)
+	assert.Equal(t, "", loaded["services/users/spec.yaml"].JSONCompletionHash)
+	assert.Equal(t, "", loaded["services/users/spec.yaml"].LLMCompletionHash)
+	assert.Equal(t, "services/users/versions/v1/specs/users-api", loaded["services/users/spec.yaml"].HTMLOutputSubdir)
+	assert.Equal(t, "services/users/versions/v1/specs/users-api", loaded["services/users/spec.yaml"].JSONOutputSubdir)
+	assert.Equal(t, "services/users/versions/v1/specs/users-api", loaded["services/users/spec.yaml"].LLMOutputSubdir)
+	assert.Equal(t, "", loaded["services/users/spec.yaml"].MetadataConfigHash)
 	assert.Equal(t, 0, loaded["services/users/spec.yaml"].MetadataVersion)
 	assert.Equal(t, SpecKindOpenAPI, loaded["services/users/spec.yaml"].SpecKind)
 	assert.Equal(t, "", loaded["services/users/spec.yaml"].Summary)
 	assert.Equal(t, "", loaded["services/users/spec.yaml"].ContactName)
 	assert.Equal(t, "", loaded["services/users/spec.yaml"].ContactEmail)
+	assert.Equal(t, "", loaded["services/users/spec.yaml"].ServiceIdentityCandidate)
+	assert.Empty(t, loaded["services/users/spec.yaml"].ExternalRefs)
+
+	legacyLocation := "services/users/versions/v1/specs/users-api"
+	var htmlLocation, jsonLocation, llmLocation string
+	require.NoError(t, store.(*sqliteSpecStateStore).db.QueryRow(
+		`SELECT html_output_subdir, json_output_subdir, llm_output_subdir FROM spec_state WHERE namespace = ? AND relative_path = ?`,
+		"legacy", "services/users/spec.yaml",
+	).Scan(&htmlLocation, &jsonLocation, &llmLocation))
+	assert.Equal(t, legacyLocation, htmlLocation)
+	assert.Equal(t, legacyLocation, jsonLocation)
+	assert.Equal(t, legacyLocation, llmLocation)
+
+	writeAggregateCatalogSpec(t, filepath.Dir(dbPath), "services/users/spec.yaml", SpecKindOpenAPI, "Users API", "", "v1", "new-users")
+	outputDir := filepath.Join(filepath.Dir(dbPath), "site")
+	legacyOutput := filepath.Join(outputDir, filepath.FromSlash(legacyLocation))
+	require.NoError(t, os.MkdirAll(legacyOutput, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(legacyOutput, pppaths.FileIndexHTML), []byte("legacy html"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(legacyOutput, pppaths.FileLLMIndex), []byte("legacy llm"), 0o644))
+	writeLegacyAggregate := func(relPath string) {
+		absPath := filepath.Join(outputDir, filepath.FromSlash(relPath))
+		require.NoError(t, os.MkdirAll(filepath.Dir(absPath), 0o755))
+		require.NoError(t, os.WriteFile(absPath, []byte("legacy aggregate"), 0o644))
+	}
+	oldHTMLVersion := pppaths.AggregateVersionIndexHTML("users", "v1")
+	oldJSONService := pppaths.AggregateServiceIndexJSON("users")
+	oldJSONVersions := pppaths.AggregateServiceVersionsIndexJSON("users")
+	oldJSONVersion := pppaths.AggregateVersionIndexJSON("users", "v1")
+	oldLLMService := pppaths.AggregateServiceLLM("users")
+	oldLLMVersion := pppaths.AggregateVersionLLM("users", "v1")
+	for _, relPath := range []string{oldHTMLVersion, oldJSONService, oldJSONVersions, oldJSONVersion, oldLLMService, oldLLMVersion} {
+		writeLegacyAggregate(relPath)
+	}
+	ap, err := CreateAggregatePrintingPressFromPath(filepath.Dir(dbPath), &AggregatePrintingPressConfig{
+		OutputDir:      outputDir,
+		BuildMode:      AggregateBuildModeFast,
+		StateNamespace: "legacy",
+		StateStore:     store,
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers: []string{"/info/x-owner"},
+		},
+	})
+	require.NoError(t, err)
+	stats, err := ap.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
+	require.NoError(t, err)
+	assert.Equal(t, 1, stats.ChangedSpecs)
+	currentLocation := catalogEntryIndex(ap.catalog)["services/users/spec.yaml"].OutputSubdir
+	require.NotEqual(t, legacyLocation, currentLocation)
+	require.FileExists(t, filepath.Join(outputDir, filepath.FromSlash(currentLocation), pppaths.FileBundleJSON))
+	require.FileExists(t, filepath.Join(legacyOutput, pppaths.FileIndexHTML))
+	require.FileExists(t, filepath.Join(legacyOutput, pppaths.FileLLMIndex))
+	require.NoFileExists(t, filepath.Join(outputDir, filepath.FromSlash(oldJSONService)))
+	require.NoFileExists(t, filepath.Join(outputDir, filepath.FromSlash(oldJSONVersions)))
+	require.NoFileExists(t, filepath.Join(outputDir, filepath.FromSlash(oldJSONVersion)))
+	require.FileExists(t, filepath.Join(outputDir, filepath.FromSlash(oldHTMLVersion)))
+	require.FileExists(t, filepath.Join(outputDir, filepath.FromSlash(oldLLMService)))
+	require.FileExists(t, filepath.Join(outputDir, filepath.FromSlash(oldLLMVersion)))
+
+	loaded, err = store.Load("legacy")
+	require.NoError(t, err)
+	assert.Empty(t, loaded["services/users/spec.yaml"].HTMLCompletionHash)
+	assert.NotEmpty(t, loaded["services/users/spec.yaml"].JSONCompletionHash)
+	assert.Empty(t, loaded["services/users/spec.yaml"].LLMCompletionHash)
+	assert.Equal(t, legacyLocation, loaded["services/users/spec.yaml"].HTMLOutputSubdir)
+	assert.Equal(t, currentLocation, loaded["services/users/spec.yaml"].JSONOutputSubdir)
+	assert.Equal(t, legacyLocation, loaded["services/users/spec.yaml"].LLMOutputSubdir)
+	require.NoError(t, store.(*sqliteSpecStateStore).db.QueryRow(
+		`SELECT html_output_subdir, json_output_subdir, llm_output_subdir FROM spec_state WHERE namespace = ? AND relative_path = ?`,
+		"legacy", "services/users/spec.yaml",
+	).Scan(&htmlLocation, &jsonLocation, &llmLocation))
+	assert.Equal(t, legacyLocation, htmlLocation)
+	assert.Equal(t, currentLocation, jsonLocation)
+	assert.Equal(t, legacyLocation, llmLocation)
+}
+
+func TestSQLiteSpecStateStore_MigratesPreMetadataSchema(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "pre-metadata-state.db")
+	db, err := sql.Open("sqlite", dbPath)
+	require.NoError(t, err)
+
+	_, err = db.Exec(`
+		CREATE TABLE spec_state (
+			namespace TEXT NOT NULL,
+			relative_path TEXT NOT NULL,
+			hash TEXT NOT NULL,
+			config_hash TEXT,
+			metadata_version INTEGER,
+			spec_kind TEXT,
+			title TEXT,
+			summary TEXT,
+			contact_name TEXT,
+			contact_email TEXT,
+			service_key TEXT,
+			display_name TEXT,
+			version TEXT,
+			format TEXT,
+			output_subdir TEXT,
+			updated_at TEXT NOT NULL,
+			PRIMARY KEY (namespace, relative_path)
+		);
+	`)
+	require.NoError(t, err)
+	_, err = db.Exec(`
+		INSERT INTO spec_state (
+			namespace, relative_path, hash, config_hash, metadata_version, spec_kind, title, summary,
+			contact_name, contact_email, service_key, display_name, version, format, output_subdir, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "pre-metadata", "services/users/spec.yaml", "abc123", "cfg-123", 2, "asyncapi", "Users Events", "User lifecycle events.",
+		"API Support", "support@example.com", "users", "Users Events", "v1", "yaml", "services/users/versions/v1/specs/users-events", time.Now().UTC().Format(time.RFC3339Nano))
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
+
+	store, err := NewSQLiteSpecStateStore(dbPath)
+	require.NoError(t, err)
+	defer store.Close()
+
+	loaded, err := store.Load("pre-metadata")
+	require.NoError(t, err)
+	record := loaded["services/users/spec.yaml"]
+	require.NotNil(t, record)
+	assert.Equal(t, "abc123", record.Hash)
+	assert.Equal(t, "cfg-123", record.ConfigHash)
+	assert.Equal(t, 2, record.MetadataVersion)
+	assert.Equal(t, SpecKindAsyncAPI, record.SpecKind)
+	assert.Equal(t, "Users Events", record.Title)
+	assert.Equal(t, "User lifecycle events.", record.Summary)
+	assert.Equal(t, "", record.MetadataConfigHash)
+	assert.Equal(t, "", record.HTMLCompletionHash)
+	assert.Equal(t, "", record.JSONCompletionHash)
+	assert.Equal(t, "", record.LLMCompletionHash)
+	assert.Equal(t, "services/users/versions/v1/specs/users-events", record.HTMLOutputSubdir)
+	assert.Equal(t, "services/users/versions/v1/specs/users-events", record.JSONOutputSubdir)
+	assert.Equal(t, "services/users/versions/v1/specs/users-events", record.LLMOutputSubdir)
+	assert.Equal(t, "", record.ServiceIdentityCandidate)
+	assert.Empty(t, record.ExternalRefs)
 }
 
 func TestCatalogStylesheet_UsesSharedBackgroundSurface(t *testing.T) {
@@ -1946,6 +5093,91 @@ components:
           type: string
 `) + "\n"
 	return writeAggregateSpecDocument(t, root, relPath, spec)
+}
+
+func writeAggregateCatalogSpec(t *testing.T, root, relPath string, kind SpecKind, title, summary, version, owner string) string {
+	t.Helper()
+	var document strings.Builder
+	if kind.IsAsyncAPI() {
+		document.WriteString("asyncapi: 3.0.0\n")
+	} else {
+		document.WriteString("openapi: 3.1.0\n")
+	}
+	document.WriteString("info:\n")
+	document.WriteString("  title: " + strconv.Quote(title) + "\n")
+	if summary != "" {
+		document.WriteString("  summary: " + strconv.Quote(summary) + "\n")
+	}
+	document.WriteString("  version: " + strconv.Quote(version) + "\n")
+	if owner != "" {
+		document.WriteString("  x-owner: " + strconv.Quote(owner) + "\n")
+	}
+	if kind.IsAsyncAPI() {
+		document.WriteString("channels: {}\noperations: {}\ncomponents: {}\n")
+	} else {
+		document.WriteString("paths: {}\n")
+	}
+	return writeAggregateSpecDocument(t, root, relPath, document.String())
+}
+
+func newAggregateForCatalogTest(t *testing.T, root string, roles []AggregateContractRoleRule) *AggregatePrintingPress {
+	t.Helper()
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  filepath.Join(root, "site"),
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: NewMemorySpecStateStore(),
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers: []string{"/info/x-owner"},
+		},
+		ContractRoles: roles,
+	})
+	require.NoError(t, err)
+	return ap
+}
+
+func buildAggregateCatalogForTest(t *testing.T, root string, roles []AggregateContractRoleRule) *ppmodel.CatalogSite {
+	t.Helper()
+	catalog, err := newAggregateForCatalogTest(t, root, roles).PressModel()
+	require.NoError(t, err)
+	return catalog
+}
+
+func newAggregateForSkippedContractTest(t *testing.T, root, outputDir string) *AggregatePrintingPress {
+	t.Helper()
+	ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+		OutputDir:  outputDir,
+		BuildMode:  AggregateBuildModeFull,
+		StateStore: NewMemorySpecStateStore(),
+		ServiceOverrides: []AggregatePathOverride{
+			{Pattern: "services/orders/**", Value: "orders"},
+		},
+	})
+	require.NoError(t, err)
+	return ap
+}
+
+func findCatalogContract(t *testing.T, service *ppmodel.CatalogService, id string) *ppmodel.CatalogContract {
+	t.Helper()
+	for _, contract := range service.Contracts {
+		if contract.ID == id {
+			return contract
+		}
+	}
+	require.FailNow(t, "catalog contract not found", "id=%s", id)
+	return nil
+}
+
+func aggregateContractForDefaultTest(id, title, relPath, version string) *aggregateContractGroup {
+	spec := &aggregateDiscoveredSpec{Title: title, RelativePath: relPath}
+	contractVersion := &aggregateContractVersionGroup{label: version, spec: spec}
+	return &aggregateContractGroup{
+		id:          id,
+		displayName: title,
+		specKind:    SpecKindAsyncAPI,
+		role:        ppmodel.ContractRoleEvents,
+		versions:    []*aggregateContractVersionGroup{contractVersion},
+		latest:      contractVersion,
+	}
 }
 
 func writeAggregateAsyncAPI2Spec(t *testing.T, root, relPath, title, version string) string {

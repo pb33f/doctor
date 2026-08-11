@@ -6,9 +6,11 @@ package printingpress
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -50,12 +52,21 @@ func (s *sqliteSpecStateStore) init() error {
 			relative_path TEXT NOT NULL,
 			hash TEXT NOT NULL,
 			config_hash TEXT,
+			html_completion_hash TEXT,
+			json_completion_hash TEXT,
+			llm_completion_hash TEXT,
+			html_output_subdir TEXT,
+			json_output_subdir TEXT,
+			llm_output_subdir TEXT,
+			metadata_config_hash TEXT,
 			metadata_version INTEGER,
 			spec_kind TEXT,
 			title TEXT,
 			summary TEXT,
 			contact_name TEXT,
 			contact_email TEXT,
+			service_identity_candidate TEXT,
+			external_refs TEXT,
 			service_key TEXT,
 			display_name TEXT,
 			version TEXT,
@@ -76,7 +87,28 @@ func (s *sqliteSpecStateStore) init() error {
 	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN config_hash TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
 	}
+	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN html_completion_hash TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN json_completion_hash TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN llm_completion_hash TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN html_output_subdir TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN json_output_subdir TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN llm_output_subdir TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
+	}
 	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN metadata_version INTEGER`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN metadata_config_hash TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
 	}
 	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN spec_kind TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
@@ -88,13 +120,34 @@ func (s *sqliteSpecStateStore) init() error {
 	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN contact_email TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
 	}
+	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN service_identity_candidate TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN external_refs TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
+	}
 	if _, err := s.db.Exec(`UPDATE spec_state SET summary = '' WHERE summary IS NULL`); err != nil {
 		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
 	}
 	if _, err := s.db.Exec(`UPDATE spec_state SET config_hash = '' WHERE config_hash IS NULL`); err != nil {
 		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
 	}
+	if _, err := s.db.Exec(`UPDATE spec_state SET html_completion_hash = '' WHERE html_completion_hash IS NULL`); err != nil {
+		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`UPDATE spec_state SET json_completion_hash = '' WHERE json_completion_hash IS NULL`); err != nil {
+		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`UPDATE spec_state SET llm_completion_hash = '' WHERE llm_completion_hash IS NULL`); err != nil {
+		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`UPDATE spec_state SET html_output_subdir = output_subdir, json_output_subdir = output_subdir, llm_output_subdir = output_subdir WHERE (html_output_subdir IS NULL OR html_output_subdir = '') AND (json_output_subdir IS NULL OR json_output_subdir = '') AND (llm_output_subdir IS NULL OR llm_output_subdir = '') AND output_subdir IS NOT NULL AND output_subdir != ''`); err != nil {
+		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
+	}
 	if _, err := s.db.Exec(`UPDATE spec_state SET metadata_version = 0 WHERE metadata_version IS NULL`); err != nil {
+		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`UPDATE spec_state SET metadata_config_hash = '' WHERE metadata_config_hash IS NULL`); err != nil {
 		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
 	}
 	if _, err := s.db.Exec(`UPDATE spec_state SET spec_kind = 'openapi' WHERE spec_kind IS NULL OR spec_kind = ''`); err != nil {
@@ -106,12 +159,18 @@ func (s *sqliteSpecStateStore) init() error {
 	if _, err := s.db.Exec(`UPDATE spec_state SET contact_email = '' WHERE contact_email IS NULL`); err != nil {
 		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
 	}
+	if _, err := s.db.Exec(`UPDATE spec_state SET service_identity_candidate = '' WHERE service_identity_candidate IS NULL`); err != nil {
+		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
+	}
+	if _, err := s.db.Exec(`UPDATE spec_state SET external_refs = '[]' WHERE external_refs IS NULL OR external_refs = ''`); err != nil {
+		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
+	}
 	return nil
 }
 
 func (s *sqliteSpecStateStore) Load(namespace string) (map[string]*SpecStateRecord, error) {
 	rows, err := s.db.Query(
-		`SELECT relative_path, hash, config_hash, metadata_version, spec_kind, title, summary, contact_name, contact_email, service_key, display_name, version, format, output_subdir, updated_at
+		`SELECT relative_path, hash, config_hash, html_completion_hash, json_completion_hash, llm_completion_hash, html_output_subdir, json_output_subdir, llm_output_subdir, metadata_config_hash, metadata_version, spec_kind, title, summary, contact_name, contact_email, service_identity_candidate, external_refs, service_key, display_name, version, format, output_subdir, updated_at
 		   FROM spec_state WHERE namespace = ?`,
 		namespace,
 	)
@@ -125,12 +184,21 @@ func (s *sqliteSpecStateStore) Load(namespace string) (map[string]*SpecStateReco
 		var record SpecStateRecord
 		var updatedAt string
 		var configHash sql.NullString
+		var htmlCompletionHash sql.NullString
+		var jsonCompletionHash sql.NullString
+		var llmCompletionHash sql.NullString
+		var htmlOutputSubdir sql.NullString
+		var jsonOutputSubdir sql.NullString
+		var llmOutputSubdir sql.NullString
+		var metadataConfigHash sql.NullString
 		var metadataVersion sql.NullInt64
 		var specKind sql.NullString
 		var title sql.NullString
 		var summary sql.NullString
 		var contactName sql.NullString
 		var contactEmail sql.NullString
+		var serviceIdentityCandidate sql.NullString
+		var externalRefs sql.NullString
 		var serviceKey sql.NullString
 		var displayName sql.NullString
 		var version sql.NullString
@@ -140,12 +208,21 @@ func (s *sqliteSpecStateStore) Load(namespace string) (map[string]*SpecStateReco
 			&record.RelativePath,
 			&record.Hash,
 			&configHash,
+			&htmlCompletionHash,
+			&jsonCompletionHash,
+			&llmCompletionHash,
+			&htmlOutputSubdir,
+			&jsonOutputSubdir,
+			&llmOutputSubdir,
+			&metadataConfigHash,
 			&metadataVersion,
 			&specKind,
 			&title,
 			&summary,
 			&contactName,
 			&contactEmail,
+			&serviceIdentityCandidate,
+			&externalRefs,
 			&serviceKey,
 			&displayName,
 			&version,
@@ -156,6 +233,13 @@ func (s *sqliteSpecStateStore) Load(namespace string) (map[string]*SpecStateReco
 			return nil, fmt.Errorf("printingpress: scanning sqlite state: %w", err)
 		}
 		record.ConfigHash = configHash.String
+		record.HTMLCompletionHash = htmlCompletionHash.String
+		record.JSONCompletionHash = jsonCompletionHash.String
+		record.LLMCompletionHash = llmCompletionHash.String
+		record.HTMLOutputSubdir = htmlOutputSubdir.String
+		record.JSONOutputSubdir = jsonOutputSubdir.String
+		record.LLMOutputSubdir = llmOutputSubdir.String
+		record.MetadataConfigHash = metadataConfigHash.String
 		record.MetadataVersion = int(metadataVersion.Int64)
 		record.SpecKind = SpecKind(specKind.String)
 		if !record.SpecKind.IsKnown() {
@@ -165,11 +249,16 @@ func (s *sqliteSpecStateStore) Load(namespace string) (map[string]*SpecStateReco
 		record.Summary = summary.String
 		record.ContactName = contactName.String
 		record.ContactEmail = contactEmail.String
+		record.ServiceIdentityCandidate = serviceIdentityCandidate.String
+		if err := json.Unmarshal([]byte(externalRefs.String), &record.ExternalRefs); err != nil {
+			return nil, fmt.Errorf("printingpress: decoding sqlite external refs for %s: %w", record.RelativePath, err)
+		}
 		record.ServiceKey = serviceKey.String
 		record.DisplayName = displayName.String
 		record.Version = version.String
 		record.Format = format.String
 		record.OutputSubdir = outputSubdir.String
+		normalizeSpecStateOutputLocations(&record)
 		if parsed, parseErr := time.Parse(time.RFC3339Nano, updatedAt); parseErr == nil {
 			record.UpdatedAt = parsed
 		}
@@ -195,17 +284,26 @@ func (s *sqliteSpecStateStore) Upsert(namespace string, records []*SpecStateReco
 
 	statement, err := tx.Prepare(`
 		INSERT INTO spec_state (
-			namespace, relative_path, hash, config_hash, metadata_version, spec_kind, title, summary, contact_name, contact_email, service_key, display_name, version, format, output_subdir, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			namespace, relative_path, hash, config_hash, html_completion_hash, json_completion_hash, llm_completion_hash, html_output_subdir, json_output_subdir, llm_output_subdir, metadata_config_hash, metadata_version, spec_kind, title, summary, contact_name, contact_email, service_identity_candidate, external_refs, service_key, display_name, version, format, output_subdir, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(namespace, relative_path) DO UPDATE SET
 			hash=excluded.hash,
 			config_hash=excluded.config_hash,
+			html_completion_hash=excluded.html_completion_hash,
+			json_completion_hash=excluded.json_completion_hash,
+			llm_completion_hash=excluded.llm_completion_hash,
+			html_output_subdir=excluded.html_output_subdir,
+			json_output_subdir=excluded.json_output_subdir,
+			llm_output_subdir=excluded.llm_output_subdir,
+			metadata_config_hash=excluded.metadata_config_hash,
 			metadata_version=excluded.metadata_version,
 			spec_kind=excluded.spec_kind,
 			title=excluded.title,
 			summary=excluded.summary,
 			contact_name=excluded.contact_name,
 			contact_email=excluded.contact_email,
+			service_identity_candidate=excluded.service_identity_candidate,
+			external_refs=excluded.external_refs,
 			service_key=excluded.service_key,
 			display_name=excluded.display_name,
 			version=excluded.version,
@@ -225,17 +323,27 @@ func (s *sqliteSpecStateStore) Upsert(namespace string, records []*SpecStateReco
 		if updatedAt.IsZero() {
 			updatedAt = time.Now().UTC()
 		}
+		externalRefs := marshalExternalRefs(record.ExternalRefs)
 		if _, err = statement.Exec(
 			namespace,
 			record.RelativePath,
 			record.Hash,
 			record.ConfigHash,
+			record.HTMLCompletionHash,
+			record.JSONCompletionHash,
+			record.LLMCompletionHash,
+			record.HTMLOutputSubdir,
+			record.JSONOutputSubdir,
+			record.LLMOutputSubdir,
+			record.MetadataConfigHash,
 			record.MetadataVersion,
 			record.SpecKind.MachineValue(),
 			record.Title,
 			record.Summary,
 			record.ContactName,
 			record.ContactEmail,
+			record.ServiceIdentityCandidate,
+			externalRefs,
 			record.ServiceKey,
 			record.DisplayName,
 			record.Version,
@@ -250,6 +358,20 @@ func (s *sqliteSpecStateStore) Upsert(namespace string, records []*SpecStateReco
 		return fmt.Errorf("printingpress: committing sqlite upsert: %w", err)
 	}
 	return nil
+}
+
+func marshalExternalRefs(refs []string) string {
+	unique := make(map[string]struct{}, len(refs))
+	for _, ref := range refs {
+		unique[ref] = struct{}{}
+	}
+	normalized := make([]string, 0, len(unique))
+	for ref := range unique {
+		normalized = append(normalized, ref)
+	}
+	sort.Strings(normalized)
+	b, _ := json.Marshal(normalized)
+	return string(b)
 }
 
 func (s *sqliteSpecStateStore) Delete(namespace string, paths []string) error {

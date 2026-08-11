@@ -48,10 +48,26 @@ type ScanConfig struct {
 }
 
 type GroupingConfig struct {
-	NoiseSegments        []string       `mapstructure:"noiseSegments" yaml:"noiseSegments"`
-	ServiceOverrides     []PathOverride `mapstructure:"serviceOverrides" yaml:"serviceOverrides"`
-	DisplayNameOverrides []PathOverride `mapstructure:"displayNameOverrides" yaml:"displayNameOverrides"`
-	VersionOverrides     []PathOverride `mapstructure:"versionOverrides" yaml:"versionOverrides"`
+	NoiseSegments        []string              `mapstructure:"noiseSegments" yaml:"noiseSegments"`
+	ServiceOverrides     []PathOverride        `mapstructure:"serviceOverrides" yaml:"serviceOverrides"`
+	DisplayNameOverrides []PathOverride        `mapstructure:"displayNameOverrides" yaml:"displayNameOverrides"`
+	VersionOverrides     []PathOverride        `mapstructure:"versionOverrides" yaml:"versionOverrides"`
+	ServiceIdentity      ServiceIdentityConfig `mapstructure:"serviceIdentity" yaml:"serviceIdentity"`
+	ContractRoles        []ContractRoleRule    `mapstructure:"contractRoles" yaml:"contractRoles"`
+}
+
+type ServiceIdentityConfig struct {
+	MetadataPointers  []string `mapstructure:"metadataPointers" yaml:"metadataPointers"`
+	StripPrefixes     []string `mapstructure:"stripPrefixes" yaml:"stripPrefixes"`
+	StripSuffixes     []string `mapstructure:"stripSuffixes" yaml:"stripSuffixes"`
+	PreferOpenAPISlug bool     `mapstructure:"preferOpenAPISlug" yaml:"preferOpenAPISlug"`
+}
+
+type ContractRoleRule struct {
+	Pattern    string `mapstructure:"pattern" yaml:"pattern"`
+	Role       string `mapstructure:"role" yaml:"role"`
+	ContractID string `mapstructure:"contractID" yaml:"contractID"`
+	Default    bool   `mapstructure:"default" yaml:"default"`
 }
 
 type PathOverride struct {

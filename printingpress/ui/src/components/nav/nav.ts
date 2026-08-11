@@ -58,6 +58,30 @@ interface NavContentPage {
     description?: string;
 }
 
+interface SiteVersionLink {
+    label: string;
+    href: string;
+    active?: boolean;
+}
+
+interface SiteContractLink {
+    id: string;
+    label: string;
+    specKind: string;
+    href: string;
+    active?: boolean;
+    currentVersion?: string;
+    versions?: SiteVersionLink[];
+}
+
+interface SiteContractGroup {
+    role: string;
+    label: string;
+    contracts: SiteContractLink[];
+}
+
+let navInstanceID = 0;
+
 @customElement('pp-nav')
 export class PpNav extends LitElement {
     static styles = [navCss, tooltipCss];
@@ -87,6 +111,7 @@ export class PpNav extends LitElement {
     private loggedEmptyState = false;
     private loggedContentState = false;
     private readonly hostMessageHandler = (event: MessageEvent) => this.handleHostMessage(event);
+    private readonly contractNavigationID = `pp-contract-navigation-${++navInstanceID}`;
 
     private logPerf(stage: string, detail?: unknown) {
         const logger = (globalThis as Record<string, unknown>).__PP_LOG as ((stage: string, detail?: unknown) => void) | undefined;
@@ -394,41 +419,139 @@ export class PpNav extends LitElement {
         const guideRows = [74, 66, 58, 70];
         const operationRows = [100, 92, 84, 78, 88, 74];
         const modelRows = [96, 86, 82, 90, 76, 88, 80, 72];
+        const local = html`
+            <div class="pp-nav-fallback-home">${this.overviewLabel()}</div>
+            ${this.developerMode()
+                ? html`<div class="pp-nav-fallback-home diagnostics">DIAGNOSTICS</div>`
+                : nothing}
+            ${this.hasContentPagesFallback
+                ? html`
+                    <div class="pp-nav-fallback-section pp-nav-fallback-guides">
+                        <h4>Guides</h4>
+                        <div class="pp-nav-fallback-list">
+                            ${guideRows.map((width) => html`
+                                <div class="pp-nav-fallback-row" style=${`width:${width}%;`}></div>`)}
+                        </div>
+                    </div>
+                `
+                : nothing}
+            <div class="pp-nav-fallback-section">
+                <h4>Operations</h4>
+                <div class="pp-nav-fallback-list">
+                    ${operationRows.map((width) => html`
+                        <div class="pp-nav-fallback-row" style=${`width:${width}%;`}></div>`)}
+                </div>
+            </div>
+            <div class="pp-nav-fallback-section">
+                <h4>Models</h4>
+                <div class="pp-nav-fallback-list">
+                    ${modelRows.map((width) => html`
+                        <div class="pp-nav-fallback-row" style=${`width:${width}%;`}></div>`)}
+                </div>
+            </div>`;
+        const groups = this.contractGroups();
         return html`
             <div class="pp-nav-fallback" aria-hidden="true">
                 ${this.renderHostedArchiveControls()}
                 ${this.renderDocsExpiry()}
-                <div class="pp-nav-fallback-home">API OVERVIEW</div>
-                ${this.developerMode()
-                    ? html`<div class="pp-nav-fallback-home diagnostics">DIAGNOSTICS</div>`
-                    : nothing}
-                ${this.hasContentPagesFallback
-                    ? html`
-                        <div class="pp-nav-fallback-section pp-nav-fallback-guides">
-                            <h4>Guides</h4>
-                            <div class="pp-nav-fallback-list">
-                                ${guideRows.map((width) => html`
-                                    <div class="pp-nav-fallback-row" style=${`width:${width}%;`}></div>`)}
-                            </div>
-                        </div>
-                    `
-                    : nothing}
-                <div class="pp-nav-fallback-section">
-                    <h4>Operations</h4>
-                    <div class="pp-nav-fallback-list">
-                        ${operationRows.map((width) => html`
-                            <div class="pp-nav-fallback-row" style=${`width:${width}%;`}></div>`)}
-                    </div>
-                </div>
-                <div class="pp-nav-fallback-section">
-                    <h4>Models</h4>
-                    <div class="pp-nav-fallback-list">
-                        ${modelRows.map((width) => html`
-                            <div class="pp-nav-fallback-row" style=${`width:${width}%;`}></div>`)}
-                    </div>
-                </div>
+                ${groups.length ? this.renderContractNavigation(groups, local, true) : local}
             </div>
         `;
+    }
+
+    private overviewLabel(): string {
+        return document.body?.dataset.ppOverviewLabel?.trim() || 'API OVERVIEW';
+    }
+
+    private contractGroups(): SiteContractGroup[] {
+        const raw = document.body?.dataset.ppContracts;
+        if (!raw) {
+            return [];
+        }
+        try {
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) {
+                return [];
+            }
+            const groups = parsed.filter((group): group is SiteContractGroup =>
+                Boolean(group) && typeof group === 'object' &&
+                typeof group.role === 'string' && typeof group.label === 'string' &&
+                Array.isArray(group.contracts),
+            ).map((group) => ({
+                ...group,
+                contracts: group.contracts.filter((contract): contract is SiteContractLink =>
+                    Boolean(contract) && typeof contract === 'object' &&
+                    typeof contract.id === 'string' && typeof contract.label === 'string' &&
+                    typeof contract.specKind === 'string' && typeof contract.href === 'string',
+                ),
+            })).filter((group) => group.contracts.length > 0);
+            const contractCount = groups.reduce((count, group) => count + group.contracts.length, 0);
+            return contractCount > 1 ? groups : [];
+        } catch {
+            return [];
+        }
+    }
+
+    private renderContractVersionPicker(contract: SiteContractLink) {
+        const versions = Array.isArray(contract.versions) ? contract.versions : [];
+        if (!contract.active || versions.length <= 1) {
+            return nothing;
+        }
+        const currentVersion = contract.currentVersion || versions.find((version) => version.active)?.label || '';
+        return html`
+            <sl-dropdown class="contract-version-dropdown" skidding="0" distance="4" hoist>
+                <sl-button
+                    slot="trigger"
+                    class="contract-version-trigger"
+                    size="small"
+                    caret
+                    aria-label=${`Select version for ${contract.label}, current version ${currentVersion}`}>
+                    ${currentVersion}
+                </sl-button>
+                <sl-menu class="contract-version-menu" aria-label=${`Versions for ${contract.label}`}>
+                    ${versions.map((version) => html`
+                        <sl-menu-item
+                            href=${docHref(version.href)}
+                            type="checkbox"
+                            .checked=${Boolean(version.active)}
+                            aria-current=${version.active ? 'page' : nothing}>
+                            ${version.label}
+                        </sl-menu-item>`)}
+                </sl-menu>
+            </sl-dropdown>`;
+    }
+
+    private renderContractNavigation(groups: SiteContractGroup[], localNavigation: TemplateResult, fallback = false) {
+        return html`
+            <nav class="contract-navigation ${fallback ? 'pp-nav-fallback-contracts' : ''}" aria-label="Service contracts">
+                ${document.body?.dataset.ppServiceName?.trim()
+                    ? html`<div class="contract-service-name">${document.body.dataset.ppServiceName}</div>`
+                    : nothing}
+                ${groups.map((group, groupIndex) => {
+                    const headingID = `${this.contractNavigationID}-${groupIndex}`;
+                    return html`
+                        <section class="contract-group" aria-labelledby=${headingID}>
+                            <h4 id=${headingID} class="contract-role-heading">${group.label}</h4>
+                            <ul class="contract-list" aria-labelledby=${headingID}>
+                                ${group.contracts.map((contract) => html`
+                                    <li class="contract-item ${contract.active ? 'active' : ''}">
+                                        <div class="contract-row">
+                                            <a
+                                                class="contract-link ${contract.active ? 'active' : ''}"
+                                                href=${docHref(contract.href)}
+                                                aria-current=${contract.active ? 'page' : nothing}>
+                                                ${contract.label}
+                                            </a>
+                                            ${fallback ? nothing : this.renderContractVersionPicker(contract)}
+                                        </div>
+                                        ${contract.active
+                                            ? html`<div class="contract-local-navigation">${localNavigation}</div>`
+                                            : nothing}
+                                    </li>`)}
+                            </ul>
+                        </section>`;
+                })}
+            </nav>`;
     }
 
     connectedCallback() {
@@ -510,6 +633,80 @@ export class PpNav extends LitElement {
         }
     }
 
+    private renderLocalNavigation() {
+        return html`
+            <a class="nav-home ${!this.activeSlug ? 'active' : ''}" href=${overviewHref()}>
+                <sl-icon name="chevron-right" class="nav-home-chevron"></sl-icon>
+                ${this.overviewLabel()}
+            </a>
+            ${this.developerMode()
+                ? html`
+                    <a class="nav-home diagnostics ${this.activeSlug === 'diagnostics' ? 'active' : ''}"
+                       href=${docHref('diagnostics.html')}>
+                        <sl-icon name="chevron-right" class="nav-home-chevron"></sl-icon>
+                        DIAGNOSTICS
+                    </a>
+                `
+                : nothing}
+            ${this.pages.length
+                ? html`
+                    <div class="nav-section nav-pages-section">
+                        <h4>Guides</h4>
+                        <ul class="nav-pages-list">
+                            ${this.pages.map((page) => {
+                                const active = this.activeSlug === `content/${page.slug}`;
+                                return html`
+                                    <li>
+                                        <a class="nav-page-link ${active ? 'active' : ''}" href=${docHref(page.href || '')}>
+                                            <sl-icon name="chevron-right" class="nav-page-chevron"></sl-icon>
+                                            <span>${page.label || page.title || page.slug}</span>
+                                        </a>
+                                    </li>
+                                `;
+                            })}
+                        </ul>
+                    </div>
+                `
+                : nothing}
+            ${this.tags.length
+                ? html`
+                    <div class="nav-section nav-operations-section">
+                        <h4>Operations</h4>
+                        ${this.tags.map((tag) => html`
+                            <pp-nav-tag .tag=${tag} .activeSlug=${this.activeSlug}></pp-nav-tag>`)}
+                    </div>
+                `
+                : nothing}
+            ${this.modelGroups.length
+                ? html`
+                    <div class="nav-section nav-models-section">
+                        <h4>Models</h4>
+                        ${this.modelGroups.map((group) => html`
+                            <pp-nav-model-group .group=${group}
+                                                .activeSlug=${this.activeSlug}></pp-nav-model-group>`)}
+                    </div>
+                `
+                : nothing}
+            ${this.webhooks.length
+                ? html`
+                    <div class="nav-section nav-webhooks-section">
+                        <h4>Webhooks</h4>
+                        <pp-nav-tag
+                            .tag=${{
+                                name: 'Webhooks',
+                                summary: 'Webhooks',
+                                children: null,
+                                operations: this.webhooks,
+                                isNavOnly: false
+                            } as NavTag}
+                            .activeSlug=${this.activeSlug}
+                        ></pp-nav-tag>
+                    </div>
+                `
+                : nothing}
+        `;
+    }
+
     render() {
         if (this.previewHoldEnabled()) {
             return html`
@@ -518,78 +715,12 @@ export class PpNav extends LitElement {
         if (!this.hasNavContent() && !this.hasHydratedNav()) {
             return this.renderFallbackNav();
         }
+        const localNavigation = this.renderLocalNavigation();
+        const groups = this.contractGroups();
         return html`
             ${this.renderHostedArchiveControls()}
             ${this.renderDocsExpiry()}
-            <a class="nav-home ${!this.activeSlug ? 'active' : ''}" href=${overviewHref()}>
-                <sl-icon name="chevron-right" class="nav-home-chevron"></sl-icon>
-                API OVERVIEW
-            </a>
-            ${this.developerMode()
-                    ? html`
-                        <a class="nav-home diagnostics ${this.activeSlug === 'diagnostics' ? 'active' : ''}"
-                           href=${docHref('diagnostics.html')}>
-                            <sl-icon name="chevron-right" class="nav-home-chevron"></sl-icon>
-                            DIAGNOSTICS
-                        </a>
-                    `
-                    : nothing}
-            ${this.pages.length
-                    ? html`
-                        <div class="nav-section nav-pages-section">
-                            <h4>Guides</h4>
-                            <ul class="nav-pages-list">
-                                ${this.pages.map((page) => {
-                                    const active = this.activeSlug === `content/${page.slug}`;
-                                    return html`
-                                        <li>
-                                            <a class="nav-page-link ${active ? 'active' : ''}" href=${docHref(page.href || '')}>
-                                                <sl-icon name="chevron-right" class="nav-page-chevron"></sl-icon>
-                                                <span>${page.label || page.title || page.slug}</span>
-                                            </a>
-                                        </li>
-                                    `;
-                                })}
-                            </ul>
-                        </div>
-                    `
-                    : nothing}
-            ${this.tags.length
-                    ? html`
-                        <div class="nav-section nav-operations-section">
-                            <h4>Operations</h4>
-                            ${this.tags.map((tag) => html`
-                                <pp-nav-tag .tag=${tag} .activeSlug=${this.activeSlug}></pp-nav-tag>`)}
-                        </div>
-                    `
-                    : nothing}
-            ${this.modelGroups.length
-                    ? html`
-                        <div class="nav-section nav-models-section">
-                            <h4>Models</h4>
-                            ${this.modelGroups.map((group) => html`
-                                <pp-nav-model-group .group=${group}
-                                                    .activeSlug=${this.activeSlug}></pp-nav-model-group>`)}
-                        </div>
-                    `
-                    : nothing}
-            ${this.webhooks.length
-                    ? html`
-                        <div class="nav-section nav-webhooks-section">
-                            <h4>Webhooks</h4>
-                            <pp-nav-tag
-                                    .tag=${{
-                                        name: 'Webhooks',
-                                        summary: 'Webhooks',
-                                        children: null,
-                                        operations: this.webhooks,
-                                        isNavOnly: false
-                                    } as NavTag}
-                                    .activeSlug=${this.activeSlug}
-                            ></pp-nav-tag>
-                        </div>
-                    `
-                    : nothing}
+            ${groups.length ? this.renderContractNavigation(groups, localNavigation) : localNavigation}
         `;
     }
 }

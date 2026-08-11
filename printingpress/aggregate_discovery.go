@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"hash"
 	"io/fs"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -18,6 +19,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cespare/xxhash/v2"
@@ -37,49 +39,73 @@ type aggregateBuildPlan struct {
 	duration   time.Duration
 }
 
+type aggregatePlanIntent struct {
+	selection aggregateOutputSelection
+	preflight bool
+}
+
 type aggregateDiscoveredSpec struct {
-	AbsolutePath  string
-	RelativePath  string
-	SizeBytes     int64
-	Hash          string
-	ConfigHash    string
-	Title         string
-	Summary       string
-	Contact       *ppmodel.ContactInfo
-	DisplayName   string
-	ServiceKey    string
-	ServiceSlug   string
-	Version       string
-	VersionSlug   string
-	Format        string
-	OutputSubdir  string
-	EntrySlug     string
-	SpecKind      SpecKind
-	Changed       bool
-	RenderSkipped bool
-	Warnings      []string
-	Source        *ppmodel.SourceRef
-	previousState *SpecStateRecord
+	AbsolutePath             string
+	RelativePath             string
+	SizeBytes                int64
+	Hash                     string
+	ConfigHash               string
+	EntryConfigHash          string
+	MetadataConfigHash       string
+	Title                    string
+	Summary                  string
+	Contact                  *ppmodel.ContactInfo
+	ServiceIdentityCandidate string
+	ExternalRefs             []string
+	DisplayName              string
+	ServiceKey               string
+	ServiceSlug              string
+	PathServiceSlug          string
+	ContractID               string
+	ContractRole             ppmodel.ContractRoleValue
+	ContractDefault          bool
+	Version                  string
+	VersionSlug              string
+	Format                   string
+	OutputSubdir             string
+	EntrySlug                string
+	SpecKind                 SpecKind
+	RenderSkipped            bool
+	Warnings                 []string
+	Source                   *ppmodel.SourceRef
+	previousState            *SpecStateRecord
+	prebuiltSite             *ppmodel.Site
+	HTMLCompletionHash       string
+	JSONCompletionHash       string
+	LLMCompletionHash        string
 }
 
 type aggregateSpecMetadata struct {
-	Title    string
-	Summary  string
-	Contact  *ppmodel.ContactInfo
-	Version  string
-	SpecKind SpecKind
-	Valid    bool
+	Title                    string
+	Summary                  string
+	Contact                  *ppmodel.ContactInfo
+	Version                  string
+	SpecKind                 SpecKind
+	ServiceIdentityCandidate string
+	ExternalRefs             []string
+	Document                 any
+	Warnings                 []string
+	Valid                    bool
 }
 
 type aggregateServiceGroup struct {
-	key          string
-	slug         string
-	displayName  string
-	primaryPath  string
-	versions     []*aggregateVersionGroup
-	latest       *aggregateVersionGroup
-	collisions   []string
-	versionIndex map[string]*aggregateVersionGroup
+	key             string
+	slug            string
+	displayName     string
+	summary         string
+	primaryPath     string
+	versions        []*aggregateVersionGroup
+	latest          *aggregateVersionGroup
+	contracts       []*aggregateContractGroup
+	defaultContract *aggregateContractGroup
+	collisions      []string
+	versionIndex    map[string]*aggregateVersionGroup
+	contractIndex   map[string]*aggregateContractGroup
 }
 
 type aggregateVersionGroup struct {
@@ -89,7 +115,28 @@ type aggregateVersionGroup struct {
 	latest  bool
 }
 
-const aggregateMetadataVersion = 2
+type aggregateContractGroup struct {
+	id              string
+	displayName     string
+	specKind        SpecKind
+	role            ppmodel.ContractRoleValue
+	explicitDefault bool
+	versions        []*aggregateContractVersionGroup
+	latest          *aggregateContractVersionGroup
+	versionIndex    map[string]*aggregateContractVersionGroup
+}
+
+type aggregateContractVersionGroup struct {
+	label string
+	slug  string
+	spec  *aggregateDiscoveredSpec
+	entry *ppmodel.CatalogSpecEntry
+}
+
+const (
+	aggregateMetadataVersion                = 3
+	aggregateServiceIdentityFallbackWarning = "configured service identity metadata pointers did not resolve to a non-empty scalar string; using path-based discovery"
+)
 
 var (
 	versionDateRE         = regexp.MustCompile(`\b(20\d{2})[-_.]?(\d{2})[-_.]?(\d{2})\b`)
@@ -100,7 +147,7 @@ var (
 	catalogMarkdownRE     = regexp.MustCompile(`[*_` + "`" + `]+`)
 )
 
-func (ap *AggregatePrintingPress) buildPlan() (*aggregateBuildPlan, error) {
+func (ap *AggregatePrintingPress) buildPlan(intent aggregatePlanIntent) (*aggregateBuildPlan, error) {
 	start := time.Now()
 	existing, err := ap.stateStore.Load(ap.config.StateNamespace)
 	if err != nil {
@@ -116,12 +163,32 @@ func (ap *AggregatePrintingPress) buildPlan() (*aggregateBuildPlan, error) {
 		duration:   time.Since(start),
 	}
 	plan.removed = aggregateRemovedRecords(existing, discovered)
-	plan.catalog = ap.buildCatalog(discovered)
+	plan.catalog, err = ap.buildCatalog(discovered)
+	if err != nil {
+		return nil, err
+	}
+	ap.applyAggregateNavigationFingerprints(plan.catalog, discovered)
+	if intent.preflight {
+		ap.preflightChangedEntries(plan, intent.selection)
+	}
+	ap.finalizeCatalog(plan.catalog)
+	ap.applyAggregateNavigationFingerprints(plan.catalog, discovered)
 	plan.catalog.Warnings = append(plan.catalog.Warnings, discoveryWarnings...)
 	plan.catalog.ContentPages = ap.collectCatalogContentPages()
 	for _, spec := range discovered {
-		if spec.Changed || ap.config.BuildMode == AggregateBuildModeFull {
+		if !spec.RenderSkipped && aggregateSpecSelectedOutputDirty(spec, intent.selection, ap.config.BuildMode) {
 			plan.changed = append(plan.changed, spec)
+		}
+	}
+	if intent.preflight {
+		changed := make(map[string]struct{}, len(plan.changed))
+		for _, spec := range plan.changed {
+			changed[spec.RelativePath] = struct{}{}
+		}
+		for _, spec := range discovered {
+			if _, ok := changed[spec.RelativePath]; !ok {
+				spec.prebuiltSite = nil
+			}
 		}
 	}
 	plan.catalog.OutputDir = ap.config.OutputDir
@@ -134,6 +201,7 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 	root := ap.config.ScanRoot
 	outputDir := ap.config.OutputDir
 	baseConfigHash := aggregateEntryConfigHash(ap.config)
+	metadataConfigHash := aggregateMetadataConfigHash(ap.config)
 	contentHashBySpecDir := make(map[string]string)
 	noise := make(map[string]struct{}, len(ap.config.NoiseSegments))
 	for _, segment := range ap.config.NoiseSegments {
@@ -186,20 +254,23 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 		hash := hashSpecBytes(content)
 		record := existing[relPath]
 		metadata := aggregateSpecMetadata{}
-		if record == nil || record.Hash != hash || record.Summary == "" || record.MetadataVersion < aggregateMetadataVersion || record.SpecKind != identity.Kind || ap.config.BuildMode == AggregateBuildModeFull {
-			metadata, err = parseAggregateSpecMetadata(content)
+		if record == nil || record.Hash != hash || record.MetadataVersion < aggregateMetadataVersion || record.MetadataConfigHash != metadataConfigHash || record.SpecKind != identity.Kind || ap.config.BuildMode == AggregateBuildModeFull {
+			metadata, err = parseAggregateSpecMetadata(content, ap.config.ServiceIdentity.MetadataPointers)
 			if err != nil {
 				ap.config.Logger.Warn("printingpress: skipping candidate that failed metadata parse", "path", relPath, "error", err)
 				return nil
 			}
 		} else {
 			metadata = aggregateSpecMetadata{
-				Title:    record.Title,
-				Summary:  record.Summary,
-				Contact:  catalogContactFromFields(record.ContactName, record.ContactEmail),
-				Version:  record.Version,
-				SpecKind: record.SpecKind,
-				Valid:    true,
+				Title:                    record.Title,
+				Summary:                  record.Summary,
+				Contact:                  catalogContactFromFields(record.ContactName, record.ContactEmail),
+				Version:                  record.Version,
+				SpecKind:                 record.SpecKind,
+				ServiceIdentityCandidate: record.ServiceIdentityCandidate,
+				ExternalRefs:             append([]string(nil), record.ExternalRefs...),
+				Warnings:                 aggregateServiceIdentityWarnings(ap.config.ServiceIdentity.MetadataPointers, record.ServiceIdentityCandidate),
+				Valid:                    true,
 			}
 		}
 		if !metadata.Valid {
@@ -207,6 +278,12 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 		}
 		if !metadata.SpecKind.IsKnown() {
 			metadata.SpecKind = identity.Kind
+		}
+		for _, warning := range metadata.Warnings {
+			discoveryWarnings = append(discoveryWarnings, &ppmodel.BuildWarning{
+				Message: warning,
+				Context: relPath,
+			})
 		}
 
 		specDir := filepath.Dir(filePath)
@@ -220,30 +297,46 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 			contentHashBySpecDir[specDir] = contentHash
 		}
 		configHash := aggregateEntryRenderConfigHash(baseConfigHash, ap.developerMode, ap.specLintResults[relPath], contentHash, metadata.SpecKind)
-		serviceKey := ap.resolveServiceKey(relPath, metadata.Title, noise)
+		pathServiceCandidate := ap.resolvePathServiceCandidate(relPath, metadata.Title, noise)
+		pathServiceSlug := slugpkg.Sanitize(pathServiceCandidate)
+		serviceKey := ap.normalizePathServiceIdentity(pathServiceSlug)
+		if strings.TrimSpace(metadata.ServiceIdentityCandidate) != "" {
+			if normalized := ap.normalizeServiceIdentityCandidate(metadata.ServiceIdentityCandidate); normalized != "" {
+				serviceKey = normalized
+			} else {
+				warning := fmt.Sprintf("service identity candidate %q normalized to an empty value; using path-derived service %q from %s", strings.TrimSpace(metadata.ServiceIdentityCandidate), serviceKey, relPath)
+				metadata.Warnings = append(metadata.Warnings, warning)
+				discoveryWarnings = append(discoveryWarnings, &ppmodel.BuildWarning{Message: warning, Context: relPath})
+			}
+		}
 		displayName := ap.resolveDisplayName(relPath, serviceKey, metadata.Title)
 		version := ap.resolveVersion(relPath, metadata.Version)
 		spec := &aggregateDiscoveredSpec{
-			AbsolutePath: filePath,
-			RelativePath: relPath,
-			SizeBytes:    int64(len(content)),
-			Hash:         hash,
-			ConfigHash:   configHash,
-			Title:        fallbackValue(metadata.Title, strings.TrimSuffix(filepath.Base(relPath), filepath.Ext(relPath))),
-			Summary:      metadata.Summary,
-			Contact:      cloneCatalogContact(metadata.Contact),
-			DisplayName:  displayName,
-			ServiceKey:   serviceKey,
-			ServiceSlug:  slugpkg.Sanitize(serviceKey),
-			Version:      version,
-			VersionSlug:  slugpkg.Sanitize(version),
-			Format:       DetectSpecFormat(content),
-			SpecKind:     metadata.SpecKind,
-			Changed:      record == nil || record.Hash != hash || record.ConfigHash != configHash || record.SpecKind != metadata.SpecKind || ap.config.BuildMode == AggregateBuildModeFull,
+			AbsolutePath:             filePath,
+			RelativePath:             relPath,
+			SizeBytes:                int64(len(content)),
+			Hash:                     hash,
+			ConfigHash:               configHash,
+			EntryConfigHash:          configHash,
+			MetadataConfigHash:       metadataConfigHash,
+			Title:                    fallbackValue(metadata.Title, strings.TrimSuffix(filepath.Base(relPath), filepath.Ext(relPath))),
+			Summary:                  metadata.Summary,
+			Contact:                  cloneCatalogContact(metadata.Contact),
+			ServiceIdentityCandidate: metadata.ServiceIdentityCandidate,
+			ExternalRefs:             append([]string(nil), metadata.ExternalRefs...),
+			DisplayName:              displayName,
+			ServiceKey:               serviceKey,
+			ServiceSlug:              slugpkg.Sanitize(serviceKey),
+			PathServiceSlug:          pathServiceSlug,
+			Version:                  version,
+			VersionSlug:              slugpkg.Sanitize(version),
+			Format:                   DetectSpecFormat(content),
+			SpecKind:                 metadata.SpecKind,
 			Source: &ppmodel.SourceRef{
 				Path: relPath,
 				Href: relPath,
 			},
+			Warnings:      append([]string(nil), metadata.Warnings...),
 			previousState: record,
 		}
 		discovered = append(discovered, spec)
@@ -258,14 +351,14 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 	return discovered, discoveryWarnings, nil
 }
 
-func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscoveredSpec) *ppmodel.CatalogSite {
+func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscoveredSpec) (*ppmodel.CatalogSite, error) {
 	catalog := &ppmodel.CatalogSite{
 		Title:       fallbackValue(ap.config.Title, "API Catalog"),
 		Description: ap.config.Description,
 		ScanRoot:    ap.config.ScanRoot,
 	}
 	if len(discovered) == 0 {
-		return catalog
+		return catalog, nil
 	}
 
 	serviceMap := make(map[string]*aggregateServiceGroup)
@@ -274,21 +367,56 @@ func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscovered
 		group := serviceMap[spec.ServiceKey]
 		if group == nil {
 			group = &aggregateServiceGroup{
-				key:          spec.ServiceKey,
-				slug:         spec.ServiceSlug,
-				displayName:  spec.DisplayName,
-				primaryPath:  spec.RelativePath,
-				versionIndex: make(map[string]*aggregateVersionGroup),
+				key:           spec.ServiceKey,
+				slug:          spec.ServiceSlug,
+				primaryPath:   spec.RelativePath,
+				versionIndex:  make(map[string]*aggregateVersionGroup),
+				contractIndex: make(map[string]*aggregateContractGroup),
 			}
 			serviceMap[spec.ServiceKey] = group
 			serviceOrder = append(serviceOrder, spec.ServiceKey)
 		}
-		if group.displayName == "" {
-			group.displayName = spec.DisplayName
-		}
 		if spec.RelativePath < group.primaryPath {
 			group.primaryPath = spec.RelativePath
 		}
+
+		spec.ContractRole, spec.ContractID, spec.ContractDefault = ap.resolveLogicalContract(spec)
+		contractGroup := group.contractIndex[spec.ContractID]
+		if contractGroup == nil {
+			contractGroup = &aggregateContractGroup{
+				id:           spec.ContractID,
+				specKind:     spec.SpecKind,
+				role:         spec.ContractRole,
+				versionIndex: make(map[string]*aggregateContractVersionGroup),
+			}
+			group.contractIndex[spec.ContractID] = contractGroup
+			group.contracts = append(group.contracts, contractGroup)
+		} else if contractGroup.specKind != spec.SpecKind || contractGroup.role != spec.ContractRole {
+			previous := contractGroup.versions[0].spec
+			return nil, fmt.Errorf(
+				"printingpress: logical contract %q for service %q has incompatible roots: %s (%s/%s) and %s (%s/%s)",
+				spec.ContractID,
+				group.key,
+				previous.RelativePath,
+				previous.SpecKind.MachineValue(),
+				previous.ContractRole.MachineValue(),
+				spec.RelativePath,
+				spec.SpecKind.MachineValue(),
+				spec.ContractRole.MachineValue(),
+			)
+		}
+		if previous := contractGroup.versionIndex[spec.Version]; previous != nil {
+			return nil, fmt.Errorf("printingpress: duplicate logical contract %q version %q for service %q: %s and %s", spec.ContractID, spec.Version, group.key, previous.spec.RelativePath, spec.RelativePath)
+		}
+		contractVersion := &aggregateContractVersionGroup{
+			label: spec.Version,
+			slug:  spec.VersionSlug,
+			spec:  spec,
+		}
+		contractGroup.versionIndex[spec.Version] = contractVersion
+		contractGroup.versions = append(contractGroup.versions, contractVersion)
+		contractGroup.explicitDefault = contractGroup.explicitDefault || spec.ContractDefault
+
 		versionGroup := group.versionIndex[spec.Version]
 		if versionGroup == nil {
 			versionGroup = &aggregateVersionGroup{
@@ -299,6 +427,16 @@ func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscovered
 			group.versions = append(group.versions, versionGroup)
 		}
 		versionGroup.entries = append(versionGroup.entries, spec)
+	}
+
+	for _, key := range serviceOrder {
+		group := serviceMap[key]
+		if err := ap.prepareAggregateServiceGroup(group); err != nil {
+			return nil, err
+		}
+	}
+	if err := validateAggregateCanonicalServiceSlugs(serviceMap, serviceOrder); err != nil {
+		return nil, err
 	}
 
 	sort.Slice(serviceOrder, func(i, j int) bool {
@@ -323,12 +461,15 @@ func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscovered
 		serviceOverview := pppaths.AggregateServiceIndexHTML(group.slug)
 		versionsIndex := pppaths.AggregateServiceVersionsIndexHTML(group.slug)
 		serviceModel := &ppmodel.CatalogService{
-			Key:          group.key,
-			Slug:         group.slug,
-			DisplayName:  group.displayName,
-			PrimaryPath:  group.primaryPath,
-			OverviewHref: serviceOverview,
-			VersionsHref: versionsIndex,
+			Key:               group.key,
+			Slug:              group.slug,
+			IdentityKey:       group.key,
+			DisplayName:       group.displayName,
+			Summary:           group.summary,
+			PrimaryPath:       group.primaryPath,
+			OverviewHref:      serviceOverview,
+			VersionsHref:      versionsIndex,
+			DefaultContractID: aggregateDefaultContractID(group),
 		}
 		entryRegistry := slugpkg.NewSlugRegistry()
 		for _, versionGroup := range group.versions {
@@ -350,7 +491,7 @@ func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscovered
 				spec.EntrySlug = entryRegistry.Register(group.slug+"/"+versionGroup.slug, preferred)
 				spec.OutputSubdir = pppaths.AggregateSpecDir(group.slug, versionGroup.slug, spec.EntrySlug)
 				spec.Source.Href = spec.RelativePath
-				versionModel.Entries = append(versionModel.Entries, &ppmodel.CatalogSpecEntry{
+				entry := &ppmodel.CatalogSpecEntry{
 					ID:            spec.RelativePath,
 					Slug:          spec.EntrySlug,
 					SpecKind:      spec.SpecKind,
@@ -358,8 +499,10 @@ func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscovered
 					Title:         spec.Title,
 					Summary:       spec.Summary,
 					Contact:       cloneCatalogContact(spec.Contact),
-					ServiceKey:    spec.ServiceKey,
-					ServiceSlug:   spec.ServiceSlug,
+					ServiceKey:    group.key,
+					ServiceSlug:   group.slug,
+					ContractID:    spec.ContractID,
+					ContractRole:  spec.ContractRole,
 					Version:       spec.Version,
 					VersionSlug:   spec.VersionSlug,
 					Format:        spec.Format,
@@ -369,42 +512,824 @@ func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscovered
 					Warnings:      append([]string(nil), spec.Warnings...),
 					Source:        spec.Source,
 					Counts:        aggregateLintResultCounts(ap.specLintResults[spec.RelativePath]),
-				})
+				}
+				versionModel.Entries = append(versionModel.Entries, entry)
+				group.contractIndex[spec.ContractID].versionIndex[spec.Version].entry = entry
 				versionModel.SpecCount++
 				serviceModel.SpecCount++
-				if spec.previousState != nil && spec.previousState.OutputSubdir != spec.OutputSubdir {
-					spec.Changed = true
-				}
 				if versionModel.Summary == "" && spec.Summary != "" {
 					versionModel.Summary = spec.Summary
 				}
 			}
-			if len(versionGroup.entries) > 1 {
-				message := fmt.Sprintf("%s:%s", group.key, versionGroup.label)
-				group.collisions = append(group.collisions, message)
-				catalog.Warnings = append(catalog.Warnings, &ppmodel.BuildWarning{
-					Message: "multiple specs discovered for the same service version",
-					Context: message,
-				})
-			}
 			serviceModel.Versions = append(serviceModel.Versions, versionModel)
+		}
+		for _, contractGroup := range group.contracts {
+			contract := &ppmodel.CatalogContract{
+				ID:          contractGroup.id,
+				DisplayName: contractGroup.displayName,
+				SpecKind:    contractGroup.specKind,
+				Role:        contractGroup.role,
+				Default:     contractGroup.id == serviceModel.DefaultContractID,
+			}
+			for _, contractVersionGroup := range contractGroup.versions {
+				contractVersion := &ppmodel.CatalogContractVersion{
+					Label:        contractVersionGroup.label,
+					Slug:         contractVersionGroup.slug,
+					OverviewHref: contractVersionGroup.entry.OverviewHref,
+					Entry:        contractVersionGroup.entry,
+				}
+				contract.Versions = append(contract.Versions, contractVersion)
+				if contractVersionGroup == contractGroup.latest {
+					contract.LatestVersion = contractVersion
+				}
+			}
+			serviceModel.Contracts = append(serviceModel.Contracts, contract)
 		}
 		serviceModel.CollisionGroups = append([]string(nil), group.collisions...)
 		if len(serviceModel.Versions) > 0 {
 			serviceModel.LatestVersion = serviceModel.Versions[0]
-			serviceModel.Summary = serviceModel.LatestVersion.Summary
 		}
 		catalog.Services = append(catalog.Services, serviceModel)
 	}
 
+	resolveAggregateCatalogRelationships(catalog, discovered)
 	ap.finalizeCatalog(catalog)
-	return catalog
+	return catalog, nil
+}
+
+func resolveAggregateCatalogRelationships(catalog *ppmodel.CatalogSite, discovered []*aggregateDiscoveredSpec) {
+	if catalog == nil {
+		return
+	}
+	type root struct {
+		spec     *aggregateDiscoveredSpec
+		contract *ppmodel.CatalogContract
+		version  *ppmodel.CatalogContractVersion
+	}
+	accepted := make(map[string]*root, len(discovered))
+	for _, service := range catalog.Services {
+		if service == nil {
+			continue
+		}
+		for _, contract := range service.Contracts {
+			if contract == nil {
+				continue
+			}
+			for _, version := range contract.Versions {
+				if version == nil || version.Entry == nil {
+					continue
+				}
+				accepted[path.Clean(filepath.ToSlash(version.Entry.RelativePath))] = &root{contract: contract, version: version}
+			}
+		}
+	}
+	for _, spec := range discovered {
+		if spec == nil {
+			continue
+		}
+		if item := accepted[path.Clean(filepath.ToSlash(spec.RelativePath))]; item != nil {
+			item.spec = spec
+		}
+	}
+
+	type edgeKey struct {
+		source, target, relation string
+	}
+	seen := make(map[edgeKey]struct{})
+	for sourcePath, source := range accepted {
+		if source.spec == nil || source.version == nil || source.version.Entry == nil {
+			continue
+		}
+		for _, rawRef := range source.spec.ExternalRefs {
+			document, _, _ := strings.Cut(strings.TrimSpace(rawRef), "#")
+			if document == "" || aggregateRelationshipRefIsNonLocal(document) {
+				continue
+			}
+			targetPath := path.Clean(path.Join(path.Dir(sourcePath), filepath.ToSlash(document)))
+			target := accepted[targetPath]
+			if target == nil || target == source || target.version == nil || target.version.Entry == nil {
+				continue
+			}
+			forward, inverse := "references", "referenced-by"
+			forwardLabel, inverseLabel := "References", "Referenced by"
+			if source.contract.Role == ppmodel.ContractRoleConsumedEvents &&
+				(target.contract.Role == ppmodel.ContractRolePublishedEvents || target.contract.Role == ppmodel.ContractRoleExternalSource) {
+				forward, inverse = "consumes-from", "consumed-by"
+				forwardLabel, inverseLabel = "Consumes from", "Consumed by"
+			}
+			key := edgeKey{source: sourcePath, target: targetPath, relation: forward}
+			if _, duplicate := seen[key]; duplicate {
+				continue
+			}
+			seen[key] = struct{}{}
+			source.version.Relationships = append(source.version.Relationships, &ppmodel.CatalogContractRelationship{
+				Relation: forward,
+				Label:    forwardLabel + " " + target.contract.DisplayName,
+				Href:     target.version.OverviewHref,
+				SpecKind: target.contract.SpecKind,
+			})
+			target.version.Relationships = append(target.version.Relationships, &ppmodel.CatalogContractRelationship{
+				Relation: inverse,
+				Label:    inverseLabel + " " + source.contract.DisplayName,
+				Href:     source.version.OverviewHref,
+				SpecKind: source.contract.SpecKind,
+			})
+		}
+	}
+	for _, item := range accepted {
+		sortCatalogRelationships(item.version.Relationships)
+	}
+}
+
+func aggregateRelationshipRefIsNonLocal(document string) bool {
+	if strings.HasPrefix(document, "//") || path.IsAbs(filepath.ToSlash(document)) || filepath.IsAbs(document) {
+		return true
+	}
+	if len(document) >= 3 && ((document[0] >= 'A' && document[0] <= 'Z') || (document[0] >= 'a' && document[0] <= 'z')) && document[1] == ':' && (document[2] == '/' || document[2] == '\\') {
+		return true
+	}
+	parsed, err := url.Parse(document)
+	return err != nil || parsed.Scheme != "" || parsed.Host != ""
+}
+
+func sortCatalogRelationships(relationships []*ppmodel.CatalogContractRelationship) {
+	sort.SliceStable(relationships, func(i, j int) bool {
+		left, right := relationships[i], relationships[j]
+		if left.Relation != right.Relation {
+			return left.Relation < right.Relation
+		}
+		if left.Label != right.Label {
+			return left.Label < right.Label
+		}
+		if left.Href != right.Href {
+			return left.Href < right.Href
+		}
+		return left.SpecKind.MachineValue() < right.SpecKind.MachineValue()
+	})
+}
+
+func (ap *AggregatePrintingPress) applyAggregateNavigationFingerprints(catalog *ppmodel.CatalogSite, discovered []*aggregateDiscoveredSpec) {
+	if catalog == nil {
+		return
+	}
+	entriesByPath := make(map[string]*ppmodel.CatalogSpecEntry, len(discovered))
+	servicesByEntryPath := make(map[string]*ppmodel.CatalogService, len(discovered))
+	targetIdentityByHref := make(map[string]string, len(discovered))
+	for _, service := range catalog.Services {
+		if service == nil {
+			continue
+		}
+		for _, contract := range service.Contracts {
+			if contract == nil {
+				continue
+			}
+			for _, version := range contract.Versions {
+				if version == nil || version.Entry == nil || version.Entry.RenderSkipped {
+					continue
+				}
+				entriesByPath[version.Entry.RelativePath] = version.Entry
+				servicesByEntryPath[version.Entry.RelativePath] = service
+				targetIdentityByHref[version.OverviewHref] = strings.Join([]string{
+					service.IdentityKey, service.Slug, contract.ID, version.Label, version.Slug,
+				}, "\x00")
+			}
+		}
+	}
+
+	fingerprintByService := make(map[string]string, len(catalog.Services))
+	for _, service := range catalog.Services {
+		if service == nil {
+			continue
+		}
+		type navigationRecord struct {
+			ContractID    string                         `json:"contractId"`
+			DisplayName   string                         `json:"displayName"`
+			Role          ppmodel.ContractRoleValue      `json:"role"`
+			Kind          ppmodel.SpecKindValue          `json:"kind"`
+			VersionLabel  string                         `json:"versionLabel"`
+			VersionSlug   string                         `json:"versionSlug"`
+			OverviewHref  string                         `json:"overviewHref"`
+			Relationships []navigationRelationshipRecord `json:"relationships,omitempty"`
+		}
+		type navigationFingerprint struct {
+			IdentityKey       string             `json:"identityKey"`
+			Slug              string             `json:"slug"`
+			DisplayName       string             `json:"displayName"`
+			DefaultContractID string             `json:"defaultContractId"`
+			Entries           []navigationRecord `json:"entries"`
+		}
+		payload := navigationFingerprint{
+			IdentityKey:       service.IdentityKey,
+			Slug:              service.Slug,
+			DisplayName:       service.DisplayName,
+			DefaultContractID: service.DefaultContractID,
+		}
+		for _, contract := range service.Contracts {
+			if contract == nil {
+				continue
+			}
+			for _, version := range contract.Versions {
+				if version == nil || version.Entry == nil || version.Entry.RenderSkipped {
+					continue
+				}
+				record := navigationRecord{
+					ContractID:   contract.ID,
+					DisplayName:  contract.DisplayName,
+					Role:         contract.Role,
+					Kind:         contract.SpecKind,
+					VersionLabel: version.Label,
+					VersionSlug:  version.Slug,
+					OverviewHref: version.OverviewHref,
+				}
+				for _, relationship := range version.Relationships {
+					if relationship == nil {
+						continue
+					}
+					record.Relationships = append(record.Relationships, navigationRelationshipRecord{
+						Relation:       relationship.Relation,
+						Label:          relationship.Label,
+						Href:           relationship.Href,
+						Kind:           relationship.SpecKind,
+						TargetIdentity: targetIdentityByHref[relationship.Href],
+					})
+				}
+				sort.Slice(record.Relationships, func(i, j int) bool {
+					return navigationRelationshipLess(record.Relationships[i], record.Relationships[j])
+				})
+				payload.Entries = append(payload.Entries, record)
+			}
+		}
+		sort.Slice(payload.Entries, func(i, j int) bool {
+			left, right := payload.Entries[i], payload.Entries[j]
+			return strings.Join([]string{left.ContractID, left.DisplayName, left.Role.MachineValue(), left.Kind.MachineValue(), left.VersionLabel, left.VersionSlug, left.OverviewHref}, "\x00") <
+				strings.Join([]string{right.ContractID, right.DisplayName, right.Role.MachineValue(), right.Kind.MachineValue(), right.VersionLabel, right.VersionSlug, right.OverviewHref}, "\x00")
+		})
+		encoded, err := json.Marshal(payload)
+		if err == nil {
+			fingerprintByService[service.Key] = fmt.Sprintf("%x", xxhash.Sum64(encoded))
+		}
+	}
+	for _, spec := range discovered {
+		if spec == nil {
+			continue
+		}
+		service := servicesByEntryPath[spec.RelativePath]
+		entry := entriesByPath[spec.RelativePath]
+		if service == nil || entry == nil {
+			continue
+		}
+		spec.ConfigHash = aggregateEntryNavigationConfigHash(spec.EntryConfigHash, fingerprintByService[service.Key])
+		spec.HTMLCompletionHash = aggregateOutputCompletionHash(spec, "html")
+		spec.JSONCompletionHash = aggregateOutputCompletionHash(spec, "json")
+		spec.LLMCompletionHash = aggregateOutputCompletionHash(spec, "llm")
+	}
+}
+
+func aggregateOutputCompletionHash(spec *aggregateDiscoveredSpec, family string) string {
+	if spec == nil {
+		return ""
+	}
+	encoded, err := json.Marshal(struct {
+		Family     string `json:"family"`
+		Hash       string `json:"hash"`
+		ConfigHash string `json:"configHash"`
+		SpecKind   string `json:"specKind"`
+		OutputDir  string `json:"outputDir"`
+	}{family, spec.Hash, spec.ConfigHash, spec.SpecKind.MachineValue(), spec.OutputSubdir})
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%x", xxhash.Sum64(encoded))
+}
+
+func aggregateSpecSelectedOutputDirty(spec *aggregateDiscoveredSpec, selection aggregateOutputSelection, buildMode string) bool {
+	if spec == nil || !selection.any() {
+		return false
+	}
+	if buildMode == AggregateBuildModeFull || spec.previousState == nil {
+		return true
+	}
+	previous := spec.previousState
+	return selection.html && previous.HTMLCompletionHash != spec.HTMLCompletionHash ||
+		selection.json && previous.JSONCompletionHash != spec.JSONCompletionHash ||
+		selection.llm && previous.LLMCompletionHash != spec.LLMCompletionHash
+}
+
+func (ap *AggregatePrintingPress) preflightChangedEntries(plan *aggregateBuildPlan, selection aggregateOutputSelection) {
+	if plan == nil || plan.catalog == nil {
+		return
+	}
+	entries := catalogEntryIndex(plan.catalog)
+	type preflightResult struct {
+		spec  *aggregateDiscoveredSpec
+		entry *ppmodel.CatalogSpecEntry
+		site  *ppmodel.Site
+		err   error
+	}
+	var candidates []*aggregateDiscoveredSpec
+	for _, spec := range plan.discovered {
+		if spec != nil && aggregateSpecSelectedOutputDirty(spec, selection, ap.config.BuildMode) {
+			candidates = append(candidates, spec)
+		}
+	}
+	workerCount := ap.resolvePoolCount(len(candidates))
+	if workerCount == 0 {
+		return
+	}
+	jobs := make(chan *aggregateDiscoveredSpec)
+	results := make(chan preflightResult, len(candidates))
+	var wg sync.WaitGroup
+	for range workerCount {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for spec := range jobs {
+				entry := entries[spec.RelativePath]
+				if entry == nil {
+					results <- preflightResult{spec: spec, err: fmt.Errorf("missing catalog entry for discovered spec")}
+					continue
+				}
+				builder := ap.preflightBuildEntrySite
+				if builder == nil {
+					builder = ap.buildEntrySite
+				}
+				site, err := builder(spec, entry)
+				results <- preflightResult{spec: spec, entry: entry, site: site, err: err}
+			}
+		}()
+	}
+	go func() {
+		for _, spec := range candidates {
+			jobs <- spec
+		}
+		close(jobs)
+		wg.Wait()
+		close(results)
+	}()
+	collected := make([]preflightResult, 0, len(candidates))
+	for result := range results {
+		collected = append(collected, result)
+	}
+	sort.Slice(collected, func(i, j int) bool {
+		return collected[i].spec.RelativePath < collected[j].spec.RelativePath
+	})
+	for _, result := range collected {
+		if result.err != nil {
+			ap.markRenderSkipped(plan, result.spec, result.entry, "skipped render build for discovered spec", result.err)
+			continue
+		}
+		result.spec.prebuiltSite = result.site
+	}
+}
+
+type navigationRelationshipRecord struct {
+	Relation       string                `json:"relation"`
+	Label          string                `json:"label"`
+	Href           string                `json:"href"`
+	Kind           ppmodel.SpecKindValue `json:"kind"`
+	TargetIdentity string                `json:"targetIdentity"`
+}
+
+func navigationRelationshipLess(left, right navigationRelationshipRecord) bool {
+	return strings.Join([]string{left.Relation, left.Label, left.Href, left.Kind.MachineValue(), left.TargetIdentity}, "\x00") <
+		strings.Join([]string{right.Relation, right.Label, right.Href, right.Kind.MachineValue(), right.TargetIdentity}, "\x00")
+}
+
+func aggregateEntryNavigationConfigHash(entryConfigHash, navigationFingerprint string) string {
+	encoded, err := json.Marshal(struct {
+		EntryConfigHash       string `json:"entryConfigHash"`
+		NavigationFingerprint string `json:"navigationFingerprint"`
+	}{entryConfigHash, navigationFingerprint})
+	if err != nil {
+		return entryConfigHash
+	}
+	return fmt.Sprintf("%x", xxhash.Sum64(encoded))
+}
+
+func validateAggregateCanonicalServiceSlugs(serviceMap map[string]*aggregateServiceGroup, serviceKeys []string) error {
+	ordered := append([]string(nil), serviceKeys...)
+	sort.Strings(ordered)
+	bySlug := make(map[string]*aggregateServiceGroup, len(ordered))
+	for _, key := range ordered {
+		group := serviceMap[key]
+		if group == nil {
+			continue
+		}
+		previous := bySlug[group.slug]
+		if previous == nil {
+			bySlug[group.slug] = group
+			continue
+		}
+		if previous.key == group.key {
+			continue
+		}
+		return fmt.Errorf(
+			"printingpress: canonical service slug %q conflicts between identities %q (%s) and %q (%s)",
+			group.slug,
+			previous.key,
+			previous.primaryPath,
+			group.key,
+			group.primaryPath,
+		)
+	}
+	return nil
+}
+
+func (ap *AggregatePrintingPress) resolveLogicalContract(spec *aggregateDiscoveredSpec) (ppmodel.ContractRoleValue, string, bool) {
+	role := ppmodel.ContractRoleEvents
+	if spec.SpecKind.IsOpenAPI() {
+		role = ppmodel.ContractRoleHTTPAPI
+	}
+	contractID := ""
+	explicitDefault := false
+	for _, rule := range ap.config.ContractRoles {
+		if !ruleMatches(spec.RelativePath, rule.Pattern) {
+			continue
+		}
+		role = ppmodel.ContractRoleValue(rule.Role)
+		if strings.TrimSpace(rule.ContractID) != "" {
+			contractID = slugpkg.Sanitize(strings.TrimSpace(rule.ContractID))
+		}
+		explicitDefault = rule.Default
+		break
+	}
+	if contractID == "" {
+		contractID = ap.deriveLogicalContractID(spec.RelativePath, role)
+	}
+	return role, contractID, explicitDefault
+}
+
+func (ap *AggregatePrintingPress) deriveLogicalContractID(relPath string, role ppmodel.ContractRoleValue) string {
+	noise := make(map[string]struct{}, len(ap.config.NoiseSegments))
+	for _, segment := range ap.config.NoiseSegments {
+		noise[strings.ToLower(strings.TrimSpace(segment))] = struct{}{}
+	}
+	clean := path.Clean(strings.TrimSpace(filepath.ToSlash(relPath)))
+	segments := strings.Split(clean, "/")
+	if len(segments) > 0 {
+		last := strings.TrimSuffix(segments[len(segments)-1], path.Ext(segments[len(segments)-1]))
+		lower := strings.ToLower(last)
+		if lower == "openapi" || lower == "asyncapi" {
+			last = ""
+			lower = ""
+		}
+		for _, suffix := range []string{".openapi", ".asyncapi"} {
+			if strings.HasSuffix(lower, suffix) {
+				last = last[:len(last)-len(suffix)]
+				break
+			}
+		}
+		segments[len(segments)-1] = last
+	}
+	identitySegments := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		segment = strings.TrimSpace(segment)
+		if segment == "" || segment == "." || isVersionDirectorySegment(segment) {
+			continue
+		}
+		if _, ok := noise[strings.ToLower(segment)]; ok {
+			continue
+		}
+		identitySegments = append(identitySegments, segment)
+	}
+	sourceCandidate := strings.Join(identitySegments, "-")
+	if sourceCandidate == "" {
+		return role.MachineValue()
+	}
+	sourceIdentity := slugpkg.Sanitize(sourceCandidate)
+	return role.MachineValue() + "-" + sourceIdentity
+}
+
+func (ap *AggregatePrintingPress) prepareAggregateServiceGroup(group *aggregateServiceGroup) error {
+	if ap.config.ServiceIdentity.PreferOpenAPISlug {
+		openAPISlugs := make(map[string]struct{})
+		for _, contract := range group.contracts {
+			if !contract.specKind.IsOpenAPI() {
+				continue
+			}
+			for _, version := range contract.versions {
+				if version.spec.PathServiceSlug != "" {
+					openAPISlugs[version.spec.PathServiceSlug] = struct{}{}
+				}
+			}
+		}
+		slugs := make([]string, 0, len(openAPISlugs))
+		for slug := range openAPISlugs {
+			slugs = append(slugs, slug)
+		}
+		sort.Strings(slugs)
+		if len(slugs) > 1 {
+			return fmt.Errorf("printingpress: service identity %q has ambiguous OpenAPI service slugs: %s", group.key, strings.Join(slugs, ", "))
+		}
+		if len(slugs) == 1 {
+			group.slug = slugs[0]
+		}
+	}
+
+	var explicit []*aggregateContractGroup
+	for _, contract := range group.contracts {
+		sort.Slice(contract.versions, func(i, j int) bool {
+			return compareVersionLabels(contract.versions[i].label, contract.versions[j].label) > 0
+		})
+		if len(contract.versions) > 0 {
+			contract.latest = contract.versions[0]
+			contract.displayName = aggregateContractDisplayName(contract.latest.spec)
+		}
+		if contract.explicitDefault {
+			explicit = append(explicit, contract)
+		}
+	}
+	if len(explicit) > 1 {
+		ids := make([]string, 0, len(explicit))
+		for _, contract := range explicit {
+			ids = append(ids, contract.id)
+		}
+		sort.Strings(ids)
+		return fmt.Errorf("printingpress: service %q has multiple explicit default contracts: %s", group.key, strings.Join(ids, ", "))
+	}
+
+	sort.Slice(group.contracts, func(i, j int) bool {
+		return aggregateContractTieLess(group.contracts[i], group.contracts[j])
+	})
+	if len(explicit) == 1 {
+		group.defaultContract = explicit[0]
+	} else {
+		group.defaultContract = resolveAggregateDefaultContract(group.contracts)
+	}
+	if group.defaultContract != nil && group.defaultContract.latest != nil {
+		group.displayName = group.defaultContract.latest.spec.DisplayName
+		group.summary = group.defaultContract.latest.spec.Summary
+		group.primaryPath = group.defaultContract.latest.spec.RelativePath
+	}
+	return nil
+}
+
+func aggregateContractDisplayName(spec *aggregateDiscoveredSpec) string {
+	if spec == nil {
+		return ""
+	}
+	if strings.TrimSpace(spec.Title) != "" {
+		return strings.TrimSpace(spec.Title)
+	}
+	return strings.TrimSpace(strings.TrimSuffix(path.Base(spec.RelativePath), path.Ext(spec.RelativePath)))
+}
+
+func resolveAggregateDefaultContract(contracts []*aggregateContractGroup) *aggregateContractGroup {
+	var openAPI []*aggregateContractGroup
+	for _, contract := range contracts {
+		if contract.specKind.IsOpenAPI() {
+			openAPI = append(openAPI, contract)
+		}
+	}
+	if len(openAPI) > 0 {
+		sort.Slice(openAPI, func(i, j int) bool {
+			comparison := compareVersionLabels(openAPI[i].latest.label, openAPI[j].latest.label)
+			if comparison != 0 {
+				return comparison > 0
+			}
+			return aggregateContractTieLess(openAPI[i], openAPI[j])
+		})
+		return openAPI[0]
+	}
+	if len(contracts) == 0 {
+		return nil
+	}
+	events := append([]*aggregateContractGroup(nil), contracts...)
+	sort.Slice(events, func(i, j int) bool {
+		leftRank := aggregateContractRoleRank(events[i].role)
+		rightRank := aggregateContractRoleRank(events[j].role)
+		if leftRank != rightRank {
+			return leftRank < rightRank
+		}
+		return aggregateContractTieLess(events[i], events[j])
+	})
+	return events[0]
+}
+
+func aggregateContractRoleRank(role ppmodel.ContractRoleValue) int {
+	switch role {
+	case ppmodel.ContractRolePublishedEvents:
+		return 0
+	case ppmodel.ContractRoleConsumedEvents:
+		return 1
+	case ppmodel.ContractRoleExternalSource:
+		return 2
+	default:
+		return 3
+	}
+}
+
+func aggregateContractTieLess(left, right *aggregateContractGroup) bool {
+	leftName := strings.ToLower(left.displayName)
+	rightName := strings.ToLower(right.displayName)
+	if leftName != rightName {
+		return leftName < rightName
+	}
+	leftPath, rightPath := "", ""
+	if left.latest != nil && left.latest.spec != nil {
+		leftPath = left.latest.spec.RelativePath
+	}
+	if right.latest != nil && right.latest.spec != nil {
+		rightPath = right.latest.spec.RelativePath
+	}
+	if leftPath != rightPath {
+		return leftPath < rightPath
+	}
+	return left.id < right.id
+}
+
+func aggregateDefaultContractID(group *aggregateServiceGroup) string {
+	if group == nil || group.defaultContract == nil {
+		return ""
+	}
+	return group.defaultContract.id
 }
 
 func (ap *AggregatePrintingPress) finalizeCatalog(catalog *ppmodel.CatalogSite) {
+	reconcileCatalogContracts(catalog)
+	reconcileCatalogRelationships(catalog)
 	ap.refreshCatalogLatestState(catalog)
 	ap.refreshCatalogDiagnosticCounts(catalog)
 	ap.populateHeaderContexts(catalog)
+}
+
+func reconcileCatalogRelationships(catalog *ppmodel.CatalogSite) {
+	if catalog == nil {
+		return
+	}
+	visibleTargets := make(map[string]struct{})
+	for _, service := range catalog.Services {
+		if service == nil {
+			continue
+		}
+		for _, contract := range service.Contracts {
+			if contract == nil {
+				continue
+			}
+			for _, version := range contract.Versions {
+				if version == nil || version.Entry == nil || version.Entry.RenderSkipped {
+					continue
+				}
+				visibleTargets[version.OverviewHref] = struct{}{}
+			}
+		}
+	}
+	for _, service := range catalog.Services {
+		if service == nil {
+			continue
+		}
+		for _, contract := range service.Contracts {
+			if contract == nil {
+				continue
+			}
+			for _, version := range contract.Versions {
+				if version == nil {
+					continue
+				}
+				visible := version.Relationships[:0]
+				for _, relationship := range version.Relationships {
+					if relationship == nil {
+						continue
+					}
+					if _, ok := visibleTargets[relationship.Href]; ok {
+						visible = append(visible, relationship)
+					}
+				}
+				version.Relationships = visible
+				sortCatalogRelationships(version.Relationships)
+			}
+		}
+	}
+}
+
+func reconcileCatalogContracts(catalog *ppmodel.CatalogSite) {
+	if catalog == nil {
+		return
+	}
+	for _, service := range catalog.Services {
+		if service == nil {
+			continue
+		}
+		previousDefaultID := service.DefaultContractID
+		previousEntry := catalogContractLatestEntryForID(service, previousDefaultID)
+		var previousDefault *ppmodel.CatalogContract
+		visibleContracts := make([]*ppmodel.CatalogContract, 0, len(service.Contracts))
+		for _, contract := range service.Contracts {
+			if contract == nil {
+				continue
+			}
+			visibleVersions := contract.Versions[:0]
+			for _, version := range contract.Versions {
+				if version == nil || version.Entry == nil || version.Entry.RenderSkipped {
+					continue
+				}
+				visibleVersions = append(visibleVersions, version)
+			}
+			contract.Versions = visibleVersions
+			contract.LatestVersion = nil
+			contract.Default = false
+			if len(contract.Versions) == 0 {
+				continue
+			}
+			sort.Slice(contract.Versions, func(i, j int) bool {
+				return compareVersionLabels(contract.Versions[i].Label, contract.Versions[j].Label) > 0
+			})
+			contract.LatestVersion = contract.Versions[0]
+			visibleContracts = append(visibleContracts, contract)
+			if contract.ID == previousDefaultID {
+				previousDefault = contract
+			}
+		}
+
+		resolved := previousDefault
+		if resolved == nil {
+			resolved = resolveVisibleCatalogDefaultContract(visibleContracts)
+		}
+		service.DefaultContractID = ""
+		if resolved != nil {
+			resolved.Default = true
+			service.DefaultContractID = resolved.ID
+		}
+		resolvedEntry := catalogContractLatestEntryForID(service, service.DefaultContractID)
+		if previousDefaultID == service.DefaultContractID && previousEntry == resolvedEntry {
+			continue
+		}
+		if resolvedEntry == nil {
+			service.DisplayName = ""
+			service.Summary = ""
+			service.PrimaryPath = ""
+			continue
+		}
+		service.DisplayName = fallbackValue(resolvedEntry.Title, resolved.DisplayName)
+		service.Summary = resolvedEntry.Summary
+		service.PrimaryPath = resolvedEntry.RelativePath
+	}
+}
+
+func resolveVisibleCatalogDefaultContract(contracts []*ppmodel.CatalogContract) *ppmodel.CatalogContract {
+	if len(contracts) == 0 {
+		return nil
+	}
+	var openAPI []*ppmodel.CatalogContract
+	for _, contract := range contracts {
+		if contract.SpecKind.IsOpenAPI() {
+			openAPI = append(openAPI, contract)
+		}
+	}
+	if len(openAPI) > 0 {
+		sort.Slice(openAPI, func(i, j int) bool {
+			comparison := compareVersionLabels(openAPI[i].LatestVersion.Label, openAPI[j].LatestVersion.Label)
+			if comparison != 0 {
+				return comparison > 0
+			}
+			return catalogContractTieLess(openAPI[i], openAPI[j])
+		})
+		return openAPI[0]
+	}
+	events := append([]*ppmodel.CatalogContract(nil), contracts...)
+	sort.Slice(events, func(i, j int) bool {
+		leftRank := aggregateContractRoleRank(events[i].Role)
+		rightRank := aggregateContractRoleRank(events[j].Role)
+		if leftRank != rightRank {
+			return leftRank < rightRank
+		}
+		return catalogContractTieLess(events[i], events[j])
+	})
+	return events[0]
+}
+
+func catalogContractTieLess(left, right *ppmodel.CatalogContract) bool {
+	leftName := strings.ToLower(left.DisplayName)
+	rightName := strings.ToLower(right.DisplayName)
+	if leftName != rightName {
+		return leftName < rightName
+	}
+	leftPath := catalogContractLatestRelativePath(left)
+	rightPath := catalogContractLatestRelativePath(right)
+	if leftPath != rightPath {
+		return leftPath < rightPath
+	}
+	return left.ID < right.ID
+}
+
+func catalogContractLatestRelativePath(contract *ppmodel.CatalogContract) string {
+	if contract == nil || contract.LatestVersion == nil || contract.LatestVersion.Entry == nil {
+		return ""
+	}
+	return contract.LatestVersion.Entry.RelativePath
+}
+
+func catalogContractLatestEntryForID(service *ppmodel.CatalogService, contractID string) *ppmodel.CatalogSpecEntry {
+	if service == nil || contractID == "" {
+		return nil
+	}
+	for _, contract := range service.Contracts {
+		if contract == nil || contract.ID != contractID || contract.LatestVersion == nil {
+			continue
+		}
+		return contract.LatestVersion.Entry
+	}
+	return nil
 }
 
 func (ap *AggregatePrintingPress) refreshCatalogLatestState(catalog *ppmodel.CatalogSite) {
@@ -429,7 +1354,11 @@ func (ap *AggregatePrintingPress) refreshCatalogLatestState(catalog *ppmodel.Cat
 		}
 		service.LatestVersion = visible[0]
 		service.LatestVersion.IsLatest = true
-		service.Summary = service.LatestVersion.Summary
+		if entry := catalogDefaultContractLatestEntry(service); entry != nil {
+			service.Summary = entry.Summary
+		} else {
+			service.Summary = service.LatestVersion.Summary
+		}
 	}
 }
 
@@ -502,6 +1431,19 @@ func (ap *AggregatePrintingPress) populateHeaderContexts(catalog *ppmodel.Catalo
 		if service == nil {
 			continue
 		}
+		relationshipsByEntry := make(map[string][]*ppmodel.CatalogContractRelationship)
+		for _, contract := range service.Contracts {
+			if contract == nil {
+				continue
+			}
+			for _, contractVersion := range contract.Versions {
+				if contractVersion == nil || contractVersion.Entry == nil {
+					continue
+				}
+				relationshipsByEntry[contractVersion.Entry.RelativePath] = contractVersion.Relationships
+			}
+		}
+		visibleContracts := ap.visibleNavigationCatalogContracts(service)
 		for _, version := range service.Versions {
 			if version == nil {
 				continue
@@ -512,24 +1454,241 @@ func (ap *AggregatePrintingPress) populateHeaderContexts(catalog *ppmodel.Catalo
 				}
 				entry.HeaderContext = &ppmodel.SiteHeaderContext{
 					CatalogHref:    relativeCatalogHref(entry.OutputSubdir, pppaths.FileIndexHTML),
-					OverviewHref:   relativeCatalogHref(entry.OutputSubdir, catalogVersionPrimaryHref(version)),
+					OverviewHref:   relativeCatalogHref(entry.OutputSubdir, entry.OverviewHref),
+					OverviewLabel:  siteOverviewLabel(entry.SpecKind),
 					ServiceName:    service.DisplayName,
-					CurrentVersion: version.Label,
+					CurrentVersion: entry.Version,
 				}
-				visibleVersions := visibleCatalogVersions(service)
-				if len(visibleVersions) > 1 {
-					entry.HeaderContext.Versions = make([]*ppmodel.SiteVersionLink, 0, len(visibleVersions))
-					for _, candidate := range visibleVersions {
-						entry.HeaderContext.Versions = append(entry.HeaderContext.Versions, &ppmodel.SiteVersionLink{
-							Label:  candidate.Label,
-							Href:   relativeCatalogHref(entry.OutputSubdir, catalogVersionPrimaryHref(candidate)),
-							Active: candidate.Label == version.Label,
-						})
+				for _, relationship := range relationshipsByEntry[entry.RelativePath] {
+					if relationship == nil {
+						continue
 					}
+					entry.HeaderContext.Relationships = append(entry.HeaderContext.Relationships, &ppmodel.SiteContractRelationship{
+						Relation: relationship.Relation,
+						Label:    relationship.Label,
+						Href:     relativeCatalogHref(entry.OutputSubdir, relationship.Href),
+						SpecKind: relationship.SpecKind,
+					})
+				}
+				activeContract := visibleCatalogContractForEntry(visibleContracts, entry)
+				if activeContract != nil {
+					entry.HeaderContext.Versions = siteVersionLinks(entry.OutputSubdir, activeContract, entry)
+				}
+				if len(visibleContracts) > 1 {
+					entry.HeaderContext.ContractGroups = siteContractGroups(entry.OutputSubdir, visibleContracts, activeContract, entry)
 				}
 			}
 		}
 	}
+}
+
+var siteContractRoleOrder = []ppmodel.ContractRoleValue{
+	ppmodel.ContractRoleHTTPAPI,
+	ppmodel.ContractRolePublishedEvents,
+	ppmodel.ContractRoleConsumedEvents,
+	ppmodel.ContractRoleExternalSource,
+	ppmodel.ContractRoleEvents,
+}
+
+func siteOverviewLabel(kind ppmodel.SpecKindValue) string {
+	if kind.IsAsyncAPI() {
+		return "EVENT OVERVIEW"
+	}
+	return "API OVERVIEW"
+}
+
+func (ap *AggregatePrintingPress) visibleNavigationCatalogContracts(service *ppmodel.CatalogService) []*ppmodel.CatalogContract {
+	if service == nil {
+		return nil
+	}
+	contracts := make([]*ppmodel.CatalogContract, 0, len(service.Contracts))
+	for _, contract := range service.Contracts {
+		versions := visibleCatalogContractVersions(contract)
+		if len(versions) == 0 {
+			continue
+		}
+		if ap.catalogContractHasExplicitID(contract) {
+			contracts = append(contracts, contract)
+			continue
+		}
+		merged := false
+		for _, candidate := range contracts {
+			if ap.catalogContractHasExplicitID(candidate) || !sameNavigationContract(candidate, contract) || catalogContractVersionsOverlap(candidate.Versions, versions) {
+				continue
+			}
+			candidate.Versions = append(candidate.Versions, versions...)
+			candidate.LatestVersion = visibleCatalogContractVersions(candidate)[0]
+			merged = true
+			break
+		}
+		if !merged {
+			copyContract := *contract
+			copyContract.Versions = append([]*ppmodel.CatalogContractVersion(nil), versions...)
+			copyContract.LatestVersion = versions[0]
+			contracts = append(contracts, &copyContract)
+		}
+	}
+	return contracts
+}
+
+func (ap *AggregatePrintingPress) catalogContractHasExplicitID(contract *ppmodel.CatalogContract) bool {
+	if ap == nil || ap.config == nil || contract == nil {
+		return false
+	}
+	for _, version := range visibleCatalogContractVersions(contract) {
+		if version.Entry == nil {
+			continue
+		}
+		for _, rule := range ap.config.ContractRoles {
+			if !ruleMatches(version.Entry.RelativePath, rule.Pattern) {
+				continue
+			}
+			return strings.TrimSpace(rule.ContractID) != ""
+		}
+	}
+	return false
+}
+
+func sameNavigationContract(left, right *ppmodel.CatalogContract) bool {
+	if left == nil || right == nil {
+		return false
+	}
+	return left.Role == right.Role && left.SpecKind == right.SpecKind && siteContractLabel(left) == siteContractLabel(right)
+}
+
+func catalogContractVersionsOverlap(left, right []*ppmodel.CatalogContractVersion) bool {
+	labels := make(map[string]struct{}, len(left))
+	for _, version := range left {
+		if version != nil {
+			labels[version.Label] = struct{}{}
+		}
+	}
+	for _, version := range right {
+		if version == nil {
+			continue
+		}
+		if _, ok := labels[version.Label]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func visibleCatalogContractVersions(contract *ppmodel.CatalogContract) []*ppmodel.CatalogContractVersion {
+	if contract == nil {
+		return nil
+	}
+	versions := make([]*ppmodel.CatalogContractVersion, 0, len(contract.Versions))
+	for _, version := range contract.Versions {
+		if version == nil || version.Entry == nil || version.Entry.RenderSkipped {
+			continue
+		}
+		versions = append(versions, version)
+	}
+	sort.SliceStable(versions, func(i, j int) bool {
+		return compareVersionLabels(versions[i].Label, versions[j].Label) > 0
+	})
+	return versions
+}
+
+func visibleCatalogContractForEntry(contracts []*ppmodel.CatalogContract, entry *ppmodel.CatalogSpecEntry) *ppmodel.CatalogContract {
+	if entry == nil {
+		return nil
+	}
+	for _, contract := range contracts {
+		if contract == nil {
+			continue
+		}
+		for _, version := range visibleCatalogContractVersions(contract) {
+			if sameCatalogEntry(version.Entry, entry) {
+				return contract
+			}
+		}
+	}
+	return nil
+}
+
+func siteVersionLinks(from string, contract *ppmodel.CatalogContract, activeEntry *ppmodel.CatalogSpecEntry) []*ppmodel.SiteVersionLink {
+	versions := visibleCatalogContractVersions(contract)
+	if len(versions) <= 1 {
+		return nil
+	}
+	links := make([]*ppmodel.SiteVersionLink, 0, len(versions))
+	for _, version := range versions {
+		links = append(links, &ppmodel.SiteVersionLink{
+			Label:  version.Label,
+			Href:   relativeCatalogHref(from, version.OverviewHref),
+			Active: sameCatalogEntry(version.Entry, activeEntry),
+		})
+	}
+	return links
+}
+
+func siteContractGroups(from string, contracts []*ppmodel.CatalogContract, activeContract *ppmodel.CatalogContract, activeEntry *ppmodel.CatalogSpecEntry) []*ppmodel.SiteContractGroup {
+	byRole := make(map[ppmodel.ContractRoleValue][]*ppmodel.CatalogContract, len(siteContractRoleOrder))
+	for _, contract := range contracts {
+		if contract != nil {
+			byRole[contract.Role] = append(byRole[contract.Role], contract)
+		}
+	}
+	groups := make([]*ppmodel.SiteContractGroup, 0, len(byRole))
+	for _, role := range siteContractRoleOrder {
+		roleContracts := byRole[role]
+		if len(roleContracts) == 0 {
+			continue
+		}
+		sort.SliceStable(roleContracts, func(i, j int) bool {
+			left := siteContractLabel(roleContracts[i])
+			right := siteContractLabel(roleContracts[j])
+			if left == right {
+				return roleContracts[i].ID < roleContracts[j].ID
+			}
+			return left < right
+		})
+		group := &ppmodel.SiteContractGroup{Role: role, Label: role.DisplayLabel()}
+		for _, contract := range roleContracts {
+			versions := visibleCatalogContractVersions(contract)
+			active := contract == activeContract
+			target := versions[0]
+			link := &ppmodel.SiteContractLink{
+				ID:       contract.ID,
+				Label:    siteContractLabel(contract),
+				SpecKind: contract.SpecKind,
+			}
+			if active {
+				for _, candidate := range versions {
+					if sameCatalogEntry(candidate.Entry, activeEntry) {
+						target = candidate
+						break
+					}
+				}
+				link.Active = true
+				link.CurrentVersion = target.Label
+				link.Versions = siteVersionLinks(from, contract, activeEntry)
+			}
+			link.Href = relativeCatalogHref(from, target.OverviewHref)
+			group.Contracts = append(group.Contracts, link)
+		}
+		groups = append(groups, group)
+	}
+	return groups
+}
+
+func siteContractLabel(contract *ppmodel.CatalogContract) string {
+	if contract == nil {
+		return ""
+	}
+	if label := strings.TrimSpace(contract.DisplayName); label != "" {
+		return label
+	}
+	return contract.ID
+}
+
+func sameCatalogEntry(left, right *ppmodel.CatalogSpecEntry) bool {
+	if left == nil || right == nil {
+		return false
+	}
+	return left == right || (left.RelativePath != "" && left.RelativePath == right.RelativePath)
 }
 
 func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
@@ -537,35 +1696,44 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 		return ""
 	}
 	payload := struct {
-		BaseURL                            string                  `json:"baseURL,omitempty"`
-		AssetMode                          string                  `json:"assetMode,omitempty"`
-		IncludeSpec                        bool                    `json:"includeSpec,omitempty"`
-		EntryConfigFingerprint             string                  `json:"entryConfigFingerprint,omitempty"`
-		NoiseSegments                      []string                `json:"noiseSegments,omitempty"`
-		ServiceOverrides                   []AggregatePathOverride `json:"serviceOverrides,omitempty"`
-		DisplayNameOverrides               []AggregatePathOverride `json:"displayNameOverrides,omitempty"`
-		VersionOverrides                   []AggregatePathOverride `json:"versionOverrides,omitempty"`
-		Footer                             *ppmodel.FooterConfig   `json:"footer,omitempty"`
-		MaxPatternRepeatBudget             int                     `json:"maxPatternRepeatBudget,omitempty"`
-		MaxGeneratedStringBytes            int                     `json:"maxGeneratedStringBytes,omitempty"`
-		MaxGeneratedMockBytes              int                     `json:"maxGeneratedMockBytes,omitempty"`
-		MaxMockDepth                       int                     `json:"maxMockDepth,omitempty"`
-		MaxMockNodes                       int                     `json:"maxMockNodes,omitempty"`
-		MaxMockProperties                  int                     `json:"maxMockProperties,omitempty"`
-		MaxMockRefExpansions               int                     `json:"maxMockRefExpansions,omitempty"`
-		MaxMockBytes                       int                     `json:"maxMockBytes,omitempty"`
-		LLMAggregateSpecSizeThresholdBytes int64                   `json:"llmAggregateSpecSizeThresholdBytes,omitempty"`
-		LLMMaxAggregateFileBytes           int64                   `json:"llmMaxAggregateFileBytes,omitempty"`
-		LLMGenerateMonoliths               string                  `json:"llmGenerateMonoliths,omitempty"`
+		BaseURL                            string                         `json:"baseURL,omitempty"`
+		AssetMode                          string                         `json:"assetMode,omitempty"`
+		IncludeSpec                        bool                           `json:"includeSpec,omitempty"`
+		EntryConfigFingerprint             string                         `json:"entryConfigFingerprint,omitempty"`
+		NoiseSegments                      []string                       `json:"noiseSegments,omitempty"`
+		ServiceOverrides                   []AggregatePathOverride        `json:"serviceOverrides,omitempty"`
+		DisplayNameOverrides               []AggregatePathOverride        `json:"displayNameOverrides,omitempty"`
+		VersionOverrides                   []AggregatePathOverride        `json:"versionOverrides,omitempty"`
+		ServiceIdentity                    AggregateServiceIdentityConfig `json:"serviceIdentity,omitempty"`
+		ContractRoles                      []AggregateContractRoleRule    `json:"contractRoles,omitempty"`
+		Footer                             *ppmodel.FooterConfig          `json:"footer,omitempty"`
+		MaxPatternRepeatBudget             int                            `json:"maxPatternRepeatBudget,omitempty"`
+		MaxGeneratedStringBytes            int                            `json:"maxGeneratedStringBytes,omitempty"`
+		MaxGeneratedMockBytes              int                            `json:"maxGeneratedMockBytes,omitempty"`
+		MaxMockDepth                       int                            `json:"maxMockDepth,omitempty"`
+		MaxMockNodes                       int                            `json:"maxMockNodes,omitempty"`
+		MaxMockProperties                  int                            `json:"maxMockProperties,omitempty"`
+		MaxMockRefExpansions               int                            `json:"maxMockRefExpansions,omitempty"`
+		MaxMockBytes                       int                            `json:"maxMockBytes,omitempty"`
+		LLMAggregateSpecSizeThresholdBytes int64                          `json:"llmAggregateSpecSizeThresholdBytes,omitempty"`
+		LLMMaxAggregateFileBytes           int64                          `json:"llmMaxAggregateFileBytes,omitempty"`
+		LLMGenerateMonoliths               string                         `json:"llmGenerateMonoliths,omitempty"`
 	}{
-		BaseURL:                            config.BaseURL,
-		AssetMode:                          config.AssetMode,
-		IncludeSpec:                        config.IncludeSpec,
-		EntryConfigFingerprint:             config.EntryConfigFingerprint,
-		NoiseSegments:                      append([]string(nil), config.NoiseSegments...),
-		ServiceOverrides:                   append([]AggregatePathOverride(nil), config.ServiceOverrides...),
-		DisplayNameOverrides:               append([]AggregatePathOverride(nil), config.DisplayNameOverrides...),
-		VersionOverrides:                   append([]AggregatePathOverride(nil), config.VersionOverrides...),
+		BaseURL:                config.BaseURL,
+		AssetMode:              config.AssetMode,
+		IncludeSpec:            config.IncludeSpec,
+		EntryConfigFingerprint: config.EntryConfigFingerprint,
+		NoiseSegments:          append([]string(nil), config.NoiseSegments...),
+		ServiceOverrides:       append([]AggregatePathOverride(nil), config.ServiceOverrides...),
+		DisplayNameOverrides:   append([]AggregatePathOverride(nil), config.DisplayNameOverrides...),
+		VersionOverrides:       append([]AggregatePathOverride(nil), config.VersionOverrides...),
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers:  append([]string(nil), config.ServiceIdentity.MetadataPointers...),
+			StripPrefixes:     append([]string(nil), config.ServiceIdentity.StripPrefixes...),
+			StripSuffixes:     append([]string(nil), config.ServiceIdentity.StripSuffixes...),
+			PreferOpenAPISlug: config.ServiceIdentity.PreferOpenAPISlug,
+		},
+		ContractRoles:                      append([]AggregateContractRoleRule(nil), config.ContractRoles...),
 		Footer:                             cloneFooterConfig(config.Footer),
 		MaxPatternRepeatBudget:             config.MaxPatternRepeatBudget,
 		MaxGeneratedStringBytes:            config.MaxGeneratedStringBytes,
@@ -580,6 +1748,18 @@ func aggregateEntryConfigHash(config *AggregatePrintingPressConfig) string {
 		LLMGenerateMonoliths:               config.LLMGenerateMonoliths,
 	}
 	b, err := json.Marshal(payload)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%x", xxhash.Sum64(b))
+}
+
+func aggregateMetadataConfigHash(config *AggregatePrintingPressConfig) string {
+	var pointers []string
+	if config != nil {
+		pointers = append([]string(nil), config.ServiceIdentity.MetadataPointers...)
+	}
+	b, err := json.Marshal(pointers)
 	if err != nil {
 		return ""
 	}
@@ -847,7 +2027,7 @@ func hashSpecBytes(content []byte) string {
 	return fmt.Sprintf("%x", xxhash.Sum64(content))
 }
 
-func parseAggregateSpecMetadata(content []byte) (aggregateSpecMetadata, error) {
+func parseAggregateSpecMetadata(content []byte, metadataPointers []string) (aggregateSpecMetadata, error) {
 	var parsed struct {
 		OpenAPI  string `yaml:"openapi"`
 		Swagger  string `yaml:"swagger"`
@@ -866,20 +2046,148 @@ func parseAggregateSpecMetadata(content []byte) (aggregateSpecMetadata, error) {
 	if err := yaml.Unmarshal(content, &parsed); err != nil {
 		return aggregateSpecMetadata{}, err
 	}
+	var document any
+	if err := yaml.Unmarshal(content, &document); err != nil {
+		return aggregateSpecMetadata{}, err
+	}
 	specKind := SpecKindOpenAPI
 	if strings.TrimSpace(parsed.AsyncAPI) != "" {
 		specKind = SpecKindAsyncAPI
 	} else if strings.TrimSpace(parsed.OpenAPI) == "" && strings.TrimSpace(parsed.Swagger) == "" {
 		return aggregateSpecMetadata{}, nil
 	}
-	return aggregateSpecMetadata{
-		Title:    strings.TrimSpace(parsed.Info.Title),
-		Summary:  chooseCatalogSummary(parsed.Info.Summary, parsed.Info.Description),
-		Contact:  catalogContactFromFields(parsed.Info.Contact.Name, parsed.Info.Contact.Email),
-		Version:  strings.TrimSpace(parsed.Info.Version),
-		SpecKind: specKind,
-		Valid:    true,
-	}, nil
+	metadata := aggregateSpecMetadata{
+		Title:        strings.TrimSpace(parsed.Info.Title),
+		Summary:      chooseCatalogSummary(parsed.Info.Summary, parsed.Info.Description),
+		Contact:      catalogContactFromFields(parsed.Info.Contact.Name, parsed.Info.Contact.Email),
+		Version:      strings.TrimSpace(parsed.Info.Version),
+		SpecKind:     specKind,
+		Document:     document,
+		ExternalRefs: collectAggregateExternalRefs(document),
+		Valid:        true,
+	}
+	if len(metadataPointers) > 0 {
+		metadata.ServiceIdentityCandidate = resolveAggregateMetadataPointerString(document, metadataPointers)
+		metadata.Warnings = aggregateServiceIdentityWarnings(metadataPointers, metadata.ServiceIdentityCandidate)
+	}
+	return metadata, nil
+}
+
+func aggregateServiceIdentityWarnings(metadataPointers []string, candidate string) []string {
+	if len(metadataPointers) == 0 || strings.TrimSpace(candidate) != "" {
+		return nil
+	}
+	return []string{aggregateServiceIdentityFallbackWarning}
+}
+
+func resolveAggregateMetadataPointerString(document any, pointers []string) string {
+	for _, pointer := range pointers {
+		value, ok := resolveAggregateJSONPointer(document, pointer)
+		if !ok {
+			continue
+		}
+		text, ok := value.(string)
+		if !ok {
+			continue
+		}
+		if text = strings.TrimSpace(text); text != "" {
+			return text
+		}
+	}
+	return ""
+}
+
+func resolveAggregateJSONPointer(document any, pointer string) (any, bool) {
+	if pointer == "" {
+		return document, true
+	}
+	if validateRFC6901JSONPointer(pointer) != nil {
+		return nil, false
+	}
+	current := document
+	for _, encodedToken := range strings.Split(pointer[1:], "/") {
+		token := strings.ReplaceAll(strings.ReplaceAll(encodedToken, "~1", "/"), "~0", "~")
+		switch value := current.(type) {
+		case map[string]any:
+			current, _ = value[token]
+			if current == nil {
+				if _, exists := value[token]; !exists {
+					return nil, false
+				}
+			}
+		case map[any]any:
+			var exists bool
+			current, exists = value[token]
+			if !exists {
+				return nil, false
+			}
+		case []any:
+			if !isAggregateJSONPointerArrayIndex(token) {
+				return nil, false
+			}
+			idx, err := strconv.Atoi(token)
+			if err != nil || idx >= len(value) {
+				return nil, false
+			}
+			current = value[idx]
+		default:
+			return nil, false
+		}
+	}
+	return current, true
+}
+
+func isAggregateJSONPointerArrayIndex(token string) bool {
+	if token == "0" {
+		return true
+	}
+	if len(token) == 0 || token[0] < '1' || token[0] > '9' {
+		return false
+	}
+	for idx := 1; idx < len(token); idx++ {
+		if token[idx] < '0' || token[idx] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func collectAggregateExternalRefs(document any) []string {
+	seen := make(map[string]struct{})
+	var walk func(any)
+	walk = func(value any) {
+		switch typed := value.(type) {
+		case map[string]any:
+			for key, child := range typed {
+				if key == "$ref" {
+					if ref, ok := child.(string); ok {
+						seen[ref] = struct{}{}
+					}
+				}
+				walk(child)
+			}
+		case map[any]any:
+			for key, child := range typed {
+				if key == "$ref" {
+					if ref, ok := child.(string); ok {
+						seen[ref] = struct{}{}
+					}
+				}
+				walk(child)
+			}
+		case []any:
+			for _, child := range typed {
+				walk(child)
+			}
+		}
+	}
+	walk(document)
+	refs := make([]string, 0, len(seen))
+	for ref := range seen {
+		refs = append(refs, ref)
+	}
+	sort.Strings(refs)
+	return refs
 }
 
 func catalogContactFromFields(name, email string) *ppmodel.ContactInfo {
@@ -941,9 +2249,9 @@ func trimCatalogSummary(value string, limit int) string {
 	return strings.TrimSpace(value[:cut]) + "..."
 }
 
-func (ap *AggregatePrintingPress) resolveServiceKey(relPath, title string, noise map[string]struct{}) string {
+func (ap *AggregatePrintingPress) resolvePathServiceCandidate(relPath, title string, noise map[string]struct{}) string {
 	if override, ok := findOverrideValue(relPath, ap.config.ServiceOverrides); ok {
-		return slugpkg.Sanitize(override)
+		return strings.TrimSpace(override)
 	}
 	segments := strings.Split(path.Dir(relPath), "/")
 	for i := len(segments) - 1; i >= 0; i-- {
@@ -957,12 +2265,53 @@ func (ap *AggregatePrintingPress) resolveServiceKey(relPath, title string, noise
 		if isVersionDirectorySegment(segment) {
 			continue
 		}
-		return slugpkg.Sanitize(segment)
+		return segment
 	}
 	if stem := strings.TrimSuffix(path.Base(relPath), path.Ext(relPath)); stem != "" {
-		return slugpkg.Sanitize(stem)
+		return stem
 	}
-	return slugpkg.Sanitize(title)
+	return strings.TrimSpace(title)
+}
+
+func (ap *AggregatePrintingPress) normalizeServiceIdentityCandidate(candidate string) string {
+	candidate = strings.ToLower(strings.TrimSpace(candidate))
+	if candidate == "" {
+		return ""
+	}
+	candidate = ap.stripServiceIdentityAffixes(candidate)
+	if candidate == "" {
+		return ""
+	}
+	return slugpkg.Sanitize(candidate)
+}
+
+func (ap *AggregatePrintingPress) normalizePathServiceIdentity(pathServiceSlug string) string {
+	candidate := strings.ToLower(strings.TrimSpace(pathServiceSlug))
+	if candidate == "" {
+		return ""
+	}
+	candidate = ap.stripServiceIdentityAffixes(candidate)
+	if candidate == "" {
+		return "unnamed"
+	}
+	return candidate
+}
+
+func (ap *AggregatePrintingPress) stripServiceIdentityAffixes(candidate string) string {
+	for {
+		previous := candidate
+		for _, prefix := range ap.config.ServiceIdentity.StripPrefixes {
+			candidate = strings.TrimPrefix(candidate, strings.ToLower(strings.TrimSpace(prefix)))
+		}
+		for _, suffix := range ap.config.ServiceIdentity.StripSuffixes {
+			candidate = strings.TrimSuffix(candidate, strings.ToLower(strings.TrimSpace(suffix)))
+		}
+		candidate = strings.TrimSpace(candidate)
+		if candidate == previous {
+			break
+		}
+	}
+	return candidate
 }
 
 func isVersionDirectorySegment(segment string) bool {
@@ -1016,8 +2365,8 @@ func matchesAnyRule(relPath string, patterns []string) bool {
 }
 
 func ruleMatches(relPath, rule string) bool {
-	cleanRel := path.Clean(strings.TrimSpace(relPath))
-	cleanRule := path.Clean(strings.TrimSpace(rule))
+	cleanRel := path.Clean(strings.ReplaceAll(strings.TrimSpace(relPath), `\`, "/"))
+	cleanRule := path.Clean(strings.ReplaceAll(strings.TrimSpace(rule), `\`, "/"))
 	if cleanRule == "" || cleanRule == "." {
 		return false
 	}
@@ -1038,6 +2387,11 @@ func recursiveGlobMatch(pattern, candidate string) bool {
 		switch ch := pattern[idx]; ch {
 		case '*':
 			if idx+1 < len(pattern) && pattern[idx+1] == '*' {
+				if idx+2 < len(pattern) && pattern[idx+2] == '/' {
+					builder.WriteString(`(?:.*/)?`)
+					idx += 2
+					continue
+				}
 				builder.WriteString(".*")
 				idx++
 				continue
