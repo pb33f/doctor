@@ -433,6 +433,7 @@ func (ap *AggregatePrintingPress) renderSpecOutputs(spec *aggregateDiscoveredSpe
 	} else {
 		site.HeaderContext = entry.HeaderContext
 	}
+	applyAggregateExternalMessageHrefs(site, spec.externalMessageHrefs)
 	completedStages++
 	reportStage("model built", float64(completedStages)/float64(steps))
 

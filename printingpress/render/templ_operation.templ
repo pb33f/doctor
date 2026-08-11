@@ -344,14 +344,14 @@ templ RequestBodySection(rb *ppmodel.RequestBodyInfo, baseURL string, title stri
 		if len(rb.Refs) > 0 {
 			<p class="pp-request-body-refs">
 				for _, ref := range rb.Refs {
-					<a class="pp-ref-link" href={ templ.SafeURL(OperationDocHref(baseURL, pppaths.ModelHTML(ref.TypeSlug, ref.Slug))) }>
+					<a class="pp-ref-link" href={ templ.SafeURL(OperationDocHref(baseURL, componentLinkHref(ref))) }>
 						&#10140; { ref.Name }
 					</a>
 				}
 			</p>
 		} else if rb.Ref != nil {
 			<p>
-				<a class="pp-ref-link" href={ templ.SafeURL(OperationDocHref(baseURL, pppaths.ModelHTML(rb.Ref.TypeSlug, rb.Ref.Slug))) }>
+				<a class="pp-ref-link" href={ templ.SafeURL(OperationDocHref(baseURL, componentLinkHref(rb.Ref))) }>
 					&#10140; { rb.Ref.Name }
 				</a>
 			</p>

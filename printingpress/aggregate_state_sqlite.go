@@ -67,6 +67,7 @@ func (s *sqliteSpecStateStore) init() error {
 			contact_email TEXT,
 			service_identity_candidate TEXT,
 			external_refs TEXT,
+			message_hrefs TEXT,
 			service_key TEXT,
 			display_name TEXT,
 			version TEXT,
@@ -126,6 +127,9 @@ func (s *sqliteSpecStateStore) init() error {
 	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN external_refs TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
 	}
+	if _, err := s.db.Exec(`ALTER TABLE spec_state ADD COLUMN message_hrefs TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return fmt.Errorf("printingpress: migrating sqlite state store: %w", err)
+	}
 	if _, err := s.db.Exec(`UPDATE spec_state SET summary = '' WHERE summary IS NULL`); err != nil {
 		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
 	}
@@ -165,12 +169,15 @@ func (s *sqliteSpecStateStore) init() error {
 	if _, err := s.db.Exec(`UPDATE spec_state SET external_refs = '[]' WHERE external_refs IS NULL OR external_refs = ''`); err != nil {
 		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
 	}
+	if _, err := s.db.Exec(`UPDATE spec_state SET message_hrefs = '{}' WHERE message_hrefs IS NULL OR message_hrefs = ''`); err != nil {
+		return fmt.Errorf("printingpress: normalizing sqlite state store: %w", err)
+	}
 	return nil
 }
 
 func (s *sqliteSpecStateStore) Load(namespace string) (map[string]*SpecStateRecord, error) {
 	rows, err := s.db.Query(
-		`SELECT relative_path, hash, config_hash, html_completion_hash, json_completion_hash, llm_completion_hash, html_output_subdir, json_output_subdir, llm_output_subdir, metadata_config_hash, metadata_version, spec_kind, title, summary, contact_name, contact_email, service_identity_candidate, external_refs, service_key, display_name, version, format, output_subdir, updated_at
+		`SELECT relative_path, hash, config_hash, html_completion_hash, json_completion_hash, llm_completion_hash, html_output_subdir, json_output_subdir, llm_output_subdir, metadata_config_hash, metadata_version, spec_kind, title, summary, contact_name, contact_email, service_identity_candidate, external_refs, message_hrefs, service_key, display_name, version, format, output_subdir, updated_at
 		   FROM spec_state WHERE namespace = ?`,
 		namespace,
 	)
@@ -199,6 +206,7 @@ func (s *sqliteSpecStateStore) Load(namespace string) (map[string]*SpecStateReco
 		var contactEmail sql.NullString
 		var serviceIdentityCandidate sql.NullString
 		var externalRefs sql.NullString
+		var messageHrefs sql.NullString
 		var serviceKey sql.NullString
 		var displayName sql.NullString
 		var version sql.NullString
@@ -223,6 +231,7 @@ func (s *sqliteSpecStateStore) Load(namespace string) (map[string]*SpecStateReco
 			&contactEmail,
 			&serviceIdentityCandidate,
 			&externalRefs,
+			&messageHrefs,
 			&serviceKey,
 			&displayName,
 			&version,
@@ -252,6 +261,9 @@ func (s *sqliteSpecStateStore) Load(namespace string) (map[string]*SpecStateReco
 		record.ServiceIdentityCandidate = serviceIdentityCandidate.String
 		if err := json.Unmarshal([]byte(externalRefs.String), &record.ExternalRefs); err != nil {
 			return nil, fmt.Errorf("printingpress: decoding sqlite external refs for %s: %w", record.RelativePath, err)
+		}
+		if err := json.Unmarshal([]byte(messageHrefs.String), &record.MessageHrefs); err != nil {
+			return nil, fmt.Errorf("printingpress: decoding sqlite message hrefs for %s: %w", record.RelativePath, err)
 		}
 		record.ServiceKey = serviceKey.String
 		record.DisplayName = displayName.String
@@ -284,8 +296,8 @@ func (s *sqliteSpecStateStore) Upsert(namespace string, records []*SpecStateReco
 
 	statement, err := tx.Prepare(`
 		INSERT INTO spec_state (
-			namespace, relative_path, hash, config_hash, html_completion_hash, json_completion_hash, llm_completion_hash, html_output_subdir, json_output_subdir, llm_output_subdir, metadata_config_hash, metadata_version, spec_kind, title, summary, contact_name, contact_email, service_identity_candidate, external_refs, service_key, display_name, version, format, output_subdir, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			namespace, relative_path, hash, config_hash, html_completion_hash, json_completion_hash, llm_completion_hash, html_output_subdir, json_output_subdir, llm_output_subdir, metadata_config_hash, metadata_version, spec_kind, title, summary, contact_name, contact_email, service_identity_candidate, external_refs, message_hrefs, service_key, display_name, version, format, output_subdir, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(namespace, relative_path) DO UPDATE SET
 			hash=excluded.hash,
 			config_hash=excluded.config_hash,
@@ -304,6 +316,7 @@ func (s *sqliteSpecStateStore) Upsert(namespace string, records []*SpecStateReco
 			contact_email=excluded.contact_email,
 			service_identity_candidate=excluded.service_identity_candidate,
 			external_refs=excluded.external_refs,
+			message_hrefs=excluded.message_hrefs,
 			service_key=excluded.service_key,
 			display_name=excluded.display_name,
 			version=excluded.version,
@@ -324,6 +337,7 @@ func (s *sqliteSpecStateStore) Upsert(namespace string, records []*SpecStateReco
 			updatedAt = time.Now().UTC()
 		}
 		externalRefs := marshalExternalRefs(record.ExternalRefs)
+		messageHrefs := marshalMessageHrefs(record.MessageHrefs)
 		if _, err = statement.Exec(
 			namespace,
 			record.RelativePath,
@@ -344,6 +358,7 @@ func (s *sqliteSpecStateStore) Upsert(namespace string, records []*SpecStateReco
 			record.ContactEmail,
 			record.ServiceIdentityCandidate,
 			externalRefs,
+			messageHrefs,
 			record.ServiceKey,
 			record.DisplayName,
 			record.Version,
@@ -371,6 +386,14 @@ func marshalExternalRefs(refs []string) string {
 	}
 	sort.Strings(normalized)
 	b, _ := json.Marshal(normalized)
+	return string(b)
+}
+
+func marshalMessageHrefs(hrefs map[string]string) string {
+	b, _ := json.Marshal(hrefs)
+	if len(b) == 0 || string(b) == "null" {
+		return "{}"
+	}
 	return string(b)
 }
 

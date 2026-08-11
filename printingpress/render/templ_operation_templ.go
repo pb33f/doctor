@@ -1365,9 +1365,9 @@ func RequestBodySection(rb *ppmodel.RequestBodyInfo, baseURL string, title strin
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var55 templ.SafeURL
-				templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(OperationDocHref(baseURL, pppaths.ModelHTML(ref.TypeSlug, ref.Slug))))
+				templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(OperationDocHref(baseURL, componentLinkHref(ref))))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 347, Col: 118}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 347, Col: 99}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 				if templ_7745c5c3_Err != nil {
@@ -1401,9 +1401,9 @@ func RequestBodySection(rb *ppmodel.RequestBodyInfo, baseURL string, title strin
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var57 templ.SafeURL
-			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(OperationDocHref(baseURL, pppaths.ModelHTML(rb.Ref.TypeSlug, rb.Ref.Slug))))
+			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(OperationDocHref(baseURL, componentLinkHref(rb.Ref))))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 354, Col: 123}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `printingpress/render/templ_operation.templ`, Line: 354, Col: 101}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 			if templ_7745c5c3_Err != nil {

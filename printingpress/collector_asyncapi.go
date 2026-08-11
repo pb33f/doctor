@@ -466,6 +466,7 @@ func (pp *PrintingPress) collectAsyncAPIMessageModel(key string, msg *highasync.
 		},
 	}
 	if component {
+		page.Reference = "#/components/messages/" + escapeJSONPointerToken(key)
 		pp.captureRawData(msg, "asyncapi/components/messages/"+key, &page.RawYAML, &page.SchemaJSON, nil)
 		page.Origin = pp.asyncOrigin(msg)
 		page.Source = pp.buildModelSourceRef(page.Origin)
@@ -545,6 +546,7 @@ func (pp *PrintingPress) collectAsyncAPIOperations(doc *highasync.AsyncAPI, idx 
 							ComponentType: "messages",
 							TypeSlug:      "messages",
 							Slug:          entry.ref.Slug,
+							Reference:     entry.ref.Reference,
 						}
 					}
 					if entry.ref != nil {
@@ -553,6 +555,7 @@ func (pp *PrintingPress) collectAsyncAPIOperations(doc *highasync.AsyncAPI, idx 
 							ComponentType: "messages",
 							TypeSlug:      "messages",
 							Slug:          entry.ref.Slug,
+							Reference:     entry.ref.Reference,
 						})
 					}
 					if page.RequestBody.Description == "" && entry.ref != nil {
@@ -832,6 +835,13 @@ func (pp *PrintingPress) asyncMessageRef(key string, msg *highasync.Message, idx
 		if ref := asyncReference(msg); ref != "" {
 			if entry, ok := idx.messages[ref]; ok && entry != nil && entry.ref != nil {
 				return entry.ref
+			}
+			return &AsyncAPIMessageRef{
+				Name:        firstNonEmpty(msg.Name, key),
+				Title:       msg.Title,
+				Summary:     msg.Summary,
+				ContentType: msg.ContentType,
+				Reference:   ref,
 			}
 		}
 		if entry, ok := idx.messages["#/components/messages/"+escapeJSONPointerToken(key)]; ok && entry != nil && entry.ref != nil {

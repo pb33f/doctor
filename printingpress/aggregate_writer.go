@@ -102,6 +102,8 @@ func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, 
 	if err != nil {
 		return nil, err
 	}
+	spec.MessageHrefs = aggregateMessageHrefsFromSite(site)
+	applyAggregateExternalMessageHrefs(site, spec.externalMessageHrefs)
 	site.HeaderContext = entry.HeaderContext
 	renderedSource := site.Source
 	site.Source = entry.Source
@@ -112,6 +114,77 @@ func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, 
 		site.Source = &includedSource
 	}
 	return site, nil
+}
+
+func aggregateMessageHrefsFromSite(site *ppmodel.Site) map[string]string {
+	if site == nil {
+		return nil
+	}
+	hrefs := make(map[string]string)
+	for _, page := range site.Models["messages"] {
+		if page == nil || page.Reference == "" || page.Slug == "" {
+			continue
+		}
+		hrefs[page.Reference] = pppaths.ModelHTML(page.TypeSlug, page.Slug)
+	}
+	if len(hrefs) == 0 {
+		return nil
+	}
+	return hrefs
+}
+
+func applyAggregateExternalMessageHrefs(site *ppmodel.Site, hrefs map[string]string) {
+	if site == nil {
+		return
+	}
+	applyMessage := func(message *ppmodel.AsyncAPIMessageRef) {
+		if message == nil || !aggregateExternalMessageReference(message.Reference) {
+			return
+		}
+		message.Href = hrefs[strings.TrimSpace(message.Reference)]
+	}
+	applyComponent := func(component *ppmodel.ComponentLink) {
+		if component == nil || !aggregateExternalMessageReference(component.Reference) {
+			return
+		}
+		component.Href = hrefs[strings.TrimSpace(component.Reference)]
+	}
+	for _, operation := range site.Operations {
+		if operation == nil {
+			continue
+		}
+		if operation.AsyncAPI != nil {
+			for _, message := range operation.AsyncAPI.Messages {
+				applyMessage(message)
+			}
+			if operation.AsyncAPI.Reply != nil {
+				for _, message := range operation.AsyncAPI.Reply.Messages {
+					applyMessage(message)
+				}
+			}
+		}
+		if operation.RequestBody != nil {
+			applyComponent(operation.RequestBody.Ref)
+			for _, component := range operation.RequestBody.Refs {
+				applyComponent(component)
+			}
+		}
+	}
+	for _, models := range site.Models {
+		for _, model := range models {
+			if model == nil || model.AsyncAPI == nil {
+				continue
+			}
+			for _, message := range model.AsyncAPI.Messages {
+				applyMessage(message)
+			}
+		}
+	}
+}
+
+func aggregateExternalMessageReference(reference string) bool {
+	document, _, found := strings.Cut(strings.TrimSpace(reference), "#")
+	return found && document != ""
 }
 
 func (ap *AggregatePrintingPress) entrySharedAssetBaseURL(spec *aggregateDiscoveredSpec) string {
@@ -338,6 +411,7 @@ func aggregateCleanupTombstoneAfterSelection(record *SpecStateRecord, selection 
 	}
 	copy := *record
 	copy.ExternalRefs = append([]string(nil), record.ExternalRefs...)
+	copy.MessageHrefs = cloneAggregateMessageHrefs(record.MessageHrefs)
 	normalizeSpecStateOutputLocations(&copy)
 	if selection.html {
 		copy.HTMLCompletionHash = ""
@@ -832,6 +906,7 @@ func (ap *AggregatePrintingPress) persistState(plan *aggregateBuildPlan, selecti
 			ContactEmail:             catalogContactEmail(spec.Contact),
 			ServiceIdentityCandidate: spec.ServiceIdentityCandidate,
 			ExternalRefs:             append([]string(nil), spec.ExternalRefs...),
+			MessageHrefs:             cloneAggregateMessageHrefs(spec.MessageHrefs),
 			ServiceKey:               spec.ServiceKey,
 			DisplayName:              spec.DisplayName,
 			Version:                  spec.Version,

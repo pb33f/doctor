@@ -31,6 +31,7 @@ func (m *MemorySpecStateStore) Load(namespace string) (map[string]*SpecStateReco
 	for key, record := range records {
 		copy := *record
 		copy.ExternalRefs = append([]string(nil), record.ExternalRefs...)
+		copy.MessageHrefs = cloneAggregateMessageHrefs(record.MessageHrefs)
 		normalizeSpecStateOutputLocations(&copy)
 		cloned[key] = &copy
 	}
@@ -50,9 +51,28 @@ func (m *MemorySpecStateStore) Upsert(namespace string, records []*SpecStateReco
 		}
 		copy := *record
 		copy.ExternalRefs = append([]string(nil), record.ExternalRefs...)
+		copy.MessageHrefs = cloneAggregateMessageHrefs(record.MessageHrefs)
 		m.namespaces[namespace][record.RelativePath] = &copy
 	}
 	return nil
+}
+
+func cloneAggregateMessageHrefs(hrefs map[string]string) map[string]string {
+	if len(hrefs) == 0 {
+		return nil
+	}
+	cloned := make(map[string]string, len(hrefs))
+	for ref, href := range hrefs {
+		cloned[ref] = href
+	}
+	return cloned
+}
+
+func recordMessageHrefs(record *SpecStateRecord) map[string]string {
+	if record == nil {
+		return nil
+	}
+	return record.MessageHrefs
 }
 
 func (m *MemorySpecStateStore) Delete(namespace string, paths []string) error {

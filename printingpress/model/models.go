@@ -375,6 +375,7 @@ type AsyncAPIMessageRef struct {
 	Slug        string `json:"slug,omitempty"`
 	Href        string `json:"href,omitempty"`
 	ContentType string `json:"contentType,omitempty"`
+	Reference   string `json:"-"`
 }
 
 // AsyncAPIReplyInfo holds AsyncAPI operation reply context.
@@ -535,6 +536,7 @@ type HeaderInfo struct {
 type ModelPage struct {
 	SpecKind                 SpecKindValue `json:"specKind,omitempty"`
 	SpecVersion              string        `json:"specVersion,omitempty"`
+	Reference                string        `json:"-"`
 	Name                     string
 	ComponentType            string // "schemas", "responses", "parameters", etc.
 	TypeSlug                 string // URL path segment for the component type
@@ -597,10 +599,12 @@ type ComponentRef struct {
 
 // ComponentLink represents a resolved $ref to a component model page.
 type ComponentLink struct {
-	Name          string `json:"name"`          // original component name
-	ComponentType string `json:"componentType"` // ref segment e.g. "responses"
-	TypeSlug      string `json:"typeSlug"`      // URL segment e.g. "responses", "request-bodies"
-	Slug          string `json:"slug"`          // URL-safe slug for the model page
+	Name          string `json:"name"`           // original component name
+	ComponentType string `json:"componentType"`  // ref segment e.g. "responses"
+	TypeSlug      string `json:"typeSlug"`       // URL segment e.g. "responses", "request-bodies"
+	Slug          string `json:"slug"`           // URL-safe slug for the model page
+	Href          string `json:"href,omitempty"` // optional direct page href for aggregate cross-contract links
+	Reference     string `json:"-"`
 }
 
 // CurlVariant holds a single generated cURL command plus selection metadata.

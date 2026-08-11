@@ -837,6 +837,294 @@ properties:
 	assert.Equal(t, "../../../v2/specs/orders-published/index.html", consumed.Versions[0].Entry.HeaderContext.Relationships[0].Href)
 }
 
+func TestAggregateExternalChannelMessageLinksToPublishedMessagePage(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateSpecDocument(t, root, "services/orders/events/published/v2/asyncapi.yaml", `
+asyncapi: 3.0.0
+info:
+  title: Orders Published
+  version: v2
+  x-owner: orders
+channels: {}
+operations: {}
+components:
+  messages:
+    'Order Created':
+      name: FirstOrderCreated
+      payload:
+        type: object
+    'Order/Created':
+      name: ExternalOrderCreated
+      payload:
+        type: object
+`)
+	writeAggregateSpecDocument(t, root, "services/orders/events/consumed/v1/asyncapi.yaml", `
+asyncapi: 3.0.0
+info:
+  title: Orders Consumed
+  version: v1
+  x-owner: orders
+channels:
+  orderEvents:
+    address: orders.created
+    messages:
+      ExternalOrderCreated:
+        $ref: ../../published/v2/asyncapi.yaml#/components/messages/Order~1Created
+operations:
+  consumeOrderCreated:
+    action: receive
+    channel:
+      $ref: '#/channels/orderEvents'
+    messages:
+      - $ref: '#/channels/orderEvents/messages/ExternalOrderCreated'
+components: {}
+`)
+	for _, mode := range []struct {
+		name      string
+		assetMode string
+		baseURL   string
+		wantHref  string
+	}{
+		{name: "portable", assetMode: HTMLAssetModePortable, wantHref: "../../../v2/specs/orders-published/models/messages/order-created-2.html"},
+		{name: "hosted", assetMode: HTMLAssetModeServed, baseURL: "/catalog/", wantHref: "/catalog/services/orders/versions/v2/specs/orders-published/models/messages/order-created-2.html"},
+	} {
+		t.Run(mode.name, func(t *testing.T) {
+			outputDir := filepath.Join(root, "site-"+mode.name)
+			ap, err := CreateAggregatePrintingPressFromPath(root, &AggregatePrintingPressConfig{
+				OutputDir:  outputDir,
+				BuildMode:  AggregateBuildModeFull,
+				StateStore: NewMemorySpecStateStore(),
+				AssetMode:  mode.assetMode,
+				BaseURL:    mode.baseURL,
+				ServiceIdentity: AggregateServiceIdentityConfig{
+					MetadataPointers: []string{"/info/x-owner"},
+				},
+				ContractRoles: []AggregateContractRoleRule{
+					{Pattern: "**/published/**", Role: "published-events", ContractID: "published"},
+					{Pattern: "**/consumed/**", Role: "consumed-events", ContractID: "consumed"},
+				},
+			})
+			require.NoError(t, err)
+			_, err = ap.PrintHTML()
+			require.NoError(t, err)
+
+			service := findCatalogService(t, ap.catalog, "orders")
+			published := findCatalogContract(t, service, "published")
+			consumed := findCatalogContract(t, service, "consumed")
+			publishedMessageDir := filepath.Join(outputDir, filepath.FromSlash(filepath.Join(
+				filepath.Dir(published.Versions[0].OverviewHref), "models/messages",
+			)))
+			assert.FileExists(t, filepath.Join(publishedMessageDir, "order-created.html"))
+			assert.FileExists(t, filepath.Join(publishedMessageDir, "order-created-2.html"))
+			publishedMessages, err := filepath.Glob(filepath.Join(publishedMessageDir, "*.html"))
+			require.NoError(t, err)
+			publishedMessageDetails := publishedMessages[:0]
+			for _, messagePage := range publishedMessages {
+				if filepath.Base(messagePage) != pppaths.FileIndexHTML {
+					publishedMessageDetails = append(publishedMessageDetails, messagePage)
+				}
+			}
+			assert.Len(t, publishedMessageDetails, 2)
+			consumerMessageDir := filepath.Join(outputDir, filepath.FromSlash(filepath.Join(
+				consumed.Versions[0].Entry.OutputSubdir, "models/messages",
+			)))
+			consumerMessages, err := filepath.Glob(filepath.Join(consumerMessageDir, "*.html"))
+			require.NoError(t, err)
+			assert.Empty(t, consumerMessages, "external messages must not be duplicated into the consumer")
+			operationHTML := readAggregateFile(t, filepath.Join(
+				outputDir,
+				filepath.FromSlash(consumed.Versions[0].Entry.OutputSubdir),
+				"operations",
+				"consume-order-created.html",
+			))
+			assert.Contains(t, operationHTML, `href="`+mode.wantHref+`"`)
+			assert.NotContains(t, operationHTML, `href="../../../v2/specs/orders-published/models/messages/order-created.html"`)
+			assert.NotContains(t, operationHTML, `models/messages/.html`)
+		})
+	}
+}
+
+func TestAggregateExternalChannelMessageDoesNotUseSameKeyLocalComponent(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateSpecDocument(t, root, "services/orders/events/published/v2/asyncapi.yaml", `
+asyncapi: 3.0.0
+info:
+  title: Orders Published
+  version: v2
+  x-owner: orders
+channels: {}
+operations: {}
+components:
+  messages:
+    OrderCreated:
+      name: ExternalOrderCreated
+      payload:
+        type: object
+`)
+	writeAggregateSpecDocument(t, root, "services/orders/events/consumed/v1/asyncapi.yaml", `
+asyncapi: 3.0.0
+info:
+  title: Orders Consumed
+  version: v1
+  x-owner: orders
+channels:
+  orderEvents:
+    address: orders.created
+    messages:
+      OrderCreated:
+        $ref: ../../published/v2/asyncapi.yaml#/components/messages/OrderCreated
+operations:
+  consumeOrderCreated:
+    action: receive
+    channel:
+      $ref: '#/channels/orderEvents'
+    messages:
+      - $ref: '#/channels/orderEvents/messages/OrderCreated'
+components:
+  messages:
+    OrderCreated:
+      name: LocalOrderCreated
+      payload:
+        type: object
+`)
+	outputDir := filepath.Join(root, "site")
+	ap, err := CreateAggregatePrintingPressFromPath(root, externalMessageAggregateConfig(outputDir, AggregateBuildModeFull, NewMemorySpecStateStore()))
+	require.NoError(t, err)
+	_, err = ap.PrintHTML()
+	require.NoError(t, err)
+
+	service := findCatalogService(t, ap.catalog, "orders")
+	consumed := findCatalogContract(t, service, "consumed")
+	consumerEntryDir := filepath.Join(outputDir, filepath.FromSlash(consumed.Versions[0].Entry.OutputSubdir))
+	assert.FileExists(t, filepath.Join(consumerEntryDir, "models/messages/order-created.html"), "the independent local component remains browseable")
+	operationHTML := readAggregateFile(t, filepath.Join(consumerEntryDir, "operations/consume-order-created.html"))
+	assert.Contains(t, operationHTML, `href="../../../v2/specs/orders-published/models/messages/order-created.html"`)
+	assert.NotContains(t, operationHTML, `href="models/messages/order-created.html"`)
+}
+
+func TestAggregateFastExternalMessageCollisionRetargetsUnchangedConsumer(t *testing.T) {
+	root := t.TempDir()
+	publisherPath := "services/orders/events/published/v2/asyncapi.yaml"
+	consumerPath := "services/orders/events/consumed/v1/asyncapi.yaml"
+	writeAggregateExternalMessagePublisher(t, root, publisherPath, false)
+	writeAggregateSpecDocument(t, root, consumerPath, `
+asyncapi: 3.0.0
+info:
+  title: Orders Consumed
+  version: v1
+  x-owner: orders
+channels:
+  orderEvents:
+    address: orders.created
+    messages:
+      ExternalOrderCreated:
+        $ref: ../../published/v2/asyncapi.yaml#/components/messages/Order~1Created
+operations:
+  consumeOrderCreated:
+    action: receive
+    channel:
+      $ref: '#/channels/orderEvents'
+    messages:
+      - $ref: '#/channels/orderEvents/messages/ExternalOrderCreated'
+components: {}
+`)
+	outputDir := filepath.Join(root, "site")
+	store := NewMemorySpecStateStore()
+	ap, err := CreateAggregatePrintingPressFromPath(root, externalMessageAggregateConfig(outputDir, AggregateBuildModeFast, store))
+	require.NoError(t, err)
+	first, err := ap.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 2, first.ChangedSpecs)
+	before, err := store.Load("default")
+	require.NoError(t, err)
+	beforeConsumer := before[consumerPath]
+	require.NotNil(t, beforeConsumer)
+	require.NotNil(t, before[publisherPath])
+	assert.Equal(t, "models/messages/order-created.html", before[publisherPath].MessageHrefs["#/components/messages/Order~1Created"])
+
+	writeAggregateExternalMessagePublisher(t, root, publisherPath, true)
+	second, err := ap.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 2, second.ChangedSpecs, "publisher identity changes must invalidate its unchanged consumer")
+	service := findCatalogService(t, ap.catalog, "orders")
+	consumed := findCatalogContract(t, service, "consumed")
+	operationHTML := readAggregateFile(t, filepath.Join(
+		outputDir,
+		filepath.FromSlash(consumed.Versions[0].Entry.OutputSubdir),
+		"operations/consume-order-created.html",
+	))
+	assert.Contains(t, operationHTML, `href="../../../v2/specs/orders-published/models/messages/order-created-2.html"`)
+	after, err := store.Load("default")
+	require.NoError(t, err)
+	afterConsumer := after[consumerPath]
+	require.NotNil(t, afterConsumer)
+	require.NotNil(t, after[publisherPath])
+	assert.Equal(t, "models/messages/order-created-2.html", after[publisherPath].MessageHrefs["#/components/messages/Order~1Created"])
+	assert.NotEqual(t, beforeConsumer.ConfigHash, afterConsumer.ConfigHash)
+	assert.NotEqual(t, beforeConsumer.HTMLCompletionHash, afterConsumer.HTMLCompletionHash)
+
+	writeAggregateExternalMessagePublisher(t, root, publisherPath, false)
+	third, err := ap.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 2, third.ChangedSpecs, "removing the collision must retarget the consumer again")
+	operationHTML = readAggregateFile(t, filepath.Join(
+		outputDir,
+		filepath.FromSlash(findCatalogContract(t, findCatalogService(t, ap.catalog, "orders"), "consumed").Versions[0].Entry.OutputSubdir),
+		"operations/consume-order-created.html",
+	))
+	assert.Contains(t, operationHTML, `href="../../../v2/specs/orders-published/models/messages/order-created.html"`)
+	final, err := store.Load("default")
+	require.NoError(t, err)
+	require.NotNil(t, final[publisherPath])
+	assert.Equal(t, "models/messages/order-created.html", final[publisherPath].MessageHrefs["#/components/messages/Order~1Created"])
+	stable, err := ap.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 0, stable.ChangedSpecs)
+
+	writeAggregateExternalMessagePublisher(t, root, publisherPath, true)
+	consumerDocument, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(consumerPath)))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(
+		filepath.Join(root, filepath.FromSlash(consumerPath)),
+		append(consumerDocument, []byte("\nx-test-revision: changed\n")...),
+		0o644,
+	))
+	fourth, err := ap.PrintHTML()
+	require.NoError(t, err)
+	assert.Equal(t, 2, fourth.ChangedSpecs)
+	operationHTML = readAggregateFile(t, filepath.Join(
+		outputDir,
+		filepath.FromSlash(findCatalogContract(t, findCatalogService(t, ap.catalog, "orders"), "consumed").Versions[0].Entry.OutputSubdir),
+		"operations/consume-order-created.html",
+	))
+	assert.Contains(t, operationHTML, `href="../../../v2/specs/orders-published/models/messages/order-created-2.html"`, "preflight must replace its persisted external target when both roots change")
+}
+
+func externalMessageAggregateConfig(outputDir, buildMode string, store SpecStateStore) *AggregatePrintingPressConfig {
+	return &AggregatePrintingPressConfig{
+		OutputDir:      outputDir,
+		BuildMode:      buildMode,
+		StateStore:     store,
+		StateNamespace: "default",
+		ServiceIdentity: AggregateServiceIdentityConfig{
+			MetadataPointers: []string{"/info/x-owner"},
+		},
+		ContractRoles: []AggregateContractRoleRule{
+			{Pattern: "**/published/**", Role: "published-events", ContractID: "published"},
+			{Pattern: "**/consumed/**", Role: "consumed-events", ContractID: "consumed"},
+		},
+	}
+}
+
+func writeAggregateExternalMessagePublisher(t *testing.T, root, relPath string, collision bool) {
+	t.Helper()
+	first := ""
+	if collision {
+		first = "    'Order Created':\n      name: FirstOrderCreated\n      payload:\n        type: object\n"
+	}
+	writeAggregateSpecDocument(t, root, relPath, "asyncapi: 3.0.0\ninfo:\n  title: Orders Published\n  version: v2\n  x-owner: orders\nchannels: {}\noperations: {}\ncomponents:\n  messages:\n"+first+"    'Order/Created':\n      name: ExternalOrderCreated\n      payload:\n        type: object\n")
+}
+
 func TestPopulateHeaderContextsBuildsPermanentContractNavigation(t *testing.T) {
 	entry := func(id, contractID, output, overview, version string, kind ppmodel.SpecKindValue) *ppmodel.CatalogSpecEntry {
 		return &ppmodel.CatalogSpecEntry{
@@ -5022,19 +5310,24 @@ func TestMemorySpecStateStoreDeepCopiesExternalRefs(t *testing.T) {
 	record := &SpecStateRecord{
 		RelativePath: "spec.yaml",
 		ExternalRefs: []string{"common.yaml#/Thing"},
+		MessageHrefs: map[string]string{"#/components/messages/Order~1Created": "models/messages/order-created-2.html"},
 		OutputSubdir: "services/users/versions/v1/specs/users-api",
 	}
 	require.NoError(t, store.Upsert("test", []*SpecStateRecord{record}))
 	record.ExternalRefs[0] = "mutated-original"
+	record.MessageHrefs["#/components/messages/Order~1Created"] = "mutated-original"
 
 	loaded, err := store.Load("test")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"common.yaml#/Thing"}, loaded["spec.yaml"].ExternalRefs)
+	assert.Equal(t, map[string]string{"#/components/messages/Order~1Created": "models/messages/order-created-2.html"}, loaded["spec.yaml"].MessageHrefs)
 	loaded["spec.yaml"].ExternalRefs[0] = "mutated-load"
+	loaded["spec.yaml"].MessageHrefs["#/components/messages/Order~1Created"] = "mutated-load"
 
 	reloaded, err := store.Load("test")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"common.yaml#/Thing"}, reloaded["spec.yaml"].ExternalRefs)
+	assert.Equal(t, map[string]string{"#/components/messages/Order~1Created": "models/messages/order-created-2.html"}, reloaded["spec.yaml"].MessageHrefs)
 	assert.Equal(t, record.OutputSubdir, reloaded["spec.yaml"].HTMLOutputSubdir)
 	assert.Equal(t, record.OutputSubdir, reloaded["spec.yaml"].JSONOutputSubdir)
 	assert.Equal(t, record.OutputSubdir, reloaded["spec.yaml"].LLMOutputSubdir)
@@ -5115,6 +5408,7 @@ func TestSQLiteSpecStateStore_RoundTripsMetadataRecords(t *testing.T) {
 		ContactEmail:             "support@example.com",
 		ServiceIdentityCandidate: "users-platform",
 		ExternalRefs:             []string{"common.yaml#/Error", "#/components/schemas/User", "common.yaml#/Error"},
+		MessageHrefs:             map[string]string{"#/components/messages/Order~1Created": "models/messages/order-created-2.html"},
 		ServiceKey:               "users",
 		DisplayName:              "Users API",
 		Version:                  "v1",
@@ -5143,13 +5437,15 @@ func TestSQLiteSpecStateStore_RoundTripsMetadataRecords(t *testing.T) {
 	assert.Equal(t, record.ContactEmail, loaded[record.RelativePath].ContactEmail)
 	assert.Equal(t, record.ServiceIdentityCandidate, loaded[record.RelativePath].ServiceIdentityCandidate)
 	assert.Equal(t, []string{"#/components/schemas/User", "common.yaml#/Error"}, loaded[record.RelativePath].ExternalRefs)
+	assert.Equal(t, record.MessageHrefs, loaded[record.RelativePath].MessageHrefs)
 	assert.Equal(t, record.OutputSubdir, loaded[record.RelativePath].OutputSubdir)
-	var storedRefs string
+	var storedRefs, storedMessageHrefs string
 	require.NoError(t, store.(*sqliteSpecStateStore).db.QueryRow(
-		`SELECT external_refs FROM spec_state WHERE namespace = ? AND relative_path = ?`,
+		`SELECT external_refs, message_hrefs FROM spec_state WHERE namespace = ? AND relative_path = ?`,
 		"test", record.RelativePath,
-	).Scan(&storedRefs))
+	).Scan(&storedRefs, &storedMessageHrefs))
 	assert.Equal(t, `["#/components/schemas/User","common.yaml#/Error"]`, storedRefs)
+	assert.Equal(t, `{"#/components/messages/Order~1Created":"models/messages/order-created-2.html"}`, storedMessageHrefs)
 
 	require.NoError(t, store.Delete("test", []string{record.RelativePath}))
 	loaded, err = store.Load("test")
@@ -5208,6 +5504,7 @@ func TestSQLiteSpecStateStore_LoadsLegacyRowsWithNullSummary(t *testing.T) {
 	assert.Equal(t, "", loaded["services/users/spec.yaml"].ContactEmail)
 	assert.Equal(t, "", loaded["services/users/spec.yaml"].ServiceIdentityCandidate)
 	assert.Empty(t, loaded["services/users/spec.yaml"].ExternalRefs)
+	assert.Empty(t, loaded["services/users/spec.yaml"].MessageHrefs)
 
 	legacyLocation := "services/users/versions/v1/specs/users-api"
 	var htmlLocation, jsonLocation, llmLocation string
@@ -5341,6 +5638,7 @@ func TestSQLiteSpecStateStore_MigratesPreMetadataSchema(t *testing.T) {
 	assert.Equal(t, "services/users/versions/v1/specs/users-events", record.LLMOutputSubdir)
 	assert.Equal(t, "", record.ServiceIdentityCandidate)
 	assert.Empty(t, record.ExternalRefs)
+	assert.Empty(t, record.MessageHrefs)
 }
 
 func TestCatalogStylesheet_UsesSharedBackgroundSurface(t *testing.T) {

@@ -161,6 +161,7 @@ type SpecStateRecord struct {
 	ContactEmail             string
 	ServiceIdentityCandidate string
 	ExternalRefs             []string
+	MessageHrefs             map[string]string
 	ServiceKey               string
 	DisplayName              string
 	Version                  string
