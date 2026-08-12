@@ -565,6 +565,29 @@ func TestAggregateContractIndependentNaturalVersionsAndSingleDefault(t *testing.
 	assert.Equal(t, 1, defaults)
 }
 
+func TestAggregateStableVersionOutranksPrerelease(t *testing.T) {
+	root := t.TempDir()
+	stablePath := "services/orders/http/stable/openapi.yaml"
+	writeAggregateCatalogSpec(t, root, stablePath, SpecKindOpenAPI, "Orders API", "Stable summary", "v2.0.0", "orders")
+	writeAggregateCatalogSpec(t, root, "services/orders/http/prerelease/openapi.yaml", SpecKindOpenAPI, "Orders API RC", "Prerelease summary", "v2.0.0-rc1", "orders")
+	catalog := buildAggregateCatalogForTest(t, root, []AggregateContractRoleRule{
+		{Pattern: "**/stable/**", Role: "http-api", ContractID: "orders-http", Default: true},
+		{Pattern: "**/prerelease/**", Role: "http-api", ContractID: "orders-http", Default: true},
+	})
+
+	service := findCatalogService(t, catalog, "orders")
+	contract := findCatalogContract(t, service, "orders-http")
+	require.Len(t, contract.Versions, 2)
+	require.NotNil(t, contract.LatestVersion)
+	assert.Equal(t, "v2.0.0", contract.LatestVersion.Label)
+	require.Len(t, service.Versions, 2)
+	assert.True(t, service.Versions[0].IsLatest)
+	assert.False(t, service.Versions[1].IsLatest)
+	assert.Equal(t, stablePath, service.PrimaryPath)
+	assert.Equal(t, "Orders API", service.DisplayName)
+	assert.Equal(t, "Stable summary", service.Summary)
+}
+
 func TestAggregateDefaultContractSelectionAndPresentation(t *testing.T) {
 	t.Run("openapi wins and supplies service presentation regardless of path order", func(t *testing.T) {
 		root := t.TempDir()
@@ -942,6 +965,61 @@ components: {}
 			assert.NotContains(t, operationHTML, `models/messages/.html`)
 		})
 	}
+}
+
+func TestAggregateExternalChannelMessageDecodesPercentEncodedFragment(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateSpecDocument(t, root, "services/orders/events/published/v2/asyncapi.yaml", `
+asyncapi: 3.0.0
+info:
+  title: Orders Published
+  version: v2
+  x-owner: orders
+channels: {}
+operations: {}
+components:
+  messages:
+    Order.Created:
+      name: OrderCreated
+      payload:
+        type: object
+`)
+	writeAggregateSpecDocument(t, root, "services/orders/events/consumed/v1/asyncapi.yaml", `
+asyncapi: 3.0.0
+info:
+  title: Orders Consumed
+  version: v1
+  x-owner: orders
+channels:
+  orderEvents:
+    address: orders.created
+    messages:
+      ExternalOrderCreated:
+        $ref: ../../published/v2/asyncapi.yaml#/components/messages/Order%2ECreated
+operations:
+  consumeOrderCreated:
+    action: receive
+    channel:
+      $ref: '#/channels/orderEvents'
+    messages:
+      - $ref: '#/channels/orderEvents/messages/ExternalOrderCreated'
+components: {}
+`)
+	outputDir := filepath.Join(root, "site")
+	ap, err := CreateAggregatePrintingPressFromPath(root, externalMessageAggregateConfig(outputDir, AggregateBuildModeFull, NewMemorySpecStateStore()))
+	require.NoError(t, err)
+	_, err = ap.PrintHTML()
+	require.NoError(t, err)
+
+	service := findCatalogService(t, ap.catalog, "orders")
+	consumed := findCatalogContract(t, service, "consumed")
+	operationHTML := readAggregateFile(t, filepath.Join(
+		outputDir,
+		filepath.FromSlash(consumed.Versions[0].Entry.OutputSubdir),
+		"operations/consume-order-created.html",
+	))
+	assert.Contains(t, operationHTML, `href="../../../v2/specs/orders-published/models/messages/order-created.html"`)
+	assert.NotContains(t, operationHTML, `models/messages/.html`)
 }
 
 func TestAggregateExternalChannelMessageDoesNotUseSameKeyLocalComponent(t *testing.T) {
@@ -1406,7 +1484,7 @@ func TestAggregateNavigationFingerprintInvalidatesServiceTree(t *testing.T) {
 	eventsEntry := findCatalogContract(t, findCatalogService(t, addedCatalog, "orders"), "events").Versions[0].Entry
 	httpEntry := findCatalogContract(t, findCatalogService(t, addedCatalog, "orders"), "http").Versions[0].Entry
 	addedHTML := readAggregateFile(t, filepath.Join(root, "site", pppaths.FileIndexHTML))
-	assert.Contains(t, addedHTML, eventsEntry.OverviewHref)
+	assert.NotContains(t, addedHTML, eventsEntry.OverviewHref)
 	addedEntryHTML := readAggregateFile(t, filepath.Join(root, "site", httpEntry.OverviewHref))
 	assert.Contains(t, addedEntryHTML, `data-pp-contracts=`)
 	assert.Contains(t, addedEntryHTML, `Orders Events`)
@@ -2686,7 +2764,30 @@ func TestAggregateFastFailedPoolPersistsNoOutputCompletions(t *testing.T) {
 	assert.Equal(t, 2, stats.ChangedSpecs)
 }
 
-func TestAggregatePressModelDoesNotPreflightOrRetainEntrySites(t *testing.T) {
+func TestAggregateFullRenderIsDeterministic(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateCatalogSpec(t, root, "services/orders/http/v1/openapi.yaml", SpecKindOpenAPI, "Orders API", "Orders summary", "v1", "orders")
+	writeAggregateCatalogSpec(t, root, "services/orders/events/v1/asyncapi.yaml", SpecKindAsyncAPI, "Orders Events", "Events summary", "v1", "orders")
+	config := aggregateNavigationTestConfig(root, NewMemorySpecStateStore(), []AggregateContractRoleRule{
+		{Pattern: "**/http/**", Role: "http-api", ContractID: "orders-http", Default: true},
+		{Pattern: "**/events/**", Role: "published-events", ContractID: "orders-events"},
+	})
+	config.BuildMode = AggregateBuildModeFull
+	ap, err := CreateAggregatePrintingPressFromPath(root, config)
+	require.NoError(t, err)
+
+	first, err := ap.PrintSelectedOutputs(AggregateRenderOptions{HTML: true, JSON: true, LLM: true})
+	require.NoError(t, err)
+	assert.Equal(t, 2, first.ChangedSpecs)
+	before := aggregateOutputTreeSnapshot(t, config.OutputDir)
+
+	second, err := ap.PrintSelectedOutputs(AggregateRenderOptions{HTML: true, JSON: true, LLM: true})
+	require.NoError(t, err)
+	assert.Equal(t, 2, second.ChangedSpecs)
+	assert.Equal(t, before, aggregateOutputTreeSnapshot(t, config.OutputDir))
+}
+
+func TestAggregatePressModelDoesNotPreflightEntrySites(t *testing.T) {
 	root := t.TempDir()
 	for i := 0; i < 3; i++ {
 		writeAggregateCatalogSpec(t, root, fmt.Sprintf("services/service-%d/http/v1/openapi.yaml", i), SpecKindOpenAPI, fmt.Sprintf("Service %d", i), "", "v1", fmt.Sprintf("service-%d", i))
@@ -2703,12 +2804,9 @@ func TestAggregatePressModelDoesNotPreflightOrRetainEntrySites(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, preflightCalls)
 	require.NotNil(t, ap.plan)
-	for _, spec := range ap.plan.discovered {
-		assert.Nil(t, spec.prebuiltSite)
-	}
 }
 
-func TestAggregateRenderPreflightIsBoundedConcurrentAndReleasesSites(t *testing.T) {
+func TestAggregateRenderPreflightIsBoundedConcurrent(t *testing.T) {
 	root := t.TempDir()
 	for i := 0; i < 6; i++ {
 		writeAggregateCatalogSpec(t, root, fmt.Sprintf("services/service-%d/http/v1/openapi.yaml", i), SpecKindOpenAPI, fmt.Sprintf("Service %d", i), "", "v1", fmt.Sprintf("service-%d", i))
@@ -2737,12 +2835,9 @@ func TestAggregateRenderPreflightIsBoundedConcurrentAndReleasesSites(t *testing.
 	require.NoError(t, err)
 	assert.Greater(t, peak, 1)
 	assert.LessOrEqual(t, peak, ap.resolvePoolCount(6))
-	for _, spec := range ap.plan.discovered {
-		assert.Nil(t, spec.prebuiltSite)
-	}
 }
 
-func TestAggregateFailedRenderReleasesPrebuiltSites(t *testing.T) {
+func TestAggregateFailedRenderRemovesStagingDirectory(t *testing.T) {
 	root := t.TempDir()
 	path := "services/users/http/v1/openapi.yaml"
 	writeAggregateCatalogSpec(t, root, path, SpecKindOpenAPI, "Users API", "", "v1", "users")
@@ -2759,8 +2854,10 @@ func TestAggregateFailedRenderReleasesPrebuiltSites(t *testing.T) {
 
 	_, err = ap.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
 	require.Error(t, err)
-	for _, spec := range ap.plan.discovered {
-		assert.Nil(t, spec.prebuiltSite)
+	entries, err := os.ReadDir(filepath.Dir(filepath.Join(config.OutputDir, filepath.FromSlash(entry.OutputSubdir))))
+	require.NoError(t, err)
+	for _, staged := range entries {
+		assert.NotContains(t, staged.Name(), ".ppress-stage-")
 	}
 }
 
@@ -2838,6 +2935,22 @@ func TestStageAggregateEntryOutputUsesCollisionFreeSiblingPaths(t *testing.T) {
 	assert.NotEqual(t, paths[0], paths[1])
 	assert.Equal(t, parent, filepath.Dir(paths[0]))
 	assert.Equal(t, parent, filepath.Dir(paths[1]))
+}
+
+func TestStageAggregateEntryOutputHardLinksPreservedArtifacts(t *testing.T) {
+	entryOutput := filepath.Join(t.TempDir(), "entry")
+	require.NoError(t, os.MkdirAll(entryOutput, 0o755))
+	htmlPath := filepath.Join(entryOutput, pppaths.FileIndexHTML)
+	require.NoError(t, os.WriteFile(htmlPath, []byte("<html>preserved</html>"), 0o644))
+
+	staged, err := stageAggregateEntryOutput(entryOutput, aggregateOutputSelection{json: true})
+	require.NoError(t, err)
+	defer os.RemoveAll(staged)
+	sourceInfo, err := os.Stat(htmlPath)
+	require.NoError(t, err)
+	stagedInfo, err := os.Stat(filepath.Join(staged, pppaths.FileIndexHTML))
+	require.NoError(t, err)
+	assert.True(t, os.SameFile(sourceInfo, stagedInfo), "preserved artifacts should not be byte-copied into sibling staging")
 }
 
 func TestAggregateFastRelationshipDisplayRenameInvalidatesBothServiceTrees(t *testing.T) {
@@ -3012,6 +3125,27 @@ func entryTreeHTMLSnapshot(t *testing.T, outputDir string, entry *ppmodel.Catalo
 	return result
 }
 
+func aggregateOutputTreeSnapshot(t *testing.T, root string) map[string]string {
+	t.Helper()
+	result := make(map[string]string)
+	require.NoError(t, filepath.Walk(root, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(root, filePath)
+		if err != nil {
+			return err
+		}
+		result[filepath.ToSlash(rel)] = string(data)
+		return nil
+	}))
+	return result
+}
+
 func buildAggregateNavigationTestCatalog(t *testing.T, root string, config *AggregatePrintingPressConfig) *ppmodel.CatalogSite {
 	t.Helper()
 	ap, err := CreateAggregatePrintingPressFromPath(root, config)
@@ -3106,6 +3240,38 @@ func TestAggregateServicePrimaryHrefAndLegacyCompatibility(t *testing.T) {
 			assert.Equal(t, entry.OutputSubdir+"/index.html", entry.OverviewHref)
 		}
 	}
+}
+
+func TestAggregateCatalogCardVersionPickerUsesDefaultContract(t *testing.T) {
+	root := t.TempDir()
+	writeAggregateCatalogSpec(t, root, "services/orders/events/v9/asyncapi.yaml", SpecKindAsyncAPI, "Orders Events", "", "v9", "orders")
+	writeAggregateCatalogSpec(t, root, "services/orders/http/v1/openapi.yaml", SpecKindOpenAPI, "Orders HTTP", "", "v1", "orders")
+	writeAggregateCatalogSpec(t, root, "services/orders/http/v2/openapi.yaml", SpecKindOpenAPI, "Orders HTTP", "", "v2", "orders")
+	catalog := buildAggregateCatalogForTest(t, root, nil)
+	service := findCatalogService(t, catalog, "orders")
+	defaultContract := findCatalogContract(t, service, service.DefaultContractID)
+	require.Equal(t, "Orders HTTP", defaultContract.DisplayName)
+	require.Len(t, defaultContract.Versions, 2)
+	require.NotNil(t, defaultContract.LatestVersion)
+
+	var html strings.Builder
+	require.NoError(t, catalogRootContent(catalog, false).Render(context.Background(), &html))
+	rendered := html.String()
+	assert.Contains(t, rendered, `>v2 (latest)</sl-button>`)
+	for _, version := range defaultContract.Versions {
+		assert.Contains(t, rendered, `value="`+version.OverviewHref+`"`)
+	}
+	var eventsContract *ppmodel.CatalogContract
+	for _, contract := range service.Contracts {
+		if contract != nil && contract.ID != service.DefaultContractID {
+			eventsContract = contract
+			break
+		}
+	}
+	require.NotNil(t, eventsContract)
+	require.NotNil(t, eventsContract.LatestVersion)
+	assert.NotContains(t, rendered, `value="`+eventsContract.LatestVersion.OverviewHref+`"`)
+	assert.NotContains(t, rendered, `>v9 (latest)</sl-button>`)
 }
 
 func TestAggregateRenderedSiblingContractCompatibility(t *testing.T) {

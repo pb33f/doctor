@@ -75,7 +75,6 @@ type aggregateDiscoveredSpec struct {
 	Warnings                 []string
 	Source                   *ppmodel.SourceRef
 	previousState            *SpecStateRecord
-	prebuiltSite             *ppmodel.Site
 	externalMessageHrefs     map[string]string
 	HTMLCompletionHash       string
 	JSONCompletionHash       string
@@ -145,6 +144,7 @@ var (
 	versionDateRE         = regexp.MustCompile(`\b(20\d{2})[-_.]?(\d{2})[-_.]?(\d{2})\b`)
 	versionTokenRE        = regexp.MustCompile(`(?i)\bv?\d+(?:[._-]\d+){0,3}(?:[-._]?(?:alpha|beta|rc|preview)\d*)?\b`)
 	versionDirRE          = regexp.MustCompile(`(?i)^v?\d+(?:[._-]\d+){0,3}(?:[-._]?(?:alpha|beta|rc|preview|pre)\d*)?$`)
+	versionPrereleaseRE   = regexp.MustCompile(`(?i)[-._]?(?:alpha|beta|rc|preview|pre)\d*$`)
 	catalogHTMLTagRE      = regexp.MustCompile(`</?[^>]+>`)
 	catalogMarkdownLinkRE = regexp.MustCompile(`\[(.*?)\]\((.*?)\)`)
 	catalogMarkdownRE     = regexp.MustCompile(`[*_` + "`" + `]+`)
@@ -183,17 +183,6 @@ func (ap *AggregatePrintingPress) buildPlan(intent aggregatePlanIntent) (*aggreg
 	for _, spec := range discovered {
 		if !spec.RenderSkipped && aggregateSpecSelectedOutputDirty(spec, intent.selection, ap.config.BuildMode) {
 			plan.changed = append(plan.changed, spec)
-		}
-	}
-	if intent.preflight {
-		changed := make(map[string]struct{}, len(plan.changed))
-		for _, spec := range plan.changed {
-			changed[spec.RelativePath] = struct{}{}
-		}
-		for _, spec := range discovered {
-			if _, ok := changed[spec.RelativePath]; !ok {
-				spec.prebuiltSite = nil
-			}
 		}
 	}
 	plan.catalog.OutputDir = ap.config.OutputDir
@@ -687,16 +676,16 @@ func resolveAggregateExternalMessageHrefs(catalog *ppmodel.CatalogSite, discover
 			continue
 		}
 		for _, rawRef := range source.spec.ExternalRefs {
-			document, fragment, found := strings.Cut(strings.TrimSpace(rawRef), "#")
-			if !found || document == "" || aggregateRelationshipRefIsNonLocal(document) {
+			parsed, err := url.Parse(strings.TrimSpace(rawRef))
+			if err != nil || parsed.Path == "" || parsed.Fragment == "" || parsed.RawQuery != "" || aggregateRelationshipRefIsNonLocal(parsed.Path) {
 				continue
 			}
-			targetPath := path.Clean(path.Join(path.Dir(sourcePath), filepath.ToSlash(document)))
+			targetPath := path.Clean(path.Join(path.Dir(sourcePath), filepath.ToSlash(parsed.Path)))
 			target := accepted[targetPath]
 			if target == nil || target == source || target.spec == nil || target.entry == nil {
 				continue
 			}
-			targetLocalHref := target.spec.MessageHrefs["#"+fragment]
+			targetLocalHref := target.spec.MessageHrefs["#"+parsed.Fragment]
 			if targetLocalHref == "" {
 				continue
 			}
@@ -906,7 +895,6 @@ func (ap *AggregatePrintingPress) preflightChangedEntries(plan *aggregateBuildPl
 	type preflightResult struct {
 		spec  *aggregateDiscoveredSpec
 		entry *ppmodel.CatalogSpecEntry
-		site  *ppmodel.Site
 		err   error
 	}
 	var candidates []*aggregateDiscoveredSpec
@@ -920,7 +908,7 @@ func (ap *AggregatePrintingPress) preflightChangedEntries(plan *aggregateBuildPl
 		return
 	}
 	jobs := make(chan *aggregateDiscoveredSpec)
-	results := make(chan preflightResult, len(candidates))
+	results := make(chan preflightResult, workerCount)
 	var wg sync.WaitGroup
 	for range workerCount {
 		wg.Add(1)
@@ -936,8 +924,11 @@ func (ap *AggregatePrintingPress) preflightChangedEntries(plan *aggregateBuildPl
 				if builder == nil {
 					builder = ap.buildEntrySite
 				}
-				site, err := builder(spec, entry)
-				results <- preflightResult{spec: spec, entry: entry, site: site, err: err}
+				// Preflight only needs the lightweight metadata that buildEntrySite
+				// records on spec. Discard the Site here so memory stays bounded by
+				// worker concurrency instead of total dirty catalog size.
+				_, err := builder(spec, entry)
+				results <- preflightResult{spec: spec, entry: entry, err: err}
 			}
 		}()
 	}
@@ -961,7 +952,6 @@ func (ap *AggregatePrintingPress) preflightChangedEntries(plan *aggregateBuildPl
 			ap.markRenderSkipped(plan, result.spec, result.entry, "skipped render build for discovered spec", result.err)
 			continue
 		}
-		result.spec.prebuiltSite = result.site
 	}
 }
 
@@ -2571,8 +2561,10 @@ func compareVersionLabels(left, right string) int {
 	if right == "unversioned" {
 		return 1
 	}
-	if lv, ok := parseVersionVector(left); ok {
-		if rv, ok := parseVersionVector(right); ok {
+	leftRelease, leftPrerelease := versionReleaseLabel(left)
+	rightRelease, rightPrerelease := versionReleaseLabel(right)
+	if lv, ok := parseVersionVector(leftRelease); ok {
+		if rv, ok := parseVersionVector(rightRelease); ok {
 			for i := 0; i < max(len(lv), len(rv)); i++ {
 				li := versionVectorValue(lv, i)
 				ri := versionVectorValue(rv, i)
@@ -2583,11 +2575,31 @@ func compareVersionLabels(left, right string) int {
 					return -1
 				}
 			}
+			if leftPrerelease != rightPrerelease {
+				if leftPrerelease {
+					return -1
+				}
+				return 1
+			}
+			if leftPrerelease {
+				leftFull, _ := parseVersionVector(left)
+				rightFull, _ := parseVersionVector(right)
+				for i := 0; i < max(len(leftFull), len(rightFull)); i++ {
+					li := versionVectorValue(leftFull, i)
+					ri := versionVectorValue(rightFull, i)
+					if li != ri {
+						if li > ri {
+							return 1
+						}
+						return -1
+					}
+				}
+			}
 			return strings.Compare(strings.ToLower(left), strings.ToLower(right))
 		}
 		return 1
 	}
-	if _, ok := parseVersionVector(right); ok {
+	if _, ok := parseVersionVector(rightRelease); ok {
 		return -1
 	}
 	if ld, ok := parseDateVersion(left); ok {
@@ -2607,6 +2619,19 @@ func compareVersionLabels(left, right string) int {
 		return -1
 	}
 	return strings.Compare(strings.ToLower(left), strings.ToLower(right))
+}
+
+func versionReleaseLabel(label string) (string, bool) {
+	trimmed := strings.TrimSpace(label)
+	match := versionPrereleaseRE.FindStringIndex(trimmed)
+	if match == nil {
+		return trimmed, false
+	}
+	release := strings.TrimRight(trimmed[:match[0]], "-._")
+	if _, ok := parseVersionVector(release); !ok {
+		return trimmed, false
+	}
+	return release, true
 }
 
 func parseVersionVector(label string) ([]int, bool) {
