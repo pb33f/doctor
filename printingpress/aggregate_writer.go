@@ -617,11 +617,16 @@ func copyAggregateEntryOutput(source, target string, selection aggregateOutputSe
 		if !info.Mode().IsRegular() {
 			return fmt.Errorf("unsupported entry output file type: %s", filePath)
 		}
+		// Staging is a sibling of source, so a hard link preserves unselected
+		// artifacts without duplicating large HTML trees. Fall back to copying
+		// for filesystems or permissions that do not support hard links.
+		if err := os.Link(filePath, targetPath); err == nil {
+			return nil
+		}
 		input, err := os.Open(filePath)
 		if err != nil {
 			return err
 		}
-		defer input.Close()
 		output, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode().Perm())
 		if err != nil {
 			_ = input.Close()
@@ -1757,8 +1762,8 @@ func catalogRootContent(catalog *ppmodel.CatalogSite, disableSkippedRendering bo
 			if _, err := io.WriteString(w, catalogContactHTML(catalogServiceContact(service))); err != nil {
 				return err
 			}
-			if hasCatalogVersionSwitcher(service) {
-				if _, err := io.WriteString(w, catalogVersionPickerHTML(".", "", service, "version-picker version-picker--card", "pp-catalog-select", false)); err != nil {
+			if picker := catalogCardVersionPickerHTML(".", service); picker != "" {
+				if _, err := io.WriteString(w, picker); err != nil {
 					return err
 				}
 			}
@@ -1783,6 +1788,91 @@ func servicePrimaryHref(service *ppmodel.CatalogService) string {
 		return ""
 	}
 	return catalogVersionPrimaryHref(version)
+}
+
+func catalogCardVersionPickerHTML(fromDir string, service *ppmodel.CatalogService) string {
+	versions := catalogCardVersions(service)
+	if len(versions) <= 1 {
+		return ""
+	}
+	latest := versions[0]
+	for _, version := range versions {
+		if version.latest {
+			latest = version
+			break
+		}
+	}
+	optionLabel := func(version catalogCardVersion) string {
+		if version.latest {
+			return version.Label + " (latest)"
+		}
+		return version.Label
+	}
+
+	var builder strings.Builder
+	builder.WriteString(`<div class="version-picker version-picker--card"><sl-dropdown skidding="5" distance="5"><sl-button slot="trigger" caret class="pp-catalog-select">`)
+	builder.WriteString(templ.EscapeString(optionLabel(latest)))
+	builder.WriteString(`</sl-button><sl-menu data-catalog-version-menu>`)
+	for _, version := range versions {
+		builder.WriteString(`<sl-menu-item value="`)
+		builder.WriteString(templ.EscapeString(relativeCatalogHref(fromDir, version.Href)))
+		builder.WriteString(`"`)
+		if version.latest {
+			builder.WriteString(` checked`)
+		}
+		builder.WriteString(`>`)
+		builder.WriteString(templ.EscapeString(optionLabel(version)))
+		builder.WriteString(`</sl-menu-item>`)
+	}
+	builder.WriteString(`</sl-menu></sl-dropdown></div>`)
+	return builder.String()
+}
+
+type catalogCardVersion struct {
+	Label  string
+	Href   string
+	latest bool
+}
+
+func catalogCardVersions(service *ppmodel.CatalogService) []catalogCardVersion {
+	entry := catalogDefaultContractLatestEntry(service)
+	// HeaderContext versions already reconcile implicit per-file contract IDs into one logical contract.
+	if entry != nil && entry.HeaderContext != nil && len(entry.HeaderContext.Versions) > 1 {
+		versions := make([]catalogCardVersion, 0, len(entry.HeaderContext.Versions))
+		for _, version := range entry.HeaderContext.Versions {
+			if version == nil || strings.TrimSpace(version.Href) == "" {
+				continue
+			}
+			versions = append(versions, catalogCardVersion{
+				Label:  version.Label,
+				Href:   path.Clean(path.Join(entry.OutputSubdir, version.Href)),
+				latest: version.Active,
+			})
+		}
+		if len(versions) > 1 {
+			return versions
+		}
+	}
+
+	contract := catalogDefaultContract(service)
+	if contract == nil {
+		return nil
+	}
+	versions := make([]catalogCardVersion, 0, len(contract.Versions))
+	for _, version := range contract.Versions {
+		if version == nil || version.Entry == nil || version.Entry.RenderSkipped {
+			continue
+		}
+		versions = append(versions, catalogCardVersion{
+			Label:  version.Label,
+			Href:   version.OverviewHref,
+			latest: version == contract.LatestVersion,
+		})
+	}
+	if len(versions) > 0 && !versions[0].latest {
+		versions[0].latest = true
+	}
+	return versions
 }
 
 func catalogVersionContent(service *ppmodel.CatalogService, version *ppmodel.CatalogVersion) templ.Component {
@@ -2020,18 +2110,26 @@ func catalogServiceContact(service *ppmodel.CatalogService) *ppmodel.ContactInfo
 }
 
 func catalogDefaultContractLatestEntry(service *ppmodel.CatalogService) *ppmodel.CatalogSpecEntry {
+	contract := catalogDefaultContract(service)
+	if contract == nil {
+		return nil
+	}
+	for _, version := range contract.Versions {
+		if version == nil || version.Entry == nil || version.Entry.RenderSkipped {
+			continue
+		}
+		return version.Entry
+	}
+	return nil
+}
+
+func catalogDefaultContract(service *ppmodel.CatalogService) *ppmodel.CatalogContract {
 	if service == nil {
 		return nil
 	}
 	for _, contract := range service.Contracts {
-		if contract == nil || contract.ID != service.DefaultContractID {
-			continue
-		}
-		for _, version := range contract.Versions {
-			if version == nil || version.Entry == nil || version.Entry.RenderSkipped {
-				continue
-			}
-			return version.Entry
+		if contract != nil && contract.ID == service.DefaultContractID {
+			return contract
 		}
 	}
 	return nil

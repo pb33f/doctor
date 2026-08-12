@@ -268,6 +268,36 @@ func TestPrintingPressStylesheet_UsesSharedSectionHeadingSize(t *testing.T) {
 	}
 }
 
+func TestPrintingPressBrowserBundles_IncludeContractNavigation(t *testing.T) {
+	for _, bundle := range []string{"printing-press.js", "printing-press-lite.js"} {
+		asset, err := os.ReadFile(filepath.Join("static", bundle))
+		require.NoError(t, err)
+		for _, marker := range []string{"contract-navigation", "Service contracts", "pp-contract-navigation"} {
+			assert.Contains(t, string(asset), marker, bundle)
+		}
+	}
+}
+
+func TestPrintingPressStylesheet_StylesContractNavigationPreview(t *testing.T) {
+	stylesheet, err := os.ReadFile(filepath.Join("static", "printing-press.css"))
+	require.NoError(t, err)
+
+	css := string(stylesheet)
+	for _, className := range []string{
+		"contract-navigation",
+		"contract-service-name",
+		"contract-group",
+		"contract-role-heading",
+		"contract-list",
+		"contract-item",
+		"contract-row",
+		"contract-link",
+		"contract-local-navigation",
+	} {
+		assert.Contains(t, css, `pp-nav > .pp-nav-preview .`+className, className)
+	}
+}
+
 func TestPrintingPress_PrintJSONArtifacts_BundleAndManifest(t *testing.T) {
 	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
 	require.NoError(t, err)
