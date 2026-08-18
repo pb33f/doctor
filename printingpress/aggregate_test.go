@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -783,6 +784,11 @@ func TestAggregateCatalogContractJSONCompatibility(t *testing.T) {
 			"versions":[{"label":"v1","slug":"v1","overviewHref":"services/orders/versions/v1/specs/orders-api/index.html","entry":{"id":"services/orders/openapi.yaml","slug":"orders-api","specKind":"openapi","contractId":"orders-http","contractRole":"http-api"},"relationships":[{"relation":"publishes","label":"Events","href":"events.html","specKind":"asyncapi"}]}]
 		}]
 	}`, string(data))
+}
+
+func TestCatalogServiceDoesNotExposeCollisionGroups(t *testing.T) {
+	_, exists := reflect.TypeOf(ppmodel.CatalogService{}).FieldByName("CollisionGroups")
+	assert.False(t, exists, "the removed collision contract must not remain in the public catalog model")
 }
 
 func TestAggregateDiscoveredRootRelationships(t *testing.T) {
