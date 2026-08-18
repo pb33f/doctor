@@ -148,9 +148,30 @@ describe('contract navigation normalization', () => {
     expect(multiContractGroups(oneValid)).toEqual([]);
 
     const twoValid = [{role: 'http-api', label: 'HTTP API', contracts: [
-      validContract(),
+      validContract({active: true}),
       validContract({id: 'events', label: 'Events', specKind: 'asyncapi', href: 'events.html'}),
     ]}];
     expect(multiContractGroups(twoValid)[0]?.contracts).toHaveLength(2);
+  });
+
+  it.each([
+    {
+      name: 'no active contract',
+      contracts: [
+        validContract(),
+        validContract({id: 'events', label: 'Events', specKind: 'asyncapi', href: 'events.html'}),
+      ],
+    },
+    {
+      name: 'multiple active contracts',
+      contracts: [
+        validContract({active: true}),
+        validContract({id: 'events', label: 'Events', specKind: 'asyncapi', href: 'events.html', active: true}),
+      ],
+    },
+  ])('does not enter multi-contract mode with $name', ({contracts}) => {
+    const raw = [{role: 'http-api', label: 'HTTP API', contracts}];
+    expect(normalizeContractGroups(raw)[0]?.contracts).toHaveLength(2);
+    expect(multiContractGroups(raw)).toEqual([]);
   });
 });

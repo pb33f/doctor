@@ -457,10 +457,13 @@ describe('pp-nav', () => {
     const originalRevokeObjectURL = URL.revokeObjectURL;
     Object.defineProperty(URL, 'createObjectURL', {configurable: true, value: createObjectURL});
     Object.defineProperty(URL, 'revokeObjectURL', {configurable: true, value: revokeObjectURL});
+    vi.useFakeTimers();
 
     try {
       await el.requestDirectArchiveExport('/_printing-press/export');
+      vi.advanceTimersByTime(500);
     } finally {
+      vi.useRealTimers();
       Object.defineProperty(URL, 'createObjectURL', {configurable: true, value: originalCreateObjectURL});
       Object.defineProperty(URL, 'revokeObjectURL', {configurable: true, value: originalRevokeObjectURL});
     }
@@ -475,6 +478,7 @@ describe('pp-nav', () => {
     expect(archiveBlob?.type).toBe('application/zip');
     expect(await archiveBlob?.text()).toBe('archive');
     expect(clickSpy).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:docs');
   });
 
   it('renders archive option labels with explanatory tooltips', async () => {
@@ -596,6 +600,63 @@ describe('pp-nav', () => {
       expect(el.shadowRoot?.querySelector('.nav-home')).toBeTruthy();
     },
   );
+
+  it.each([
+    {name: 'no active owner', activeIDs: []},
+    {name: 'multiple active owners', activeIDs: ['users-http', 'admin-http']},
+  ])('renders the ordinary full local navigation with $name', async ({activeIDs}) => {
+    const ambiguousGroups = structuredClone(contractGroups);
+    for (const group of ambiguousGroups) {
+      for (const contract of group.contracts) {
+        contract.active = activeIDs.includes(contract.id);
+      }
+    }
+    document.body.dataset.ppContracts = JSON.stringify(ambiguousGroups);
+    document.body.dataset.ppOverviewLabel = 'API OVERVIEW';
+    const el = document.createElement('pp-nav');
+    el.setAttribute('data-pages', JSON.stringify([{title: 'Guide', slug: 'guide', href: 'guide.html'}]));
+    el.setAttribute('data-nav', JSON.stringify([{name: 'Users', summary: '', children: null, operations: [], isNavOnly: false}]));
+    el.setAttribute('data-models', JSON.stringify([{name: 'Schemas', typeSlug: 'schemas', models: []}]));
+    el.setAttribute('data-webhooks', JSON.stringify([{method: 'post', path: '/hook', operationId: 'hook', summary: 'Hook', slug: 'hook', deprecated: false}]));
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    expect(el.shadowRoot?.querySelector('.contract-navigation')).toBeNull();
+    expect(el.shadowRoot?.querySelector('.nav-home')?.textContent).toContain('API OVERVIEW');
+    expect(el.shadowRoot?.querySelector('.nav-pages-section')).toBeTruthy();
+    expect(el.shadowRoot?.querySelector('.nav-operations-section')).toBeTruthy();
+    expect(el.shadowRoot?.querySelector('.nav-models-section')).toBeTruthy();
+    expect(el.shadowRoot?.querySelector('.nav-webhooks-section')).toBeTruthy();
+  });
+
+  it('removes the retained server preview after normal hydration', async () => {
+    const el = document.createElement('pp-nav');
+    const preview = document.createElement('div');
+    preview.className = 'pp-nav-fallback pp-nav-preview';
+    preview.dataset.serverFallback = 'true';
+    el.appendChild(preview);
+    el.setAttribute('data-nav', JSON.stringify([{name: 'Users', summary: '', children: null, operations: [], isNavOnly: false}]));
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    expect(el.querySelector('[data-server-fallback="true"]')).toBeNull();
+    expect(el.shadowRoot?.querySelector('.nav-operations-section')).toBeTruthy();
+  });
+
+  it('keeps the retained server preview when preview hold is active', async () => {
+    const el = document.createElement('pp-nav');
+    const preview = document.createElement('div');
+    preview.className = 'pp-nav-fallback pp-nav-preview';
+    preview.dataset.serverFallback = 'true';
+    el.appendChild(preview);
+    el.setAttribute('data-pp-preview-hold', 'true');
+    el.setAttribute('data-nav', JSON.stringify([{name: 'Users', summary: '', children: null, operations: [], isNavOnly: false}]));
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    expect(el.querySelector('[data-server-fallback="true"]')).toBe(preview);
+    expect(el.shadowRoot?.querySelector('slot')).toBeTruthy();
+  });
 
   it('keeps contract anchors and the active version trigger as separate keyboard-focusable controls', async () => {
     document.body.dataset.ppServiceName = 'Users';

@@ -48,18 +48,6 @@ func (ap *AggregatePrintingPress) refreshPlanLocked(intent aggregatePlanIntent) 
 	return plan, nil
 }
 
-func (ap *AggregatePrintingPress) renderEntryHTML(spec *aggregateDiscoveredSpec, entry *ppmodel.CatalogSpecEntry) ([]string, error) {
-	site, err := ap.buildEntrySite(spec, entry)
-	if err != nil {
-		return nil, err
-	}
-	entryOutput := filepath.Join(ap.config.OutputDir, filepath.FromSlash(spec.OutputSubdir))
-	if err := removeAndRecreateDir(entryOutput); err != nil {
-		return nil, err
-	}
-	return writeHTMLSiteDetailed(site, entryOutput, "", nil)
-}
-
 func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, entry *ppmodel.CatalogSpecEntry) (*ppmodel.Site, error) {
 	specBytes, err := os.ReadFile(spec.AbsolutePath)
 	if err != nil {
@@ -103,7 +91,6 @@ func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, 
 		return nil, err
 	}
 	spec.MessageHrefs = aggregateMessageHrefsFromSite(site)
-	applyAggregateExternalMessageHrefs(site, spec.externalMessageHrefs)
 	site.HeaderContext = entry.HeaderContext
 	renderedSource := site.Source
 	site.Source = entry.Source
@@ -238,7 +225,7 @@ func aggregateActiveOutputOwnershipFromPlan(plan *aggregateBuildPlan, selection 
 		return ownership
 	}
 	for _, spec := range plan.discovered {
-		if spec == nil || spec.RenderSkipped {
+		if spec == nil || spec.RenderSkipped && !spec.renderFailed {
 			continue
 		}
 		if selection.html {
@@ -311,11 +298,9 @@ func (locations aggregateOutputLocations) each(visit func(string)) {
 }
 
 func aggregateCompletedPaths(plan *aggregateBuildPlan) map[string]struct{} {
-	completed := make(map[string]struct{}, len(plan.changed))
-	for _, spec := range plan.changed {
-		if spec != nil {
-			completed[spec.RelativePath] = struct{}{}
-		}
+	completed := make(map[string]struct{}, len(plan.completed))
+	for relativePath := range plan.completed {
+		completed[relativePath] = struct{}{}
 	}
 	return completed
 }
@@ -389,7 +374,7 @@ func aggregateCleanupTombstones(plan *aggregateBuildPlan) []*SpecStateRecord {
 		}
 	}
 	for _, spec := range plan.discovered {
-		if spec != nil && spec.RenderSkipped && spec.previousState != nil {
+		if spec != nil && spec.RenderSkipped && !spec.renderFailed && spec.previousState != nil {
 			byPath[spec.RelativePath] = spec.previousState
 		}
 	}
@@ -483,17 +468,19 @@ func (ap *AggregatePrintingPress) reconcileCleanupTombstoneEntryArtifactsWithOwn
 			}
 			return err
 		}
-		stagedOutput, err := stageAggregateEntryOutput(entryOutput, groups[subdir])
+		stagedOutput, err := ap.stageAggregateEntryOutput(entryOutput, groups[subdir])
 		if err != nil {
 			return err
 		}
 		if err := prepareAggregateEntryOutputDir(stagedOutput, groups[subdir]); err != nil {
-			_ = os.RemoveAll(stagedOutput)
-			return err
+			return cleanupAggregateStagedOutputError(stagedOutput, ap.removeAggregateStagedOutput, err)
 		}
-		if err := promoteAggregateEntryOutput(stagedOutput, entryOutput); err != nil {
-			_ = os.RemoveAll(stagedOutput)
-			return err
+		promotion, err := ap.promoteAggregateEntryOutput(stagedOutput, entryOutput)
+		if err != nil {
+			return cleanupAggregateStagedOutputError(stagedOutput, ap.removeAggregateStagedOutput, err)
+		}
+		if promotion.cleanupWarning != nil {
+			ap.addAggregateWarning(plan, "installed aggregate entry output; deferred backup cleanup", subdir, promotion.cleanupWarning)
 		}
 	}
 	return nil
@@ -506,7 +493,20 @@ func (ap *AggregatePrintingPress) pruneObsoleteOutputs(plan *aggregateBuildPlan,
 	completed := aggregateCompletedPaths(plan)
 	resultingReferences := make(map[string]struct{})
 	for _, spec := range plan.discovered {
-		if spec == nil || spec.RenderSkipped {
+		if spec == nil {
+			continue
+		}
+		if spec.RenderSkipped {
+			if spec.renderFailed {
+				aggregateRecordOutputLocations(spec.previousState).each(func(subdir string) {
+					if clean, ok := cleanAggregateEntryOutputSubdir(subdir); ok {
+						resultingReferences[clean] = struct{}{}
+					}
+				})
+				if clean, ok := cleanAggregateEntryOutputSubdir(spec.OutputSubdir); ok {
+					resultingReferences[clean] = struct{}{}
+				}
+			}
 			continue
 		}
 		_, wasCompleted := completed[spec.RelativePath]
@@ -556,6 +556,14 @@ func (ap *AggregatePrintingPress) pruneObsoleteOutputs(plan *aggregateBuildPlan,
 }
 
 func stageAggregateEntryOutput(entryOutput string, selection aggregateOutputSelection) (string, error) {
+	return stageAggregateEntryOutputWithCleanup(entryOutput, selection, os.RemoveAll)
+}
+
+func (ap *AggregatePrintingPress) stageAggregateEntryOutput(entryOutput string, selection aggregateOutputSelection) (string, error) {
+	return stageAggregateEntryOutputWithCleanup(entryOutput, selection, ap.removeAggregateStagedOutput)
+}
+
+func stageAggregateEntryOutputWithCleanup(entryOutput string, selection aggregateOutputSelection, cleanup func(string) error) (string, error) {
 	parent := filepath.Dir(entryOutput)
 	if err := os.MkdirAll(parent, 0o755); err != nil {
 		return "", err
@@ -565,10 +573,16 @@ func stageAggregateEntryOutput(entryOutput string, selection aggregateOutputSele
 		return "", err
 	}
 	if err := copyAggregateEntryOutput(entryOutput, staged, selection); err != nil {
-		_ = os.RemoveAll(staged)
-		return "", err
+		return "", cleanupAggregateStagedOutputError(staged, cleanup, err)
 	}
 	return staged, nil
+}
+
+func cleanupAggregateStagedOutputError(stagePath string, cleanup func(string) error, cause error) error {
+	if cleanupErr := cleanup(stagePath); cleanupErr != nil {
+		return errors.Join(cause, fmt.Errorf("cleaning aggregate staging output %s: %w", stagePath, cleanupErr))
+	}
+	return cause
 }
 
 func copyAggregateEntryOutput(source, target string, selection aggregateOutputSelection) error {
@@ -644,36 +658,98 @@ func aggregateEntryArtifactPreservedForSelection(relPath string, selection aggre
 	return !selection.json && extension == ".json" || !selection.llm && (extension == ".md" || extension == ".txt")
 }
 
-func promoteAggregateEntryOutput(stagedOutput, entryOutput string) error {
+type aggregatePromotionResult struct {
+	cleanupWarning error
+}
+
+type aggregateEntryPromotion struct {
+	stagedOutput string
+	entryOutput  string
+	backupOutput string
+	hadExisting  bool
+}
+
+func promoteAggregateEntryOutput(stagedOutput, entryOutput string) (aggregatePromotionResult, error) {
+	return promoteAggregateEntryOutputWithCleanup(stagedOutput, entryOutput, os.RemoveAll)
+}
+
+func (ap *AggregatePrintingPress) promoteAggregateEntryOutput(stagedOutput, entryOutput string) (aggregatePromotionResult, error) {
+	cleanup := os.RemoveAll
+	if ap != nil && ap.cleanupPromotionBackup != nil {
+		cleanup = ap.cleanupPromotionBackup
+	}
+	return promoteAggregateEntryOutputWithCleanup(stagedOutput, entryOutput, cleanup)
+}
+
+func promoteAggregateEntryOutputWithCleanup(stagedOutput, entryOutput string, cleanup func(string) error) (aggregatePromotionResult, error) {
+	var result aggregatePromotionResult
+	promotion, promotionErr, rollbackErr := beginAggregateEntryPromotion(stagedOutput, entryOutput)
+	if rollbackErr != nil {
+		return result, errors.Join(promotionErr, fmt.Errorf("rolling back failed promotion: %w", rollbackErr))
+	}
+	if promotionErr != nil {
+		return result, promotionErr
+	}
+	if err := promotion.cleanupBackup(cleanup); err != nil {
+		result.cleanupWarning = err
+	}
+	return result, nil
+}
+
+func beginAggregateEntryPromotion(stagedOutput, entryOutput string) (*aggregateEntryPromotion, error, error) {
 	parent := filepath.Dir(entryOutput)
 	backup, err := os.MkdirTemp(parent, "."+filepath.Base(entryOutput)+".ppress-backup-")
 	if err != nil {
-		return err
+		return nil, err, nil
 	}
 	if err := os.Remove(backup); err != nil {
-		return err
+		_ = os.RemoveAll(backup)
+		return nil, err, nil
 	}
-	hadExisting := false
+	promotion := &aggregateEntryPromotion{
+		stagedOutput: stagedOutput,
+		entryOutput:  entryOutput,
+		backupOutput: backup,
+	}
 	if _, err := os.Stat(entryOutput); err == nil {
-		hadExisting = true
+		promotion.hadExisting = true
 		if err := os.Rename(entryOutput, backup); err != nil {
-			return err
+			return nil, err, nil
 		}
 	} else if !os.IsNotExist(err) {
-		return err
+		return nil, err, nil
 	}
 	if err := os.Rename(stagedOutput, entryOutput); err != nil {
-		if hadExisting {
-			return errors.Join(err, os.Rename(backup, entryOutput))
+		if promotion.hadExisting {
+			if rollbackErr := os.Rename(backup, entryOutput); rollbackErr != nil {
+				return nil, err, rollbackErr
+			}
 		}
-		return err
+		return nil, err, nil
 	}
-	if hadExisting {
-		if err := os.RemoveAll(backup); err != nil {
-			return err
+	return promotion, nil, nil
+}
+
+func (p *aggregateEntryPromotion) rollback() error {
+	if p == nil {
+		return nil
+	}
+	if err := os.Rename(p.entryOutput, p.stagedOutput); err != nil {
+		return fmt.Errorf("restoring staged output: %w", err)
+	}
+	if p.hadExisting {
+		if err := os.Rename(p.backupOutput, p.entryOutput); err != nil {
+			return fmt.Errorf("restoring prior live output: %w", err)
 		}
 	}
 	return nil
+}
+
+func (p *aggregateEntryPromotion) cleanupBackup(cleanup func(string) error) error {
+	if p == nil || !p.hadExisting {
+		return nil
+	}
+	return cleanup(p.backupOutput)
 }
 
 func (ap *AggregatePrintingPress) pruneObsoleteAggregateArtifacts(plan *aggregateBuildPlan, selection aggregateOutputSelection) error {
@@ -888,14 +964,10 @@ func (ap *AggregatePrintingPress) safeAggregateOutputPath(relPath string) (strin
 func (ap *AggregatePrintingPress) persistState(plan *aggregateBuildPlan, selection aggregateOutputSelection) error {
 	tombstones := aggregateCleanupTombstones(plan)
 	records := make([]*SpecStateRecord, 0, len(plan.discovered)+len(tombstones))
-	completed := make(map[string]struct{}, len(plan.changed))
-	for _, spec := range plan.changed {
-		if spec != nil {
-			completed[spec.RelativePath] = struct{}{}
-		}
-	}
+	completed := aggregateCompletedPaths(plan)
+	deferCleanupState := aggregatePlanHasRenderFailures(plan)
 	for _, spec := range plan.discovered {
-		if spec.RenderSkipped {
+		if spec.RenderSkipped && !spec.renderFailed {
 			continue
 		}
 		record := &SpecStateRecord{
@@ -928,6 +1000,12 @@ func (ap *AggregatePrintingPress) persistState(plan *aggregateBuildPlan, selecti
 			record.JSONOutputSubdir = locations.json
 			record.LLMOutputSubdir = locations.llm
 		}
+		if spec.previousState == nil && spec.renderFailed {
+			// A newly discovered entry that failed before promotion has no legacy
+			// output location. Leaving OutputSubdir populated would make
+			// state normalization incorrectly assign that location to every family.
+			record.OutputSubdir = ""
+		}
 		if _, ok := completed[spec.RelativePath]; ok {
 			if selection.html {
 				record.HTMLCompletionHash = spec.HTMLCompletionHash
@@ -946,6 +1024,10 @@ func (ap *AggregatePrintingPress) persistState(plan *aggregateBuildPlan, selecti
 	}
 	deletePaths := make([]string, 0, len(tombstones))
 	for _, previous := range tombstones {
+		if deferCleanupState {
+			records = append(records, previous)
+			continue
+		}
 		tombstone := aggregateCleanupTombstoneAfterSelection(previous, selection)
 		if aggregateRecordHasOutputFamilyState(tombstone) {
 			records = append(records, tombstone)
@@ -1018,6 +1100,44 @@ func (ap *AggregatePrintingPress) markRenderSkipped(plan *aggregateBuildPlan, sp
 	}
 	if ap != nil && ap.config != nil && ap.config.Logger != nil {
 		ap.config.Logger.Warn("printingpress: "+message, "path", spec.RelativePath, "error", err)
+	}
+}
+
+func (ap *AggregatePrintingPress) markRenderFailed(plan *aggregateBuildPlan, spec *aggregateDiscoveredSpec, entry *ppmodel.CatalogSpecEntry, message string, err error) {
+	if spec == nil {
+		return
+	}
+	spec.renderFailed = true
+	if plan != nil {
+		delete(plan.completed, spec.RelativePath)
+	}
+	ap.markRenderSkipped(plan, spec, entry, message, err)
+}
+
+func (ap *AggregatePrintingPress) markPromotionCleanupWarning(plan *aggregateBuildPlan, spec *aggregateDiscoveredSpec, err error) {
+	if spec == nil {
+		return
+	}
+	const message = "installed aggregate entry output; deferred backup cleanup"
+	if plan != nil {
+		if entry := catalogEntryIndex(plan.catalog)[spec.RelativePath]; entry != nil {
+			entry.Warnings = append(entry.Warnings, catalogWarningDetail(message, err))
+		}
+	}
+	ap.addAggregateWarning(plan, message, spec.RelativePath, err)
+}
+
+func (ap *AggregatePrintingPress) addAggregateWarning(plan *aggregateBuildPlan, message, context string, err error) {
+	warning := &ppmodel.BuildWarning{
+		Message: message,
+		Context: context,
+		Err:     err,
+	}
+	if plan != nil && plan.catalog != nil {
+		plan.catalog.Warnings = append(plan.catalog.Warnings, warning)
+	}
+	if ap != nil && ap.config != nil && ap.config.Logger != nil {
+		ap.config.Logger.Warn("printingpress: "+message, "path", context, "error", err)
 	}
 }
 
@@ -1123,7 +1243,7 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 				continue
 			}
 			versionPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(version.OverviewHref))
-			if err := writeCatalogPage(versionPath, ap.catalogPageData(version.OverviewHref, service.DisplayName+" "+version.Label, versionSubtitle(version), service, true, catalogVersionContent(service, version))); err != nil {
+			if err := writeCatalogPage(versionPath, ap.catalogPageData(version.OverviewHref, service.DisplayName+" "+version.Label, versionSubtitle(version), service, true, catalogVersionContent(version))); err != nil {
 				return nil, err
 			}
 			written = append(written, versionPath)
@@ -1875,7 +1995,7 @@ func catalogCardVersions(service *ppmodel.CatalogService) []catalogCardVersion {
 	return versions
 }
 
-func catalogVersionContent(service *ppmodel.CatalogService, version *ppmodel.CatalogVersion) templ.Component {
+func catalogVersionContent(version *ppmodel.CatalogVersion) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 		if version == nil || len(visibleCatalogEntries(version)) == 0 {
 			return nil
@@ -1887,21 +2007,16 @@ func catalogVersionContent(service *ppmodel.CatalogService, version *ppmodel.Cat
 			`</article></section>`); err != nil {
 			return err
 		}
-		return catalogVersionEntriesContent(service, version).Render(ctx, w)
+		return catalogVersionEntriesContent(version).Render(ctx, w)
 	})
 }
 
-func catalogVersionEntriesContent(service *ppmodel.CatalogService, version *ppmodel.CatalogVersion) templ.Component {
+func catalogVersionEntriesContent(version *ppmodel.CatalogVersion) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 		if version == nil {
 			return nil
 		}
 		entries := visibleCatalogEntries(version)
-		if catalogVersionHasCollision(service, version) {
-			if _, err := io.WriteString(w, `<pb33f-attention-box class="pp-catalog-warning" type="warning" headerText="Multiple Specification Entries"><p>Multiple specs were discovered for this service version. Each entry remains available separately.</p></pb33f-attention-box>`); err != nil {
-				return err
-			}
-		}
 		if _, err := io.WriteString(w, `<section class="pp-catalog-section"><h2>Specification Entries</h2><div class="pp-model-cards">`); err != nil {
 			return err
 		}
@@ -2133,19 +2248,6 @@ func catalogDefaultContract(service *ppmodel.CatalogService) *ppmodel.CatalogCon
 		}
 	}
 	return nil
-}
-
-func catalogVersionHasCollision(service *ppmodel.CatalogService, version *ppmodel.CatalogVersion) bool {
-	if service == nil || version == nil {
-		return false
-	}
-	context := service.Key + ":" + version.Label
-	for _, collision := range service.CollisionGroups {
-		if collision == context {
-			return true
-		}
-	}
-	return false
 }
 
 func visibleCatalogServiceEntries(service *ppmodel.CatalogService) []*ppmodel.CatalogSpecEntry {
@@ -2660,159 +2762,6 @@ func relativeMarkdownLink(fromPath, toPath string) string {
 		return toPath
 	}
 	return filepath.ToSlash(rel)
-}
-
-var managedHeaderContextAttrs = []string{
-	"data-pp-catalog-href",
-	"data-pp-overview-href",
-	"data-pp-overview-label",
-	"data-pp-service-name",
-	"data-pp-current-version",
-	"data-pp-versions-href",
-	"data-pp-versions",
-	"data-pp-contracts",
-}
-
-func (ap *AggregatePrintingPress) refreshRenderedEntryHeaderContexts(catalog *ppmodel.CatalogSite, impactedServices map[string]struct{}) error {
-	if catalog == nil || len(impactedServices) == 0 {
-		return nil
-	}
-	for _, service := range catalog.Services {
-		if service == nil {
-			continue
-		}
-		if _, ok := impactedServices[service.Key]; !ok {
-			continue
-		}
-		for _, version := range visibleCatalogVersions(service) {
-			for _, entry := range visibleCatalogEntries(version) {
-				if entry == nil || entry.HeaderContext == nil {
-					continue
-				}
-				if err := rewriteEntryHeaderContextFiles(filepath.Join(ap.config.OutputDir, filepath.FromSlash(entry.OutputSubdir)), entry.HeaderContext); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func rewriteEntryHeaderContextFiles(root string, header *ppmodel.SiteHeaderContext) error {
-	info, err := os.Stat(root)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	if !info.IsDir() {
-		return nil
-	}
-	return filepath.WalkDir(root, func(filePath string, d os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if d.IsDir() || strings.ToLower(filepath.Ext(filePath)) != ".html" {
-			return nil
-		}
-		return rewriteHTMLHeaderContextFile(filePath, header)
-	})
-}
-
-func rewriteHTMLHeaderContextFile(filePath string, header *ppmodel.SiteHeaderContext) error {
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return err
-	}
-	updated, changed, err := rewriteHTMLHeaderContext(content, header)
-	if err != nil || !changed {
-		return err
-	}
-	return os.WriteFile(filePath, updated, 0o644)
-}
-
-func rewriteHTMLHeaderContext(content []byte, header *ppmodel.SiteHeaderContext) ([]byte, bool, error) {
-	doc := string(content)
-	bodyStart := strings.Index(doc, "<body")
-	if bodyStart < 0 {
-		return content, false, nil
-	}
-	bodyEnd := strings.Index(doc[bodyStart:], ">")
-	if bodyEnd < 0 {
-		return nil, false, fmt.Errorf("printingpress: malformed html body tag")
-	}
-	bodyEnd += bodyStart
-	openTag := doc[bodyStart : bodyEnd+1]
-	updated := openTag
-	for _, attr := range managedHeaderContextAttrs {
-		updated = removeManagedHTMLAttribute(updated, attr)
-	}
-	attrValues, err := headerContextAttributeValues(header)
-	if err != nil {
-		return nil, false, err
-	}
-	var attrs strings.Builder
-	for _, attr := range managedHeaderContextAttrs {
-		value := strings.TrimSpace(attrValues[attr])
-		if value == "" {
-			continue
-		}
-		attrs.WriteString(` `)
-		attrs.WriteString(attr)
-		attrs.WriteString(`="`)
-		attrs.WriteString(templ.EscapeString(value))
-		attrs.WriteString(`"`)
-	}
-	updated = strings.TrimSuffix(updated, ">") + attrs.String() + ">"
-	if updated == openTag {
-		return content, false, nil
-	}
-	rewritten := doc[:bodyStart] + updated + doc[bodyEnd+1:]
-	return []byte(rewritten), true, nil
-}
-
-func headerContextAttributeValues(header *ppmodel.SiteHeaderContext) (map[string]string, error) {
-	values := make(map[string]string, len(managedHeaderContextAttrs))
-	if header == nil {
-		return values, nil
-	}
-	values["data-pp-catalog-href"] = header.CatalogHref
-	values["data-pp-overview-href"] = header.OverviewHref
-	values["data-pp-overview-label"] = header.OverviewLabel
-	values["data-pp-service-name"] = header.ServiceName
-	values["data-pp-current-version"] = header.CurrentVersion
-	values["data-pp-versions-href"] = header.VersionsHref
-	if len(header.Versions) > 0 {
-		encoded, err := json.Marshal(header.Versions)
-		if err != nil {
-			return nil, err
-		}
-		values["data-pp-versions"] = string(encoded)
-	}
-	if len(header.ContractGroups) > 0 {
-		encoded, err := json.Marshal(header.ContractGroups)
-		if err != nil {
-			return nil, err
-		}
-		values["data-pp-contracts"] = string(encoded)
-	}
-	return values, nil
-}
-
-func removeManagedHTMLAttribute(tag, attr string) string {
-	pattern := ` ` + attr + `="`
-	start := strings.Index(tag, pattern)
-	if start < 0 {
-		return tag
-	}
-	valueStart := start + len(pattern)
-	valueEnd := strings.Index(tag[valueStart:], `"`)
-	if valueEnd < 0 {
-		return tag
-	}
-	valueEnd += valueStart
-	return tag[:start] + tag[valueEnd+1:]
 }
 
 func collectFiles(root string) ([]string, error) {

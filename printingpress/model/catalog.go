@@ -107,16 +107,17 @@ type CatalogSite struct {
 
 // CatalogService represents one grouped service in the aggregate catalog.
 type CatalogService struct {
-	Key               string             `json:"key"`
-	Slug              string             `json:"slug"`
-	DisplayName       string             `json:"displayName"`
-	Summary           string             `json:"summary,omitempty"`
-	PrimaryPath       string             `json:"primaryPath,omitempty"`
-	SpecCount         int                `json:"specCount"`
-	OverviewHref      string             `json:"overviewHref,omitempty"`
-	VersionsHref      string             `json:"versionsHref,omitempty"`
-	LatestVersion     *CatalogVersion    `json:"latestVersion,omitempty"`
-	Versions          []*CatalogVersion  `json:"versions,omitempty"`
+	Key           string            `json:"key"`
+	Slug          string            `json:"slug"`
+	DisplayName   string            `json:"displayName"`
+	Summary       string            `json:"summary,omitempty"`
+	PrimaryPath   string            `json:"primaryPath,omitempty"`
+	SpecCount     int               `json:"specCount"`
+	OverviewHref  string            `json:"overviewHref,omitempty"`
+	VersionsHref  string            `json:"versionsHref,omitempty"`
+	LatestVersion *CatalogVersion   `json:"latestVersion,omitempty"`
+	Versions      []*CatalogVersion `json:"versions,omitempty"`
+	// Deprecated: retained for source compatibility. Aggregate discovery no longer populates this field.
 	CollisionGroups   []string           `json:"collisionGroups,omitempty"`
 	Counts            *ViolationCounts   `json:"counts,omitempty"`
 	IdentityKey       string             `json:"identityKey,omitempty"`

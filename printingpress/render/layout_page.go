@@ -297,10 +297,33 @@ func navFallbackHTML(docsExpiresAt string, developerMode bool, archiveExportURL 
 		overviewLabel = header.OverviewLabel
 	}
 	local := `<div class="pp-nav-fallback-home">` + templ.EscapeString(overviewLabel) + `</div>` + diagnostics + guides + `<div class="pp-nav-fallback-section"><h4>Operations</h4><div class="pp-nav-fallback-list"><div class="pp-nav-fallback-row" style="width:100%;"></div><div class="pp-nav-fallback-row" style="width:92%;"></div><div class="pp-nav-fallback-row" style="width:84%;"></div><div class="pp-nav-fallback-row" style="width:78%;"></div><div class="pp-nav-fallback-row" style="width:88%;"></div><div class="pp-nav-fallback-row" style="width:74%;"></div></div></div><div class="pp-nav-fallback-section"><h4>Models</h4><div class="pp-nav-fallback-list"><div class="pp-nav-fallback-row" style="width:96%;"></div><div class="pp-nav-fallback-row" style="width:86%;"></div><div class="pp-nav-fallback-row" style="width:82%;"></div><div class="pp-nav-fallback-row" style="width:90%;"></div><div class="pp-nav-fallback-row" style="width:76%;"></div><div class="pp-nav-fallback-row" style="width:88%;"></div><div class="pp-nav-fallback-row" style="width:80%;"></div><div class="pp-nav-fallback-row" style="width:72%;"></div></div></div>`
-	if header != nil && len(header.ContractGroups) > 0 {
+	if hasMultiContractFallback(header) {
 		local = navFallbackContractGroupsHTML(header, local)
 	}
 	return `<div class="pp-nav-fallback" aria-hidden="true">` + archiveControls + expiry + local + `</div></pp-nav>`
+}
+
+func hasMultiContractFallback(header *ppmodel.SiteHeaderContext) bool {
+	if header == nil {
+		return false
+	}
+	contractCount := 0
+	activeCount := 0
+	for _, group := range header.ContractGroups {
+		if group == nil {
+			continue
+		}
+		for _, contract := range group.Contracts {
+			if contract == nil {
+				continue
+			}
+			contractCount++
+			if contract.Active {
+				activeCount++
+			}
+		}
+	}
+	return contractCount > 1 && activeCount == 1
 }
 
 func navFallbackContractGroupsHTML(header *ppmodel.SiteHeaderContext, local string) string {

@@ -116,5 +116,9 @@ export function normalizeContractGroups(raw: unknown): SiteContractGroup[] {
 export function multiContractGroups(raw: unknown): SiteContractGroup[] {
     const groups = normalizeContractGroups(raw);
     const count = groups.reduce((total, group) => total + group.contracts.length, 0);
-    return count > 1 ? groups : [];
+    const activeCount = groups.reduce(
+        (total, group) => total + group.contracts.filter((contract) => contract.active).length,
+        0,
+    );
+    return count > 1 && activeCount === 1 ? groups : [];
 }

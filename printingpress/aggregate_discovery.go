@@ -31,12 +31,14 @@ import (
 )
 
 type aggregateBuildPlan struct {
-	catalog    *ppmodel.CatalogSite
-	discovered []*aggregateDiscoveredSpec
-	changed    []*aggregateDiscoveredSpec
-	removed    []*SpecStateRecord
-	existing   map[string]*SpecStateRecord
-	duration   time.Duration
+	catalog     *ppmodel.CatalogSite
+	discovered  []*aggregateDiscoveredSpec
+	changed     []*aggregateDiscoveredSpec
+	removed     []*SpecStateRecord
+	existing    map[string]*SpecStateRecord
+	completed   map[string]struct{}
+	preflighted map[string]struct{}
+	duration    time.Duration
 }
 
 type aggregatePlanIntent struct {
@@ -75,7 +77,9 @@ type aggregateDiscoveredSpec struct {
 	Warnings                 []string
 	Source                   *ppmodel.SourceRef
 	previousState            *SpecStateRecord
+	prebuiltSite             *ppmodel.Site
 	externalMessageHrefs     map[string]string
+	renderFailed             bool
 	HTMLCompletionHash       string
 	JSONCompletionHash       string
 	LLMCompletionHash        string
@@ -89,7 +93,6 @@ type aggregateSpecMetadata struct {
 	SpecKind                 SpecKind
 	ServiceIdentityCandidate string
 	ExternalRefs             []string
-	Document                 any
 	Warnings                 []string
 	Valid                    bool
 }
@@ -104,7 +107,6 @@ type aggregateServiceGroup struct {
 	latest          *aggregateVersionGroup
 	contracts       []*aggregateContractGroup
 	defaultContract *aggregateContractGroup
-	collisions      []string
 	versionIndex    map[string]*aggregateVersionGroup
 	contractIndex   map[string]*aggregateContractGroup
 }
@@ -161,9 +163,11 @@ func (ap *AggregatePrintingPress) buildPlan(intent aggregatePlanIntent) (*aggreg
 		return nil, err
 	}
 	plan := &aggregateBuildPlan{
-		discovered: discovered,
-		existing:   existing,
-		duration:   time.Since(start),
+		discovered:  discovered,
+		existing:    existing,
+		completed:   make(map[string]struct{}),
+		preflighted: make(map[string]struct{}),
+		duration:    time.Since(start),
 	}
 	plan.removed = aggregateRemovedRecords(existing, discovered)
 	plan.catalog, err = ap.buildCatalog(discovered)
@@ -173,7 +177,9 @@ func (ap *AggregatePrintingPress) buildPlan(intent aggregatePlanIntent) (*aggreg
 	resolveAggregateExternalMessageHrefs(plan.catalog, discovered)
 	ap.applyAggregateNavigationFingerprints(plan.catalog, discovered)
 	if intent.preflight {
-		ap.preflightChangedEntries(plan, intent.selection)
+		if err := ap.preflightChangedEntries(plan, intent.selection); err != nil {
+			return nil, err
+		}
 	}
 	resolveAggregateExternalMessageHrefs(plan.catalog, discovered)
 	ap.finalizeCatalog(plan.catalog)
@@ -541,7 +547,6 @@ func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscovered
 			}
 			serviceModel.Contracts = append(serviceModel.Contracts, contract)
 		}
-		serviceModel.CollisionGroups = append([]string(nil), group.collisions...)
 		if len(serviceModel.Versions) > 0 {
 			serviceModel.LatestVersion = serviceModel.Versions[0]
 		}
@@ -887,71 +892,88 @@ func aggregateSpecSelectedOutputDirty(spec *aggregateDiscoveredSpec, selection a
 		selection.llm && previous.LLMCompletionHash != spec.LLMCompletionHash
 }
 
-func (ap *AggregatePrintingPress) preflightChangedEntries(plan *aggregateBuildPlan, selection aggregateOutputSelection) {
+func (ap *AggregatePrintingPress) preflightChangedEntries(plan *aggregateBuildPlan, selection aggregateOutputSelection) error {
 	if plan == nil || plan.catalog == nil {
-		return
+		return nil
+	}
+	if plan.preflighted == nil {
+		plan.preflighted = make(map[string]struct{})
 	}
 	entries := catalogEntryIndex(plan.catalog)
 	type preflightResult struct {
 		spec  *aggregateDiscoveredSpec
 		entry *ppmodel.CatalogSpecEntry
+		site  *ppmodel.Site
 		err   error
 	}
-	var candidates []*aggregateDiscoveredSpec
-	for _, spec := range plan.discovered {
-		if spec != nil && aggregateSpecSelectedOutputDirty(spec, selection, ap.config.BuildMode) {
+	for iteration := 0; ; iteration++ {
+		var candidates []*aggregateDiscoveredSpec
+		for _, spec := range plan.discovered {
+			if spec == nil || spec.RenderSkipped || !aggregateSpecSelectedOutputDirty(spec, selection, ap.config.BuildMode) {
+				continue
+			}
+			if _, ok := plan.preflighted[spec.RelativePath]; ok {
+				continue
+			}
 			candidates = append(candidates, spec)
 		}
-	}
-	workerCount := ap.resolvePoolCount(len(candidates))
-	if workerCount == 0 {
-		return
-	}
-	jobs := make(chan *aggregateDiscoveredSpec)
-	results := make(chan preflightResult, workerCount)
-	var wg sync.WaitGroup
-	for range workerCount {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for spec := range jobs {
-				entry := entries[spec.RelativePath]
-				if entry == nil {
-					results <- preflightResult{spec: spec, err: fmt.Errorf("missing catalog entry for discovered spec")}
-					continue
-				}
-				builder := ap.preflightBuildEntrySite
-				if builder == nil {
-					builder = ap.buildEntrySite
-				}
-				// Preflight only needs the lightweight metadata that buildEntrySite
-				// records on spec. Discard the Site here so memory stays bounded by
-				// worker concurrency instead of total dirty catalog size.
-				_, err := builder(spec, entry)
-				results <- preflightResult{spec: spec, entry: entry, err: err}
-			}
-		}()
-	}
-	go func() {
+		if len(candidates) == 0 {
+			return nil
+		}
+		if iteration >= len(plan.discovered) {
+			return fmt.Errorf("printingpress: aggregate preflight did not converge after %d entries", len(plan.discovered))
+		}
 		for _, spec := range candidates {
-			jobs <- spec
+			if entries[spec.RelativePath] == nil {
+				return fmt.Errorf("printingpress: missing catalog entry for discovered spec %s", spec.RelativePath)
+			}
 		}
-		close(jobs)
-		wg.Wait()
-		close(results)
-	}()
-	collected := make([]preflightResult, 0, len(candidates))
-	for result := range results {
-		collected = append(collected, result)
-	}
-	sort.Slice(collected, func(i, j int) bool {
-		return collected[i].spec.RelativePath < collected[j].spec.RelativePath
-	})
-	for _, result := range collected {
-		if result.err != nil {
-			ap.markRenderSkipped(plan, result.spec, result.entry, "skipped render build for discovered spec", result.err)
-			continue
+		workerCount := ap.resolvePoolCount(len(candidates))
+		jobs := make(chan *aggregateDiscoveredSpec)
+		results := make(chan preflightResult, workerCount)
+		var wg sync.WaitGroup
+		for range workerCount {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for spec := range jobs {
+					entry := entries[spec.RelativePath]
+					builder := ap.preflightBuildEntrySite
+					if builder == nil {
+						builder = ap.buildEntrySite
+					}
+					site, err := builder(spec, entry)
+					results <- preflightResult{spec: spec, entry: entry, site: site, err: err}
+				}
+			}()
 		}
+		go func() {
+			for _, spec := range candidates {
+				jobs <- spec
+			}
+			close(jobs)
+			wg.Wait()
+			close(results)
+		}()
+		collected := make([]preflightResult, 0, len(candidates))
+		for result := range results {
+			collected = append(collected, result)
+		}
+		sort.Slice(collected, func(i, j int) bool {
+			return collected[i].spec.RelativePath < collected[j].spec.RelativePath
+		})
+		for _, result := range collected {
+			plan.preflighted[result.spec.RelativePath] = struct{}{}
+			if result.err != nil {
+				result.spec.prebuiltSite = nil
+				ap.markRenderSkipped(plan, result.spec, result.entry, "skipped render build for discovered spec", result.err)
+				continue
+			}
+			result.spec.prebuiltSite = result.site
+		}
+		resolveAggregateExternalMessageHrefs(plan.catalog, plan.discovered)
+		ap.finalizeCatalog(plan.catalog)
+		ap.applyAggregateNavigationFingerprints(plan.catalog, plan.discovered)
 	}
 }
 
@@ -1516,7 +1538,7 @@ func (ap *AggregatePrintingPress) populateHeaderContexts(catalog *ppmodel.Catalo
 				relationshipsByEntry[contractVersion.Entry.RelativePath] = contractVersion.Relationships
 			}
 		}
-		visibleContracts := ap.visibleNavigationCatalogContracts(service)
+		navigation := ap.buildCatalogNavigationView(service)
 		for _, version := range service.Versions {
 			if version == nil {
 				continue
@@ -1543,12 +1565,12 @@ func (ap *AggregatePrintingPress) populateHeaderContexts(catalog *ppmodel.Catalo
 						SpecKind: relationship.SpecKind,
 					})
 				}
-				activeContract := visibleCatalogContractForEntry(visibleContracts, entry)
+				activeContract := visibleCatalogContractForEntry(navigation.contracts, entry)
 				if activeContract != nil {
 					entry.HeaderContext.Versions = siteVersionLinks(entry.OutputSubdir, activeContract, entry)
 				}
-				if len(visibleContracts) > 1 {
-					entry.HeaderContext.ContractGroups = siteContractGroups(entry.OutputSubdir, visibleContracts, activeContract, entry)
+				if len(navigation.contracts) > 1 {
+					entry.HeaderContext.ContractGroups = siteContractGroups(entry.OutputSubdir, navigation.contracts, activeContract, entry)
 				}
 			}
 		}
@@ -1570,45 +1592,53 @@ func siteOverviewLabel(kind ppmodel.SpecKindValue) string {
 	return "API OVERVIEW"
 }
 
-func (ap *AggregatePrintingPress) visibleNavigationCatalogContracts(service *ppmodel.CatalogService) []*ppmodel.CatalogContract {
+type catalogNavigationView struct {
+	contracts []*catalogNavigationContract
+}
+
+type catalogNavigationContract struct {
+	contract   *ppmodel.CatalogContract
+	versions   []*ppmodel.CatalogContractVersion
+	explicitID bool
+}
+
+func (ap *AggregatePrintingPress) buildCatalogNavigationView(service *ppmodel.CatalogService) *catalogNavigationView {
+	view := &catalogNavigationView{}
 	if service == nil {
-		return nil
+		return view
 	}
-	contracts := make([]*ppmodel.CatalogContract, 0, len(service.Contracts))
+	view.contracts = make([]*catalogNavigationContract, 0, len(service.Contracts))
 	for _, contract := range service.Contracts {
 		versions := visibleCatalogContractVersions(contract)
 		if len(versions) == 0 {
 			continue
 		}
-		if ap.catalogContractHasExplicitID(contract) {
-			contracts = append(contracts, contract)
+		explicitID := ap.catalogContractVersionsHaveExplicitID(versions)
+		if explicitID {
+			view.contracts = append(view.contracts, &catalogNavigationContract{contract: contract, versions: versions, explicitID: true})
 			continue
 		}
 		merged := false
-		for _, candidate := range contracts {
-			if ap.catalogContractHasExplicitID(candidate) || !sameNavigationContract(candidate, contract) || catalogContractVersionsOverlap(candidate.Versions, versions) {
+		for _, candidate := range view.contracts {
+			if candidate.explicitID || !sameNavigationContract(candidate.contract, contract) || catalogContractVersionsOverlap(candidate.versions, versions) {
 				continue
 			}
-			candidate.Versions = append(candidate.Versions, versions...)
-			candidate.LatestVersion = visibleCatalogContractVersions(candidate)[0]
+			candidate.versions = mergeCatalogContractVersions(candidate.versions, versions)
 			merged = true
 			break
 		}
 		if !merged {
-			copyContract := *contract
-			copyContract.Versions = append([]*ppmodel.CatalogContractVersion(nil), versions...)
-			copyContract.LatestVersion = versions[0]
-			contracts = append(contracts, &copyContract)
+			view.contracts = append(view.contracts, &catalogNavigationContract{contract: contract, versions: versions})
 		}
 	}
-	return contracts
+	return view
 }
 
-func (ap *AggregatePrintingPress) catalogContractHasExplicitID(contract *ppmodel.CatalogContract) bool {
-	if ap == nil || ap.config == nil || contract == nil {
+func (ap *AggregatePrintingPress) catalogContractVersionsHaveExplicitID(versions []*ppmodel.CatalogContractVersion) bool {
+	if ap == nil || ap.config == nil {
 		return false
 	}
-	for _, version := range visibleCatalogContractVersions(contract) {
+	for _, version := range versions {
 		if version.Entry == nil {
 			continue
 		}
@@ -1616,10 +1646,30 @@ func (ap *AggregatePrintingPress) catalogContractHasExplicitID(contract *ppmodel
 			if !ruleMatches(version.Entry.RelativePath, rule.Pattern) {
 				continue
 			}
-			return strings.TrimSpace(rule.ContractID) != ""
+			if strings.TrimSpace(rule.ContractID) != "" {
+				return true
+			}
+			break
 		}
 	}
 	return false
+}
+
+func mergeCatalogContractVersions(left, right []*ppmodel.CatalogContractVersion) []*ppmodel.CatalogContractVersion {
+	merged := make([]*ppmodel.CatalogContractVersion, 0, len(left)+len(right))
+	leftIndex, rightIndex := 0, 0
+	for leftIndex < len(left) && rightIndex < len(right) {
+		if compareVersionLabels(left[leftIndex].Label, right[rightIndex].Label) >= 0 {
+			merged = append(merged, left[leftIndex])
+			leftIndex++
+			continue
+		}
+		merged = append(merged, right[rightIndex])
+		rightIndex++
+	}
+	merged = append(merged, left[leftIndex:]...)
+	merged = append(merged, right[rightIndex:]...)
+	return merged
 }
 
 func sameNavigationContract(left, right *ppmodel.CatalogContract) bool {
@@ -1664,7 +1714,7 @@ func visibleCatalogContractVersions(contract *ppmodel.CatalogContract) []*ppmode
 	return versions
 }
 
-func visibleCatalogContractForEntry(contracts []*ppmodel.CatalogContract, entry *ppmodel.CatalogSpecEntry) *ppmodel.CatalogContract {
+func visibleCatalogContractForEntry(contracts []*catalogNavigationContract, entry *ppmodel.CatalogSpecEntry) *catalogNavigationContract {
 	if entry == nil {
 		return nil
 	}
@@ -1672,7 +1722,7 @@ func visibleCatalogContractForEntry(contracts []*ppmodel.CatalogContract, entry 
 		if contract == nil {
 			continue
 		}
-		for _, version := range visibleCatalogContractVersions(contract) {
+		for _, version := range contract.versions {
 			if sameCatalogEntry(version.Entry, entry) {
 				return contract
 			}
@@ -1681,8 +1731,11 @@ func visibleCatalogContractForEntry(contracts []*ppmodel.CatalogContract, entry 
 	return nil
 }
 
-func siteVersionLinks(from string, contract *ppmodel.CatalogContract, activeEntry *ppmodel.CatalogSpecEntry) []*ppmodel.SiteVersionLink {
-	versions := visibleCatalogContractVersions(contract)
+func siteVersionLinks(from string, contract *catalogNavigationContract, activeEntry *ppmodel.CatalogSpecEntry) []*ppmodel.SiteVersionLink {
+	if contract == nil {
+		return nil
+	}
+	versions := contract.versions
 	if len(versions) <= 1 {
 		return nil
 	}
@@ -1697,11 +1750,11 @@ func siteVersionLinks(from string, contract *ppmodel.CatalogContract, activeEntr
 	return links
 }
 
-func siteContractGroups(from string, contracts []*ppmodel.CatalogContract, activeContract *ppmodel.CatalogContract, activeEntry *ppmodel.CatalogSpecEntry) []*ppmodel.SiteContractGroup {
-	byRole := make(map[ppmodel.ContractRoleValue][]*ppmodel.CatalogContract, len(siteContractRoleOrder))
+func siteContractGroups(from string, contracts []*catalogNavigationContract, activeContract *catalogNavigationContract, activeEntry *ppmodel.CatalogSpecEntry) []*ppmodel.SiteContractGroup {
+	byRole := make(map[ppmodel.ContractRoleValue][]*catalogNavigationContract, len(siteContractRoleOrder))
 	for _, contract := range contracts {
 		if contract != nil {
-			byRole[contract.Role] = append(byRole[contract.Role], contract)
+			byRole[contract.contract.Role] = append(byRole[contract.contract.Role], contract)
 		}
 	}
 	groups := make([]*ppmodel.SiteContractGroup, 0, len(byRole))
@@ -1711,22 +1764,22 @@ func siteContractGroups(from string, contracts []*ppmodel.CatalogContract, activ
 			continue
 		}
 		sort.SliceStable(roleContracts, func(i, j int) bool {
-			left := siteContractLabel(roleContracts[i])
-			right := siteContractLabel(roleContracts[j])
+			left := siteContractLabel(roleContracts[i].contract)
+			right := siteContractLabel(roleContracts[j].contract)
 			if left == right {
-				return roleContracts[i].ID < roleContracts[j].ID
+				return roleContracts[i].contract.ID < roleContracts[j].contract.ID
 			}
 			return left < right
 		})
 		group := &ppmodel.SiteContractGroup{Role: role, Label: role.DisplayLabel()}
 		for _, contract := range roleContracts {
-			versions := visibleCatalogContractVersions(contract)
+			versions := contract.versions
 			active := contract == activeContract
 			target := versions[0]
 			link := &ppmodel.SiteContractLink{
-				ID:       contract.ID,
-				Label:    siteContractLabel(contract),
-				SpecKind: contract.SpecKind,
+				ID:       contract.contract.ID,
+				Label:    siteContractLabel(contract.contract),
+				SpecKind: contract.contract.SpecKind,
 			}
 			if active {
 				for _, candidate := range versions {
@@ -2142,7 +2195,6 @@ func parseAggregateSpecMetadata(content []byte, metadataPointers []string) (aggr
 		Contact:      catalogContactFromFields(parsed.Info.Contact.Name, parsed.Info.Contact.Email),
 		Version:      strings.TrimSpace(parsed.Info.Version),
 		SpecKind:     specKind,
-		Document:     document,
 		ExternalRefs: collectAggregateExternalRefs(document),
 		Valid:        true,
 	}
