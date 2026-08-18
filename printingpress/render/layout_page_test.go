@@ -143,6 +143,50 @@ func TestLayoutPageContractNavigationAttributesAndFallback(t *testing.T) {
 	}
 }
 
+func TestLayoutPageContractFallbackRequiresExactlyOneActiveContract(t *testing.T) {
+	tests := []struct {
+		name         string
+		firstActive  bool
+		secondActive bool
+	}{
+		{name: "no active contract"},
+		{name: "multiple active contracts", firstActive: true, secondActive: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rendered := renderLayoutPageForTest(t, LayoutPageParams{
+				PageTitle: "Orders",
+				SiteTitle: "Orders",
+				HeaderContext: &ppmodel.SiteHeaderContext{
+					OverviewLabel: "EVENT OVERVIEW",
+					ContractGroups: []*ppmodel.SiteContractGroup{{
+						Role:  ppmodel.ContractRolePublishedEvents,
+						Label: "Published Events",
+						Contracts: []*ppmodel.SiteContractLink{
+							{ID: "orders", Label: "Orders", SpecKind: ppmodel.SpecKindValueOpenAPI, Href: "index.html", Active: test.firstActive},
+							{ID: "events", Label: "Events", SpecKind: ppmodel.SpecKindValueAsyncAPI, Href: "events.html", Active: test.secondActive},
+						},
+					}},
+				},
+			})
+
+			if strings.Contains(rendered, `class="pp-nav-fallback-contracts"`) {
+				t.Fatalf("ambiguous contract ownership must not wrap the local fallback")
+			}
+			for _, expected := range []string{
+				`<div class="pp-nav-fallback-home">EVENT OVERVIEW</div>`,
+				`<div class="pp-nav-fallback-section"><h4>Operations</h4>`,
+				`<div class="pp-nav-fallback-section"><h4>Models</h4>`,
+			} {
+				if !strings.Contains(rendered, expected) {
+					t.Fatalf("ordinary local fallback missing %q", expected)
+				}
+			}
+		})
+	}
+}
+
 func assertInOrder(t *testing.T, value string, expected ...string) {
 	t.Helper()
 	previous := -1
@@ -327,15 +371,19 @@ func TestSharedNavPreviewIncludesArchiveFallback(t *testing.T) {
 	}
 }
 
-func TestSharedNavPreviewSupportsContractSkeletonAndOverviewLabel(t *testing.T) {
-	for _, expected := range []string{
-		`data.ppContracts`,
-		`data.ppOverviewLabel`,
+func TestSharedNavPreviewDefersContractRenderingToServerAndComponent(t *testing.T) {
+	if !strings.Contains(bootstrapSharedNavCacheSource, `data.ppContracts`) {
+		t.Fatalf("expected shared nav preview bootstrap to detect contract-aware pages")
+	}
+	for _, obsolete := range []string{
+		`function normalizePreviewVersions`,
+		`function normalizePreviewContractGroups`,
+		`function contractGroupsForPreview`,
+		`function overviewLabelForPreview`,
 		`function renderContractNavigationPreview`,
-		`pp-nav-fallback-contracts`,
 	} {
-		if !strings.Contains(bootstrapSharedNavCacheSource, expected) {
-			t.Fatalf("expected shared nav preview bootstrap to contain %q", expected)
+		if strings.Contains(bootstrapSharedNavCacheSource, obsolete) {
+			t.Fatalf("contract-aware preview rendering must be deferred; found %q", obsolete)
 		}
 	}
 }

@@ -146,132 +146,9 @@
     }
   }
 
-  function nonEmptyString(value) {
-    return typeof value === 'string' && value.trim() !== '';
-  }
-
-  function normalizePreviewVersions(raw, currentVersion) {
-    if (!Array.isArray(raw)) {
-      return [];
-    }
-    const versions = [];
-    for (let i = 0; i < raw.length; i++) {
-      const version = raw[i];
-      if (!version || typeof version !== 'object' ||
-          !nonEmptyString(version.label) || !nonEmptyString(version.href)) {
-        continue;
-      }
-      versions.push({
-        label: version.label,
-        href: version.href,
-        active: version.active === true,
-      });
-    }
-    if (!versions.length) {
-      return versions;
-    }
-    let currentIndex = versions.findIndex(function (version) { return version.active; });
-    if (currentIndex < 0 && currentVersion) {
-      currentIndex = versions.findIndex(function (version) { return version.label === currentVersion; });
-    }
-    if (currentIndex < 0) {
-      currentIndex = 0;
-    }
-    return versions.map(function (version, index) {
-      return {label: version.label, href: version.href, active: index === currentIndex};
-    });
-  }
-
-  function normalizePreviewContractGroups(raw) {
-    const groups = parseJSONAttr(raw);
-    const normalized = [];
-    for (let i = 0; i < groups.length; i++) {
-      const group = groups[i];
-      if (!group || typeof group !== 'object' ||
-          !nonEmptyString(group.role) || !nonEmptyString(group.label) || !Array.isArray(group.contracts)) {
-        continue;
-      }
-      const contracts = [];
-      for (let j = 0; j < group.contracts.length; j++) {
-        const contract = group.contracts[j];
-        if (!contract || typeof contract !== 'object' ||
-            !nonEmptyString(contract.id) || !nonEmptyString(contract.label) ||
-            !nonEmptyString(contract.specKind) || !nonEmptyString(contract.href)) {
-          continue;
-        }
-        const requestedVersion = nonEmptyString(contract.currentVersion) ? contract.currentVersion : undefined;
-        const versions = normalizePreviewVersions(contract.versions, requestedVersion);
-        const selectedVersion = versions.find(function (version) { return version.active; });
-        contracts.push({
-          id: contract.id,
-          label: contract.label,
-          specKind: contract.specKind,
-          href: contract.href,
-          active: contract.active === true,
-          currentVersion: selectedVersion ? selectedVersion.label : requestedVersion,
-          versions: versions,
-        });
-      }
-      if (contracts.length) {
-        normalized.push({role: group.role, label: group.label, contracts: contracts});
-      }
-    }
-    return normalized;
-  }
-
-  function contractGroupsForPreview() {
+  function contractAwarePage() {
     const data = document.body && document.body.dataset;
-    const groups = normalizePreviewContractGroups(data && data.ppContracts);
-    let count = 0;
-    for (let i = 0; i < groups.length; i++) {
-      count += groups[i].contracts.length;
-    }
-    return count > 1 ? groups : [];
-  }
-
-  function overviewLabelForPreview() {
-    const data = document.body && document.body.dataset;
-    return (data && data.ppOverviewLabel) || 'API OVERVIEW';
-  }
-
-  function renderContractNavigationPreview(groups, navAttrs) {
-    const data = document.body && document.body.dataset;
-    let html =
-      "<div class='pp-nav-fallback pp-nav-preview pp-nav-fallback-contracts'>" +
-      renderArchiveControlsPreview(navAttrs) +
-      "<nav class='contract-navigation' aria-label='Service contracts'>";
-    if (data && data.ppServiceName) {
-      html += "<div class='contract-service-name'>" + escapeHtml(data.ppServiceName) + '</div>';
-    }
-    for (let i = 0; i < groups.length; i++) {
-      const group = groups[i];
-      const headingID = 'pp-contract-preview-' + i;
-      html +=
-        "<section class='contract-group' aria-labelledby='" + headingID + "'>" +
-        "<h4 id='" + headingID + "' class='contract-role-heading'>" + escapeHtml(group.label || '') + '</h4>' +
-        "<ul class='contract-list' aria-labelledby='" + headingID + "'>";
-      for (let j = 0; j < group.contracts.length; j++) {
-        const contract = group.contracts[j];
-        if (!contract) {
-          continue;
-        }
-        html +=
-          "<li class='contract-item" + (contract.active ? ' active' : '') + "'" +
-          " data-current-version='" + escapeHtml(contract.currentVersion || '') + "'" +
-          " data-version-count='" + contract.versions.length + "'>" +
-          "<div class='contract-row'><a class='contract-link nav-home" + (contract.active ? ' active' : '') +
-          "' href='" + escapeHtml(docHref(contract.href || '')) + "'" +
-          (contract.active ? " aria-current='page'" : '') + '>' + escapeHtml(contract.label || contract.id || '') + '</a></div>';
-        if (contract.active) {
-          html +=
-            "<div class='contract-local-navigation'><div class='pp-nav-fallback-home'>" +
-            escapeHtml(overviewLabelForPreview()) + '</div></div>';
-        }
-        html += '</li>';
-      }
-      html += '</ul></section>';
-    }
-    return html + '</nav></div>';
+    return !!(data && typeof data.ppContracts === 'string' && data.ppContracts.trim() !== '');
   }
 
   function tagContainsSlug(tag, activeSlug) {
@@ -519,10 +396,6 @@
     const pages = parseJSONAttr(navAttrs['data-pages']);
     const modelGroups = parseJSONAttr(navAttrs['data-models']);
     const webhooks = parseJSONAttr(navAttrs['data-webhooks']);
-    const contractGroups = contractGroupsForPreview();
-    if (contractGroups.length) {
-      return renderContractNavigationPreview(contractGroups, navAttrs);
-    }
     if (!tags.length && !pages.length && !modelGroups.length && !webhooks.length) {
       return '';
     }
@@ -621,29 +494,44 @@
       navEl.setAttribute('data-pp-nav-cached', 'true');
       const fallback = navEl.querySelector('.pp-nav-fallback');
       if (fallback) {
-        const preview = renderNavPreview(navAttrs, navEl.getAttribute('data-active') || '');
-        if (preview) {
-          fallback.outerHTML = preview;
-          log('nav-preview:rendered', {
-            source: 'shared-cache-bootstrap',
-            tags: parseJSONAttr(navAttrs['data-nav']).length,
-            pages: parseJSONAttr(navAttrs['data-pages']).length,
-            modelGroups: parseJSONAttr(navAttrs['data-models']).length,
-            webhooks: parseJSONAttr(navAttrs['data-webhooks']).length,
-          });
-          if (shouldHoldNavPreview()) {
-            navEl.setAttribute('data-pp-preview-hold', 'true');
-            store.stopAtPreview = true;
-            log('nav-preview:held', { source: 'shared-cache-bootstrap' });
-          }
-        } else {
+        let previewReady = false;
+        if (contractAwarePage()) {
+          fallback.classList.add('pp-nav-preview');
+          previewReady = true;
           log('nav-fallback:retained', {
             source: 'shared-cache-bootstrap',
+            contractAware: true,
             tags: parseJSONAttr(navAttrs['data-nav']).length,
             pages: parseJSONAttr(navAttrs['data-pages']).length,
             modelGroups: parseJSONAttr(navAttrs['data-models']).length,
             webhooks: parseJSONAttr(navAttrs['data-webhooks']).length,
           });
+        } else {
+          const preview = renderNavPreview(navAttrs, navEl.getAttribute('data-active') || '');
+          if (preview) {
+            fallback.outerHTML = preview;
+            previewReady = true;
+            log('nav-preview:rendered', {
+              source: 'shared-cache-bootstrap',
+              tags: parseJSONAttr(navAttrs['data-nav']).length,
+              pages: parseJSONAttr(navAttrs['data-pages']).length,
+              modelGroups: parseJSONAttr(navAttrs['data-models']).length,
+              webhooks: parseJSONAttr(navAttrs['data-webhooks']).length,
+            });
+          } else {
+            log('nav-fallback:retained', {
+              source: 'shared-cache-bootstrap',
+              tags: parseJSONAttr(navAttrs['data-nav']).length,
+              pages: parseJSONAttr(navAttrs['data-pages']).length,
+              modelGroups: parseJSONAttr(navAttrs['data-models']).length,
+              webhooks: parseJSONAttr(navAttrs['data-webhooks']).length,
+            });
+          }
+        }
+        if (previewReady && shouldHoldNavPreview()) {
+          navEl.setAttribute('data-pp-preview-hold', 'true');
+          store.stopAtPreview = true;
+          log('nav-preview:held', { source: 'shared-cache-bootstrap' });
         }
       }
     }

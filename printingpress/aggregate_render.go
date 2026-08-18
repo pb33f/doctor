@@ -5,6 +5,7 @@
 package printingpress
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -100,9 +101,18 @@ type aggregatePoolProgressState struct {
 }
 
 type aggregateRenderResult struct {
-	spec     *aggregateDiscoveredSpec
-	written  []string
-	fatalErr error
+	spec        *aggregateDiscoveredSpec
+	staged      *aggregateStagedOutput
+	skipMessage string
+	skipErr     error
+	fatalErr    error
+}
+
+type aggregateStagedOutput struct {
+	stagedOutput  string
+	entryOutput   string
+	relativeFiles []string
+	configHash    string
 }
 
 var aggregateRenderResultPool = sync.Pool{
@@ -132,6 +142,7 @@ func (ap *AggregatePrintingPress) PrintSelectedOutputs(options AggregateRenderOp
 	if err != nil {
 		return nil, err
 	}
+	defer releaseAggregatePrebuiltSites(plan)
 	generationStart := time.Now()
 	if err := os.MkdirAll(ap.config.OutputDir, 0o755); err != nil {
 		return nil, fmt.Errorf("printingpress: creating aggregate output dir: %w", err)
@@ -151,20 +162,12 @@ func (ap *AggregatePrintingPress) PrintSelectedOutputs(options AggregateRenderOp
 		written = append(written, staticFiles...)
 	}
 
-	// Model failures have already been classified as skipped by preflight.
-	// Failures after this point abort so partially promoted output is never
-	// recorded as a successful aggregate build.
-	specFiles, poolsUsed, err := ap.renderSelectedOutputs(plan, selection, options.ProgressReporter)
+	specFiles, poolsUsed, err := ap.renderSelectedOutputsUntilStable(plan, selection, options.ProgressReporter)
 	if err != nil {
 		return nil, err
 	}
 	written = append(written, specFiles...)
 	ap.finalizeCatalog(plan.catalog)
-	if selection.html {
-		if err := ap.refreshRenderedEntryHeaderContexts(plan.catalog, aggregateImpactedServiceKeys(plan)); err != nil {
-			return nil, err
-		}
-	}
 	if selection.html {
 		aggregatePages, err := ap.writeCatalogHTML(plan.catalog)
 		if err != nil {
@@ -186,14 +189,16 @@ func (ap *AggregatePrintingPress) PrintSelectedOutputs(options AggregateRenderOp
 		}
 		written = append(written, aggregateFiles...)
 	}
-	if err := ap.reconcileCleanupTombstoneEntryArtifacts(plan, selection); err != nil {
-		return nil, err
-	}
-	if err := ap.pruneObsoleteOutputs(plan, selection); err != nil {
-		return nil, err
-	}
-	if err := ap.pruneObsoleteAggregateArtifacts(plan, selection); err != nil {
-		return nil, err
+	if !aggregatePlanHasRenderFailures(plan) {
+		if err := ap.reconcileCleanupTombstoneEntryArtifacts(plan, selection); err != nil {
+			return nil, err
+		}
+		if err := ap.pruneObsoleteOutputs(plan, selection); err != nil {
+			return nil, err
+		}
+		if err := ap.pruneObsoleteAggregateArtifacts(plan, selection); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := ap.persistState(plan, selection); err != nil {
@@ -207,14 +212,249 @@ func (ap *AggregatePrintingPress) PrintSelectedOutputs(options AggregateRenderOp
 	return stats, nil
 }
 
-func (ap *AggregatePrintingPress) renderSelectedOutputs(plan *aggregateBuildPlan, selection aggregateOutputSelection, reporter AggregateProgressReporter) ([]string, int, error) {
+func (ap *AggregatePrintingPress) renderSelectedOutputsUntilStable(plan *aggregateBuildPlan, selection aggregateOutputSelection, reporter AggregateProgressReporter) ([]string, int, error) {
 	if plan == nil {
 		return nil, 0, nil
 	}
-	pools := ap.planRenderPools(plan.changed)
-	ap.reportAggregatePoolLayout(reporter, pools)
-	written, err := ap.renderSelectedOutputsInPools(plan, catalogEntryIndex(plan.catalog), pools, selection, reporter)
-	return written, len(pools), err
+	pending := append([]*aggregateDiscoveredSpec(nil), plan.changed...)
+	stagedByPath := make(map[string]*aggregateStagedOutput, len(pending))
+	cleanup := newAggregateStagedCleanupTracker()
+	defer cleanup.finalize(ap, plan, stagedByPath)
+	skippedCount := aggregateSkippedSpecCount(plan.discovered)
+	totalPoolsUsed := 0
+	poolIDOffset := 0
+	renderIterations := 0
+	for {
+		for len(pending) > 0 {
+			if renderIterations >= max(1, len(plan.discovered)) {
+				return nil, 0, fmt.Errorf("printingpress: aggregate output stabilization exceeded %d entries", len(plan.discovered))
+			}
+			renderIterations++
+			pools := ap.planRenderPools(pending)
+			totalPoolsUsed += len(pools)
+			for _, pool := range pools {
+				pool.id += poolIDOffset
+			}
+			poolIDOffset += len(pools)
+			ap.reportAggregatePoolLayout(reporter, pools)
+			staged, err := ap.renderSelectedOutputsInPools(plan, catalogEntryIndex(plan.catalog), pools, selection, reporter)
+			for relativePath, stage := range staged {
+				if stagedByPath[relativePath] != nil {
+					cleanup.discard(ap, stagedByPath, relativePath)
+				}
+				stagedByPath[relativePath] = stage
+			}
+			if err != nil {
+				return nil, 0, err
+			}
+			newSkippedCount := aggregateSkippedSpecCount(plan.discovered)
+			if newSkippedCount < skippedCount {
+				return nil, 0, fmt.Errorf("printingpress: aggregate output stabilization violated monotonic skip invariant")
+			}
+			if newSkippedCount > skippedCount {
+				skippedCount = newSkippedCount
+				if err := ap.refreshAggregateAfterRenderSkip(plan, selection); err != nil {
+					return nil, 0, err
+				}
+			}
+			pending = ap.reconcileAggregateStagedOutputs(plan, selection, stagedByPath, cleanup)
+		}
+
+		ordered := aggregateOrderedStagedSpecs(plan, stagedByPath)
+		if len(ordered) == 0 {
+			plan.changed = plan.changed[:0]
+			plan.completed = make(map[string]struct{})
+			return nil, totalPoolsUsed, nil
+		}
+		written, failedSpec, promotionErr, fatalErr := ap.promoteAggregateStableBatch(plan, ordered, stagedByPath)
+		if fatalErr != nil {
+			return nil, 0, fatalErr
+		}
+		if failedSpec == nil {
+			plan.changed = append(plan.changed[:0], ordered...)
+			plan.completed = make(map[string]struct{}, len(ordered))
+			for _, spec := range ordered {
+				plan.completed[spec.RelativePath] = struct{}{}
+			}
+			sort.Strings(written)
+			return written, totalPoolsUsed, nil
+		}
+
+		ap.markRenderFailed(plan, failedSpec, catalogEntryIndex(plan.catalog)[failedSpec.RelativePath], "skipped output promotion for discovered spec", promotionErr)
+		cleanup.discard(ap, stagedByPath, failedSpec.RelativePath)
+		skippedCount = aggregateSkippedSpecCount(plan.discovered)
+		if err := ap.refreshAggregateAfterRenderSkip(plan, selection); err != nil {
+			return nil, 0, err
+		}
+		pending = ap.reconcileAggregateStagedOutputs(plan, selection, stagedByPath, cleanup)
+	}
+}
+
+func (ap *AggregatePrintingPress) refreshAggregateAfterRenderSkip(plan *aggregateBuildPlan, selection aggregateOutputSelection) error {
+	resolveAggregateExternalMessageHrefs(plan.catalog, plan.discovered)
+	ap.finalizeCatalog(plan.catalog)
+	ap.applyAggregateNavigationFingerprints(plan.catalog, plan.discovered)
+	return ap.preflightChangedEntries(plan, selection)
+}
+
+func (ap *AggregatePrintingPress) reconcileAggregateStagedOutputs(plan *aggregateBuildPlan, selection aggregateOutputSelection, stagedByPath map[string]*aggregateStagedOutput, cleanup *aggregateStagedCleanupTracker) []*aggregateDiscoveredSpec {
+	pending := make([]*aggregateDiscoveredSpec, 0)
+	for _, spec := range plan.discovered {
+		if spec == nil {
+			continue
+		}
+		stage := stagedByPath[spec.RelativePath]
+		if spec.RenderSkipped || !aggregateSpecSelectedOutputDirty(spec, selection, ap.config.BuildMode) {
+			cleanup.discard(ap, stagedByPath, spec.RelativePath)
+			continue
+		}
+		if stage == nil || stage.configHash != spec.ConfigHash {
+			cleanup.discard(ap, stagedByPath, spec.RelativePath)
+			pending = append(pending, spec)
+		}
+	}
+	return pending
+}
+
+func aggregateOrderedStagedSpecs(plan *aggregateBuildPlan, stagedByPath map[string]*aggregateStagedOutput) []*aggregateDiscoveredSpec {
+	ordered := make([]*aggregateDiscoveredSpec, 0, len(stagedByPath))
+	for _, spec := range plan.discovered {
+		if spec != nil && stagedByPath[spec.RelativePath] != nil {
+			ordered = append(ordered, spec)
+		}
+	}
+	sort.Slice(ordered, func(i, j int) bool {
+		return ordered[i].RelativePath < ordered[j].RelativePath
+	})
+	return ordered
+}
+
+type aggregateBatchPromotion struct {
+	spec        *aggregateDiscoveredSpec
+	stage       *aggregateStagedOutput
+	transaction *aggregateEntryPromotion
+}
+
+func (ap *AggregatePrintingPress) promoteAggregateStableBatch(plan *aggregateBuildPlan, ordered []*aggregateDiscoveredSpec, stagedByPath map[string]*aggregateStagedOutput) ([]string, *aggregateDiscoveredSpec, error, error) {
+	installed := make([]aggregateBatchPromotion, 0, len(ordered))
+	begin := beginAggregateEntryPromotion
+	if ap.beginEntryPromotion != nil {
+		begin = ap.beginEntryPromotion
+	}
+	for _, spec := range ordered {
+		stage := stagedByPath[spec.RelativePath]
+		transaction, promotionErr, localRollbackErr := begin(stage.stagedOutput, stage.entryOutput)
+		if promotionErr != nil {
+			var rollbackErrors []error
+			if localRollbackErr != nil {
+				rollbackErrors = append(rollbackErrors, localRollbackErr)
+			}
+			for i := len(installed) - 1; i >= 0; i-- {
+				if rollbackErr := installed[i].transaction.rollback(); rollbackErr != nil {
+					rollbackErrors = append(rollbackErrors, fmt.Errorf("%s: %w", installed[i].spec.RelativePath, rollbackErr))
+				}
+			}
+			if len(rollbackErrors) > 0 {
+				return nil, nil, nil, fmt.Errorf("printingpress: promotion failed for %s and batch rollback failed: %w", spec.RelativePath, errors.Join(append([]error{promotionErr}, rollbackErrors...)...))
+			}
+			return nil, spec, promotionErr, nil
+		}
+		installed = append(installed, aggregateBatchPromotion{spec: spec, stage: stage, transaction: transaction})
+	}
+
+	cleanupBackup := os.RemoveAll
+	if ap.cleanupPromotionBackup != nil {
+		cleanupBackup = ap.cleanupPromotionBackup
+	}
+	written := make([]string, 0)
+	for _, promotion := range installed {
+		if err := promotion.transaction.cleanupBackup(cleanupBackup); err != nil {
+			ap.markPromotionCleanupWarning(plan, promotion.spec, err)
+		}
+		delete(stagedByPath, promotion.spec.RelativePath)
+		for _, relPath := range promotion.stage.relativeFiles {
+			written = append(written, filepath.Join(promotion.stage.entryOutput, filepath.FromSlash(relPath)))
+		}
+	}
+	return written, nil, nil, nil
+}
+
+type aggregateStagedCleanupTracker struct {
+	pending map[string]string
+}
+
+func newAggregateStagedCleanupTracker() *aggregateStagedCleanupTracker {
+	return &aggregateStagedCleanupTracker{pending: make(map[string]string)}
+}
+
+func (c *aggregateStagedCleanupTracker) discard(ap *AggregatePrintingPress, stagedByPath map[string]*aggregateStagedOutput, relativePath string) {
+	stage := stagedByPath[relativePath]
+	if stage == nil {
+		return
+	}
+	delete(stagedByPath, relativePath)
+	if err := ap.removeAggregateStagedOutput(stage.stagedOutput); err != nil {
+		c.pending[stage.stagedOutput] = relativePath
+	}
+}
+
+func (c *aggregateStagedCleanupTracker) finalize(ap *AggregatePrintingPress, plan *aggregateBuildPlan, stagedByPath map[string]*aggregateStagedOutput) {
+	for relativePath := range stagedByPath {
+		c.discard(ap, stagedByPath, relativePath)
+	}
+	paths := make([]string, 0, len(c.pending))
+	for stagePath := range c.pending {
+		paths = append(paths, stagePath)
+	}
+	sort.Strings(paths)
+	for _, stagePath := range paths {
+		relativePath := c.pending[stagePath]
+		if err := ap.removeAggregateStagedOutput(stagePath); err != nil {
+			ap.addAggregateWarning(plan, "unable to remove aggregate staging output; cleanup deferred", relativePath, err)
+			continue
+		}
+		delete(c.pending, stagePath)
+	}
+}
+
+func (ap *AggregatePrintingPress) removeAggregateStagedOutput(stagePath string) error {
+	if ap != nil && ap.removeStagedOutput != nil {
+		return ap.removeStagedOutput(stagePath)
+	}
+	return os.RemoveAll(stagePath)
+}
+
+func releaseAggregatePrebuiltSites(plan *aggregateBuildPlan) {
+	if plan == nil {
+		return
+	}
+	for _, spec := range plan.discovered {
+		if spec != nil {
+			spec.prebuiltSite = nil
+		}
+	}
+}
+
+func aggregateSkippedSpecCount(specs []*aggregateDiscoveredSpec) int {
+	count := 0
+	for _, spec := range specs {
+		if spec != nil && spec.RenderSkipped {
+			count++
+		}
+	}
+	return count
+}
+
+func aggregatePlanHasRenderFailures(plan *aggregateBuildPlan) bool {
+	if plan == nil {
+		return false
+	}
+	for _, spec := range plan.discovered {
+		if spec != nil && spec.renderFailed {
+			return true
+		}
+	}
+	return false
 }
 
 func cloneAggregateLintResultsMap(results map[string][]*v3.RuleFunctionResult) map[string][]*v3.RuleFunctionResult {
@@ -228,12 +468,16 @@ func cloneAggregateLintResultsMap(results map[string][]*v3.RuleFunctionResult) m
 	return cloned
 }
 
-func (ap *AggregatePrintingPress) renderSelectedOutputsInPools(plan *aggregateBuildPlan, entryIndex map[string]*ppmodel.CatalogSpecEntry, pools []*aggregateRenderPool, selection aggregateOutputSelection, reporter AggregateProgressReporter) ([]string, error) {
+func (ap *AggregatePrintingPress) renderSelectedOutputsInPools(plan *aggregateBuildPlan, entryIndex map[string]*ppmodel.CatalogSpecEntry, pools []*aggregateRenderPool, selection aggregateOutputSelection, reporter AggregateProgressReporter) (map[string]*aggregateStagedOutput, error) {
 	if len(pools) == 0 {
 		return nil, nil
 	}
 
-	results := make(chan *aggregateRenderResult, len(plan.changed))
+	resultCount := 0
+	for _, pool := range pools {
+		resultCount += len(pool.specs)
+	}
+	results := make(chan *aggregateRenderResult, resultCount)
 	var wg sync.WaitGroup
 	for _, pool := range pools {
 		pool := pool
@@ -248,24 +492,35 @@ func (ap *AggregatePrintingPress) renderSelectedOutputsInPools(plan *aggregateBu
 		close(results)
 	}()
 
-	var written []string
-	var fatalErrors []string
+	var collected []*aggregateRenderResult
 	for result := range results {
-		if result == nil {
-			continue
+		if result != nil {
+			collected = append(collected, result)
+		}
+	}
+	sort.Slice(collected, func(i, j int) bool {
+		return collected[i].spec.RelativePath < collected[j].spec.RelativePath
+	})
+	staged := make(map[string]*aggregateStagedOutput, len(collected))
+	var fatalErrors []string
+	for _, result := range collected {
+		if result.staged != nil {
+			staged[result.spec.RelativePath] = result.staged
+		}
+		if result.skipMessage != "" {
+			ap.markRenderFailed(plan, result.spec, entryIndex[result.spec.RelativePath], result.skipMessage, result.skipErr)
 		}
 		if result.fatalErr != nil {
 			fatalErrors = append(fatalErrors, fmt.Sprintf("%s: %v", result.spec.RelativePath, result.fatalErr))
 		}
-		written = append(written, result.written...)
 		result.reset()
 		aggregateRenderResultPool.Put(result)
 	}
 	if len(fatalErrors) > 0 {
 		sort.Strings(fatalErrors)
-		return nil, fmt.Errorf("printingpress: aggregate output failed: %s", strings.Join(fatalErrors, "; "))
+		return staged, fmt.Errorf("printingpress: aggregate output failed: %s", strings.Join(fatalErrors, "; "))
 	}
-	return written, nil
+	return staged, nil
 }
 
 func (ap *AggregatePrintingPress) runRenderPool(pool *aggregateRenderPool, entryIndex map[string]*ppmodel.CatalogSpecEntry, selection aggregateOutputSelection, reporter AggregateProgressReporter, results chan<- *aggregateRenderResult) {
@@ -275,7 +530,6 @@ func (ap *AggregatePrintingPress) runRenderPool(pool *aggregateRenderPool, entry
 		totalSpecs: pool.totalSpecs,
 		totalBytes: pool.totalBytes,
 	}
-	ap.reportAggregateProgress(reporter, state.snapshot(AggregateProgressStatusQueued, ""))
 
 	for _, spec := range pool.specs {
 		result := acquireAggregateRenderResult()
@@ -288,15 +542,21 @@ func (ap *AggregatePrintingPress) runRenderPool(pool *aggregateRenderPool, entry
 		if entry == nil {
 			result.fatalErr = fmt.Errorf("missing catalog entry for discovered spec")
 		} else {
-			files, fatalErr := ap.renderSpecOutputs(spec, entry, selection, reporter, &state)
-			result.written = append(result.written, files...)
-			result.fatalErr = fatalErr
+			staged, renderErr := ap.renderSpecOutputs(spec, entry, selection, reporter, &state)
+			result.staged = staged
+			if renderErr != nil {
+				result.skipMessage = "skipped output render for discovered spec"
+				result.skipErr = renderErr
+			}
 		}
 
 		state.finishSpec(spec)
 		status := AggregateProgressStatusCompleted
 		errorText := ""
-		if result.fatalErr != nil {
+		if result.skipMessage != "" {
+			status = AggregateProgressStatusSkipped
+			errorText = result.skipErr.Error()
+		} else if result.fatalErr != nil {
 			status = AggregateProgressStatusFailed
 			errorText = result.fatalErr.Error()
 		}
@@ -307,7 +567,7 @@ func (ap *AggregatePrintingPress) runRenderPool(pool *aggregateRenderPool, entry
 	ap.reportAggregateProgress(reporter, state.snapshot(AggregateProgressStatusCompleted, ""))
 }
 
-func (ap *AggregatePrintingPress) renderSpecOutputs(spec *aggregateDiscoveredSpec, entry *ppmodel.CatalogSpecEntry, selection aggregateOutputSelection, reporter AggregateProgressReporter, state *aggregatePoolProgressState) ([]string, error) {
+func (ap *AggregatePrintingPress) renderSpecOutputs(spec *aggregateDiscoveredSpec, entry *ppmodel.CatalogSpecEntry, selection aggregateOutputSelection, reporter AggregateProgressReporter, state *aggregatePoolProgressState) (result *aggregateStagedOutput, resultErr error) {
 	steps := selection.stageCount()
 	completedStages := 0
 	var progressMu sync.Mutex
@@ -323,20 +583,37 @@ func (ap *AggregatePrintingPress) renderSpecOutputs(spec *aggregateDiscoveredSpe
 	}
 
 	reportStage("building model", 0)
-	site, err := ap.buildEntrySite(spec, entry)
-	if err != nil {
-		return nil, fmt.Errorf("building model after successful preflight: %w", err)
+	site := spec.prebuiltSite
+	if site == nil {
+		var err error
+		site, err = ap.buildEntrySite(spec, entry)
+		if err != nil {
+			return nil, fmt.Errorf("building model after successful preflight: %w", err)
+		}
 	}
+	site.HeaderContext = entry.HeaderContext
 	applyAggregateExternalMessageHrefs(site, spec.externalMessageHrefs)
 	completedStages++
 	reportStage("model built", float64(completedStages)/float64(steps))
 
 	entryOutput := filepath.Join(ap.config.OutputDir, filepath.FromSlash(spec.OutputSubdir))
-	stagedOutput, err := stageAggregateEntryOutput(entryOutput, selection)
+	stagedOutput, err := ap.stageAggregateEntryOutput(entryOutput, selection)
 	if err != nil {
 		return nil, fmt.Errorf("preparing output staging: %w", err)
 	}
-	defer os.RemoveAll(stagedOutput)
+	stagedResult := &aggregateStagedOutput{
+		stagedOutput: stagedOutput,
+		entryOutput:  entryOutput,
+		configHash:   spec.ConfigHash,
+	}
+	keepStagedOutput := false
+	defer func() {
+		if !keepStagedOutput {
+			if cleanupErr := ap.removeAggregateStagedOutput(stagedOutput); cleanupErr != nil {
+				result = stagedResult
+			}
+		}
+	}()
 	if err := prepareAggregateEntryOutputDir(stagedOutput, selection); err != nil {
 		return nil, fmt.Errorf("preparing selected output: %w", err)
 	}
@@ -393,18 +670,17 @@ func (ap *AggregatePrintingPress) renderSpecOutputs(spec *aggregateDiscoveredSpe
 	if err != nil {
 		return nil, fmt.Errorf("collecting output: %w", err)
 	}
-	if err := promoteAggregateEntryOutput(stagedOutput, entryOutput); err != nil {
-		return nil, fmt.Errorf("promoting output: %w", err)
-	}
-	committed := make([]string, 0, len(files))
+	relativeFiles := make([]string, 0, len(files))
 	for _, filePath := range files {
 		relPath, relErr := filepath.Rel(stagedOutput, filePath)
 		if relErr != nil {
-			return nil, fmt.Errorf("mapping committed output: %w", relErr)
+			return nil, fmt.Errorf("mapping staged output: %w", relErr)
 		}
-		committed = append(committed, filepath.Join(entryOutput, relPath))
+		relativeFiles = append(relativeFiles, filepath.ToSlash(relPath))
 	}
-	return committed, nil
+	keepStagedOutput = true
+	stagedResult.relativeFiles = relativeFiles
+	return stagedResult, nil
 }
 
 func (ap *AggregatePrintingPress) planRenderPools(specs []*aggregateDiscoveredSpec) []*aggregateRenderPool {
@@ -416,31 +692,20 @@ func (ap *AggregatePrintingPress) planRenderPools(specs []*aggregateDiscoveredSp
 }
 
 func prepareAggregateEntryOutputDir(entryOutput string, selection aggregateOutputSelection) error {
-	switch {
-	case selection.html:
-		if err := os.MkdirAll(entryOutput, 0o755); err != nil {
+	if err := os.MkdirAll(entryOutput, 0o755); err != nil {
+		return err
+	}
+	if selection.llm {
+		if err := removeAggregateEntryArtifacts(entryOutput, llmEntryRootFiles(), ".md"); err != nil {
 			return err
 		}
-		if err := removeFilesWithExtension(entryOutput, ".html"); err != nil {
+		if err := removeLLMShardFiles(entryOutput); err != nil {
 			return err
 		}
-		fallthrough
-	case selection.llm || selection.json:
-		if err := os.MkdirAll(entryOutput, 0o755); err != nil {
+	}
+	if selection.json {
+		if err := removeAggregateEntryArtifacts(entryOutput, jsonEntryRootFiles(), ".json"); err != nil {
 			return err
-		}
-		if selection.llm {
-			if err := removeAggregateEntryArtifacts(entryOutput, llmEntryRootFiles(), ".md"); err != nil {
-				return err
-			}
-			if err := removeLLMShardFiles(entryOutput); err != nil {
-				return err
-			}
-		}
-		if selection.json {
-			if err := removeAggregateEntryArtifacts(entryOutput, jsonEntryRootFiles(), ".json"); err != nil {
-				return err
-			}
 		}
 	}
 	return nil
@@ -663,31 +928,6 @@ func aggregateSpecWeight(spec *aggregateDiscoveredSpec) int64 {
 	return spec.SizeBytes
 }
 
-func aggregateImpactedServiceKeys(plan *aggregateBuildPlan) map[string]struct{} {
-	services := make(map[string]struct{})
-	if plan == nil {
-		return services
-	}
-	for _, spec := range plan.changed {
-		if spec == nil {
-			continue
-		}
-		if spec.ServiceKey != "" {
-			services[spec.ServiceKey] = struct{}{}
-		}
-		if spec.previousState != nil && spec.previousState.ServiceKey != "" {
-			services[spec.previousState.ServiceKey] = struct{}{}
-		}
-	}
-	for _, record := range plan.removed {
-		if record == nil || record.ServiceKey == "" {
-			continue
-		}
-		services[record.ServiceKey] = struct{}{}
-	}
-	return services
-}
-
 func aggregateStageProgress(completedStages, totalStages, completed, total int) float64 {
 	stagePercent := 0.0
 	if total > 0 {
@@ -723,6 +963,8 @@ func (r *aggregateRenderResult) reset() {
 		return
 	}
 	r.spec = nil
-	r.written = r.written[:0]
+	r.staged = nil
+	r.skipMessage = ""
+	r.skipErr = nil
 	r.fatalErr = nil
 }
