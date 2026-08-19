@@ -2963,6 +2963,7 @@ paths: {}
 	targetBEntry := baselineEntries[targetBPath]
 	require.NotNil(t, sourceEntry)
 	require.NotNil(t, targetBEntry)
+	sourceOutput := filepath.Join(config.OutputDir, filepath.FromSlash(sourceEntry.OutputSubdir))
 	targetBOutput := filepath.Join(config.OutputDir, filepath.FromSlash(targetBEntry.OutputSubdir))
 	beforeTargetB := aggregateOutputTreeSnapshot(t, targetBOutput)
 
@@ -2971,20 +2972,26 @@ paths: {}
 	targetBDocument, err := os.ReadFile(targetBAbsolutePath)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(targetBAbsolutePath, append(targetBDocument, []byte("\nx-render-revision: changed\n")...), 0o644))
-	sourceParent := filepath.Dir(filepath.Join(config.OutputDir, filepath.FromSlash(sourceEntry.OutputSubdir)))
-	targetBParent := filepath.Dir(targetBOutput)
-	require.NoError(t, os.Chmod(sourceParent, 0o555))
-	t.Cleanup(func() {
-		_ = os.Chmod(sourceParent, 0o755)
-		_ = os.Chmod(targetBParent, 0o755)
-	})
 
 	var progressMu sync.Mutex
 	var queuedPoolIDs []int
 	targetBBlocked := false
-	var blockErr error
+	targetBStageCalls := 0
+	injectedOutputErr := errors.New("injected selected output preparation failure")
 	ap, err := CreateAggregatePrintingPressFromPath(root, config)
 	require.NoError(t, err)
+	ap.beforeStageEntryOutput = func(entryOutput string, _ aggregateOutputSelection) error {
+		if entryOutput == sourceOutput {
+			return injectedOutputErr
+		}
+		if entryOutput == targetBOutput {
+			targetBStageCalls++
+			if targetBStageCalls > 1 {
+				return injectedOutputErr
+			}
+		}
+		return nil
+	}
 	stats, err := ap.PrintSelectedOutputs(AggregateRenderOptions{
 		JSON: true,
 		ProgressReporter: AggregateProgressReporterFunc(func(update AggregateProgressUpdate) {
@@ -2995,19 +3002,16 @@ paths: {}
 			}
 			if !targetBBlocked && update.Status == AggregateProgressStatusCompleted && update.LastSpec == targetBPath {
 				targetBBlocked = true
-				blockErr = os.Chmod(targetBParent, 0o555)
 			}
 		}),
 	})
 	require.NoError(t, err)
-	require.NoError(t, os.Chmod(sourceParent, 0o755))
-	require.NoError(t, os.Chmod(targetBParent, 0o755))
 	progressMu.Lock()
 	require.True(t, targetBBlocked, "the target must complete once before becoming dirty for the stabilization pass")
-	require.NoError(t, blockErr)
 	require.GreaterOrEqual(t, len(queuedPoolIDs), 2, "the scenario must exercise multiple render passes")
 	assert.Len(t, queuedPoolIDs, len(uniqueInts(queuedPoolIDs)), "pool IDs must remain unique across stabilization passes")
 	progressMu.Unlock()
+	assert.Equal(t, 2, targetBStageCalls, "the target must reach output staging exactly once per stabilization attempt")
 	assert.Equal(t, len(uniqueInts(queuedPoolIDs)), stats.PoolsUsed, "PoolsUsed must count every distinct pool emitted across stabilization passes")
 
 	assert.True(t, catalogEntryIndex(ap.catalog)[targetBPath].RenderSkipped)
@@ -3093,14 +3097,17 @@ func TestAggregatePerEntryOutputFailureSkipsAndPersistsSuccessfulEntries(t *test
 		require.NoError(t, readErr)
 		require.NoError(t, os.WriteFile(source, append(body, []byte("\nx-render-revision: changed\n")...), 0o644))
 	}
-	failedParent := filepath.Dir(failedOutput)
-	require.NoError(t, os.Chmod(failedParent, 0o555))
-	t.Cleanup(func() { _ = os.Chmod(failedParent, 0o755) })
-
 	var progressMu sync.Mutex
 	var progress []AggregateProgressUpdate
 	ap, err := CreateAggregatePrintingPressFromPath(root, config)
 	require.NoError(t, err)
+	injectedOutputErr := errors.New("injected selected output preparation failure")
+	ap.beforeStageEntryOutput = func(entryOutput string, _ aggregateOutputSelection) error {
+		if entryOutput == failedOutput {
+			return injectedOutputErr
+		}
+		return nil
+	}
 	stats, err := ap.PrintSelectedOutputs(AggregateRenderOptions{
 		JSON: true,
 		ProgressReporter: AggregateProgressReporterFunc(func(update AggregateProgressUpdate) {
@@ -3110,7 +3117,6 @@ func TestAggregatePerEntryOutputFailureSkipsAndPersistsSuccessfulEntries(t *test
 		}),
 	})
 	require.NoError(t, err)
-	require.NoError(t, os.Chmod(failedParent, 0o755))
 	assert.Equal(t, 1, stats.ChangedSpecs)
 	assert.True(t, slices.ContainsFunc(stats.Warnings, func(warning *ppmodel.BuildWarning) bool {
 		return warning != nil && warning.Context == failedPath
@@ -3184,16 +3190,19 @@ func TestAggregateFailedMovedReplacementDefersCleanupUntilSuccessfulRetry(t *tes
 	require.NoError(t, err)
 	newEntry := catalogEntryIndex(probeCatalog)[newPath]
 	require.NotNil(t, newEntry)
-	newOutputParent := filepath.Dir(filepath.Join(config.OutputDir, filepath.FromSlash(newEntry.OutputSubdir)))
-	require.NoError(t, os.MkdirAll(newOutputParent, 0o755))
-	require.NoError(t, os.Chmod(newOutputParent, 0o555))
-	t.Cleanup(func() { _ = os.Chmod(newOutputParent, 0o755) })
+	newOutput := filepath.Join(config.OutputDir, filepath.FromSlash(newEntry.OutputSubdir))
+	require.NoError(t, os.MkdirAll(filepath.Dir(newOutput), 0o755))
 
 	failed, err := CreateAggregatePrintingPressFromPath(root, config)
 	require.NoError(t, err)
+	failed.beforeStageEntryOutput = func(entryOutput string, _ aggregateOutputSelection) error {
+		if entryOutput == newOutput {
+			return errors.New("injected moved output preparation failure")
+		}
+		return nil
+	}
 	stats, err := failed.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
 	require.NoError(t, err)
-	require.NoError(t, os.Chmod(newOutputParent, 0o755))
 	assert.Equal(t, 1, stats.ChangedSpecs, "the unrelated successful render still completes")
 	assert.Equal(t, oldBundleContents, readAggregateFile(t, oldBundle), "cleanup must retain the last-known-good output while its replacement is retryable")
 	afterFailure, err := store.Load("navigation")
@@ -3360,14 +3369,18 @@ paths: {}
 	require.NotNil(t, sourceEntry)
 
 	writeSource("z-target-b")
-	sourceParent := filepath.Dir(filepath.Join(config.OutputDir, filepath.FromSlash(sourceEntry.OutputSubdir)))
-	require.NoError(t, os.Chmod(sourceParent, 0o555))
-	t.Cleanup(func() { _ = os.Chmod(sourceParent, 0o755) })
+	sourceOutput := filepath.Join(config.OutputDir, filepath.FromSlash(sourceEntry.OutputSubdir))
 	cleanupErr := errors.New("injected persistent staging cleanup failure")
 	cleanupCalls := 0
 	var retainedStage string
 	ap, err := CreateAggregatePrintingPressFromPath(root, config)
 	require.NoError(t, err)
+	ap.beforeStageEntryOutput = func(entryOutput string, _ aggregateOutputSelection) error {
+		if entryOutput == sourceOutput {
+			return errors.New("injected source output preparation failure")
+		}
+		return nil
+	}
 	ap.removeStagedOutput = func(stagePath string) error {
 		if strings.Contains(filepath.ToSlash(stagePath), "/services/target-b/") {
 			cleanupCalls++
@@ -3379,8 +3392,7 @@ paths: {}
 
 	stats, err := ap.PrintSelectedOutputs(AggregateRenderOptions{JSON: true})
 	require.NoError(t, err)
-	require.NoError(t, os.Chmod(sourceParent, 0o755))
-	assert.GreaterOrEqual(t, cleanupCalls, 2, "failed staging cleanup must be retried during finalization")
+	assert.Equal(t, 2, cleanupCalls, "failed staging cleanup must be retried once during finalization")
 	assert.DirExists(t, retainedStage)
 	assert.True(t, slices.ContainsFunc(stats.Warnings, func(warning *ppmodel.BuildWarning) bool {
 		return warning != nil && warning.Context == targetBPath && errors.Is(warning.Err, cleanupErr)
