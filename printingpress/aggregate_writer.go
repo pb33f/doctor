@@ -560,6 +560,11 @@ func stageAggregateEntryOutput(entryOutput string, selection aggregateOutputSele
 }
 
 func (ap *AggregatePrintingPress) stageAggregateEntryOutput(entryOutput string, selection aggregateOutputSelection) (string, error) {
+	if ap != nil && ap.beforeStageEntryOutput != nil {
+		if err := ap.beforeStageEntryOutput(entryOutput, selection); err != nil {
+			return "", err
+		}
+	}
 	return stageAggregateEntryOutputWithCleanup(entryOutput, selection, ap.removeAggregateStagedOutput)
 }
 

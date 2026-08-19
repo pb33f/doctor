@@ -181,6 +181,7 @@ type AggregatePrintingPress struct {
 	developerMode           bool
 	specLintResults         map[string][]*v3.RuleFunctionResult
 	preflightBuildEntrySite func(*aggregateDiscoveredSpec, *ppmodel.CatalogSpecEntry) (*ppmodel.Site, error)
+	beforeStageEntryOutput  func(string, aggregateOutputSelection) error
 	beginEntryPromotion     func(string, string) (*aggregateEntryPromotion, error, error)
 	cleanupPromotionBackup  func(string) error
 	removeStagedOutput      func(string) error
