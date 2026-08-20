@@ -1,0 +1,11 @@
+openapi: 3.1.0
+info:
+  title: schema attribution
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    FromA:
+      $ref: './a.yaml#/Thing'
+    FromB:
+      $ref: './b.yaml#/Thing'
