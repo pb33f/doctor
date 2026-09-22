@@ -590,12 +590,7 @@ func (w *DrDocument) walkV3WithConfigAndOptions(doc *v3.Document, config *DrConf
 			case nt := <-dctx.NodeChan:
 				if nt != nil {
 					// check if a node is a reference node
-					isRef := false
-					if gl, o := nt.GetInstance().(high.GoesLowUntyped); o {
-						if r, k := gl.GoLowUntyped().(low.IsReferenced); k {
-							isRef = r.IsReference()
-						}
-					}
+					isRef := isReferenceInstance(nt.GetInstance())
 					if !isRef {
 						if _, ok := nodeValueMap[nt.ValueLine]; !ok {
 							nodeValueMap[nt.ValueLine] = nt
@@ -1208,15 +1203,14 @@ func (w *DrDocument) processObject(obj any, ln []any) {
 	}
 	if hv, ok := obj.(HasValue); ok {
 		if gl, ll := hv.GetValue().(high.GoesLowUntyped); ll {
-			if nm, ko := gl.GoLowUntyped().(low.HasNodes); ko {
-				if nm != nil {
+			lowValue := gl.GoLowUntyped()
+			if nm, ko := lowValue.(low.HasNodes); ko {
+				if !isNilInterface(nm) {
+					if isReferencedValue(lowValue) {
+						return
+					}
 					no := nm.GetNodes()
 					for k := range no {
-						if ir, hj := gl.GoLowUntyped().(low.IsReferenced); hj {
-							if ir.IsReference() {
-								continue
-							}
-						}
 						w.addLineObject(k, obj, ln)
 					}
 				}
@@ -1229,6 +1223,30 @@ func (w *DrDocument) processObject(obj any, ln []any) {
 				}
 			}
 		}
+	}
+}
+
+func isReferenceInstance(instance any) bool {
+	goesLow, ok := instance.(high.GoesLowUntyped)
+	return ok && isReferencedValue(goesLow.GoLowUntyped())
+}
+
+func isReferencedValue(value any) bool {
+	referenced, ok := value.(low.IsReferenced)
+	return ok && !isNilInterface(referenced) && referenced.IsReference()
+}
+
+func isNilInterface(value any) bool {
+	if value == nil {
+		return true
+	}
+
+	reflected := reflect.ValueOf(value)
+	switch reflected.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return reflected.IsNil()
+	default:
+		return false
 	}
 }
 
