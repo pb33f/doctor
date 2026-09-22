@@ -1,0 +1,26 @@
+openapi: 3.1.0
+info:
+  title: source-aware collection
+  version: 1.0.0
+paths:
+  /first:
+    get:
+      parameters:
+        - $ref: './first.yaml#/components/parameters/RequestID'
+      responses:
+        '200':
+          $ref: './first.yaml#/components/responses/Result'
+  /first-again:
+    get:
+      parameters:
+        - $ref: './first.yaml#/components/parameters/RequestID'
+      responses:
+        '200':
+          $ref: './first.yaml#/components/responses/Result'
+  /second:
+    get:
+      parameters:
+        - $ref: './second.yaml#/components/parameters/RequestID'
+      responses:
+        '200':
+          $ref: './second.yaml#/components/responses/Result'

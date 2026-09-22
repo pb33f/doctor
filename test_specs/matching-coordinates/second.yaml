@@ -1,0 +1,29 @@
+# Whitespace and ordering are load bearing.
+# Keep both external fixture files byte-identical so collected nodes share coordinates.
+components:
+  parameters:
+    RequestID:
+      name: X-Request-ID
+      in: header
+      schema:
+        type: string
+  headers:
+    RateLimit:
+      schema:
+        type: integer
+  responses:
+    Result:
+      description: result
+      headers:
+        X-RateLimit:
+          $ref: '#/components/headers/RateLimit'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Loop'
+  schemas:
+    Loop:
+      type: object
+      properties:
+        self:
+          $ref: '#/components/schemas/Loop'

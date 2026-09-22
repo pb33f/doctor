@@ -1,0 +1,7 @@
+Thing:
+  type: object
+  properties:
+    alpha:
+      type: string
+    beta:
+      type: string

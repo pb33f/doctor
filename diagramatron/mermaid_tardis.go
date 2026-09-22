@@ -6,6 +6,7 @@ package diagramatron
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
@@ -447,14 +448,12 @@ func (mt *MermaidTardis) populateCircularRefs() {
 		return
 	}
 
-	// get all types of circular references
-	circRefs := idx.GetCircularReferences()
-	polyRefs := idx.GetIgnoredPolymorphicCircularReferences()
-	arrayRefs := idx.GetIgnoredArrayCircularReferences()
-
-	// combine all circular reference types
-	allCircRefs := append(circRefs, polyRefs...)
-	allCircRefs = append(allCircRefs, arrayRefs...)
+	// combine all types of circular reference. the getters hand back the index's own slices, which
+	// carry spare capacity from the appends the resolver builds them with, so clone before extending
+	// or this writes into memory shared with every other reader.
+	allCircRefs := slices.Clone(idx.GetCircularReferences())
+	allCircRefs = append(allCircRefs, idx.GetIgnoredPolymorphicCircularReferences()...)
+	allCircRefs = append(allCircRefs, idx.GetIgnoredArrayCircularReferences()...)
 
 	// build map of circular reference paths for quick lookup
 	for _, ref := range allCircRefs {

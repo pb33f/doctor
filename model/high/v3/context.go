@@ -34,21 +34,29 @@ type BuildError struct {
 type WalkedSchema struct {
 	Schema     *Schema
 	SchemaNode *yaml.Node
+	// SourceIndex owns SchemaNode and keeps collection identity in one source domain.
+	SourceIndex *index.SpecIndex
 }
 
 type WalkedParam struct {
 	Param     any
 	ParamNode *yaml.Node
+	// SourceIndex owns ParamNode and keeps collection identity in one source domain.
+	SourceIndex *index.SpecIndex
 }
 
 type WalkedHeader struct {
 	Header     any
 	HeaderNode *yaml.Node
+	// SourceIndex owns HeaderNode and keeps collection identity in one source domain.
+	SourceIndex *index.SpecIndex
 }
 
 type WalkedMediaType struct {
 	MediaType     any
 	MediaTypeNode *yaml.Node
+	// SourceIndex owns MediaTypeNode and keeps collection identity in one source domain.
+	SourceIndex *index.SpecIndex
 }
 
 type DrContext struct {
@@ -368,7 +376,11 @@ type CircularRefSets struct {
 
 // isCircularDefinition reports whether ref is the loop point definition of a
 // circular, ignored-polymorphic or ignored-array circular reference.
+// A nil set knows of no circular references.
 func (c *CircularRefSets) isCircularDefinition(idx *index.SpecIndex, ref string) bool {
+	if c == nil {
+		return false
+	}
 	c.defsOnce.Do(func() {
 		c.defs = make(map[string]struct{})
 		if idx == nil {
@@ -390,7 +402,11 @@ func (c *CircularRefSets) isCircularDefinition(idx *index.SpecIndex, ref string)
 
 // isCircularLoopNode reports whether node is the loop point node of any
 // circular reference known to the rolodex (root index, safe or ignored).
+// A nil set knows of no circular references.
 func (c *CircularRefSets) isCircularLoopNode(rolodex *index.Rolodex, node *yaml.Node) bool {
+	if c == nil {
+		return false
+	}
 	c.nodesOnce.Do(func() {
 		c.nodes = make(map[*yaml.Node]struct{})
 		if rolodex == nil {
