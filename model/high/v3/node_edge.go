@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pb33f/doctor/helpers"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel/high"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/index"
@@ -20,7 +21,6 @@ import (
 	"github.com/pb33f/libopenapi/utils"
 	what_changed "github.com/pb33f/libopenapi/what-changed"
 	"github.com/pb33f/libopenapi/what-changed/model"
-	"go.yaml.in/yaml/v4"
 )
 
 // ChangeSummary holds aggregated change counts for a node's subtree.

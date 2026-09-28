@@ -27,7 +27,7 @@ import (
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	slugpkg "github.com/pb33f/doctor/printingpress/slug"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 type aggregateBuildPlan struct {

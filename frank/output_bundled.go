@@ -6,7 +6,7 @@ package frank
 import (
 	"fmt"
 
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 // RenderBundled assembles a FrankResult into a single YAML document with nested items.

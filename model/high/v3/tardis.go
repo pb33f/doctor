@@ -5,7 +5,7 @@ package v3
 
 import (
 	"context"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 type ContextKey string

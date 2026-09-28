@@ -14,13 +14,13 @@ import (
 	. "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/doctor/printingpress/render"
 	slugpkg "github.com/pb33f/doctor/printingpress/slug"
+	"github.com/pb33f/go-yaml"
 	highasync "github.com/pb33f/libasyncapi/datamodel/high/asyncapi"
 	"github.com/pb33f/libopenapi/bundler"
 	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	lowbase "github.com/pb33f/libopenapi/datamodel/low/base"
 	"github.com/pb33f/libopenapi/index"
-	"go.yaml.in/yaml/v4"
 )
 
 type asyncAPIIndex struct {

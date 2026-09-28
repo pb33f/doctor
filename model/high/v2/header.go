@@ -4,9 +4,9 @@
 package v2
 
 import (
+	"github.com/pb33f/go-yaml"
 	low "github.com/pb33f/libopenapi/datamodel/low/v2"
 	"github.com/pb33f/libopenapi/orderedmap"
-	"go.yaml.in/yaml/v4"
 )
 
 type Header struct {
