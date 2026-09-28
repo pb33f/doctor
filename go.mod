@@ -15,7 +15,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pb33f/go-yaml v0.1.0
-	github.com/pb33f/libasyncapi v0.0.2
+	github.com/pb33f/libasyncapi v0.0.3-0.20260928174225-e79f2595d641
 	github.com/pb33f/libopenapi v0.41.1
 	github.com/pb33f/ordered-map/v2 v2.3.2
 	github.com/pb33f/testify v0.1.1
@@ -53,7 +53,6 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	go.yaml.in/yaml/v4 v4.0.0-rc.6 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	modernc.org/libc v1.72.3 // indirect
