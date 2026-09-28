@@ -9,7 +9,7 @@ import (
 	"io"
 	"strings"
 
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 // StructuredDataFormat represents the detected format of a value.

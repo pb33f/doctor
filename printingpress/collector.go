@@ -24,12 +24,12 @@ import (
 	. "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/doctor/printingpress/render"
 	slugpkg "github.com/pb33f/doctor/printingpress/slug"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/bundler"
 	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
 	highv3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/pb33f/libopenapi/renderer"
-	"go.yaml.in/yaml/v4"
 )
 
 const (

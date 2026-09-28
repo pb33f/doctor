@@ -8,9 +8,9 @@ import (
 	"reflect"
 
 	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/what-changed/model"
-	"go.yaml.in/yaml/v4"
 )
 
 func (t *Changerator) VisitSchema(ctx context.Context, schema *v3.Schema) {

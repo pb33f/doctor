@@ -7,12 +7,12 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/pb33f/go-yaml"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	highV3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
-	"go.yaml.in/yaml/v4"
 )
 
 var testLog = slog.Default()

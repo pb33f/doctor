@@ -6,9 +6,9 @@ package v3
 import (
 	"context"
 
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
-	"go.yaml.in/yaml/v4"
 )
 
 type SchemaProxy struct {

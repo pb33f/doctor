@@ -8,11 +8,11 @@ import (
 	"testing"
 
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
+	"github.com/pb33f/go-yaml"
 	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/renderer"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
-	"go.yaml.in/yaml/v4"
 )
 
 func TestResolveMockGenerationLimits(t *testing.T) {
