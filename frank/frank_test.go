@@ -271,7 +271,7 @@ components:
 	require.NoError(t, err)
 
 	require.Len(t, result.Folders, 1)
-	assert.Equal(t, "none", result.Folders[0].Requests[0].HTTP.Auth)
+	assert.Nil(t, result.Folders[0].Requests[0].HTTP.Auth)
 }
 
 func TestGenerate_OperationSecurityOverride(t *testing.T) {
@@ -648,10 +648,10 @@ components:
 	// collection-level auth should be nil (anonymous allowed via empty {})
 	assert.Nil(t, result.Collection.Request, "empty {} in document security means no collection auth")
 
-	// operation with security: [{}] should be "none"
+	// operation with security: [{}] omits auth entirely
 	require.Len(t, result.Folders, 1)
 	require.Len(t, result.Folders[0].Requests, 2)
-	assert.Equal(t, "none", result.Folders[0].Requests[0].HTTP.Auth)
+	assert.Nil(t, result.Folders[0].Requests[0].HTTP.Auth)
 
 	// operation with no security field should inherit
 	assert.Equal(t, "inherit", result.Folders[0].Requests[1].HTTP.Auth)
@@ -871,10 +871,10 @@ components:
 	// collection-level auth should be nil (anonymous allowed via empty {})
 	assert.Nil(t, result.Collection.Request, "reversed empty {} in document security means no collection auth")
 
-	// operation with security: [{bearerAuth: []}, {}] should be "none"
+	// operation with security: [{bearerAuth: []}, {}] omits auth entirely
 	require.Len(t, result.Folders, 1)
 	require.Len(t, result.Folders[0].Requests, 2)
-	assert.Equal(t, "none", result.Folders[0].Requests[0].HTTP.Auth)
+	assert.Nil(t, result.Folders[0].Requests[0].HTTP.Auth)
 
 	// operation with no security field should inherit
 	assert.Equal(t, "inherit", result.Folders[0].Requests[1].HTTP.Auth)

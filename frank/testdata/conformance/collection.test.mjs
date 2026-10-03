@@ -21,12 +21,26 @@ const requests = collection.items
 	.flatMap((folder) => folder.items ?? [])
 	.filter((item) => item.http);
 
-test("every request's auth validates against the OpenCollection schema", () => {
-	assert.deepEqual(violations(validateAuth, "auth"), []);
+for (const type of ["basic", "bearer", "digest", "apikey", "oauth2"]) {
+	const withType = requests.filter((r) => r.http.auth?.type === type);
+
+	test(`${type} auth validates against the OpenCollection schema`, () => {
+		assert.notEqual(withType.length, 0, `no ${type} request in the fixture`);
+		assert.deepEqual(violations(withType, validateAuth, "auth"), []);
+	});
+}
+
+test("auth is either an object or the string 'inherit'", () => {
+	const malformed = requests
+		.filter((r) => "auth" in r.http)
+		.filter((r) => r.http.auth !== "inherit" && !isObject(r.http.auth))
+		.map((r) => `${r.info.name}: ${JSON.stringify(r.http.auth)}`);
+
+	assert.deepEqual(malformed, []);
 });
 
 test("every request's body validates against the OpenCollection schema", () => {
-	assert.deepEqual(violations(validateBody, "body"), []);
+	assert.deepEqual(violations(requests, validateBody, "body"), []);
 });
 
 test("the collection validates against the OpenCollection schema", () => {
@@ -44,8 +58,12 @@ test("oauth2 scope is the scope the operation declares", () => {
 	assert.equal(listItems.http.auth.scope, "inventory:read");
 });
 
-function violations(validate, field) {
-	return requests
+function isObject(value) {
+	return typeof value === "object" && value !== null;
+}
+
+function violations(subject, validate, field) {
+	return subject
 		.filter((r) => r.http[field] !== undefined)
 		.flatMap((r) => {
 			if (validate(r.http[field])) return [];
