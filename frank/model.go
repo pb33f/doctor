@@ -75,7 +75,7 @@ type RequestHTTP struct {
 	URL     string          `yaml:"url"`
 	Params  []RequestParam  `yaml:"params,omitempty"`
 	Headers []RequestHeader `yaml:"headers,omitempty"`
-	Body    *RequestBody    `yaml:"body,omitempty"`
+	Body    RequestBody     `yaml:"body,omitempty"`
 	Auth    AuthConfig      `yaml:"auth,omitempty"`
 }
 
@@ -95,10 +95,46 @@ type RequestHeader struct {
 	Disabled bool   `yaml:"disabled,omitempty"`
 }
 
-// RequestBody represents the HTTP request body.
-type RequestBody struct {
-	Type string `yaml:"type,omitempty"`
-	Data string `yaml:"data,omitempty"`
+// RequestBody is the set of body shapes OpenCollection accepts. A raw body carries
+// its payload as text and the others carry a list of fields, so no single struct
+// holds them all.
+type RequestBody interface {
+	isRequestBody()
+}
+
+func (*RawBody) isRequestBody()            {}
+func (*FormUrlEncodedBody) isRequestBody() {}
+func (*MultipartFormBody) isRequestBody()  {}
+
+// RawBody's type is one of json, text, xml or sparql.
+type RawBody struct {
+	Type string `yaml:"type"`
+	Data string `yaml:"data"`
+}
+
+type FormUrlEncodedBody struct {
+	Type string      `yaml:"type"`
+	Data []FormField `yaml:"data"`
+}
+
+type FormField struct {
+	Name     string `yaml:"name"`
+	Value    string `yaml:"value"`
+	Disabled bool   `yaml:"disabled,omitempty"`
+}
+
+type MultipartFormBody struct {
+	Type string           `yaml:"type"`
+	Data []MultipartField `yaml:"data"`
+}
+
+// MultipartField's type is either text or file.
+type MultipartField struct {
+	Name        string `yaml:"name"`
+	Type        string `yaml:"type"`
+	Value       string `yaml:"value"`
+	ContentType string `yaml:"contentType,omitempty"`
+	Disabled    bool   `yaml:"disabled,omitempty"`
 }
 
 // AuthConfig is the set of values an auth field can hold. The marker method is
