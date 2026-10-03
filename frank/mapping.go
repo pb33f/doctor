@@ -142,7 +142,10 @@ func sanitizeVarName(name string) string {
 }
 
 // mapSecuritySchemeToAuth converts an OpenAPI security scheme to an OC Auth struct.
-func mapSecuritySchemeToAuth(scheme *highV3.SecurityScheme, log *slog.Logger) *Auth {
+// scopes come from the security requirement, not the scheme. For oauth2 that is the
+// set the token is requested with, which is usually far smaller than the set the
+// scheme advertises.
+func mapSecuritySchemeToAuth(scheme *highV3.SecurityScheme, scopes []string, log *slog.Logger) *Auth {
 	if scheme == nil {
 		return nil
 	}
@@ -178,7 +181,7 @@ func mapSecuritySchemeToAuth(scheme *highV3.SecurityScheme, log *slog.Logger) *A
 			Placement: placement,
 		}
 	case "oauth2":
-		return mapOAuth2ToAuth(scheme.Flows, log)
+		return mapOAuth2ToAuth(scheme.Flows, scopes, log)
 	case "openIdConnect":
 		log.Warn("openIdConnect discovery URL dropped; OpenCollection has no openIdConnect auth type, mapping to bearer",
 			"openIdConnectUrl", scheme.OpenIdConnectUrl)
@@ -192,24 +195,24 @@ func mapSecuritySchemeToAuth(scheme *highV3.SecurityScheme, log *slog.Logger) *A
 }
 
 // mapOAuth2ToAuth maps OAuth2 flows to the best OC Auth representation.
-func mapOAuth2ToAuth(flows *highV3.OAuthFlows, log *slog.Logger) *Auth {
+func mapOAuth2ToAuth(flows *highV3.OAuthFlows, scopes []string, log *slog.Logger) *Auth {
 	if flows == nil {
 		log.Warn("oauth2 security scheme ignored; it declares no flows")
 		return nil
 	}
 	// preference order: authorization_code > client_credentials > password > implicit (fallback to auth_code)
 	if flows.AuthorizationCode != nil {
-		return mapOAuthFlow(flows.AuthorizationCode, "authorization_code")
+		return mapOAuthFlow(flows.AuthorizationCode, "authorization_code", scopes)
 	}
 	if flows.ClientCredentials != nil {
-		return mapOAuthFlow(flows.ClientCredentials, "client_credentials")
+		return mapOAuthFlow(flows.ClientCredentials, "client_credentials", scopes)
 	}
 	if flows.Password != nil {
-		return mapOAuthFlow(flows.Password, "password")
+		return mapOAuthFlow(flows.Password, "password", scopes)
 	}
 	if flows.Implicit != nil {
 		// implicit falls back to authorization_code (closest equivalent)
-		return mapOAuthFlow(flows.Implicit, "authorization_code")
+		return mapOAuthFlow(flows.Implicit, "authorization_code", scopes)
 	}
 	if flows.Device != nil {
 		log.Warn("oauth2 device flow ignored; OpenCollection supports client_credentials, resource_owner_password_credentials, authorization_code and implicit")
@@ -220,7 +223,7 @@ func mapOAuth2ToAuth(flows *highV3.OAuthFlows, log *slog.Logger) *Auth {
 }
 
 // mapOAuthFlow maps a single OAuthFlow to an Auth struct.
-func mapOAuthFlow(flow *highV3.OAuthFlow, grantType string) *Auth {
+func mapOAuthFlow(flow *highV3.OAuthFlow, grantType string, scopes []string) *Auth {
 	auth := &Auth{
 		Type:      "oauth2",
 		GrantType: grantType,
@@ -231,14 +234,9 @@ func mapOAuthFlow(flow *highV3.OAuthFlow, grantType string) *Auth {
 	if flow.TokenUrl != "" {
 		auth.TokenURL = flow.TokenUrl
 	}
-	// build scope string from ordered map
-	if flow.Scopes != nil {
-		var scopes []string
-		for name := range flow.Scopes.FromOldest() {
-			scopes = append(scopes, name)
-		}
-		auth.Scope = strings.Join(scopes, " ")
-	}
+	// an empty requirement means the authorization server applies its default scope,
+	// so the key is left off rather than sent empty
+	auth.Scope = strings.Join(scopes, " ")
 	return auth
 }
 
@@ -305,12 +303,12 @@ func firstSupportedAuth(
 		if req.Requirements.Len() > 1 {
 			log.Warn("security requirement with multiple schemes (AND) simplified to first scheme; OpenCollection supports one auth type per request")
 		}
-		for name := range req.Requirements.FromOldest() {
+		for name, scopes := range req.Requirements.FromOldest() {
 			scheme, ok := securitySchemes.Get(name)
 			if !ok {
 				continue
 			}
-			if auth := mapSecuritySchemeToAuth(scheme, log); auth != nil {
+			if auth := mapSecuritySchemeToAuth(scheme, scopes, log); auth != nil {
 				return auth
 			}
 		}

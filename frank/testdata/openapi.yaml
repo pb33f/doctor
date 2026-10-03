@@ -115,10 +115,10 @@ paths:
     post:
       operationId: bulkImport
       summary: Bulk import items
-      description: No example anywhere; the body has to come from the schema.
+      description: No example anywhere, and no scopes requested, so the server applies its default.
       tags: [Inventory]
       security:
-        - warehouseOAuth: [inventory:write]
+        - warehouseOAuth: []
       requestBody:
         content:
           application/json:
