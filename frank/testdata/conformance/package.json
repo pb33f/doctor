@@ -1,0 +1,15 @@
+{
+  "name": "frank-opencollection-conformance",
+  "private": true,
+  "type": "module",
+  "description": "Validates frank's rendered output against the OpenCollection schema.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@opencollection/schema": "0.14.0",
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1",
+    "yaml": "2.8.1"
+  }
+}

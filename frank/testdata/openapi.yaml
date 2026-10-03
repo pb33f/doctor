@@ -1,0 +1,533 @@
+openapi: 3.1.0
+info:
+  title: Warehouse API
+  version: 2.4.0
+  description: A fictional warehouse API used to exercise frank's OpenAPI to OpenCollection mapping.
+  contact:
+    name: Warehouse Platform Team
+    email: platform@warehouse.example
+
+servers:
+  - url: https://api.warehouse.example/v2
+    description: Production
+  - url: https://{tenant}.sandbox.warehouse.example/v2
+    description: Sandbox
+    variables:
+      tenant:
+        default: pb33f
+
+tags:
+  - name: Inventory
+    description: Stock levels, item records and bulk import.
+  - name: Shipments
+    description: Outbound shipments and their tracking events.
+  - name: Billing & Invoices
+    description: Invoices raised against an account.
+  - name: Billing / Invoices
+    description: Credit notes. Deliberately slugs to the same folder as 'Billing & Invoices'.
+  - name: Webhooks
+    description: Subscription management for outbound events.
+
+paths:
+  /inventory/items:
+    get:
+      operationId: listItems
+      summary: List items
+      tags: [Inventory]
+      security:
+        - warehouseOAuth: [inventory:read]
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of items to return.
+          schema: {type: integer, default: 50, maximum: 200}
+        - name: cursor
+          in: query
+          description: Opaque pagination cursor from a previous response.
+          schema: {type: string}
+        - name: X-Request-Id
+          in: header
+          description: Caller-supplied correlation id.
+          schema: {type: string, format: uuid}
+      responses:
+        '200': {description: A page of items.}
+    post:
+      operationId: createItem
+      summary: Create an item
+      tags: [Inventory]
+      security:
+        - warehouseOAuth: [inventory:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Item'}
+            example:
+              sku: WID-001
+              name: Widget
+              quantity: 12
+      responses:
+        '201': {description: Created.}
+
+  /inventory/items/{itemId}:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        description: Identifier of the item.
+        schema: {type: string}
+    put:
+      operationId: updateItem
+      summary: Replace an item
+      tags: [Inventory]
+      security:
+        - warehouseOAuth: [inventory:write]
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Item'}
+            examples:
+              restock:
+                summary: Restocking an existing SKU
+                value: {sku: WID-001, name: Widget, quantity: 500}
+              discontinue:
+                summary: Zeroing a discontinued SKU
+                value: {sku: WID-001, name: Widget, quantity: 0}
+      responses:
+        '200': {description: Replaced.}
+
+  /inventory/search:
+    get:
+      operationId: searchItems
+      summary: Search items
+      description: Public catalogue search. Explicitly unauthenticated.
+      tags: [Inventory]
+      security: []
+      parameters:
+        - name: q
+          in: query
+          description: Free-text query.
+          schema: {type: string}
+      responses:
+        '200': {description: Matching items.}
+
+  /inventory/bulk:
+    post:
+      operationId: bulkImport
+      summary: Bulk import items
+      description: No example anywhere; the body has to come from the schema.
+      tags: [Inventory]
+      security:
+        - warehouseOAuth: [inventory:write]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items: {$ref: '#/components/schemas/Item'}
+                dryRun: {type: boolean}
+      responses:
+        '202': {description: Accepted.}
+
+  /inventory/health:
+    get:
+      operationId: itemHealth
+      summary: Inventory health
+      description: No security key at all, so it inherits.
+      tags: [Inventory]
+      responses:
+        '200': {description: Healthy.}
+
+  /shipments:
+    get:
+      operationId: listShipments
+      summary: List shipments
+      tags: [Shipments]
+      security:
+        - authCodeOAuth: [shipments:read]
+      responses:
+        '200': {description: A page of shipments.}
+    post:
+      operationId: createShipment
+      summary: Create a shipment
+      description: Body schema is self-referential, to exercise mock generation depth caps.
+      tags: [Shipments]
+      security:
+        - authCodeOAuth: [shipments:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Package'}
+      responses:
+        '201': {description: Created.}
+
+  /shipments/{shipmentId}:
+    parameters:
+      - name: shipmentId
+        in: path
+        required: true
+        description: Identifier of the shipment.
+        schema: {type: string}
+    get:
+      operationId: getShipment
+      summary: Get a shipment
+      tags: [Shipments]
+      security:
+        - apiKeyHeader: []
+      responses:
+        '200': {description: The shipment.}
+
+  /shipments/{shipmentId}/cancel:
+    parameters:
+      - name: shipmentId
+        in: path
+        required: true
+        schema: {type: string}
+    post:
+      operationId: cancelShipment
+      summary: Cancel a shipment
+      tags: [Shipments]
+      security:
+        - apiKeyQuery: []
+      responses:
+        '200': {description: Cancelled.}
+
+  /shipments/{shipmentId}/track:
+    parameters:
+      - name: shipmentId
+        in: path
+        required: true
+        schema: {type: string}
+    get:
+      operationId: trackShipment
+      summary: Track a shipment
+      description: Cookie API key. OpenCollection has no cookie placement.
+      tags: [Shipments]
+      security:
+        - apiKeyCookie: []
+      responses:
+        '200': {description: Tracking detail.}
+
+  /shipments/{shipmentId}/rate:
+    parameters:
+      - name: shipmentId
+        in: path
+        required: true
+        schema: {type: string}
+    post:
+      operationId: rateShipment
+      summary: Rate a shipment
+      tags: [Shipments]
+      security:
+        - passwordOAuth: [shipments:write]
+      responses:
+        '200': {description: Rated.}
+
+  /shipments/quote:
+    post:
+      operationId: quoteShipment
+      summary: Quote a shipment
+      tags: [Shipments]
+      security:
+        - implicitOAuth: [shipments:read]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              example: {weightKg: 2.5, destination: GB}
+              properties:
+                weightKg: {type: number}
+                destination: {type: string}
+      responses:
+        '200': {description: A quote.}
+
+  /shipments/{shipmentId}/events:
+    parameters:
+      - name: shipmentId
+        in: path
+        required: true
+        schema: {type: string}
+    get:
+      operationId: shipmentEvents
+      summary: Shipment events
+      description: The only scheme offers device flow, which frank does not consult.
+      tags: [Shipments]
+      security:
+        - deviceOAuth: [shipments:read]
+      responses:
+        '200': {description: Events.}
+
+  /billing/invoices:
+    get:
+      operationId: listInvoices
+      summary: List invoices
+      tags: [Billing & Invoices]
+      security:
+        - basicAuth: []
+      responses:
+        '200': {description: A page of invoices.}
+
+  /billing/invoices/{invoiceId}:
+    parameters:
+      - name: invoiceId
+        in: path
+        required: true
+        description: Identifier of the invoice.
+        schema: {type: string}
+    get:
+      operationId: getInvoice
+      summary: Get an invoice
+      tags: [Billing & Invoices]
+      security:
+        - bearerAuth: []
+      responses:
+        '200': {description: The invoice.}
+
+  /billing/invoices/{invoiceId}/pay:
+    parameters:
+      - name: invoiceId
+        in: path
+        required: true
+        schema: {type: string}
+    post:
+      operationId: payInvoice
+      summary: Pay an invoice
+      tags: [Billing & Invoices]
+      security:
+        - digestAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                method:
+                  type: string
+                  enum: [card, bank_transfer, credit_note]
+                  default: card
+                reference: {type: string}
+      responses:
+        '200': {description: Paid.}
+
+  /billing/invoices/{invoiceId}/void:
+    parameters:
+      - name: invoiceId
+        in: path
+        required: true
+        schema: {type: string}
+    post:
+      operationId: voidInvoice
+      summary: Void an invoice
+      description: mutualTLS has no OpenCollection equivalent.
+      tags: [Billing & Invoices]
+      security:
+        - mtlsAuth: []
+      responses:
+        '200': {description: Voided.}
+
+  /billing/export:
+    get:
+      operationId: exportInvoices
+      summary: Export invoices
+      description: openIdConnect carries a discovery URL that currently goes nowhere.
+      tags: [Billing & Invoices]
+      security:
+        - oidcAuth: []
+      responses:
+        '200': {description: An export job.}
+
+  /billing/credits:
+    post:
+      operationId: issueCredit
+      summary: Issue a credit note
+      tags: [Billing / Invoices]
+      security:
+        - warehouseOAuth: [billing:write]
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                invoiceId: {type: string}
+                amountMinor: {type: integer}
+      responses:
+        '201': {description: Issued.}
+
+  /webhooks:
+    post:
+      operationId: createWebhook
+      summary: Create a webhook
+      tags: [Webhooks]
+      security:
+        - warehouseOAuth: [webhooks:write]
+      requestBody:
+        content:
+          application/xml:
+            schema:
+              type: object
+              properties:
+                url: {type: string, format: uri}
+                event: {type: string}
+      responses:
+        '201': {description: Created.}
+
+  /webhooks/{webhookId}/test:
+    parameters:
+      - name: webhookId
+        in: path
+        required: true
+        schema: {type: string}
+    post:
+      operationId: testWebhook
+      summary: Send a test event
+      description: Two schemes ANDed together; OpenCollection can only carry one.
+      tags: [Webhooks]
+      security:
+        - warehouseOAuth: [webhooks:write]
+          apiKeyHeader: []
+      responses:
+        '200': {description: Sent.}
+
+  /webhooks/{webhookId}/replay:
+    parameters:
+      - name: webhookId
+        in: path
+        required: true
+        schema: {type: string}
+    post:
+      operationId: replayWebhook
+      summary: Replay delivery
+      tags: [Webhooks]
+      security:
+        - warehouseOAuth: [webhooks:write]
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                deliveryIds: {type: string}
+                attachment: {type: string, format: binary}
+      responses:
+        '202': {description: Accepted.}
+
+components:
+  schemas:
+    Item:
+      type: object
+      required: [sku, name]
+      properties:
+        sku: {type: string}
+        name: {type: string}
+        quantity: {type: integer, default: 0}
+
+    Package:
+      type: object
+      description: Self-referential, so mock generation has to stop itself.
+      required: [reference]
+      properties:
+        reference: {type: string}
+        weightKg: {type: number}
+        contents:
+          type: array
+          items: {$ref: '#/components/schemas/Package'}
+
+  securitySchemes:
+    warehouseOAuth:
+      type: oauth2
+      description: The main platform scheme. Its scope map is far larger than any one operation needs.
+      flows:
+        clientCredentials:
+          tokenUrl: https://id.warehouse.example/oauth2/token
+          refreshUrl: https://id.warehouse.example/oauth2/token
+          scopes:
+            inventory:read: Read item records
+            inventory:write: Create and amend item records
+            inventory:admin: Delete item records
+            shipments:read: Read shipments
+            shipments:write: Create and amend shipments
+            shipments:admin: Delete shipments
+            billing:read: Read invoices and credit notes
+            billing:write: Raise credit notes
+            billing:admin: Void invoices
+            webhooks:read: Read subscriptions
+            webhooks:write: Create and amend subscriptions
+            webhooks:admin: Delete subscriptions
+            reports:read: Read reporting exports
+            reports:write: Schedule reporting exports
+
+    authCodeOAuth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://id.warehouse.example/oauth2/authorize
+          tokenUrl: https://id.warehouse.example/oauth2/token
+          refreshUrl: https://id.warehouse.example/oauth2/token
+          scopes:
+            shipments:read: Read shipments
+            shipments:write: Create and amend shipments
+
+    passwordOAuth:
+      type: oauth2
+      flows:
+        password:
+          tokenUrl: https://id.warehouse.example/oauth2/token
+          scopes:
+            shipments:write: Create and amend shipments
+
+    implicitOAuth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://id.warehouse.example/oauth2/authorize
+          scopes:
+            shipments:read: Read shipments
+
+    deviceOAuth:
+      type: oauth2
+      flows:
+        device:
+          tokenUrl: https://id.warehouse.example/oauth2/token
+          scopes:
+            shipments:read: Read shipments
+
+    apiKeyHeader:
+      type: apiKey
+      name: X-Api-Key
+      in: header
+
+    apiKeyQuery:
+      type: apiKey
+      name: api_key
+      in: query
+
+    apiKeyCookie:
+      type: apiKey
+      name: session
+      in: cookie
+
+    basicAuth:
+      type: http
+      scheme: basic
+
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+    digestAuth:
+      type: http
+      scheme: digest
+
+    mtlsAuth:
+      type: mutualTLS
+
+    oidcAuth:
+      type: openIdConnect
+      openIdConnectUrl: https://id.warehouse.example/.well-known/openid-configuration
