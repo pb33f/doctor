@@ -106,7 +106,7 @@ func TestMapContentType(t *testing.T) {
 
 func TestMapSecuritySchemeToAuth_Bearer(t *testing.T) {
 	scheme := &highV3.SecurityScheme{Type: "http", Scheme: "bearer"}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
+	auth := mapSecuritySchemeToAuth(scheme, nil, testLog)
 	require.NotNil(t, auth)
 	assert.Equal(t, "bearer", auth.Type)
 	assert.Equal(t, "{{token}}", auth.Token)
@@ -114,7 +114,7 @@ func TestMapSecuritySchemeToAuth_Bearer(t *testing.T) {
 
 func TestMapSecuritySchemeToAuth_Basic(t *testing.T) {
 	scheme := &highV3.SecurityScheme{Type: "http", Scheme: "basic"}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
+	auth := mapSecuritySchemeToAuth(scheme, nil, testLog)
 	require.NotNil(t, auth)
 	assert.Equal(t, "basic", auth.Type)
 	assert.Equal(t, "{{username}}", auth.Username)
@@ -123,7 +123,7 @@ func TestMapSecuritySchemeToAuth_Basic(t *testing.T) {
 
 func TestMapSecuritySchemeToAuth_ApiKey_Header(t *testing.T) {
 	scheme := &highV3.SecurityScheme{Type: "apiKey", Name: "X-API-Key", In: "header"}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
+	auth := mapSecuritySchemeToAuth(scheme, nil, testLog)
 	require.NotNil(t, auth)
 	assert.Equal(t, "apikey", auth.Type)
 	assert.Equal(t, "X-API-Key", auth.Key)
@@ -133,7 +133,7 @@ func TestMapSecuritySchemeToAuth_ApiKey_Header(t *testing.T) {
 
 func TestMapSecuritySchemeToAuth_ApiKey_Query(t *testing.T) {
 	scheme := &highV3.SecurityScheme{Type: "apiKey", Name: "api_key", In: "query"}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
+	auth := mapSecuritySchemeToAuth(scheme, nil, testLog)
 	require.NotNil(t, auth)
 	assert.Equal(t, "apikey", auth.Type)
 	assert.Equal(t, "query", auth.Placement)
@@ -153,13 +153,44 @@ func TestMapSecuritySchemeToAuth_OAuth2_AuthCode(t *testing.T) {
 			},
 		},
 	}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
+	auth := mapSecuritySchemeToAuth(scheme, []string{"read"}, testLog)
 	require.NotNil(t, auth)
 	assert.Equal(t, "oauth2", auth.Type)
 	assert.Equal(t, "authorization_code", auth.GrantType)
 	assert.Equal(t, "https://example.com/auth", auth.AuthorizationURL)
 	assert.Equal(t, "https://example.com/token", auth.TokenURL)
-	assert.Equal(t, "read write", auth.Scope)
+	assert.Equal(t, "read", auth.Scope, "scope comes from the requirement, not the scheme")
+}
+
+func TestMapSecuritySchemeToAuth_OAuth2_MultipleScopes(t *testing.T) {
+	scheme := &highV3.SecurityScheme{
+		Type: "oauth2",
+		Flows: &highV3.OAuthFlows{
+			ClientCredentials: &highV3.OAuthFlow{TokenUrl: "https://example.com/token"},
+		},
+	}
+
+	auth := mapSecuritySchemeToAuth(scheme, []string{"orders:read", "orders:write"}, testLog)
+	require.NotNil(t, auth)
+	assert.Equal(t, "orders:read orders:write", auth.Scope)
+}
+
+func TestMapSecuritySchemeToAuth_OAuth2_NoScopesRequested(t *testing.T) {
+	schemeScopes := orderedmap.New[string, string]()
+	schemeScopes.Set("read", "read access")
+	scheme := &highV3.SecurityScheme{
+		Type: "oauth2",
+		Flows: &highV3.OAuthFlows{
+			ClientCredentials: &highV3.OAuthFlow{
+				TokenUrl: "https://example.com/token",
+				Scopes:   schemeScopes,
+			},
+		},
+	}
+
+	auth := mapSecuritySchemeToAuth(scheme, nil, testLog)
+	require.NotNil(t, auth)
+	assert.Empty(t, auth.Scope, "an empty requirement leaves the default to the server")
 }
 
 func TestMapSecuritySchemeToAuth_OAuth2_ClientCredentials(t *testing.T) {
@@ -171,7 +202,7 @@ func TestMapSecuritySchemeToAuth_OAuth2_ClientCredentials(t *testing.T) {
 			},
 		},
 	}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
+	auth := mapSecuritySchemeToAuth(scheme, nil, testLog)
 	require.NotNil(t, auth)
 	assert.Equal(t, "client_credentials", auth.GrantType)
 }
@@ -185,7 +216,7 @@ func TestMapSecuritySchemeToAuth_OAuth2_Password(t *testing.T) {
 			},
 		},
 	}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
+	auth := mapSecuritySchemeToAuth(scheme, nil, testLog)
 	require.NotNil(t, auth)
 	assert.Equal(t, "password", auth.GrantType)
 }
@@ -199,7 +230,7 @@ func TestMapSecuritySchemeToAuth_OAuth2_ImplicitFallback(t *testing.T) {
 			},
 		},
 	}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
+	auth := mapSecuritySchemeToAuth(scheme, nil, testLog)
 	require.NotNil(t, auth)
 	assert.Equal(t, "authorization_code", auth.GrantType)
 }
@@ -208,7 +239,7 @@ func TestMapSecuritySchemeToAuth_OpenIdConnect(t *testing.T) {
 	scheme := &highV3.SecurityScheme{Type: "openIdConnect", OpenIdConnectUrl: "https://example.com/.well-known"}
 	log, warnings := captureWarnings()
 
-	auth := mapSecuritySchemeToAuth(scheme, log)
+	auth := mapSecuritySchemeToAuth(scheme, nil, log)
 	require.NotNil(t, auth)
 	assert.Equal(t, "bearer", auth.Type)
 	assert.Equal(t, "{{token}}", auth.Token)
@@ -219,7 +250,7 @@ func TestMapSecuritySchemeToAuth_ApiKey_Cookie(t *testing.T) {
 	scheme := &highV3.SecurityScheme{Type: "apiKey", Name: "session", In: "cookie"}
 	log, warnings := captureWarnings()
 
-	assert.Nil(t, mapSecuritySchemeToAuth(scheme, log))
+	assert.Nil(t, mapSecuritySchemeToAuth(scheme, nil, log))
 	assert.Contains(t, warnings.String(), "header and query")
 }
 
@@ -227,7 +258,7 @@ func TestMapSecuritySchemeToAuth_MutualTLS(t *testing.T) {
 	scheme := &highV3.SecurityScheme{Type: "mutualTLS"}
 	log, warnings := captureWarnings()
 
-	assert.Nil(t, mapSecuritySchemeToAuth(scheme, log))
+	assert.Nil(t, mapSecuritySchemeToAuth(scheme, nil, log))
 	assert.Contains(t, warnings.String(), "mutualTLS")
 }
 
@@ -235,7 +266,7 @@ func TestMapSecuritySchemeToAuth_UnrecognisedType(t *testing.T) {
 	scheme := &highV3.SecurityScheme{Type: "quantumEntanglement"}
 	log, warnings := captureWarnings()
 
-	assert.Nil(t, mapSecuritySchemeToAuth(scheme, log))
+	assert.Nil(t, mapSecuritySchemeToAuth(scheme, nil, log))
 	assert.Contains(t, warnings.String(), "quantumEntanglement")
 }
 
@@ -248,14 +279,14 @@ func TestMapSecuritySchemeToAuth_OAuth2_DeviceFlowOnly(t *testing.T) {
 	}
 	log, warnings := captureWarnings()
 
-	assert.Nil(t, mapSecuritySchemeToAuth(scheme, log))
+	assert.Nil(t, mapSecuritySchemeToAuth(scheme, nil, log))
 	assert.Contains(t, warnings.String(), "device flow")
 }
 
 func TestMapSecuritySchemeToAuth_OAuth2_NoFlows(t *testing.T) {
 	log, warnings := captureWarnings()
 
-	assert.Nil(t, mapSecuritySchemeToAuth(&highV3.SecurityScheme{Type: "oauth2"}, log))
+	assert.Nil(t, mapSecuritySchemeToAuth(&highV3.SecurityScheme{Type: "oauth2"}, nil, log))
 	assert.Contains(t, warnings.String(), "no flows")
 }
 
@@ -263,7 +294,7 @@ func TestMapSecuritySchemeToAuth_OAuth2_NoSupportedFlow(t *testing.T) {
 	scheme := &highV3.SecurityScheme{Type: "oauth2", Flows: &highV3.OAuthFlows{}}
 	log, warnings := captureWarnings()
 
-	assert.Nil(t, mapSecuritySchemeToAuth(scheme, log))
+	assert.Nil(t, mapSecuritySchemeToAuth(scheme, nil, log))
 	assert.Contains(t, warnings.String(), "no supported flow")
 }
 
@@ -301,7 +332,7 @@ func TestResolveOperationAuth_OmitsWhenNoSchemeIsRepresentable(t *testing.T) {
 }
 
 func TestMapSecuritySchemeToAuth_Nil(t *testing.T) {
-	assert.Nil(t, mapSecuritySchemeToAuth(nil, testLog))
+	assert.Nil(t, mapSecuritySchemeToAuth(nil, nil, testLog))
 }
 
 func TestResolveCollectionAuth_FirstSchemeWins(t *testing.T) {

@@ -41,7 +41,7 @@ items:
                 type: oauth2
                 grantType: client_credentials
                 tokenUrl: https://id.warehouse.example/oauth2/token
-                scope: inventory:read inventory:write inventory:admin shipments:read shipments:write shipments:admin billing:read billing:write billing:admin webhooks:read webhooks:write webhooks:admin reports:read reports:write
+                scope: inventory:read
         - info:
             name: Create an item
             type: http
@@ -61,7 +61,7 @@ items:
                 type: oauth2
                 grantType: client_credentials
                 tokenUrl: https://id.warehouse.example/oauth2/token
-                scope: inventory:read inventory:write inventory:admin shipments:read shipments:write shipments:admin billing:read billing:write billing:admin webhooks:read webhooks:write webhooks:admin reports:read reports:write
+                scope: inventory:write
         - info:
             name: Replace an item
             type: http
@@ -84,7 +84,7 @@ items:
                 type: oauth2
                 grantType: client_credentials
                 tokenUrl: https://id.warehouse.example/oauth2/token
-                scope: inventory:read inventory:write inventory:admin shipments:read shipments:write shipments:admin billing:read billing:write billing:admin webhooks:read webhooks:write webhooks:admin reports:read reports:write
+                scope: inventory:write
         - info:
             name: Search items
             type: http
@@ -117,8 +117,7 @@ items:
                 type: oauth2
                 grantType: client_credentials
                 tokenUrl: https://id.warehouse.example/oauth2/token
-                scope: inventory:read inventory:write inventory:admin shipments:read shipments:write shipments:admin billing:read billing:write billing:admin webhooks:read webhooks:write webhooks:admin reports:read reports:write
-          docs: No example anywhere; the body has to come from the schema.
+          docs: No example anywhere, and no scopes requested, so the server applies its default.
         - info:
             name: Inventory health
             type: http
@@ -149,7 +148,7 @@ items:
                 grantType: authorization_code
                 authorizationUrl: https://id.warehouse.example/oauth2/authorize
                 tokenUrl: https://id.warehouse.example/oauth2/token
-                scope: shipments:read shipments:write
+                scope: shipments:read
         - info:
             name: Create a shipment
             type: http
@@ -169,7 +168,7 @@ items:
                 grantType: authorization_code
                 authorizationUrl: https://id.warehouse.example/oauth2/authorize
                 tokenUrl: https://id.warehouse.example/oauth2/token
-                scope: shipments:read shipments:write
+                scope: shipments:write
           docs: Body schema is self-referential, to exercise mock generation depth caps.
         - info:
             name: Get a shipment
@@ -378,7 +377,7 @@ items:
                 type: oauth2
                 grantType: client_credentials
                 tokenUrl: https://id.warehouse.example/oauth2/token
-                scope: inventory:read inventory:write inventory:admin shipments:read shipments:write shipments:admin billing:read billing:write billing:admin webhooks:read webhooks:write webhooks:admin reports:read reports:write
+                scope: billing:write
     - info:
         name: Webhooks
         type: folder
@@ -402,7 +401,7 @@ items:
                 type: oauth2
                 grantType: client_credentials
                 tokenUrl: https://id.warehouse.example/oauth2/token
-                scope: inventory:read inventory:write inventory:admin shipments:read shipments:write shipments:admin billing:read billing:write billing:admin webhooks:read webhooks:write webhooks:admin reports:read reports:write
+                scope: webhooks:write
         - info:
             name: Send a test event
             type: http
@@ -420,7 +419,7 @@ items:
                 type: oauth2
                 grantType: client_credentials
                 tokenUrl: https://id.warehouse.example/oauth2/token
-                scope: inventory:read inventory:write inventory:admin shipments:read shipments:write shipments:admin billing:read billing:write billing:admin webhooks:read webhooks:write webhooks:admin reports:read reports:write
+                scope: webhooks:write
           docs: Two schemes ANDed together; OpenCollection can only carry one.
         - info:
             name: Replay delivery
@@ -444,4 +443,4 @@ items:
                 type: oauth2
                 grantType: client_credentials
                 tokenUrl: https://id.warehouse.example/oauth2/token
-                scope: inventory:read inventory:write inventory:admin shipments:read shipments:write shipments:admin billing:read billing:write billing:admin webhooks:read webhooks:write webhooks:admin reports:read reports:write
+                scope: webhooks:write
