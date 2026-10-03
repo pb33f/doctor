@@ -1,0 +1,4 @@
+node_modules/
+
+# written by diagramatron/validate_polymorphic_specs_test.go
+test_specs/*-diagram.mmd
