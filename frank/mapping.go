@@ -20,9 +20,6 @@ import (
 var nonAlnum = regexp.MustCompile(`[^a-z0-9]+`)
 var paramBracePattern = regexp.MustCompile(`\{([^}]+)\}`)
 
-// authInherit is the only string OpenCollection accepts in place of an auth object.
-const authInherit = "inherit"
-
 type selectedRequestBody struct {
 	contentType string
 	mediaType   *highV3.MediaType
@@ -145,7 +142,7 @@ func sanitizeVarName(name string) string {
 // scopes come from the security requirement, not the scheme. For oauth2 that is the
 // set the token is requested with, which is usually far smaller than the set the
 // scheme advertises.
-func mapSecuritySchemeToAuth(scheme *highV3.SecurityScheme, scopes []string, log *slog.Logger) *Auth {
+func mapSecuritySchemeToAuth(scheme *highV3.SecurityScheme, scopes []string, log *slog.Logger) AuthConfig {
 	if scheme == nil {
 		return nil
 	}
@@ -181,7 +178,10 @@ func mapSecuritySchemeToAuth(scheme *highV3.SecurityScheme, scopes []string, log
 			Placement: placement,
 		}
 	case "oauth2":
-		return mapOAuth2ToAuth(scheme.Flows, scopes, log)
+		if auth := mapOAuth2ToAuth(scheme.Flows, scopes, log); auth != nil {
+			return auth
+		}
+		return nil
 	case "openIdConnect":
 		log.Warn("openIdConnect discovery URL dropped; OpenCollection has no openIdConnect auth type, mapping to bearer",
 			"openIdConnectUrl", scheme.OpenIdConnectUrl)
@@ -194,27 +194,34 @@ func mapSecuritySchemeToAuth(scheme *highV3.SecurityScheme, scopes []string, log
 	return nil
 }
 
+// Placeholder variable names match the ones Bruno's own OpenAPI importer emits, so a
+// collection generated here and one imported there want the same environment.
+const (
+	oauthClientID     = "{{oauth_client_id}}"
+	oauthClientSecret = "{{oauth_client_secret}}"
+	oauthCallbackURL  = "{{oauth_callback_url}}"
+	oauthState        = "{{oauth_state}}"
+	oauthUsername     = "{{oauth_username}}"
+	oauthPassword     = "{{oauth_password}}"
+)
+
 // mapOAuth2ToAuth maps OAuth2 flows to the best OC Auth representation.
-func mapOAuth2ToAuth(flows *highV3.OAuthFlows, scopes []string, log *slog.Logger) *Auth {
+func mapOAuth2ToAuth(flows *highV3.OAuthFlows, scopes []string, log *slog.Logger) *AuthOAuth2 {
 	if flows == nil {
 		log.Warn("oauth2 security scheme ignored; it declares no flows")
 		return nil
 	}
-	// preference order: authorization_code > client_credentials > password > implicit (fallback to auth_code)
-	if flows.AuthorizationCode != nil {
-		return mapOAuthFlow(flows.AuthorizationCode, "authorization_code", scopes)
-	}
-	if flows.ClientCredentials != nil {
-		return mapOAuthFlow(flows.ClientCredentials, "client_credentials", scopes)
-	}
-	if flows.Password != nil {
-		return mapOAuthFlow(flows.Password, "password", scopes)
-	}
-	if flows.Implicit != nil {
-		// implicit falls back to authorization_code (closest equivalent)
-		return mapOAuthFlow(flows.Implicit, "authorization_code", scopes)
-	}
-	if flows.Device != nil {
+	// preference order: authorization_code > client_credentials > password > implicit
+	switch {
+	case flows.AuthorizationCode != nil:
+		return mapAuthorizationCodeFlow(flows.AuthorizationCode, scopes)
+	case flows.ClientCredentials != nil:
+		return mapClientCredentialsFlow(flows.ClientCredentials, scopes)
+	case flows.Password != nil:
+		return mapPasswordFlow(flows.Password, scopes)
+	case flows.Implicit != nil:
+		return mapImplicitFlow(flows.Implicit, scopes)
+	case flows.Device != nil:
 		log.Warn("oauth2 device flow ignored; OpenCollection supports client_credentials, resource_owner_password_credentials, authorization_code and implicit")
 		return nil
 	}
@@ -222,22 +229,75 @@ func mapOAuth2ToAuth(flows *highV3.OAuthFlows, scopes []string, log *slog.Logger
 	return nil
 }
 
-// mapOAuthFlow maps a single OAuthFlow to an Auth struct.
-func mapOAuthFlow(flow *highV3.OAuthFlow, grantType string, scopes []string) *Auth {
-	auth := &Auth{
-		Type:      "oauth2",
-		GrantType: grantType,
+func mapClientCredentialsFlow(flow *highV3.OAuthFlow, scopes []string) *AuthOAuth2 {
+	return &AuthOAuth2{
+		Type:            "oauth2",
+		Flow:            "client_credentials",
+		AccessTokenURL:  flow.TokenUrl,
+		RefreshTokenURL: flow.RefreshUrl,
+		Credentials:     clientCredentials(),
+		Scope:           strings.Join(scopes, " "),
+		Settings:        defaultOAuth2Settings(),
 	}
-	if flow.AuthorizationUrl != "" {
-		auth.AuthorizationURL = flow.AuthorizationUrl
+}
+
+func mapPasswordFlow(flow *highV3.OAuthFlow, scopes []string) *AuthOAuth2 {
+	return &AuthOAuth2{
+		Type:            "oauth2",
+		Flow:            "resource_owner_password_credentials",
+		AccessTokenURL:  flow.TokenUrl,
+		RefreshTokenURL: flow.RefreshUrl,
+		Credentials:     clientCredentials(),
+		ResourceOwner:   &OAuth2ResourceOwner{Username: oauthUsername, Password: oauthPassword},
+		Scope:           strings.Join(scopes, " "),
+		Settings:        defaultOAuth2Settings(),
 	}
-	if flow.TokenUrl != "" {
-		auth.TokenURL = flow.TokenUrl
+}
+
+func mapAuthorizationCodeFlow(flow *highV3.OAuthFlow, scopes []string) *AuthOAuth2 {
+	return &AuthOAuth2{
+		Type:             "oauth2",
+		Flow:             "authorization_code",
+		AuthorizationURL: flow.AuthorizationUrl,
+		AccessTokenURL:   flow.TokenUrl,
+		RefreshTokenURL:  flow.RefreshUrl,
+		CallbackURL:      oauthCallbackURL,
+		Credentials:      clientCredentials(),
+		Scope:            strings.Join(scopes, " "),
+		State:            oauthState,
+		Settings:         defaultOAuth2Settings(),
 	}
-	// an empty requirement means the authorization server applies its default scope,
-	// so the key is left off rather than sent empty
-	auth.Scope = strings.Join(scopes, " ")
-	return auth
+}
+
+// The implicit flow has no token endpoint, and its credentials object accepts only
+// clientId. Setting anything else here makes the document invalid.
+func mapImplicitFlow(flow *highV3.OAuthFlow, scopes []string) *AuthOAuth2 {
+	return &AuthOAuth2{
+		Type:             "oauth2",
+		Flow:             "implicit",
+		AuthorizationURL: flow.AuthorizationUrl,
+		CallbackURL:      oauthCallbackURL,
+		Credentials:      &OAuth2Credentials{ClientID: oauthClientID},
+		Scope:            strings.Join(scopes, " "),
+		State:            oauthState,
+		Settings:         defaultOAuth2Settings(),
+	}
+}
+
+// OpenAPI has no field for a client secret, so frank emits placeholders. Nor does it
+// say where the authorization server wants them, and RFC 6749 section 2.3.1 requires
+// every server to accept HTTP Basic while making the request body optional and
+// discouraged, so Basic is the safer default.
+func clientCredentials() *OAuth2Credentials {
+	return &OAuth2Credentials{
+		ClientID:     oauthClientID,
+		ClientSecret: oauthClientSecret,
+		Placement:    "basic_auth_header",
+	}
+}
+
+func defaultOAuth2Settings() *OAuth2Settings {
+	return &OAuth2Settings{AutoFetchToken: true, AutoRefreshToken: true}
 }
 
 // resolveCollectionAuth resolves document-level security to a collection Auth.
@@ -246,7 +306,7 @@ func resolveCollectionAuth(
 	docSecurity []*highBase.SecurityRequirement,
 	securitySchemes *orderedmap.Map[string, *highV3.SecurityScheme],
 	log *slog.Logger,
-) *Auth {
+) AuthConfig {
 	if len(docSecurity) == 0 || securitySchemes == nil {
 		return nil
 	}
@@ -260,24 +320,24 @@ func resolveCollectionAuth(
 }
 
 // resolveOperationAuth resolves per-operation auth.
-// returns authInherit if no op security, nil if security: [] or the scheme cannot be
-// represented, or an *Auth. A nil result means the auth key is omitted entirely —
-// OpenCollection has no variant for "no auth".
+// returns AuthInherit if no op security, nil if security: [] or the scheme cannot be
+// represented, or an auth block. A nil result means the auth key is omitted entirely,
+// since OpenCollection has no variant for "no auth".
 func resolveOperationAuth(
 	opSecurity []*highBase.SecurityRequirement,
 	securitySchemes *orderedmap.Map[string, *highV3.SecurityScheme],
 	log *slog.Logger,
-) any {
+) AuthConfig {
 	// no security field on operation -> inherit from collection
 	if opSecurity == nil {
-		return authInherit
+		return AuthInherit{}
 	}
 	// security: [] -> explicit opt-out
 	if len(opSecurity) == 0 {
 		return nil
 	}
 	if securitySchemes == nil {
-		return authInherit
+		return AuthInherit{}
 	}
 	// if any requirement is empty {}, anonymous access is allowed (requirements are OR-ed)
 	for _, req := range opSecurity {
@@ -298,7 +358,7 @@ func firstSupportedAuth(
 	security []*highBase.SecurityRequirement,
 	securitySchemes *orderedmap.Map[string, *highV3.SecurityScheme],
 	log *slog.Logger,
-) *Auth {
+) AuthConfig {
 	for _, req := range security {
 		if req.Requirements.Len() > 1 {
 			log.Warn("security requirement with multiple schemes (AND) simplified to first scheme; OpenCollection supports one auth type per request")
