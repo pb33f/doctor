@@ -64,7 +64,12 @@ items:
                   value: application/json
             body:
                 type: json
-                data: '{"name":"Widget","quantity":12,"sku":"WID-001"}'
+                data: |-
+                    {
+                      "name": "Widget",
+                      "quantity": 12,
+                      "sku": "WID-001"
+                    }
             auth:
                 type: oauth2
                 flow: client_credentials
@@ -96,6 +101,12 @@ items:
                   value: application/json
             body:
                 type: json
+                data: |-
+                    {
+                      "name": "Widget",
+                      "quantity": 500,
+                      "sku": "WID-001"
+                    }
             auth:
                 type: oauth2
                 flow: client_credentials
@@ -137,6 +148,17 @@ items:
                   value: application/json
             body:
                 type: json
+                data: |-
+                    {
+                      "dryRun": true,
+                      "items": [
+                        {
+                          "name": "crowing",
+                          "quantity": 70,
+                          "sku": "ossifrage"
+                        }
+                      ]
+                    }
             auth:
                 type: oauth2
                 flow: client_credentials
@@ -205,6 +227,12 @@ items:
                   value: application/json
             body:
                 type: json
+                data: |-
+                    {
+                      "contents": [],
+                      "reference": "radicule",
+                      "weightKg": 51
+                    }
             auth:
                 type: oauth2
                 flow: authorization_code
@@ -314,6 +342,11 @@ items:
                   value: application/json
             body:
                 type: json
+                data: |-
+                    {
+                      "destination": "GB",
+                      "weightKg": 2.5
+                    }
             auth:
                 type: oauth2
                 flow: implicit
@@ -392,6 +425,11 @@ items:
                   value: application/json
             body:
                 type: json
+                data: |-
+                    {
+                      "method": "bank_transfer",
+                      "reference": "verminy"
+                    }
             auth:
                 type: digest
                 username: '{{username}}'
@@ -442,6 +480,11 @@ items:
                   value: application/x-www-form-urlencoded
             body:
                 type: form-urlencoded
+                data:
+                    - name: invoiceId
+                      value: ""
+                    - name: amountMinor
+                      value: "0"
             auth:
                 type: oauth2
                 flow: client_credentials
@@ -474,6 +517,7 @@ items:
                   value: application/xml
             body:
                 type: xml
+                data: ""
             auth:
                 type: oauth2
                 flow: client_credentials
@@ -532,6 +576,13 @@ items:
                   value: multipart/form-data
             body:
                 type: multipart-form
+                data:
+                    - name: deliveryIds
+                      type: text
+                      value: ""
+                    - name: attachment
+                      type: file
+                      value: ""
             auth:
                 type: oauth2
                 flow: client_credentials
