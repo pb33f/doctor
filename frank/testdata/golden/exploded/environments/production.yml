@@ -1,0 +1,4 @@
+name: production
+variables:
+    - name: baseUrl
+      value: https://api.warehouse.example/v2

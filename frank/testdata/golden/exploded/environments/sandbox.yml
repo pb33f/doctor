@@ -1,0 +1,6 @@
+name: sandbox
+variables:
+    - name: baseUrl
+      value: https://{{tenant}}.sandbox.warehouse.example/v2
+    - name: tenant
+      value: pb33f
