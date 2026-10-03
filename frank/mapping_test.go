@@ -11,12 +11,21 @@ import (
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	highV3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"github.com/pb33f/libopenapi/renderer"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
 	"go.yaml.in/yaml/v4"
 )
 
 var testLog = slog.Default()
+
+func yamlNode(value string) *yaml.Node {
+	var node yaml.Node
+	if err := yaml.Unmarshal([]byte(value), &node); err != nil {
+		panic(err)
+	}
+	return node.Content[0]
+}
 
 func captureWarnings() (*slog.Logger, *bytes.Buffer) {
 	buf := &bytes.Buffer{}
@@ -503,9 +512,92 @@ func TestBuildHeaders_ContentTypeMatchesSelectedBody(t *testing.T) {
 	assert.Equal(t, "Content-Type", headers[0].Name)
 	assert.Equal(t, "application/json", headers[0].Value)
 
-	body := buildBody(selected)
-	require.NotNil(t, body)
+	f := &Frank{log: testLog, bodyGenJSON: newBodyGenerator(renderer.JSON)}
+	body, ok := f.buildBody(selected, "someOperation").(*RawBody)
+	require.True(t, ok)
 	assert.Equal(t, "json", body.Type)
+}
+
+func TestBuildBody_FormFieldsComeFromSchemaProperties(t *testing.T) {
+	properties := orderedmap.New[string, *highBase.SchemaProxy]()
+	properties.Set("invoiceId", highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"string"}}))
+	properties.Set("amountMinor", highBase.CreateSchemaProxy(&highBase.Schema{
+		Type:    []string{"integer"},
+		Default: yamlNode("500"),
+	}))
+	mt := &highV3.MediaType{Schema: highBase.CreateSchemaProxy(&highBase.Schema{Properties: properties})}
+
+	f := &Frank{log: testLog}
+	body, ok := f.buildBody(&selectedRequestBody{bodyType: "form-urlencoded", mediaType: mt}, "issueCredit").(*FormUrlEncodedBody)
+	require.True(t, ok)
+	assert.Equal(t, "form-urlencoded", body.Type)
+	assert.Equal(t, []FormField{
+		{Name: "invoiceId", Value: ""},
+		{Name: "amountMinor", Value: "500"},
+	}, body.Data)
+}
+
+func TestBuildBody_MultipartMarksBinaryPartsAsFiles(t *testing.T) {
+	properties := orderedmap.New[string, *highBase.SchemaProxy]()
+	properties.Set("deliveryIds", highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"string"}}))
+	properties.Set("attachment", highBase.CreateSchemaProxy(&highBase.Schema{
+		Type:   []string{"string"},
+		Format: "binary",
+	}))
+	mt := &highV3.MediaType{Schema: highBase.CreateSchemaProxy(&highBase.Schema{Properties: properties})}
+
+	f := &Frank{log: testLog}
+	body, ok := f.buildBody(&selectedRequestBody{bodyType: "multipart-form", mediaType: mt}, "replayWebhook").(*MultipartFormBody)
+	require.True(t, ok)
+	assert.Equal(t, []MultipartField{
+		{Name: "deliveryIds", Type: "text", Value: ""},
+		{Name: "attachment", Type: "file"},
+	}, body.Data)
+}
+
+func TestBuildBody_PrefersTheExampleDeclaredInTheSpec(t *testing.T) {
+	mt := &highV3.MediaType{
+		Schema:  highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"object"}}),
+		Example: yamlNode(`{"sku": "WID-001"}`),
+	}
+
+	f := &Frank{log: testLog, bodyGenJSON: newBodyGenerator(renderer.JSON)}
+	body, ok := f.buildBody(&selectedRequestBody{bodyType: "json", mediaType: mt}, "createItem").(*RawBody)
+	require.True(t, ok)
+	assert.Contains(t, body.Data, "WID-001")
+}
+
+func TestBuildBody_DerivesFromTheSchemaWhenNoExampleExists(t *testing.T) {
+	properties := orderedmap.New[string, *highBase.SchemaProxy]()
+	properties.Set("sku", highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"string"}}))
+	mt := &highV3.MediaType{Schema: highBase.CreateSchemaProxy(&highBase.Schema{
+		Type:       []string{"object"},
+		Properties: properties,
+	})}
+
+	f := &Frank{log: testLog, bodyGenJSON: newBodyGenerator(renderer.JSON)}
+	body, ok := f.buildBody(&selectedRequestBody{bodyType: "json", mediaType: mt}, "createItem").(*RawBody)
+	require.True(t, ok)
+	assert.Contains(t, body.Data, "sku")
+}
+
+func TestBuildBody_SeedsFromTheOperationSoDataIsStable(t *testing.T) {
+	newMediaType := func() *highV3.MediaType {
+		properties := orderedmap.New[string, *highBase.SchemaProxy]()
+		properties.Set("sku", highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"string"}}))
+		return &highV3.MediaType{Schema: highBase.CreateSchemaProxy(&highBase.Schema{
+			Type:       []string{"object"},
+			Properties: properties,
+		})}
+	}
+
+	f := &Frank{log: testLog, bodyGenJSON: newBodyGenerator(renderer.JSON)}
+	first := f.buildBody(&selectedRequestBody{bodyType: "json", mediaType: newMediaType()}, "createItem").(*RawBody)
+	second := f.buildBody(&selectedRequestBody{bodyType: "json", mediaType: newMediaType()}, "createItem").(*RawBody)
+	other := f.buildBody(&selectedRequestBody{bodyType: "json", mediaType: newMediaType()}, "createShipment").(*RawBody)
+
+	assert.Equal(t, first.Data, second.Data)
+	assert.NotEqual(t, first.Data, other.Data, "a different operation should seed differently")
 }
 
 func TestDeriveEnvironmentName(t *testing.T) {

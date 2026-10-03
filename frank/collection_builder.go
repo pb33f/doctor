@@ -116,7 +116,7 @@ func (f *Frank) processOperation(path, method string, op *v3.Operation, pathItem
 			URL:     buildURL(path),
 			Params:  buildParams(opParams, piParams),
 			Headers: buildHeaders(opParams, piParams, selected, responses),
-			Body:    buildBody(selected),
+			Body:    f.buildBody(selected, opVal.OperationId),
 			Auth:    resolveOperationAuth(opVal.Security, f.securitySchemes, f.log),
 		},
 		FileName: buildRequestFileName(opVal.OperationId, method, path),

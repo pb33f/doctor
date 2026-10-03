@@ -6,11 +6,14 @@ package frank
 import (
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
+	"iter"
 	"log/slog"
 	"regexp"
 	"strings"
 	"unicode"
 
+	"github.com/pb33f/doctor/internal/mocks"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	highV3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
@@ -483,6 +486,25 @@ func deriveHeaderValue(p *highV3.Parameter) string {
 	return deriveSchemaValue(p, false)
 }
 
+func schemaValue(s *highBase.Schema) string {
+	if s == nil {
+		return ""
+	}
+	if s.Example != nil {
+		return renderYAMLNode(s.Example)
+	}
+	if s.Default != nil {
+		return renderYAMLNode(s.Default)
+	}
+	if len(s.Enum) > 0 {
+		return renderYAMLNode(s.Enum[0])
+	}
+	if len(s.Type) > 0 {
+		return typePlaceholder(s.Type[0])
+	}
+	return ""
+}
+
 // deriveSchemaValue extracts a value from a parameter's example or schema.
 // when includeEnum is true, enum[0] is tried before type placeholders.
 func deriveSchemaValue(p *highV3.Parameter, includeEnum bool) string {
@@ -641,26 +663,103 @@ func matchesContentTypePreference(contentType, preferred string) bool {
 }
 
 // buildBody maps request body to an OC RequestBody.
-func buildBody(selected *selectedRequestBody) *RequestBody {
+func (f *Frank) buildBody(selected *selectedRequestBody, operationID string) RequestBody {
 	if selected == nil {
 		return nil
 	}
 
-	return &RequestBody{
-		Type: selected.bodyType,
-		Data: extractBodyData(selected.mediaType),
+	switch selected.bodyType {
+	case "form-urlencoded":
+		return &FormUrlEncodedBody{Type: selected.bodyType, Data: buildFormFields(selected.mediaType)}
+	case "multipart-form":
+		return &MultipartFormBody{Type: selected.bodyType, Data: buildMultipartFields(selected.mediaType)}
+	default:
+		return &RawBody{Type: selected.bodyType, Data: f.renderBodyData(selected, operationID)}
 	}
 }
 
-// extractBodyData tries to extract example data from a media type.
-func extractBodyData(mt *highV3.MediaType) string {
-	if mt == nil {
+// The generator prefers examples declared in the spec and only derives a payload
+// from the schema when there are none.
+//
+// Only JSON is generated. libopenapi's XML renderer walks a Go map to emit child
+// elements (renderer/mock_generator_xml.go:208), so element order changes between
+// runs. Other raw types fall back to the example the spec declares.
+func (f *Frank) renderBodyData(selected *selectedRequestBody, operationID string) string {
+	if selected.mediaType == nil {
 		return ""
 	}
-	if mt.Example != nil {
-		return renderYAMLNode(mt.Example)
+	if selected.bodyType != "json" {
+		if selected.mediaType.Example != nil {
+			return renderYAMLNode(selected.mediaType.Example)
+		}
+		return ""
 	}
-	return ""
+
+	gen := f.bodyGenJSON
+	if gen == nil {
+		return ""
+	}
+
+	// Values are random, so without a per-operation seed every regeneration would
+	// rewrite every body.
+	gen.SetSeed(bodySeed(operationID))
+
+	warn := func(message, context string, err error) {
+		f.log.Warn(message, "operation", context, "error", err)
+	}
+
+	data, err := mocks.SafeGenerate(gen, selected.mediaType, operationID, maxGeneratedBodyBytes, warn)
+	if err != nil || data == nil {
+		return ""
+	}
+	return string(data)
+}
+
+func bodySeed(operationID string) int64 {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(operationID))
+	return int64(h.Sum64())
+}
+
+func buildFormFields(mt *highV3.MediaType) []FormField {
+	var fields []FormField
+	for name, prop := range bodyProperties(mt) {
+		fields = append(fields, FormField{Name: name, Value: schemaValue(prop)})
+	}
+	return fields
+}
+
+func buildMultipartFields(mt *highV3.MediaType) []MultipartField {
+	var fields []MultipartField
+	for name, prop := range bodyProperties(mt) {
+		part := MultipartField{Name: name, Type: "text", Value: schemaValue(prop)}
+		if prop != nil && prop.Format == "binary" {
+			part.Type = "file"
+			part.Value = ""
+		}
+		fields = append(fields, part)
+	}
+	return fields
+}
+
+func bodyProperties(mt *highV3.MediaType) iter.Seq2[string, *highBase.Schema] {
+	return func(yield func(string, *highBase.Schema) bool) {
+		if mt == nil || mt.Schema == nil {
+			return
+		}
+		s := mt.Schema.Schema()
+		if s == nil || s.Properties == nil {
+			return
+		}
+		for name, proxy := range s.Properties.FromOldest() {
+			if proxy == nil {
+				continue
+			}
+			if !yield(name, proxy.Schema()) {
+				return
+			}
+		}
+	}
 }
 
 // mapContentType maps a MIME type to an OC body type string.
