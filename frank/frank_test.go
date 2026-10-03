@@ -111,8 +111,9 @@ components:
 
 	// collection-level auth
 	require.NotNil(t, result.Collection.Request)
-	require.NotNil(t, result.Collection.Request.Auth)
-	assert.Equal(t, "bearer", result.Collection.Request.Auth.Type)
+	collectionAuth, ok := result.Collection.Request.Auth.(*Auth)
+	require.True(t, ok)
+	assert.Equal(t, "bearer", collectionAuth.Type)
 
 	// environments
 	require.Len(t, result.Environments, 1)
@@ -134,7 +135,7 @@ components:
 	assert.Equal(t, "http", listPets.Info.Type)
 	assert.Equal(t, "GET", listPets.HTTP.Method)
 	assert.Equal(t, "{{baseUrl}}/pets", listPets.HTTP.URL)
-	assert.Equal(t, "inherit", listPets.HTTP.Auth)
+	assert.Equal(t, AuthInherit{}, listPets.HTTP.Auth)
 
 	// query param
 	require.NotEmpty(t, listPets.HTTP.Params)
@@ -232,14 +233,15 @@ components:
 
 	// collection-level auth should be apikey
 	require.NotNil(t, result.Collection.Request)
-	require.NotNil(t, result.Collection.Request.Auth)
-	assert.Equal(t, "apikey", result.Collection.Request.Auth.Type)
-	assert.Equal(t, "X-API-Key", result.Collection.Request.Auth.Key)
-	assert.Equal(t, "header", result.Collection.Request.Auth.Placement)
+	collectionAuth, ok := result.Collection.Request.Auth.(*Auth)
+	require.True(t, ok)
+	assert.Equal(t, "apikey", collectionAuth.Type)
+	assert.Equal(t, "X-API-Key", collectionAuth.Key)
+	assert.Equal(t, "header", collectionAuth.Placement)
 
 	// operation should inherit
 	require.Len(t, result.Folders, 1)
-	assert.Equal(t, "inherit", result.Folders[0].Requests[0].HTTP.Auth)
+	assert.Equal(t, AuthInherit{}, result.Folders[0].Requests[0].HTTP.Auth)
 }
 
 func TestGenerate_SecurityNone(t *testing.T) {
@@ -308,7 +310,9 @@ components:
 	require.NoError(t, err)
 
 	// collection should have bearer
-	assert.Equal(t, "bearer", result.Collection.Request.Auth.Type)
+	collectionAuth, ok := result.Collection.Request.Auth.(*Auth)
+	require.True(t, ok)
+	assert.Equal(t, "bearer", collectionAuth.Type)
 
 	// operation should override with apikey
 	require.Len(t, result.Folders, 1)
@@ -654,7 +658,7 @@ components:
 	assert.Nil(t, result.Folders[0].Requests[0].HTTP.Auth)
 
 	// operation with no security field should inherit
-	assert.Equal(t, "inherit", result.Folders[0].Requests[1].HTTP.Auth)
+	assert.Equal(t, AuthInherit{}, result.Folders[0].Requests[1].HTTP.Auth)
 }
 
 func TestGenerate_FolderSlugDedup(t *testing.T) {
@@ -877,7 +881,7 @@ components:
 	assert.Nil(t, result.Folders[0].Requests[0].HTTP.Auth)
 
 	// operation with no security field should inherit
-	assert.Equal(t, "inherit", result.Folders[0].Requests[1].HTTP.Auth)
+	assert.Equal(t, AuthInherit{}, result.Folders[0].Requests[1].HTTP.Auth)
 }
 
 func TestGenerate_AcceptPrefers2xx(t *testing.T) {
