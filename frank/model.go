@@ -29,7 +29,7 @@ type CollectionAuthor struct {
 
 // CollectionRequest holds collection-level request defaults.
 type CollectionRequest struct {
-	Auth *Auth `yaml:"auth,omitempty"`
+	Auth AuthConfig `yaml:"auth,omitempty"`
 }
 
 // BrunoExtensions holds Bruno-specific configuration.
@@ -76,7 +76,7 @@ type RequestHTTP struct {
 	Params  []RequestParam  `yaml:"params,omitempty"`
 	Headers []RequestHeader `yaml:"headers,omitempty"`
 	Body    *RequestBody    `yaml:"body,omitempty"`
-	Auth    any             `yaml:"auth,omitempty"`
+	Auth    AuthConfig      `yaml:"auth,omitempty"`
 }
 
 // RequestParam represents a query or path parameter.
@@ -101,20 +101,70 @@ type RequestBody struct {
 	Data string `yaml:"data,omitempty"`
 }
 
+// AuthConfig is the set of values an auth field can hold. The marker method is
+// unexported, so nothing outside this package can add a variant.
+type AuthConfig interface {
+	isAuthConfig()
+}
+
+// AuthInherit renders as the string "inherit", the only non-object value
+// OpenCollection accepts for auth.
+type AuthInherit struct{}
+
+func (AuthInherit) MarshalYAML() (any, error) { return "inherit", nil }
+
+func (AuthInherit) isAuthConfig() {}
+func (*Auth) isAuthConfig()       {}
+func (*AuthOAuth2) isAuthConfig() {}
+
 // Auth represents authentication configuration, discriminated by the Type field.
+// It covers the auth types whose fields are flat: bearer, basic, digest and apikey.
+// oauth2 nests its configuration and differs per flow, so it has its own type.
 type Auth struct {
-	Type             string `yaml:"type"`
-	Token            string `yaml:"token,omitempty"`
-	Username         string `yaml:"username,omitempty"`
-	Password         string `yaml:"password,omitempty"`
-	Key              string `yaml:"key,omitempty"`
-	Value            string `yaml:"value,omitempty"`
-	Placement        string `yaml:"placement,omitempty"`
-	GrantType        string `yaml:"grantType,omitempty"`
-	AuthorizationURL string `yaml:"authorizationUrl,omitempty"`
-	TokenURL         string `yaml:"tokenUrl,omitempty"`
-	CallbackURL      string `yaml:"callbackUrl,omitempty"`
-	Scope            string `yaml:"scope,omitempty"`
+	Type      string `yaml:"type"`
+	Token     string `yaml:"token,omitempty"`
+	Username  string `yaml:"username,omitempty"`
+	Password  string `yaml:"password,omitempty"`
+	Key       string `yaml:"key,omitempty"`
+	Value     string `yaml:"value,omitempty"`
+	Placement string `yaml:"placement,omitempty"`
+}
+
+// AuthOAuth2 represents an oauth2 auth block. Each flow permits a different set of
+// fields and OpenCollection rejects any it does not recognise, so the mapper sets
+// only the ones its flow allows.
+type AuthOAuth2 struct {
+	Type             string               `yaml:"type"`
+	Flow             string               `yaml:"flow"`
+	AuthorizationURL string               `yaml:"authorizationUrl,omitempty"`
+	AccessTokenURL   string               `yaml:"accessTokenUrl,omitempty"`
+	RefreshTokenURL  string               `yaml:"refreshTokenUrl,omitempty"`
+	CallbackURL      string               `yaml:"callbackUrl,omitempty"`
+	Credentials      *OAuth2Credentials   `yaml:"credentials,omitempty"`
+	ResourceOwner    *OAuth2ResourceOwner `yaml:"resourceOwner,omitempty"`
+	Scope            string               `yaml:"scope,omitempty"`
+	State            string               `yaml:"state,omitempty"`
+	Settings         *OAuth2Settings      `yaml:"settings,omitempty"`
+}
+
+// OAuth2Credentials holds the client credentials. The implicit flow accepts only
+// clientId, so the other two fields stay empty there.
+type OAuth2Credentials struct {
+	ClientID     string `yaml:"clientId,omitempty"`
+	ClientSecret string `yaml:"clientSecret,omitempty"`
+	Placement    string `yaml:"placement,omitempty"`
+}
+
+// OAuth2ResourceOwner holds the end-user credentials for the password flow.
+type OAuth2ResourceOwner struct {
+	Username string `yaml:"username,omitempty"`
+	Password string `yaml:"password,omitempty"`
+}
+
+// OAuth2Settings controls Bruno's token handling.
+type OAuth2Settings struct {
+	AutoFetchToken   bool `yaml:"autoFetchToken"`
+	AutoRefreshToken bool `yaml:"autoRefreshToken"`
 }
 
 // Environment represents an environment .yml file.

@@ -39,9 +39,17 @@ items:
                   value: ""
             auth:
                 type: oauth2
-                grantType: client_credentials
-                tokenUrl: https://id.warehouse.example/oauth2/token
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
                 scope: inventory:read
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
         - info:
             name: Create an item
             type: http
@@ -59,9 +67,17 @@ items:
                 data: '{"name":"Widget","quantity":12,"sku":"WID-001"}'
             auth:
                 type: oauth2
-                grantType: client_credentials
-                tokenUrl: https://id.warehouse.example/oauth2/token
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
                 scope: inventory:write
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
         - info:
             name: Replace an item
             type: http
@@ -82,9 +98,17 @@ items:
                 type: json
             auth:
                 type: oauth2
-                grantType: client_credentials
-                tokenUrl: https://id.warehouse.example/oauth2/token
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
                 scope: inventory:write
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
         - info:
             name: Search items
             type: http
@@ -115,8 +139,16 @@ items:
                 type: json
             auth:
                 type: oauth2
-                grantType: client_credentials
-                tokenUrl: https://id.warehouse.example/oauth2/token
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
           docs: No example anywhere, and no scopes requested, so the server applies its default.
         - info:
             name: Inventory health
@@ -145,10 +177,20 @@ items:
             url: '{{baseUrl}}/shipments'
             auth:
                 type: oauth2
-                grantType: authorization_code
+                flow: authorization_code
                 authorizationUrl: https://id.warehouse.example/oauth2/authorize
-                tokenUrl: https://id.warehouse.example/oauth2/token
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                callbackUrl: '{{oauth_callback_url}}'
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
                 scope: shipments:read
+                state: '{{oauth_state}}'
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
         - info:
             name: Create a shipment
             type: http
@@ -165,10 +207,20 @@ items:
                 type: json
             auth:
                 type: oauth2
-                grantType: authorization_code
+                flow: authorization_code
                 authorizationUrl: https://id.warehouse.example/oauth2/authorize
-                tokenUrl: https://id.warehouse.example/oauth2/token
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                callbackUrl: '{{oauth_callback_url}}'
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
                 scope: shipments:write
+                state: '{{oauth_state}}'
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
           docs: Body schema is self-referential, to exercise mock generation depth caps.
         - info:
             name: Get a shipment
@@ -235,9 +287,19 @@ items:
                   type: path
             auth:
                 type: oauth2
-                grantType: password
-                tokenUrl: https://id.warehouse.example/oauth2/token
+                flow: resource_owner_password_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
+                resourceOwner:
+                    username: '{{oauth_username}}'
+                    password: '{{oauth_password}}'
                 scope: shipments:write
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
         - info:
             name: Quote a shipment
             type: http
@@ -254,9 +316,16 @@ items:
                 type: json
             auth:
                 type: oauth2
-                grantType: authorization_code
+                flow: implicit
                 authorizationUrl: https://id.warehouse.example/oauth2/authorize
+                callbackUrl: '{{oauth_callback_url}}'
+                credentials:
+                    clientId: '{{oauth_client_id}}'
                 scope: shipments:read
+                state: '{{oauth_state}}'
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
         - info:
             name: Shipment events
             type: http
@@ -375,9 +444,17 @@ items:
                 type: form-urlencoded
             auth:
                 type: oauth2
-                grantType: client_credentials
-                tokenUrl: https://id.warehouse.example/oauth2/token
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
                 scope: billing:write
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
     - info:
         name: Webhooks
         type: folder
@@ -399,9 +476,17 @@ items:
                 type: xml
             auth:
                 type: oauth2
-                grantType: client_credentials
-                tokenUrl: https://id.warehouse.example/oauth2/token
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
                 scope: webhooks:write
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
         - info:
             name: Send a test event
             type: http
@@ -417,9 +502,17 @@ items:
                   type: path
             auth:
                 type: oauth2
-                grantType: client_credentials
-                tokenUrl: https://id.warehouse.example/oauth2/token
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
                 scope: webhooks:write
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
           docs: Two schemes ANDed together; OpenCollection can only carry one.
         - info:
             name: Replay delivery
@@ -441,6 +534,14 @@ items:
                 type: multipart-form
             auth:
                 type: oauth2
-                grantType: client_credentials
-                tokenUrl: https://id.warehouse.example/oauth2/token
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
                 scope: webhooks:write
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
