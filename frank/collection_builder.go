@@ -117,7 +117,7 @@ func (f *Frank) processOperation(path, method string, op *v3.Operation, pathItem
 			Params:  buildParams(opParams, piParams),
 			Headers: buildHeaders(opParams, piParams, selected, responses),
 			Body:    buildBody(selected),
-			Auth:    resolveOperationAuth(opVal.Security, f.docSecurity, f.securitySchemes, f.log),
+			Auth:    resolveOperationAuth(opVal.Security, f.securitySchemes, f.log),
 		},
 		FileName: buildRequestFileName(opVal.OperationId, method, path),
 	}

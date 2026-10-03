@@ -4,6 +4,7 @@
 package frank
 
 import (
+	"bytes"
 	"log/slog"
 	"testing"
 
@@ -16,6 +17,12 @@ import (
 )
 
 var testLog = slog.Default()
+
+func captureWarnings() (*slog.Logger, *bytes.Buffer) {
+	buf := &bytes.Buffer{}
+	handler := slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelWarn})
+	return slog.New(handler), buf
+}
 
 func TestSlugify(t *testing.T) {
 	tests := []struct {
@@ -199,10 +206,98 @@ func TestMapSecuritySchemeToAuth_OAuth2_ImplicitFallback(t *testing.T) {
 
 func TestMapSecuritySchemeToAuth_OpenIdConnect(t *testing.T) {
 	scheme := &highV3.SecurityScheme{Type: "openIdConnect", OpenIdConnectUrl: "https://example.com/.well-known"}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
+	log, warnings := captureWarnings()
+
+	auth := mapSecuritySchemeToAuth(scheme, log)
 	require.NotNil(t, auth)
 	assert.Equal(t, "bearer", auth.Type)
 	assert.Equal(t, "{{token}}", auth.Token)
+	assert.Contains(t, warnings.String(), "https://example.com/.well-known")
+}
+
+func TestMapSecuritySchemeToAuth_ApiKey_Cookie(t *testing.T) {
+	scheme := &highV3.SecurityScheme{Type: "apiKey", Name: "session", In: "cookie"}
+	log, warnings := captureWarnings()
+
+	assert.Nil(t, mapSecuritySchemeToAuth(scheme, log))
+	assert.Contains(t, warnings.String(), "header and query")
+}
+
+func TestMapSecuritySchemeToAuth_MutualTLS(t *testing.T) {
+	scheme := &highV3.SecurityScheme{Type: "mutualTLS"}
+	log, warnings := captureWarnings()
+
+	assert.Nil(t, mapSecuritySchemeToAuth(scheme, log))
+	assert.Contains(t, warnings.String(), "mutualTLS")
+}
+
+func TestMapSecuritySchemeToAuth_UnrecognisedType(t *testing.T) {
+	scheme := &highV3.SecurityScheme{Type: "quantumEntanglement"}
+	log, warnings := captureWarnings()
+
+	assert.Nil(t, mapSecuritySchemeToAuth(scheme, log))
+	assert.Contains(t, warnings.String(), "quantumEntanglement")
+}
+
+func TestMapSecuritySchemeToAuth_OAuth2_DeviceFlowOnly(t *testing.T) {
+	scheme := &highV3.SecurityScheme{
+		Type: "oauth2",
+		Flows: &highV3.OAuthFlows{
+			Device: &highV3.OAuthFlow{TokenUrl: "https://example.com/token"},
+		},
+	}
+	log, warnings := captureWarnings()
+
+	assert.Nil(t, mapSecuritySchemeToAuth(scheme, log))
+	assert.Contains(t, warnings.String(), "device flow")
+}
+
+func TestMapSecuritySchemeToAuth_OAuth2_NoFlows(t *testing.T) {
+	log, warnings := captureWarnings()
+
+	assert.Nil(t, mapSecuritySchemeToAuth(&highV3.SecurityScheme{Type: "oauth2"}, log))
+	assert.Contains(t, warnings.String(), "no flows")
+}
+
+func TestMapSecuritySchemeToAuth_OAuth2_NoSupportedFlow(t *testing.T) {
+	scheme := &highV3.SecurityScheme{Type: "oauth2", Flows: &highV3.OAuthFlows{}}
+	log, warnings := captureWarnings()
+
+	assert.Nil(t, mapSecuritySchemeToAuth(scheme, log))
+	assert.Contains(t, warnings.String(), "no supported flow")
+}
+
+func TestResolveOperationAuth_SkipsSchemeItCannotRepresent(t *testing.T) {
+	schemes := orderedmap.New[string, *highV3.SecurityScheme]()
+	schemes.Set("mtls", &highV3.SecurityScheme{Type: "mutualTLS"})
+	schemes.Set("bearerAuth", &highV3.SecurityScheme{Type: "http", Scheme: "bearer"})
+
+	mtlsReq := orderedmap.New[string, []string]()
+	mtlsReq.Set("mtls", nil)
+	bearerReq := orderedmap.New[string, []string]()
+	bearerReq.Set("bearerAuth", nil)
+
+	opSecurity := []*highBase.SecurityRequirement{
+		{Requirements: mtlsReq},
+		{Requirements: bearerReq},
+	}
+
+	result := resolveOperationAuth(opSecurity, schemes, testLog)
+	auth, ok := result.(*Auth)
+	require.True(t, ok, "should fall through to the bearer requirement")
+	assert.Equal(t, "bearer", auth.Type)
+}
+
+func TestResolveOperationAuth_OmitsWhenNoSchemeIsRepresentable(t *testing.T) {
+	schemes := orderedmap.New[string, *highV3.SecurityScheme]()
+	schemes.Set("mtls", &highV3.SecurityScheme{Type: "mutualTLS"})
+
+	reqs := orderedmap.New[string, []string]()
+	reqs.Set("mtls", nil)
+
+	opSecurity := []*highBase.SecurityRequirement{{Requirements: reqs}}
+
+	assert.Nil(t, resolveOperationAuth(opSecurity, schemes, testLog))
 }
 
 func TestMapSecuritySchemeToAuth_Nil(t *testing.T) {
@@ -257,13 +352,13 @@ func TestResolveCollectionAuth_NilSecurity(t *testing.T) {
 }
 
 func TestResolveOperationAuth_NilSecurity(t *testing.T) {
-	result := resolveOperationAuth(nil, nil, nil, testLog)
+	result := resolveOperationAuth(nil, nil, testLog)
 	assert.Equal(t, "inherit", result)
 }
 
 func TestResolveOperationAuth_EmptyArray(t *testing.T) {
-	result := resolveOperationAuth([]*highBase.SecurityRequirement{}, nil, nil, testLog)
-	assert.Equal(t, "none", result)
+	result := resolveOperationAuth([]*highBase.SecurityRequirement{}, nil, testLog)
+	assert.Nil(t, result)
 }
 
 func TestResolveOperationAuth_EmptyRequirementObject(t *testing.T) {
@@ -275,8 +370,8 @@ func TestResolveOperationAuth_EmptyRequirementObject(t *testing.T) {
 		{Requirements: orderedmap.New[string, []string]()}, // empty {}
 	}
 
-	result := resolveOperationAuth(opSecurity, nil, schemes, testLog)
-	assert.Equal(t, "none", result, "empty requirement object should produce auth: none")
+	result := resolveOperationAuth(opSecurity, schemes, testLog)
+	assert.Nil(t, result, "empty requirement object should omit auth")
 }
 
 func TestResolveOperationAuth_Override(t *testing.T) {
@@ -290,7 +385,7 @@ func TestResolveOperationAuth_Override(t *testing.T) {
 		{Requirements: reqs},
 	}
 
-	result := resolveOperationAuth(opSecurity, nil, schemes, testLog)
+	result := resolveOperationAuth(opSecurity, schemes, testLog)
 	auth, ok := result.(*Auth)
 	require.True(t, ok)
 	assert.Equal(t, "apikey", auth.Type)
@@ -429,8 +524,8 @@ func TestResolveOperationAuth_ReversedEmptyRequirement(t *testing.T) {
 		{Requirements: orderedmap.New[string, []string]()}, // empty {} second
 	}
 
-	result := resolveOperationAuth(opSecurity, nil, schemes, testLog)
-	assert.Equal(t, "none", result, "empty {} anywhere in op security should return none")
+	result := resolveOperationAuth(opSecurity, schemes, testLog)
+	assert.Nil(t, result, "empty {} anywhere in op security should omit auth")
 }
 
 func TestBuildHeaders_Accept4xxBefore2xx(t *testing.T) {

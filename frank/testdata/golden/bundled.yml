@@ -98,7 +98,6 @@ items:
                 - name: q
                   value: ""
                   type: query
-            auth: none
           docs: Public catalogue search. Explicitly unauthenticated.
         - info:
             name: Bulk import items
@@ -221,11 +220,6 @@ items:
                 - name: shipmentId
                   value: '{{shipmentId}}'
                   type: path
-            auth:
-                type: apikey
-                key: session
-                value: '{{session}}'
-                placement: cookie
           docs: Cookie API key. OpenCollection has no cookie placement.
         - info:
             name: Rate a shipment
@@ -277,8 +271,6 @@ items:
                 - name: shipmentId
                   value: '{{shipmentId}}'
                   type: path
-            auth:
-                type: oauth2
           docs: The only scheme offers device flow, which frank does not consult.
     - info:
         name: Billing & Invoices
@@ -349,7 +341,6 @@ items:
                 - name: invoiceId
                   value: '{{invoiceId}}'
                   type: path
-            auth: null
           docs: mutualTLS has no OpenCollection equivalent.
         - info:
             name: Export invoices

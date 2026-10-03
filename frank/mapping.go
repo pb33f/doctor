@@ -20,6 +20,9 @@ import (
 var nonAlnum = regexp.MustCompile(`[^a-z0-9]+`)
 var paramBracePattern = regexp.MustCompile(`\{([^}]+)\}`)
 
+// authInherit is the only string OpenCollection accepts in place of an auth object.
+const authInherit = "inherit"
+
 type selectedRequestBody struct {
 	contentType string
 	mediaType   *highV3.MediaType
@@ -159,8 +162,14 @@ func mapSecuritySchemeToAuth(scheme *highV3.SecurityScheme, log *slog.Logger) *A
 		return nil
 	case "apiKey":
 		placement := "header"
-		if scheme.In != "" {
-			placement = scheme.In
+		switch scheme.In {
+		case "", "header":
+		case "query":
+			placement = "query"
+		default:
+			log.Warn("apiKey security scheme ignored; OpenCollection only supports header and query placement",
+				"name", scheme.Name, "in", scheme.In)
+			return nil
 		}
 		return &Auth{
 			Type:      "apikey",
@@ -169,17 +178,24 @@ func mapSecuritySchemeToAuth(scheme *highV3.SecurityScheme, log *slog.Logger) *A
 			Placement: placement,
 		}
 	case "oauth2":
-		return mapOAuth2ToAuth(scheme.Flows)
+		return mapOAuth2ToAuth(scheme.Flows, log)
 	case "openIdConnect":
+		log.Warn("openIdConnect discovery URL dropped; OpenCollection has no openIdConnect auth type, mapping to bearer",
+			"openIdConnectUrl", scheme.OpenIdConnectUrl)
 		return &Auth{Type: "bearer", Token: "{{token}}"}
+	case "mutualTLS":
+		log.Warn("mutualTLS security scheme ignored; OpenCollection has no equivalent auth type")
+		return nil
 	}
+	log.Warn("unrecognised security scheme type ignored", "type", scheme.Type)
 	return nil
 }
 
 // mapOAuth2ToAuth maps OAuth2 flows to the best OC Auth representation.
-func mapOAuth2ToAuth(flows *highV3.OAuthFlows) *Auth {
+func mapOAuth2ToAuth(flows *highV3.OAuthFlows, log *slog.Logger) *Auth {
 	if flows == nil {
-		return &Auth{Type: "oauth2"}
+		log.Warn("oauth2 security scheme ignored; it declares no flows")
+		return nil
 	}
 	// preference order: authorization_code > client_credentials > password > implicit (fallback to auth_code)
 	if flows.AuthorizationCode != nil {
@@ -195,7 +211,12 @@ func mapOAuth2ToAuth(flows *highV3.OAuthFlows) *Auth {
 		// implicit falls back to authorization_code (closest equivalent)
 		return mapOAuthFlow(flows.Implicit, "authorization_code")
 	}
-	return &Auth{Type: "oauth2"}
+	if flows.Device != nil {
+		log.Warn("oauth2 device flow ignored; OpenCollection supports client_credentials, resource_owner_password_credentials, authorization_code and implicit")
+		return nil
+	}
+	log.Warn("oauth2 security scheme ignored; it declares no supported flow")
+	return nil
 }
 
 // mapOAuthFlow maps a single OAuthFlow to an Auth struct.
@@ -237,59 +258,64 @@ func resolveCollectionAuth(
 			return nil
 		}
 	}
-	// resolve first supported scheme
-	for _, req := range docSecurity {
-		if req.Requirements.Len() > 1 {
-			log.Warn("security requirement with multiple schemes (AND) simplified to first scheme; OpenCollection supports one auth type per request")
-		}
-		for name := range req.Requirements.FromOldest() {
-			scheme, ok := securitySchemes.Get(name)
-			if ok {
-				return mapSecuritySchemeToAuth(scheme, log)
-			}
-		}
-	}
-	return nil
+	return firstSupportedAuth(docSecurity, securitySchemes, log)
 }
 
 // resolveOperationAuth resolves per-operation auth.
-// returns "inherit" (string) if no op security, "none" (string) if security: [], or *Auth.
+// returns authInherit if no op security, nil if security: [] or the scheme cannot be
+// represented, or an *Auth. A nil result means the auth key is omitted entirely —
+// OpenCollection has no variant for "no auth".
 func resolveOperationAuth(
 	opSecurity []*highBase.SecurityRequirement,
-	docSecurity []*highBase.SecurityRequirement,
 	securitySchemes *orderedmap.Map[string, *highV3.SecurityScheme],
 	log *slog.Logger,
 ) any {
 	// no security field on operation -> inherit from collection
 	if opSecurity == nil {
-		return "inherit"
+		return authInherit
 	}
 	// security: [] -> explicit opt-out
 	if len(opSecurity) == 0 {
-		return "none"
+		return nil
 	}
 	if securitySchemes == nil {
-		return "inherit"
+		return authInherit
 	}
 	// if any requirement is empty {}, anonymous access is allowed (requirements are OR-ed)
 	for _, req := range opSecurity {
 		if req.Requirements == nil || req.Requirements.Len() == 0 {
-			return "none"
+			return nil
 		}
 	}
-	// resolve first supported scheme
-	for _, req := range opSecurity {
+	if auth := firstSupportedAuth(opSecurity, securitySchemes, log); auth != nil {
+		return auth
+	}
+	return nil
+}
+
+// firstSupportedAuth returns the first requirement whose scheme maps to an auth type
+// OpenCollection can express. Requirements are OR-ed, so skipping one frank cannot
+// represent and trying the next is the correct reading.
+func firstSupportedAuth(
+	security []*highBase.SecurityRequirement,
+	securitySchemes *orderedmap.Map[string, *highV3.SecurityScheme],
+	log *slog.Logger,
+) *Auth {
+	for _, req := range security {
 		if req.Requirements.Len() > 1 {
 			log.Warn("security requirement with multiple schemes (AND) simplified to first scheme; OpenCollection supports one auth type per request")
 		}
 		for name := range req.Requirements.FromOldest() {
 			scheme, ok := securitySchemes.Get(name)
-			if ok {
-				return mapSecuritySchemeToAuth(scheme, log)
+			if !ok {
+				continue
+			}
+			if auth := mapSecuritySchemeToAuth(scheme, log); auth != nil {
+				return auth
 			}
 		}
 	}
-	return "inherit"
+	return nil
 }
 
 // buildParams merges operation and pathItem parameters, returning only query and path types.
