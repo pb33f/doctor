@@ -7,7 +7,6 @@ package printingpress
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -20,6 +19,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/pb33f/doctor/diagramatron"
+	"github.com/pb33f/doctor/internal/mocks"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	. "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/doctor/printingpress/render"
@@ -1766,41 +1766,15 @@ func (pp *PrintingPress) generateSchemaMockAsWithLabel(schema *highbase.Schema, 
 	return string(mock)
 }
 
-func (pp *PrintingPress) safeGenerateMock(gen *renderer.MockGenerator, mockable any, label string) (mock []byte, err error) {
-	if gen == nil {
-		return nil, nil
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("mock generation panic")
-			if pp != nil {
-				pp.warn("mock generation failed; omitting generated mock", label, fmt.Errorf("%v", r))
-			}
-			mock = nil
-		}
-	}()
-	mock, err = gen.GenerateMock(mockable, "")
-	if err != nil {
-		if pp != nil && errors.Is(err, renderer.ErrMockGenerationBudgetExceeded) {
-			pp.warn("generated mock exceeded work budget; omitting generated mock", label, err)
-		}
-		return nil, err
-	}
-	if mock == nil {
-		return mock, err
-	}
+func (pp *PrintingPress) safeGenerateMock(gen *renderer.MockGenerator, mockable any, label string) ([]byte, error) {
 	var config *pressEngineConfig
+	var warn mocks.WarnFunc
 	if pp != nil {
 		config = pp.engineConfig
+		warn = pp.warn
 	}
 	limits := mockGenerationLimitsFromConfig(config)
-	if limits.exceedsMockBytes(mock) {
-		if pp != nil {
-			pp.warn("generated mock exceeded byte limit; omitting generated mock", label, limits.mockBytesLimitError(len(mock)))
-		}
-		return nil, nil
-	}
-	return mock, nil
+	return mocks.SafeGenerate(gen, mockable, label, limits.MaxGeneratedMockBytes, warn)
 }
 
 // yamlNodeToJSON converts a *yaml.Node to a JSON string.
