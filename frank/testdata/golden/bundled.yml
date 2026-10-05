@@ -153,9 +153,9 @@ items:
                       "dryRun": true,
                       "items": [
                         {
-                          "name": "crowing",
-                          "quantity": 70,
-                          "sku": "ossifrage"
+                          "name": "eIw",
+                          "quantity": 75,
+                          "sku": "Ndn"
                         }
                       ]
                     }
@@ -230,8 +230,8 @@ items:
                 data: |-
                     {
                       "contents": [],
-                      "reference": "radicule",
-                      "weightKg": 51
+                      "reference": "feQ",
+                      "weightKg": 1
                     }
             auth:
                 type: oauth2
@@ -428,7 +428,7 @@ items:
                 data: |-
                     {
                       "method": "bank_transfer",
-                      "reference": "verminy"
+                      "reference": "olr"
                     }
             auth:
                 type: digest
