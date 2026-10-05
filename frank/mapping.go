@@ -681,9 +681,10 @@ func (f *Frank) buildBody(selected *selectedRequestBody, operationID string) Req
 // The generator prefers examples declared in the spec and only derives a payload
 // from the schema when there are none.
 //
-// Only JSON is generated. libopenapi's XML renderer walks a Go map to emit child
-// elements (renderer/mock_generator_xml.go:208), so element order changes between
-// runs. Other raw types fall back to the example the spec declares.
+// Only JSON is generated, because libopenapi's renderXMLMap ranges over a Go map
+// to emit child elements and so orders them differently on every run. Other raw
+// types fall back to the example the spec declares. Once that renderer emits a
+// stable order, XML can be generated the same way JSON is.
 func (f *Frank) renderBodyData(selected *selectedRequestBody, operationID string) string {
 	if selected.mediaType == nil {
 		return ""
@@ -695,20 +696,36 @@ func (f *Frank) renderBodyData(selected *selectedRequestBody, operationID string
 		return ""
 	}
 
-	gen := f.bodyGenJSON
-	if gen == nil {
+	if f.bodyGenJSON == nil {
 		return ""
 	}
 
-	// Values are random, so without a per-operation seed every regeneration would
-	// rewrite every body.
-	gen.SetSeed(bodySeed(operationID))
+	// Seeding covers most of the generator, but libopenapi derives
+	// pattern-constrained strings through reggen.Generate, which SetSeed does not
+	// reach, so a schema using pattern renders differently every time. Rendering
+	// twice and keeping only a payload that settles stops those operations
+	// rewriting themselves on each run. This second render exists for that reason
+	// alone and can go once the seed reaches the pattern generator.
+	first := f.generateBody(selected.mediaType, operationID)
+	second := f.generateBody(selected.mediaType, operationID)
+	if first != second {
+		f.log.Warn("generated body is not reproducible between runs; omitting it",
+			"operation", operationID)
+		return ""
+	}
+	return first
+}
+
+// generateBody renders the media type once from a seed fixed to the operation, so
+// a body stays the same as other operations come and go around it.
+func (f *Frank) generateBody(mt *highV3.MediaType, operationID string) string {
+	f.bodyGenJSON.SetSeed(bodySeed(operationID))
 
 	warn := func(message, context string, err error) {
 		f.log.Warn(message, "operation", context, "error", err)
 	}
 
-	data, err := mocks.SafeGenerate(gen, selected.mediaType, operationID, maxGeneratedBodyBytes, warn)
+	data, err := mocks.SafeGenerate(f.bodyGenJSON, mt, operationID, maxGeneratedBodyBytes, warn)
 	if err != nil || data == nil {
 		return ""
 	}
