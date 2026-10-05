@@ -1,0 +1,598 @@
+opencollection: 1.0.0
+bundled: true
+info:
+    name: Warehouse API
+    summary: A fictional warehouse API used to exercise frank's OpenAPI to OpenCollection mapping.
+    version: 2.4.0
+    authors:
+        - name: Warehouse Platform Team
+          email: platform@warehouse.example
+extensions:
+    bruno:
+        ignore:
+            - node_modules
+            - .git
+items:
+    - info:
+        name: Inventory
+        type: folder
+        seq: 1
+      items:
+        - info:
+            name: List items
+            type: http
+            seq: 1
+            tags:
+                - Inventory
+          http:
+            method: GET
+            url: '{{baseUrl}}/inventory/items'
+            params:
+                - name: limit
+                  value: "50"
+                  type: query
+                - name: cursor
+                  value: ""
+                  type: query
+            headers:
+                - name: X-Request-Id
+                  value: ""
+            auth:
+                type: oauth2
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
+                scope: inventory:read
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
+        - info:
+            name: Create an item
+            type: http
+            seq: 2
+            tags:
+                - Inventory
+          http:
+            method: POST
+            url: '{{baseUrl}}/inventory/items'
+            headers:
+                - name: Content-Type
+                  value: application/json
+            body:
+                type: json
+                data: |-
+                    {
+                      "name": "Widget",
+                      "quantity": 12,
+                      "sku": "WID-001"
+                    }
+            auth:
+                type: oauth2
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
+                scope: inventory:write
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
+        - info:
+            name: Replace an item
+            type: http
+            seq: 3
+            tags:
+                - Inventory
+          http:
+            method: PUT
+            url: '{{baseUrl}}/inventory/items/:itemId'
+            params:
+                - name: itemId
+                  value: '{{itemId}}'
+                  type: path
+            headers:
+                - name: Content-Type
+                  value: application/json
+            body:
+                type: json
+                data: |-
+                    {
+                      "name": "Widget",
+                      "quantity": 500,
+                      "sku": "WID-001"
+                    }
+            auth:
+                type: oauth2
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
+                scope: inventory:write
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
+        - info:
+            name: Search items
+            type: http
+            seq: 4
+            tags:
+                - Inventory
+          http:
+            method: GET
+            url: '{{baseUrl}}/inventory/search'
+            params:
+                - name: q
+                  value: ""
+                  type: query
+          docs: Public catalogue search. Explicitly unauthenticated.
+        - info:
+            name: Bulk import items
+            type: http
+            seq: 5
+            tags:
+                - Inventory
+          http:
+            method: POST
+            url: '{{baseUrl}}/inventory/bulk'
+            headers:
+                - name: Content-Type
+                  value: application/json
+            body:
+                type: json
+                data: |-
+                    {
+                      "dryRun": true,
+                      "items": [
+                        {
+                          "name": "eIw",
+                          "quantity": 75,
+                          "sku": "Ndn"
+                        }
+                      ]
+                    }
+            auth:
+                type: oauth2
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
+          docs: No example anywhere, and no scopes requested, so the server applies its default.
+        - info:
+            name: Inventory health
+            type: http
+            seq: 6
+            tags:
+                - Inventory
+          http:
+            method: GET
+            url: '{{baseUrl}}/inventory/health'
+            auth: inherit
+          docs: No security key at all, so it inherits.
+    - info:
+        name: Shipments
+        type: folder
+        seq: 2
+      items:
+        - info:
+            name: List shipments
+            type: http
+            seq: 1
+            tags:
+                - Shipments
+          http:
+            method: GET
+            url: '{{baseUrl}}/shipments'
+            auth:
+                type: oauth2
+                flow: authorization_code
+                authorizationUrl: https://id.warehouse.example/oauth2/authorize
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                callbackUrl: '{{oauth_callback_url}}'
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
+                scope: shipments:read
+                state: '{{oauth_state}}'
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
+        - info:
+            name: Create a shipment
+            type: http
+            seq: 2
+            tags:
+                - Shipments
+          http:
+            method: POST
+            url: '{{baseUrl}}/shipments'
+            headers:
+                - name: Content-Type
+                  value: application/json
+            body:
+                type: json
+                data: |-
+                    {
+                      "contents": [],
+                      "reference": "feQ",
+                      "weightKg": 1
+                    }
+            auth:
+                type: oauth2
+                flow: authorization_code
+                authorizationUrl: https://id.warehouse.example/oauth2/authorize
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                callbackUrl: '{{oauth_callback_url}}'
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
+                scope: shipments:write
+                state: '{{oauth_state}}'
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
+          docs: Body schema is self-referential, to exercise mock generation depth caps.
+        - info:
+            name: Get a shipment
+            type: http
+            seq: 3
+            tags:
+                - Shipments
+          http:
+            method: GET
+            url: '{{baseUrl}}/shipments/:shipmentId'
+            params:
+                - name: shipmentId
+                  value: '{{shipmentId}}'
+                  type: path
+            auth:
+                type: apikey
+                key: X-Api-Key
+                value: '{{X_Api_Key}}'
+                placement: header
+        - info:
+            name: Cancel a shipment
+            type: http
+            seq: 4
+            tags:
+                - Shipments
+          http:
+            method: POST
+            url: '{{baseUrl}}/shipments/:shipmentId/cancel'
+            params:
+                - name: shipmentId
+                  value: '{{shipmentId}}'
+                  type: path
+            auth:
+                type: apikey
+                key: api_key
+                value: '{{api_key}}'
+                placement: query
+        - info:
+            name: Track a shipment
+            type: http
+            seq: 5
+            tags:
+                - Shipments
+          http:
+            method: GET
+            url: '{{baseUrl}}/shipments/:shipmentId/track'
+            params:
+                - name: shipmentId
+                  value: '{{shipmentId}}'
+                  type: path
+          docs: Cookie API key. OpenCollection has no cookie placement.
+        - info:
+            name: Rate a shipment
+            type: http
+            seq: 6
+            tags:
+                - Shipments
+          http:
+            method: POST
+            url: '{{baseUrl}}/shipments/:shipmentId/rate'
+            params:
+                - name: shipmentId
+                  value: '{{shipmentId}}'
+                  type: path
+            auth:
+                type: oauth2
+                flow: resource_owner_password_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
+                resourceOwner:
+                    username: '{{oauth_username}}'
+                    password: '{{oauth_password}}'
+                scope: shipments:write
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
+        - info:
+            name: Quote a shipment
+            type: http
+            seq: 7
+            tags:
+                - Shipments
+          http:
+            method: POST
+            url: '{{baseUrl}}/shipments/quote'
+            headers:
+                - name: Content-Type
+                  value: application/json
+            body:
+                type: json
+                data: |-
+                    {
+                      "destination": "GB",
+                      "weightKg": 2.5
+                    }
+            auth:
+                type: oauth2
+                flow: implicit
+                authorizationUrl: https://id.warehouse.example/oauth2/authorize
+                callbackUrl: '{{oauth_callback_url}}'
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                scope: shipments:read
+                state: '{{oauth_state}}'
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
+        - info:
+            name: Shipment events
+            type: http
+            seq: 8
+            tags:
+                - Shipments
+          http:
+            method: GET
+            url: '{{baseUrl}}/shipments/:shipmentId/events'
+            params:
+                - name: shipmentId
+                  value: '{{shipmentId}}'
+                  type: path
+          docs: The only scheme offers device flow, which frank does not consult.
+    - info:
+        name: Billing & Invoices
+        type: folder
+        seq: 3
+      items:
+        - info:
+            name: List invoices
+            type: http
+            seq: 1
+            tags:
+                - Billing & Invoices
+          http:
+            method: GET
+            url: '{{baseUrl}}/billing/invoices'
+            auth:
+                type: basic
+                username: '{{username}}'
+                password: '{{password}}'
+        - info:
+            name: Get an invoice
+            type: http
+            seq: 2
+            tags:
+                - Billing & Invoices
+          http:
+            method: GET
+            url: '{{baseUrl}}/billing/invoices/:invoiceId'
+            params:
+                - name: invoiceId
+                  value: '{{invoiceId}}'
+                  type: path
+            auth:
+                type: bearer
+                token: '{{token}}'
+        - info:
+            name: Pay an invoice
+            type: http
+            seq: 3
+            tags:
+                - Billing & Invoices
+          http:
+            method: POST
+            url: '{{baseUrl}}/billing/invoices/:invoiceId/pay'
+            params:
+                - name: invoiceId
+                  value: '{{invoiceId}}'
+                  type: path
+            headers:
+                - name: Content-Type
+                  value: application/json
+            body:
+                type: json
+                data: |-
+                    {
+                      "method": "bank_transfer",
+                      "reference": "olr"
+                    }
+            auth:
+                type: digest
+                username: '{{username}}'
+                password: '{{password}}'
+        - info:
+            name: Void an invoice
+            type: http
+            seq: 4
+            tags:
+                - Billing & Invoices
+          http:
+            method: POST
+            url: '{{baseUrl}}/billing/invoices/:invoiceId/void'
+            params:
+                - name: invoiceId
+                  value: '{{invoiceId}}'
+                  type: path
+          docs: mutualTLS has no OpenCollection equivalent.
+        - info:
+            name: Export invoices
+            type: http
+            seq: 5
+            tags:
+                - Billing & Invoices
+          http:
+            method: GET
+            url: '{{baseUrl}}/billing/export'
+            auth:
+                type: bearer
+                token: '{{token}}'
+          docs: openIdConnect carries a discovery URL that currently goes nowhere.
+    - info:
+        name: Billing / Invoices
+        type: folder
+        seq: 4
+      items:
+        - info:
+            name: Issue a credit note
+            type: http
+            seq: 1
+            tags:
+                - Billing / Invoices
+          http:
+            method: POST
+            url: '{{baseUrl}}/billing/credits'
+            headers:
+                - name: Content-Type
+                  value: application/x-www-form-urlencoded
+            body:
+                type: form-urlencoded
+                data:
+                    - name: invoiceId
+                      value: ""
+                    - name: amountMinor
+                      value: "0"
+            auth:
+                type: oauth2
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
+                scope: billing:write
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
+    - info:
+        name: Webhooks
+        type: folder
+        seq: 5
+      items:
+        - info:
+            name: Create a webhook
+            type: http
+            seq: 1
+            tags:
+                - Webhooks
+          http:
+            method: POST
+            url: '{{baseUrl}}/webhooks'
+            headers:
+                - name: Content-Type
+                  value: application/xml
+            body:
+                type: xml
+                data: ""
+            auth:
+                type: oauth2
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
+                scope: webhooks:write
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
+        - info:
+            name: Send a test event
+            type: http
+            seq: 2
+            tags:
+                - Webhooks
+          http:
+            method: POST
+            url: '{{baseUrl}}/webhooks/:webhookId/test'
+            params:
+                - name: webhookId
+                  value: '{{webhookId}}'
+                  type: path
+            auth:
+                type: oauth2
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
+                scope: webhooks:write
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true
+          docs: Two schemes ANDed together; OpenCollection can only carry one.
+        - info:
+            name: Replay delivery
+            type: http
+            seq: 3
+            tags:
+                - Webhooks
+          http:
+            method: POST
+            url: '{{baseUrl}}/webhooks/:webhookId/replay'
+            params:
+                - name: webhookId
+                  value: '{{webhookId}}'
+                  type: path
+            headers:
+                - name: Content-Type
+                  value: multipart/form-data
+            body:
+                type: multipart-form
+                data:
+                    - name: deliveryIds
+                      type: text
+                      value: ""
+                    - name: attachment
+                      type: file
+                      value: ""
+            auth:
+                type: oauth2
+                flow: client_credentials
+                accessTokenUrl: https://id.warehouse.example/oauth2/token
+                refreshTokenUrl: https://id.warehouse.example/oauth2/token
+                credentials:
+                    clientId: '{{oauth_client_id}}'
+                    clientSecret: '{{oauth_client_secret}}'
+                    placement: basic_auth_header
+                scope: webhooks:write
+                settings:
+                    autoFetchToken: true
+                    autoRefreshToken: true

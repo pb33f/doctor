@@ -20,6 +20,7 @@ import (
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	highV3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"github.com/pb33f/libopenapi/renderer"
 )
 
 // Frank implements the Tardis visitor interface to walk a DrDocument
@@ -38,7 +39,13 @@ type Frank struct {
 	// cached references for use during visiting
 	docSecurity     []*highBase.SecurityRequirement
 	securitySchemes *orderedmap.Map[string, *highV3.SecurityScheme]
+
+	bodyGenJSON *renderer.MockGenerator
 }
+
+// 8KB rather than the 64KB printingpress allows, because these bodies are inlined
+// into request files that live in a git repository.
+const maxGeneratedBodyBytes = 8 * 1024
 
 // discardHandler is a no-op slog.Handler that silently drops all log records.
 type discardHandler struct{}
@@ -46,7 +53,7 @@ type discardHandler struct{}
 func (discardHandler) Enabled(context.Context, slog.Level) bool  { return false }
 func (discardHandler) Handle(context.Context, slog.Record) error { return nil }
 func (d discardHandler) WithAttrs([]slog.Attr) slog.Handler      { return d }
-func (d discardHandler) WithGroup(string) slog.Handler            { return d }
+func (d discardHandler) WithGroup(string) slog.Handler           { return d }
 
 type folderBuildState struct {
 	name     string
@@ -70,11 +77,30 @@ func KnowWhatIMeanArry(config *FrankConfig) (*Frank, error) {
 		log = slog.New(discardHandler{})
 	}
 	return &Frank{
-		config:  config,
-		log:     log,
-		drDoc:   config.DrDoc.V3Document,
-		folders: make(map[string]*folderBuildState),
+		config:      config,
+		log:         log,
+		drDoc:       config.DrDoc.V3Document,
+		folders:     make(map[string]*folderBuildState),
+		bodyGenJSON: newBodyGenerator(renderer.JSON),
 	}, nil
+}
+
+func newBodyGenerator(mockType renderer.MockType) *renderer.MockGenerator {
+	// noDictionary selects the generator's built in alphabet over a word list, as
+	// the wordlist may not exist on the platform.
+	gen := renderer.NewMockGeneratorWithDictionary("", mockType)
+	gen.SetMockGenerationOptions(renderer.MockGenerationOptions{
+		MaxPatternRepeatBudget:  renderer.DefaultMaxPatternRepeatBudget,
+		MaxGeneratedStringBytes: renderer.DefaultMaxGeneratedStringBytes,
+		MaxMockDepth:            renderer.DefaultMaxMockDepth,
+		MaxMockNodes:            renderer.DefaultMaxMockNodes,
+		MaxMockProperties:       renderer.DefaultMaxMockProperties,
+		MaxMockRefExpansions:    renderer.DefaultMaxMockRefExpansions,
+		MaxMockBytes:            maxGeneratedBodyBytes,
+	})
+	gen.SetPretty()
+	gen.DisableRequiredCheck()
+	return gen
 }
 
 // Generate walks the DrDocument and produces a FrankResult.

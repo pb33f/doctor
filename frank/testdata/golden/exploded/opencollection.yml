@@ -1,0 +1,13 @@
+opencollection: 1.0.0
+info:
+    name: Warehouse API
+    summary: A fictional warehouse API used to exercise frank's OpenAPI to OpenCollection mapping.
+    version: 2.4.0
+    authors:
+        - name: Warehouse Platform Team
+          email: platform@warehouse.example
+extensions:
+    bruno:
+        ignore:
+            - node_modules
+            - .git

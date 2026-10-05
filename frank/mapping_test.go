@@ -4,18 +4,34 @@
 package frank
 
 import (
+	"bytes"
 	"log/slog"
 	"testing"
 
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	highV3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"github.com/pb33f/libopenapi/renderer"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
 	"go.yaml.in/yaml/v4"
 )
 
 var testLog = slog.Default()
+
+func yamlNode(value string) *yaml.Node {
+	var node yaml.Node
+	if err := yaml.Unmarshal([]byte(value), &node); err != nil {
+		panic(err)
+	}
+	return node.Content[0]
+}
+
+func captureWarnings() (*slog.Logger, *bytes.Buffer) {
+	buf := &bytes.Buffer{}
+	handler := slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelWarn})
+	return slog.New(handler), buf
+}
 
 func TestSlugify(t *testing.T) {
 	tests := []struct {
@@ -99,7 +115,7 @@ func TestMapContentType(t *testing.T) {
 
 func TestMapSecuritySchemeToAuth_Bearer(t *testing.T) {
 	scheme := &highV3.SecurityScheme{Type: "http", Scheme: "bearer"}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
+	auth := mapFlatAuth(t, scheme, testLog)
 	require.NotNil(t, auth)
 	assert.Equal(t, "bearer", auth.Type)
 	assert.Equal(t, "{{token}}", auth.Token)
@@ -107,7 +123,7 @@ func TestMapSecuritySchemeToAuth_Bearer(t *testing.T) {
 
 func TestMapSecuritySchemeToAuth_Basic(t *testing.T) {
 	scheme := &highV3.SecurityScheme{Type: "http", Scheme: "basic"}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
+	auth := mapFlatAuth(t, scheme, testLog)
 	require.NotNil(t, auth)
 	assert.Equal(t, "basic", auth.Type)
 	assert.Equal(t, "{{username}}", auth.Username)
@@ -116,7 +132,7 @@ func TestMapSecuritySchemeToAuth_Basic(t *testing.T) {
 
 func TestMapSecuritySchemeToAuth_ApiKey_Header(t *testing.T) {
 	scheme := &highV3.SecurityScheme{Type: "apiKey", Name: "X-API-Key", In: "header"}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
+	auth := mapFlatAuth(t, scheme, testLog)
 	require.NotNil(t, auth)
 	assert.Equal(t, "apikey", auth.Type)
 	assert.Equal(t, "X-API-Key", auth.Key)
@@ -126,7 +142,7 @@ func TestMapSecuritySchemeToAuth_ApiKey_Header(t *testing.T) {
 
 func TestMapSecuritySchemeToAuth_ApiKey_Query(t *testing.T) {
 	scheme := &highV3.SecurityScheme{Type: "apiKey", Name: "api_key", In: "query"}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
+	auth := mapFlatAuth(t, scheme, testLog)
 	require.NotNil(t, auth)
 	assert.Equal(t, "apikey", auth.Type)
 	assert.Equal(t, "query", auth.Placement)
@@ -146,13 +162,43 @@ func TestMapSecuritySchemeToAuth_OAuth2_AuthCode(t *testing.T) {
 			},
 		},
 	}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
-	require.NotNil(t, auth)
+	auth := mapOAuth2(t, scheme, []string{"read"})
 	assert.Equal(t, "oauth2", auth.Type)
-	assert.Equal(t, "authorization_code", auth.GrantType)
+	assert.Equal(t, "authorization_code", auth.Flow)
 	assert.Equal(t, "https://example.com/auth", auth.AuthorizationURL)
-	assert.Equal(t, "https://example.com/token", auth.TokenURL)
-	assert.Equal(t, "read write", auth.Scope)
+	assert.Equal(t, "https://example.com/token", auth.AccessTokenURL)
+	assert.Equal(t, "read", auth.Scope, "scope comes from the requirement, not the scheme")
+	assert.Equal(t, "{{oauth_callback_url}}", auth.CallbackURL)
+	assert.Equal(t, "{{oauth_state}}", auth.State)
+}
+
+func TestMapSecuritySchemeToAuth_OAuth2_MultipleScopes(t *testing.T) {
+	scheme := &highV3.SecurityScheme{
+		Type: "oauth2",
+		Flows: &highV3.OAuthFlows{
+			ClientCredentials: &highV3.OAuthFlow{TokenUrl: "https://example.com/token"},
+		},
+	}
+
+	auth := mapOAuth2(t, scheme, []string{"orders:read", "orders:write"})
+	assert.Equal(t, "orders:read orders:write", auth.Scope)
+}
+
+func TestMapSecuritySchemeToAuth_OAuth2_NoScopesRequested(t *testing.T) {
+	schemeScopes := orderedmap.New[string, string]()
+	schemeScopes.Set("read", "read access")
+	scheme := &highV3.SecurityScheme{
+		Type: "oauth2",
+		Flows: &highV3.OAuthFlows{
+			ClientCredentials: &highV3.OAuthFlow{
+				TokenUrl: "https://example.com/token",
+				Scopes:   schemeScopes,
+			},
+		},
+	}
+
+	auth := mapOAuth2(t, scheme, nil)
+	assert.Empty(t, auth.Scope, "an empty requirement leaves the default to the server")
 }
 
 func TestMapSecuritySchemeToAuth_OAuth2_ClientCredentials(t *testing.T) {
@@ -160,13 +206,22 @@ func TestMapSecuritySchemeToAuth_OAuth2_ClientCredentials(t *testing.T) {
 		Type: "oauth2",
 		Flows: &highV3.OAuthFlows{
 			ClientCredentials: &highV3.OAuthFlow{
-				TokenUrl: "https://example.com/token",
+				TokenUrl:   "https://example.com/token",
+				RefreshUrl: "https://example.com/refresh",
 			},
 		},
 	}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
-	require.NotNil(t, auth)
-	assert.Equal(t, "client_credentials", auth.GrantType)
+
+	auth := mapOAuth2(t, scheme, nil)
+	assert.Equal(t, "client_credentials", auth.Flow)
+	assert.Equal(t, "https://example.com/token", auth.AccessTokenURL)
+	assert.Equal(t, "https://example.com/refresh", auth.RefreshTokenURL)
+	assert.Equal(t, "{{oauth_client_id}}", auth.Credentials.ClientID)
+	assert.Equal(t, "{{oauth_client_secret}}", auth.Credentials.ClientSecret)
+	assert.Equal(t, "basic_auth_header", auth.Credentials.Placement)
+	assert.True(t, auth.Settings.AutoFetchToken)
+	assert.True(t, auth.Settings.AutoRefreshToken)
+	assert.Empty(t, auth.AuthorizationURL, "client_credentials has no authorization endpoint")
 }
 
 func TestMapSecuritySchemeToAuth_OAuth2_Password(t *testing.T) {
@@ -178,35 +233,146 @@ func TestMapSecuritySchemeToAuth_OAuth2_Password(t *testing.T) {
 			},
 		},
 	}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
-	require.NotNil(t, auth)
-	assert.Equal(t, "password", auth.GrantType)
+
+	auth := mapOAuth2(t, scheme, nil)
+	assert.Equal(t, "resource_owner_password_credentials", auth.Flow)
+	assert.Equal(t, "{{oauth_username}}", auth.ResourceOwner.Username)
+	assert.Equal(t, "{{oauth_password}}", auth.ResourceOwner.Password)
 }
 
-func TestMapSecuritySchemeToAuth_OAuth2_ImplicitFallback(t *testing.T) {
+func TestMapSecuritySchemeToAuth_OAuth2_Implicit(t *testing.T) {
 	scheme := &highV3.SecurityScheme{
 		Type: "oauth2",
 		Flows: &highV3.OAuthFlows{
 			Implicit: &highV3.OAuthFlow{
 				AuthorizationUrl: "https://example.com/auth",
+				RefreshUrl:       "https://example.com/refresh",
 			},
 		},
 	}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
-	require.NotNil(t, auth)
-	assert.Equal(t, "authorization_code", auth.GrantType)
+
+	auth := mapOAuth2(t, scheme, nil)
+	assert.Equal(t, "implicit", auth.Flow)
+	assert.Equal(t, "https://example.com/auth", auth.AuthorizationURL)
+	assert.Equal(t, "{{oauth_client_id}}", auth.Credentials.ClientID)
+	assert.Empty(t, auth.Credentials.ClientSecret, "implicit credentials accept only clientId")
+	assert.Empty(t, auth.Credentials.Placement, "implicit credentials accept only clientId")
+	assert.Empty(t, auth.AccessTokenURL, "implicit has no token endpoint")
+	assert.Empty(t, auth.RefreshTokenURL, "implicit has no token endpoint")
+}
+
+func mapOAuth2(t *testing.T, scheme *highV3.SecurityScheme, scopes []string) *AuthOAuth2 {
+	t.Helper()
+	auth, ok := mapSecuritySchemeToAuth(scheme, scopes, testLog).(*AuthOAuth2)
+	require.True(t, ok)
+	return auth
+}
+
+func mapFlatAuth(t *testing.T, scheme *highV3.SecurityScheme, log *slog.Logger) *Auth {
+	t.Helper()
+	auth, ok := mapSecuritySchemeToAuth(scheme, nil, log).(*Auth)
+	require.True(t, ok)
+	return auth
 }
 
 func TestMapSecuritySchemeToAuth_OpenIdConnect(t *testing.T) {
 	scheme := &highV3.SecurityScheme{Type: "openIdConnect", OpenIdConnectUrl: "https://example.com/.well-known"}
-	auth := mapSecuritySchemeToAuth(scheme, testLog)
+	log, warnings := captureWarnings()
+
+	auth := mapFlatAuth(t, scheme, log)
 	require.NotNil(t, auth)
 	assert.Equal(t, "bearer", auth.Type)
 	assert.Equal(t, "{{token}}", auth.Token)
+	assert.Contains(t, warnings.String(), "https://example.com/.well-known")
+}
+
+func TestMapSecuritySchemeToAuth_ApiKey_Cookie(t *testing.T) {
+	scheme := &highV3.SecurityScheme{Type: "apiKey", Name: "session", In: "cookie"}
+	log, warnings := captureWarnings()
+
+	assert.Nil(t, mapSecuritySchemeToAuth(scheme, nil, log))
+	assert.Contains(t, warnings.String(), "header and query")
+}
+
+func TestMapSecuritySchemeToAuth_MutualTLS(t *testing.T) {
+	scheme := &highV3.SecurityScheme{Type: "mutualTLS"}
+	log, warnings := captureWarnings()
+
+	assert.Nil(t, mapSecuritySchemeToAuth(scheme, nil, log))
+	assert.Contains(t, warnings.String(), "mutualTLS")
+}
+
+func TestMapSecuritySchemeToAuth_UnrecognisedType(t *testing.T) {
+	scheme := &highV3.SecurityScheme{Type: "quantumEntanglement"}
+	log, warnings := captureWarnings()
+
+	assert.Nil(t, mapSecuritySchemeToAuth(scheme, nil, log))
+	assert.Contains(t, warnings.String(), "quantumEntanglement")
+}
+
+func TestMapSecuritySchemeToAuth_OAuth2_DeviceFlowOnly(t *testing.T) {
+	scheme := &highV3.SecurityScheme{
+		Type: "oauth2",
+		Flows: &highV3.OAuthFlows{
+			Device: &highV3.OAuthFlow{TokenUrl: "https://example.com/token"},
+		},
+	}
+	log, warnings := captureWarnings()
+
+	assert.Nil(t, mapSecuritySchemeToAuth(scheme, nil, log))
+	assert.Contains(t, warnings.String(), "device flow")
+}
+
+func TestMapSecuritySchemeToAuth_OAuth2_NoFlows(t *testing.T) {
+	log, warnings := captureWarnings()
+
+	assert.Nil(t, mapSecuritySchemeToAuth(&highV3.SecurityScheme{Type: "oauth2"}, nil, log))
+	assert.Contains(t, warnings.String(), "no flows")
+}
+
+func TestMapSecuritySchemeToAuth_OAuth2_NoSupportedFlow(t *testing.T) {
+	scheme := &highV3.SecurityScheme{Type: "oauth2", Flows: &highV3.OAuthFlows{}}
+	log, warnings := captureWarnings()
+
+	assert.Nil(t, mapSecuritySchemeToAuth(scheme, nil, log))
+	assert.Contains(t, warnings.String(), "no supported flow")
+}
+
+func TestResolveOperationAuth_SkipsSchemeItCannotRepresent(t *testing.T) {
+	schemes := orderedmap.New[string, *highV3.SecurityScheme]()
+	schemes.Set("mtls", &highV3.SecurityScheme{Type: "mutualTLS"})
+	schemes.Set("bearerAuth", &highV3.SecurityScheme{Type: "http", Scheme: "bearer"})
+
+	mtlsReq := orderedmap.New[string, []string]()
+	mtlsReq.Set("mtls", nil)
+	bearerReq := orderedmap.New[string, []string]()
+	bearerReq.Set("bearerAuth", nil)
+
+	opSecurity := []*highBase.SecurityRequirement{
+		{Requirements: mtlsReq},
+		{Requirements: bearerReq},
+	}
+
+	result := resolveOperationAuth(opSecurity, schemes, testLog)
+	auth, ok := result.(*Auth)
+	require.True(t, ok, "should fall through to the bearer requirement")
+	assert.Equal(t, "bearer", auth.Type)
+}
+
+func TestResolveOperationAuth_OmitsWhenNoSchemeIsRepresentable(t *testing.T) {
+	schemes := orderedmap.New[string, *highV3.SecurityScheme]()
+	schemes.Set("mtls", &highV3.SecurityScheme{Type: "mutualTLS"})
+
+	reqs := orderedmap.New[string, []string]()
+	reqs.Set("mtls", nil)
+
+	opSecurity := []*highBase.SecurityRequirement{{Requirements: reqs}}
+
+	assert.Nil(t, resolveOperationAuth(opSecurity, schemes, testLog))
 }
 
 func TestMapSecuritySchemeToAuth_Nil(t *testing.T) {
-	assert.Nil(t, mapSecuritySchemeToAuth(nil, testLog))
+	assert.Nil(t, mapSecuritySchemeToAuth(nil, nil, testLog))
 }
 
 func TestResolveCollectionAuth_FirstSchemeWins(t *testing.T) {
@@ -221,8 +387,8 @@ func TestResolveCollectionAuth_FirstSchemeWins(t *testing.T) {
 		{Requirements: reqs},
 	}
 
-	auth := resolveCollectionAuth(security, schemes, testLog)
-	require.NotNil(t, auth)
+	auth, ok := resolveCollectionAuth(security, schemes, testLog).(*Auth)
+	require.True(t, ok)
 	assert.Equal(t, "bearer", auth.Type)
 }
 
@@ -257,13 +423,13 @@ func TestResolveCollectionAuth_NilSecurity(t *testing.T) {
 }
 
 func TestResolveOperationAuth_NilSecurity(t *testing.T) {
-	result := resolveOperationAuth(nil, nil, nil, testLog)
-	assert.Equal(t, "inherit", result)
+	result := resolveOperationAuth(nil, nil, testLog)
+	assert.Equal(t, AuthInherit{}, result)
 }
 
 func TestResolveOperationAuth_EmptyArray(t *testing.T) {
-	result := resolveOperationAuth([]*highBase.SecurityRequirement{}, nil, nil, testLog)
-	assert.Equal(t, "none", result)
+	result := resolveOperationAuth([]*highBase.SecurityRequirement{}, nil, testLog)
+	assert.Nil(t, result)
 }
 
 func TestResolveOperationAuth_EmptyRequirementObject(t *testing.T) {
@@ -275,8 +441,8 @@ func TestResolveOperationAuth_EmptyRequirementObject(t *testing.T) {
 		{Requirements: orderedmap.New[string, []string]()}, // empty {}
 	}
 
-	result := resolveOperationAuth(opSecurity, nil, schemes, testLog)
-	assert.Equal(t, "none", result, "empty requirement object should produce auth: none")
+	result := resolveOperationAuth(opSecurity, schemes, testLog)
+	assert.Nil(t, result, "empty requirement object should omit auth")
 }
 
 func TestResolveOperationAuth_Override(t *testing.T) {
@@ -290,7 +456,7 @@ func TestResolveOperationAuth_Override(t *testing.T) {
 		{Requirements: reqs},
 	}
 
-	result := resolveOperationAuth(opSecurity, nil, schemes, testLog)
+	result := resolveOperationAuth(opSecurity, schemes, testLog)
 	auth, ok := result.(*Auth)
 	require.True(t, ok)
 	assert.Equal(t, "apikey", auth.Type)
@@ -346,9 +512,92 @@ func TestBuildHeaders_ContentTypeMatchesSelectedBody(t *testing.T) {
 	assert.Equal(t, "Content-Type", headers[0].Name)
 	assert.Equal(t, "application/json", headers[0].Value)
 
-	body := buildBody(selected)
-	require.NotNil(t, body)
+	f := &Frank{log: testLog, bodyGenJSON: newBodyGenerator(renderer.JSON)}
+	body, ok := f.buildBody(selected, "someOperation").(*RawBody)
+	require.True(t, ok)
 	assert.Equal(t, "json", body.Type)
+}
+
+func TestBuildBody_FormFieldsComeFromSchemaProperties(t *testing.T) {
+	properties := orderedmap.New[string, *highBase.SchemaProxy]()
+	properties.Set("invoiceId", highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"string"}}))
+	properties.Set("amountMinor", highBase.CreateSchemaProxy(&highBase.Schema{
+		Type:    []string{"integer"},
+		Default: yamlNode("500"),
+	}))
+	mt := &highV3.MediaType{Schema: highBase.CreateSchemaProxy(&highBase.Schema{Properties: properties})}
+
+	f := &Frank{log: testLog}
+	body, ok := f.buildBody(&selectedRequestBody{bodyType: "form-urlencoded", mediaType: mt}, "issueCredit").(*FormUrlEncodedBody)
+	require.True(t, ok)
+	assert.Equal(t, "form-urlencoded", body.Type)
+	assert.Equal(t, []FormField{
+		{Name: "invoiceId", Value: ""},
+		{Name: "amountMinor", Value: "500"},
+	}, body.Data)
+}
+
+func TestBuildBody_MultipartMarksBinaryPartsAsFiles(t *testing.T) {
+	properties := orderedmap.New[string, *highBase.SchemaProxy]()
+	properties.Set("deliveryIds", highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"string"}}))
+	properties.Set("attachment", highBase.CreateSchemaProxy(&highBase.Schema{
+		Type:   []string{"string"},
+		Format: "binary",
+	}))
+	mt := &highV3.MediaType{Schema: highBase.CreateSchemaProxy(&highBase.Schema{Properties: properties})}
+
+	f := &Frank{log: testLog}
+	body, ok := f.buildBody(&selectedRequestBody{bodyType: "multipart-form", mediaType: mt}, "replayWebhook").(*MultipartFormBody)
+	require.True(t, ok)
+	assert.Equal(t, []MultipartField{
+		{Name: "deliveryIds", Type: "text", Value: ""},
+		{Name: "attachment", Type: "file"},
+	}, body.Data)
+}
+
+func TestBuildBody_PrefersTheExampleDeclaredInTheSpec(t *testing.T) {
+	mt := &highV3.MediaType{
+		Schema:  highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"object"}}),
+		Example: yamlNode(`{"sku": "WID-001"}`),
+	}
+
+	f := &Frank{log: testLog, bodyGenJSON: newBodyGenerator(renderer.JSON)}
+	body, ok := f.buildBody(&selectedRequestBody{bodyType: "json", mediaType: mt}, "createItem").(*RawBody)
+	require.True(t, ok)
+	assert.Contains(t, body.Data, "WID-001")
+}
+
+func TestBuildBody_DerivesFromTheSchemaWhenNoExampleExists(t *testing.T) {
+	properties := orderedmap.New[string, *highBase.SchemaProxy]()
+	properties.Set("sku", highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"string"}}))
+	mt := &highV3.MediaType{Schema: highBase.CreateSchemaProxy(&highBase.Schema{
+		Type:       []string{"object"},
+		Properties: properties,
+	})}
+
+	f := &Frank{log: testLog, bodyGenJSON: newBodyGenerator(renderer.JSON)}
+	body, ok := f.buildBody(&selectedRequestBody{bodyType: "json", mediaType: mt}, "createItem").(*RawBody)
+	require.True(t, ok)
+	assert.Contains(t, body.Data, "sku")
+}
+
+func TestBuildBody_SeedsFromTheOperationSoDataIsStable(t *testing.T) {
+	newMediaType := func() *highV3.MediaType {
+		properties := orderedmap.New[string, *highBase.SchemaProxy]()
+		properties.Set("sku", highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"string"}}))
+		return &highV3.MediaType{Schema: highBase.CreateSchemaProxy(&highBase.Schema{
+			Type:       []string{"object"},
+			Properties: properties,
+		})}
+	}
+
+	f := &Frank{log: testLog, bodyGenJSON: newBodyGenerator(renderer.JSON)}
+	first := f.buildBody(&selectedRequestBody{bodyType: "json", mediaType: newMediaType()}, "createItem").(*RawBody)
+	second := f.buildBody(&selectedRequestBody{bodyType: "json", mediaType: newMediaType()}, "createItem").(*RawBody)
+	other := f.buildBody(&selectedRequestBody{bodyType: "json", mediaType: newMediaType()}, "createShipment").(*RawBody)
+
+	assert.Equal(t, first.Data, second.Data)
+	assert.NotEqual(t, first.Data, other.Data, "a different operation should seed differently")
 }
 
 func TestDeriveEnvironmentName(t *testing.T) {
@@ -429,8 +678,8 @@ func TestResolveOperationAuth_ReversedEmptyRequirement(t *testing.T) {
 		{Requirements: orderedmap.New[string, []string]()}, // empty {} second
 	}
 
-	result := resolveOperationAuth(opSecurity, nil, schemes, testLog)
-	assert.Equal(t, "none", result, "empty {} anywhere in op security should return none")
+	result := resolveOperationAuth(opSecurity, schemes, testLog)
+	assert.Nil(t, result, "empty {} anywhere in op security should omit auth")
 }
 
 func TestBuildHeaders_Accept4xxBefore2xx(t *testing.T) {

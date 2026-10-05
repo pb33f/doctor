@@ -111,8 +111,9 @@ components:
 
 	// collection-level auth
 	require.NotNil(t, result.Collection.Request)
-	require.NotNil(t, result.Collection.Request.Auth)
-	assert.Equal(t, "bearer", result.Collection.Request.Auth.Type)
+	collectionAuth, ok := result.Collection.Request.Auth.(*Auth)
+	require.True(t, ok)
+	assert.Equal(t, "bearer", collectionAuth.Type)
 
 	// environments
 	require.Len(t, result.Environments, 1)
@@ -134,7 +135,7 @@ components:
 	assert.Equal(t, "http", listPets.Info.Type)
 	assert.Equal(t, "GET", listPets.HTTP.Method)
 	assert.Equal(t, "{{baseUrl}}/pets", listPets.HTTP.URL)
-	assert.Equal(t, "inherit", listPets.HTTP.Auth)
+	assert.Equal(t, AuthInherit{}, listPets.HTTP.Auth)
 
 	// query param
 	require.NotEmpty(t, listPets.HTTP.Params)
@@ -150,8 +151,7 @@ components:
 	createPet := result.Folders[0].Requests[1]
 	assert.Equal(t, "Create a pet", createPet.Info.Name)
 	assert.Equal(t, "POST", createPet.HTTP.Method)
-	require.NotNil(t, createPet.HTTP.Body)
-	assert.Equal(t, "json", createPet.HTTP.Body.Type)
+	assert.Equal(t, "json", rawBody(t, createPet.HTTP.Body).Type)
 
 	getPet := result.Folders[0].Requests[2]
 	assert.Equal(t, "Get a pet", getPet.Info.Name)
@@ -232,14 +232,15 @@ components:
 
 	// collection-level auth should be apikey
 	require.NotNil(t, result.Collection.Request)
-	require.NotNil(t, result.Collection.Request.Auth)
-	assert.Equal(t, "apikey", result.Collection.Request.Auth.Type)
-	assert.Equal(t, "X-API-Key", result.Collection.Request.Auth.Key)
-	assert.Equal(t, "header", result.Collection.Request.Auth.Placement)
+	collectionAuth, ok := result.Collection.Request.Auth.(*Auth)
+	require.True(t, ok)
+	assert.Equal(t, "apikey", collectionAuth.Type)
+	assert.Equal(t, "X-API-Key", collectionAuth.Key)
+	assert.Equal(t, "header", collectionAuth.Placement)
 
 	// operation should inherit
 	require.Len(t, result.Folders, 1)
-	assert.Equal(t, "inherit", result.Folders[0].Requests[0].HTTP.Auth)
+	assert.Equal(t, AuthInherit{}, result.Folders[0].Requests[0].HTTP.Auth)
 }
 
 func TestGenerate_SecurityNone(t *testing.T) {
@@ -271,7 +272,7 @@ components:
 	require.NoError(t, err)
 
 	require.Len(t, result.Folders, 1)
-	assert.Equal(t, "none", result.Folders[0].Requests[0].HTTP.Auth)
+	assert.Nil(t, result.Folders[0].Requests[0].HTTP.Auth)
 }
 
 func TestGenerate_OperationSecurityOverride(t *testing.T) {
@@ -308,7 +309,9 @@ components:
 	require.NoError(t, err)
 
 	// collection should have bearer
-	assert.Equal(t, "bearer", result.Collection.Request.Auth.Type)
+	collectionAuth, ok := result.Collection.Request.Auth.(*Auth)
+	require.True(t, ok)
+	assert.Equal(t, "bearer", collectionAuth.Type)
 
 	// operation should override with apikey
 	require.Len(t, result.Folders, 1)
@@ -443,14 +446,12 @@ paths:
 	requests := result.Folders[0].Requests
 	require.Len(t, requests, 3)
 
-	require.NotNil(t, requests[0].HTTP.Body)
-	assert.Equal(t, "json", requests[0].HTTP.Body.Type)
+	assert.Equal(t, "json", rawBody(t, requests[0].HTTP.Body).Type)
+	assert.Equal(t, "xml", rawBody(t, requests[1].HTTP.Body).Type)
 
-	require.NotNil(t, requests[1].HTTP.Body)
-	assert.Equal(t, "xml", requests[1].HTTP.Body.Type)
-
-	require.NotNil(t, requests[2].HTTP.Body)
-	assert.Equal(t, "form-urlencoded", requests[2].HTTP.Body.Type)
+	form, ok := requests[2].HTTP.Body.(*FormUrlEncodedBody)
+	require.True(t, ok)
+	assert.Equal(t, "form-urlencoded", form.Type)
 }
 
 func TestGenerate_HeaderParams(t *testing.T) {
@@ -528,8 +529,7 @@ paths:
 
 	// json should be preferred over xml
 	req := result.Folders[0].Requests[0]
-	require.NotNil(t, req.HTTP.Body)
-	assert.Equal(t, "json", req.HTTP.Body.Type)
+	assert.Equal(t, "json", rawBody(t, req.HTTP.Body).Type)
 
 	foundContentType := false
 	for _, header := range req.HTTP.Headers {
@@ -648,13 +648,13 @@ components:
 	// collection-level auth should be nil (anonymous allowed via empty {})
 	assert.Nil(t, result.Collection.Request, "empty {} in document security means no collection auth")
 
-	// operation with security: [{}] should be "none"
+	// operation with security: [{}] omits auth entirely
 	require.Len(t, result.Folders, 1)
 	require.Len(t, result.Folders[0].Requests, 2)
-	assert.Equal(t, "none", result.Folders[0].Requests[0].HTTP.Auth)
+	assert.Nil(t, result.Folders[0].Requests[0].HTTP.Auth)
 
 	// operation with no security field should inherit
-	assert.Equal(t, "inherit", result.Folders[0].Requests[1].HTTP.Auth)
+	assert.Equal(t, AuthInherit{}, result.Folders[0].Requests[1].HTTP.Auth)
 }
 
 func TestGenerate_FolderSlugDedup(t *testing.T) {
@@ -821,12 +821,19 @@ paths:
 
 	require.Len(t, result.Folders, 1)
 	req := result.Folders[0].Requests[0]
-	require.NotNil(t, req.HTTP.Body)
+	body := rawBody(t, req.HTTP.Body)
 	// body data should be valid JSON, not a serialized yaml.Node struct
-	assert.Contains(t, req.HTTP.Body.Data, `"name"`)
-	assert.Contains(t, req.HTTP.Body.Data, `"Fido"`)
-	assert.NotContains(t, req.HTTP.Body.Data, "Kind", "should not contain yaml.Node struct fields")
-	assert.NotContains(t, req.HTTP.Body.Data, "Style", "should not contain yaml.Node struct fields")
+	assert.Contains(t, body.Data, `"name"`)
+	assert.Contains(t, body.Data, `"Fido"`)
+	assert.NotContains(t, body.Data, "Kind", "should not contain yaml.Node struct fields")
+	assert.NotContains(t, body.Data, "Style", "should not contain yaml.Node struct fields")
+}
+
+func rawBody(t *testing.T, body RequestBody) *RawBody {
+	t.Helper()
+	raw, ok := body.(*RawBody)
+	require.True(t, ok)
+	return raw
 }
 
 func TestGenerate_SecurityReversedEmptyRequirement(t *testing.T) {
@@ -871,13 +878,13 @@ components:
 	// collection-level auth should be nil (anonymous allowed via empty {})
 	assert.Nil(t, result.Collection.Request, "reversed empty {} in document security means no collection auth")
 
-	// operation with security: [{bearerAuth: []}, {}] should be "none"
+	// operation with security: [{bearerAuth: []}, {}] omits auth entirely
 	require.Len(t, result.Folders, 1)
 	require.Len(t, result.Folders[0].Requests, 2)
-	assert.Equal(t, "none", result.Folders[0].Requests[0].HTTP.Auth)
+	assert.Nil(t, result.Folders[0].Requests[0].HTTP.Auth)
 
 	// operation with no security field should inherit
-	assert.Equal(t, "inherit", result.Folders[0].Requests[1].HTTP.Auth)
+	assert.Equal(t, AuthInherit{}, result.Folders[0].Requests[1].HTTP.Auth)
 }
 
 func TestGenerate_AcceptPrefers2xx(t *testing.T) {

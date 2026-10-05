@@ -6,11 +6,14 @@ package frank
 import (
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
+	"iter"
 	"log/slog"
 	"regexp"
 	"strings"
 	"unicode"
 
+	"github.com/pb33f/doctor/internal/mocks"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	highV3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
@@ -139,7 +142,10 @@ func sanitizeVarName(name string) string {
 }
 
 // mapSecuritySchemeToAuth converts an OpenAPI security scheme to an OC Auth struct.
-func mapSecuritySchemeToAuth(scheme *highV3.SecurityScheme, log *slog.Logger) *Auth {
+// scopes come from the security requirement, not the scheme. For oauth2 that is the
+// set the token is requested with, which is usually far smaller than the set the
+// scheme advertises.
+func mapSecuritySchemeToAuth(scheme *highV3.SecurityScheme, scopes []string, log *slog.Logger) AuthConfig {
 	if scheme == nil {
 		return nil
 	}
@@ -159,8 +165,14 @@ func mapSecuritySchemeToAuth(scheme *highV3.SecurityScheme, log *slog.Logger) *A
 		return nil
 	case "apiKey":
 		placement := "header"
-		if scheme.In != "" {
-			placement = scheme.In
+		switch scheme.In {
+		case "", "header":
+		case "query":
+			placement = "query"
+		default:
+			log.Warn("apiKey security scheme ignored; OpenCollection only supports header and query placement",
+				"name", scheme.Name, "in", scheme.In)
+			return nil
 		}
 		return &Auth{
 			Type:      "apikey",
@@ -169,56 +181,126 @@ func mapSecuritySchemeToAuth(scheme *highV3.SecurityScheme, log *slog.Logger) *A
 			Placement: placement,
 		}
 	case "oauth2":
-		return mapOAuth2ToAuth(scheme.Flows)
+		if auth := mapOAuth2ToAuth(scheme.Flows, scopes, log); auth != nil {
+			return auth
+		}
+		return nil
 	case "openIdConnect":
+		log.Warn("openIdConnect discovery URL dropped; OpenCollection has no openIdConnect auth type, mapping to bearer",
+			"openIdConnectUrl", scheme.OpenIdConnectUrl)
 		return &Auth{Type: "bearer", Token: "{{token}}"}
+	case "mutualTLS":
+		log.Warn("mutualTLS security scheme ignored; OpenCollection has no equivalent auth type")
+		return nil
 	}
+	log.Warn("unrecognised security scheme type ignored", "type", scheme.Type)
 	return nil
 }
 
+// Placeholder variable names match the ones Bruno's own OpenAPI importer emits, so a
+// collection generated here and one imported there want the same environment.
+const (
+	oauthClientID     = "{{oauth_client_id}}"
+	oauthClientSecret = "{{oauth_client_secret}}"
+	oauthCallbackURL  = "{{oauth_callback_url}}"
+	oauthState        = "{{oauth_state}}"
+	oauthUsername     = "{{oauth_username}}"
+	oauthPassword     = "{{oauth_password}}"
+)
+
 // mapOAuth2ToAuth maps OAuth2 flows to the best OC Auth representation.
-func mapOAuth2ToAuth(flows *highV3.OAuthFlows) *Auth {
+func mapOAuth2ToAuth(flows *highV3.OAuthFlows, scopes []string, log *slog.Logger) *AuthOAuth2 {
 	if flows == nil {
-		return &Auth{Type: "oauth2"}
+		log.Warn("oauth2 security scheme ignored; it declares no flows")
+		return nil
 	}
-	// preference order: authorization_code > client_credentials > password > implicit (fallback to auth_code)
-	if flows.AuthorizationCode != nil {
-		return mapOAuthFlow(flows.AuthorizationCode, "authorization_code")
+	// preference order: authorization_code > client_credentials > password > implicit
+	switch {
+	case flows.AuthorizationCode != nil:
+		return mapAuthorizationCodeFlow(flows.AuthorizationCode, scopes)
+	case flows.ClientCredentials != nil:
+		return mapClientCredentialsFlow(flows.ClientCredentials, scopes)
+	case flows.Password != nil:
+		return mapPasswordFlow(flows.Password, scopes)
+	case flows.Implicit != nil:
+		return mapImplicitFlow(flows.Implicit, scopes)
+	case flows.Device != nil:
+		log.Warn("oauth2 device flow ignored; OpenCollection supports client_credentials, resource_owner_password_credentials, authorization_code and implicit")
+		return nil
 	}
-	if flows.ClientCredentials != nil {
-		return mapOAuthFlow(flows.ClientCredentials, "client_credentials")
-	}
-	if flows.Password != nil {
-		return mapOAuthFlow(flows.Password, "password")
-	}
-	if flows.Implicit != nil {
-		// implicit falls back to authorization_code (closest equivalent)
-		return mapOAuthFlow(flows.Implicit, "authorization_code")
-	}
-	return &Auth{Type: "oauth2"}
+	log.Warn("oauth2 security scheme ignored; it declares no supported flow")
+	return nil
 }
 
-// mapOAuthFlow maps a single OAuthFlow to an Auth struct.
-func mapOAuthFlow(flow *highV3.OAuthFlow, grantType string) *Auth {
-	auth := &Auth{
-		Type:      "oauth2",
-		GrantType: grantType,
+func mapClientCredentialsFlow(flow *highV3.OAuthFlow, scopes []string) *AuthOAuth2 {
+	return &AuthOAuth2{
+		Type:            "oauth2",
+		Flow:            "client_credentials",
+		AccessTokenURL:  flow.TokenUrl,
+		RefreshTokenURL: flow.RefreshUrl,
+		Credentials:     clientCredentials(),
+		Scope:           strings.Join(scopes, " "),
+		Settings:        defaultOAuth2Settings(),
 	}
-	if flow.AuthorizationUrl != "" {
-		auth.AuthorizationURL = flow.AuthorizationUrl
+}
+
+func mapPasswordFlow(flow *highV3.OAuthFlow, scopes []string) *AuthOAuth2 {
+	return &AuthOAuth2{
+		Type:            "oauth2",
+		Flow:            "resource_owner_password_credentials",
+		AccessTokenURL:  flow.TokenUrl,
+		RefreshTokenURL: flow.RefreshUrl,
+		Credentials:     clientCredentials(),
+		ResourceOwner:   &OAuth2ResourceOwner{Username: oauthUsername, Password: oauthPassword},
+		Scope:           strings.Join(scopes, " "),
+		Settings:        defaultOAuth2Settings(),
 	}
-	if flow.TokenUrl != "" {
-		auth.TokenURL = flow.TokenUrl
+}
+
+func mapAuthorizationCodeFlow(flow *highV3.OAuthFlow, scopes []string) *AuthOAuth2 {
+	return &AuthOAuth2{
+		Type:             "oauth2",
+		Flow:             "authorization_code",
+		AuthorizationURL: flow.AuthorizationUrl,
+		AccessTokenURL:   flow.TokenUrl,
+		RefreshTokenURL:  flow.RefreshUrl,
+		CallbackURL:      oauthCallbackURL,
+		Credentials:      clientCredentials(),
+		Scope:            strings.Join(scopes, " "),
+		State:            oauthState,
+		Settings:         defaultOAuth2Settings(),
 	}
-	// build scope string from ordered map
-	if flow.Scopes != nil {
-		var scopes []string
-		for name := range flow.Scopes.FromOldest() {
-			scopes = append(scopes, name)
-		}
-		auth.Scope = strings.Join(scopes, " ")
+}
+
+// The implicit flow has no token endpoint, and its credentials object accepts only
+// clientId. Setting anything else here makes the document invalid.
+func mapImplicitFlow(flow *highV3.OAuthFlow, scopes []string) *AuthOAuth2 {
+	return &AuthOAuth2{
+		Type:             "oauth2",
+		Flow:             "implicit",
+		AuthorizationURL: flow.AuthorizationUrl,
+		CallbackURL:      oauthCallbackURL,
+		Credentials:      &OAuth2Credentials{ClientID: oauthClientID},
+		Scope:            strings.Join(scopes, " "),
+		State:            oauthState,
+		Settings:         defaultOAuth2Settings(),
 	}
-	return auth
+}
+
+// OpenAPI has no field for a client secret, so frank emits placeholders. Nor does it
+// say where the authorization server wants them, and RFC 6749 section 2.3.1 requires
+// every server to accept HTTP Basic while making the request body optional and
+// discouraged, so Basic is the safer default.
+func clientCredentials() *OAuth2Credentials {
+	return &OAuth2Credentials{
+		ClientID:     oauthClientID,
+		ClientSecret: oauthClientSecret,
+		Placement:    "basic_auth_header",
+	}
+}
+
+func defaultOAuth2Settings() *OAuth2Settings {
+	return &OAuth2Settings{AutoFetchToken: true, AutoRefreshToken: true}
 }
 
 // resolveCollectionAuth resolves document-level security to a collection Auth.
@@ -227,7 +309,7 @@ func resolveCollectionAuth(
 	docSecurity []*highBase.SecurityRequirement,
 	securitySchemes *orderedmap.Map[string, *highV3.SecurityScheme],
 	log *slog.Logger,
-) *Auth {
+) AuthConfig {
 	if len(docSecurity) == 0 || securitySchemes == nil {
 		return nil
 	}
@@ -237,59 +319,64 @@ func resolveCollectionAuth(
 			return nil
 		}
 	}
-	// resolve first supported scheme
-	for _, req := range docSecurity {
-		if req.Requirements.Len() > 1 {
-			log.Warn("security requirement with multiple schemes (AND) simplified to first scheme; OpenCollection supports one auth type per request")
-		}
-		for name := range req.Requirements.FromOldest() {
-			scheme, ok := securitySchemes.Get(name)
-			if ok {
-				return mapSecuritySchemeToAuth(scheme, log)
-			}
-		}
-	}
-	return nil
+	return firstSupportedAuth(docSecurity, securitySchemes, log)
 }
 
 // resolveOperationAuth resolves per-operation auth.
-// returns "inherit" (string) if no op security, "none" (string) if security: [], or *Auth.
+// returns AuthInherit if no op security, nil if security: [] or the scheme cannot be
+// represented, or an auth block. A nil result means the auth key is omitted entirely,
+// since OpenCollection has no variant for "no auth".
 func resolveOperationAuth(
 	opSecurity []*highBase.SecurityRequirement,
-	docSecurity []*highBase.SecurityRequirement,
 	securitySchemes *orderedmap.Map[string, *highV3.SecurityScheme],
 	log *slog.Logger,
-) any {
+) AuthConfig {
 	// no security field on operation -> inherit from collection
 	if opSecurity == nil {
-		return "inherit"
+		return AuthInherit{}
 	}
 	// security: [] -> explicit opt-out
 	if len(opSecurity) == 0 {
-		return "none"
+		return nil
 	}
 	if securitySchemes == nil {
-		return "inherit"
+		return AuthInherit{}
 	}
 	// if any requirement is empty {}, anonymous access is allowed (requirements are OR-ed)
 	for _, req := range opSecurity {
 		if req.Requirements == nil || req.Requirements.Len() == 0 {
-			return "none"
+			return nil
 		}
 	}
-	// resolve first supported scheme
-	for _, req := range opSecurity {
+	if auth := firstSupportedAuth(opSecurity, securitySchemes, log); auth != nil {
+		return auth
+	}
+	return nil
+}
+
+// firstSupportedAuth returns the first requirement whose scheme maps to an auth type
+// OpenCollection can express. Requirements are OR-ed, so skipping one frank cannot
+// represent and trying the next is the correct reading.
+func firstSupportedAuth(
+	security []*highBase.SecurityRequirement,
+	securitySchemes *orderedmap.Map[string, *highV3.SecurityScheme],
+	log *slog.Logger,
+) AuthConfig {
+	for _, req := range security {
 		if req.Requirements.Len() > 1 {
 			log.Warn("security requirement with multiple schemes (AND) simplified to first scheme; OpenCollection supports one auth type per request")
 		}
-		for name := range req.Requirements.FromOldest() {
+		for name, scopes := range req.Requirements.FromOldest() {
 			scheme, ok := securitySchemes.Get(name)
-			if ok {
-				return mapSecuritySchemeToAuth(scheme, log)
+			if !ok {
+				continue
+			}
+			if auth := mapSecuritySchemeToAuth(scheme, scopes, log); auth != nil {
+				return auth
 			}
 		}
 	}
-	return "inherit"
+	return nil
 }
 
 // buildParams merges operation and pathItem parameters, returning only query and path types.
@@ -397,6 +484,25 @@ func deriveParamValue(p *highV3.Parameter) string {
 // deriveHeaderValue produces a value for a header parameter.
 func deriveHeaderValue(p *highV3.Parameter) string {
 	return deriveSchemaValue(p, false)
+}
+
+func schemaValue(s *highBase.Schema) string {
+	if s == nil {
+		return ""
+	}
+	if s.Example != nil {
+		return renderYAMLNode(s.Example)
+	}
+	if s.Default != nil {
+		return renderYAMLNode(s.Default)
+	}
+	if len(s.Enum) > 0 {
+		return renderYAMLNode(s.Enum[0])
+	}
+	if len(s.Type) > 0 {
+		return typePlaceholder(s.Type[0])
+	}
+	return ""
 }
 
 // deriveSchemaValue extracts a value from a parameter's example or schema.
@@ -557,26 +663,120 @@ func matchesContentTypePreference(contentType, preferred string) bool {
 }
 
 // buildBody maps request body to an OC RequestBody.
-func buildBody(selected *selectedRequestBody) *RequestBody {
+func (f *Frank) buildBody(selected *selectedRequestBody, operationID string) RequestBody {
 	if selected == nil {
 		return nil
 	}
 
-	return &RequestBody{
-		Type: selected.bodyType,
-		Data: extractBodyData(selected.mediaType),
+	switch selected.bodyType {
+	case "form-urlencoded":
+		return &FormUrlEncodedBody{Type: selected.bodyType, Data: buildFormFields(selected.mediaType)}
+	case "multipart-form":
+		return &MultipartFormBody{Type: selected.bodyType, Data: buildMultipartFields(selected.mediaType)}
+	default:
+		return &RawBody{Type: selected.bodyType, Data: f.renderBodyData(selected, operationID)}
 	}
 }
 
-// extractBodyData tries to extract example data from a media type.
-func extractBodyData(mt *highV3.MediaType) string {
-	if mt == nil {
+// The generator prefers examples declared in the spec and only derives a payload
+// from the schema when there are none.
+//
+// Only JSON is generated, because libopenapi's renderXMLMap ranges over a Go map
+// to emit child elements and so orders them differently on every run. Other raw
+// types fall back to the example the spec declares. Once that renderer emits a
+// stable order, XML can be generated the same way JSON is.
+func (f *Frank) renderBodyData(selected *selectedRequestBody, operationID string) string {
+	if selected.mediaType == nil {
 		return ""
 	}
-	if mt.Example != nil {
-		return renderYAMLNode(mt.Example)
+	if selected.bodyType != "json" {
+		if selected.mediaType.Example != nil {
+			return renderYAMLNode(selected.mediaType.Example)
+		}
+		return ""
 	}
-	return ""
+
+	if f.bodyGenJSON == nil {
+		return ""
+	}
+
+	// Seeding covers most of the generator, but libopenapi derives
+	// pattern-constrained strings through reggen.Generate, which SetSeed does not
+	// reach, so a schema using pattern renders differently every time. Rendering
+	// twice and keeping only a payload that settles stops those operations
+	// rewriting themselves on each run. This second render exists for that reason
+	// alone and can go once the seed reaches the pattern generator.
+	first := f.generateBody(selected.mediaType, operationID)
+	second := f.generateBody(selected.mediaType, operationID)
+	if first != second {
+		f.log.Warn("generated body is not reproducible between runs; omitting it",
+			"operation", operationID)
+		return ""
+	}
+	return first
+}
+
+// generateBody renders the media type once from a seed fixed to the operation, so
+// a body stays the same as other operations come and go around it.
+func (f *Frank) generateBody(mt *highV3.MediaType, operationID string) string {
+	f.bodyGenJSON.SetSeed(bodySeed(operationID))
+
+	warn := func(message, context string, err error) {
+		f.log.Warn(message, "operation", context, "error", err)
+	}
+
+	data, err := mocks.SafeGenerate(f.bodyGenJSON, mt, operationID, maxGeneratedBodyBytes, warn)
+	if err != nil || data == nil {
+		return ""
+	}
+	return string(data)
+}
+
+func bodySeed(operationID string) int64 {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(operationID))
+	return int64(h.Sum64())
+}
+
+func buildFormFields(mt *highV3.MediaType) []FormField {
+	var fields []FormField
+	for name, prop := range bodyProperties(mt) {
+		fields = append(fields, FormField{Name: name, Value: schemaValue(prop)})
+	}
+	return fields
+}
+
+func buildMultipartFields(mt *highV3.MediaType) []MultipartField {
+	var fields []MultipartField
+	for name, prop := range bodyProperties(mt) {
+		part := MultipartField{Name: name, Type: "text", Value: schemaValue(prop)}
+		if prop != nil && prop.Format == "binary" {
+			part.Type = "file"
+			part.Value = ""
+		}
+		fields = append(fields, part)
+	}
+	return fields
+}
+
+func bodyProperties(mt *highV3.MediaType) iter.Seq2[string, *highBase.Schema] {
+	return func(yield func(string, *highBase.Schema) bool) {
+		if mt == nil || mt.Schema == nil {
+			return
+		}
+		s := mt.Schema.Schema()
+		if s == nil || s.Properties == nil {
+			return
+		}
+		for name, proxy := range s.Properties.FromOldest() {
+			if proxy == nil {
+				continue
+			}
+			if !yield(name, proxy.Schema()) {
+				return
+			}
+		}
+	}
 }
 
 // mapContentType maps a MIME type to an OC body type string.

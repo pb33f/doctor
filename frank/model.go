@@ -29,7 +29,7 @@ type CollectionAuthor struct {
 
 // CollectionRequest holds collection-level request defaults.
 type CollectionRequest struct {
-	Auth *Auth `yaml:"auth,omitempty"`
+	Auth AuthConfig `yaml:"auth,omitempty"`
 }
 
 // BrunoExtensions holds Bruno-specific configuration.
@@ -75,8 +75,8 @@ type RequestHTTP struct {
 	URL     string          `yaml:"url"`
 	Params  []RequestParam  `yaml:"params,omitempty"`
 	Headers []RequestHeader `yaml:"headers,omitempty"`
-	Body    *RequestBody    `yaml:"body,omitempty"`
-	Auth    any             `yaml:"auth,omitempty"`
+	Body    RequestBody     `yaml:"body,omitempty"`
+	Auth    AuthConfig      `yaml:"auth,omitempty"`
 }
 
 // RequestParam represents a query or path parameter.
@@ -95,26 +95,112 @@ type RequestHeader struct {
 	Disabled bool   `yaml:"disabled,omitempty"`
 }
 
-// RequestBody represents the HTTP request body.
-type RequestBody struct {
-	Type string `yaml:"type,omitempty"`
-	Data string `yaml:"data,omitempty"`
+// RequestBody is the set of body shapes OpenCollection accepts. A raw body carries
+// its payload as text and the others carry a list of fields, so no single struct
+// holds them all.
+type RequestBody interface {
+	isRequestBody()
 }
 
+func (*RawBody) isRequestBody()            {}
+func (*FormUrlEncodedBody) isRequestBody() {}
+func (*MultipartFormBody) isRequestBody()  {}
+
+// RawBody's type is one of json, text, xml or sparql.
+type RawBody struct {
+	Type string `yaml:"type"`
+	Data string `yaml:"data"`
+}
+
+type FormUrlEncodedBody struct {
+	Type string      `yaml:"type"`
+	Data []FormField `yaml:"data"`
+}
+
+type FormField struct {
+	Name     string `yaml:"name"`
+	Value    string `yaml:"value"`
+	Disabled bool   `yaml:"disabled,omitempty"`
+}
+
+type MultipartFormBody struct {
+	Type string           `yaml:"type"`
+	Data []MultipartField `yaml:"data"`
+}
+
+// MultipartField's type is either text or file.
+type MultipartField struct {
+	Name        string `yaml:"name"`
+	Type        string `yaml:"type"`
+	Value       string `yaml:"value"`
+	ContentType string `yaml:"contentType,omitempty"`
+	Disabled    bool   `yaml:"disabled,omitempty"`
+}
+
+// AuthConfig is the set of values an auth field can hold. The marker method is
+// unexported, so nothing outside this package can add a variant.
+type AuthConfig interface {
+	isAuthConfig()
+}
+
+// AuthInherit renders as the string "inherit", the only non-object value
+// OpenCollection accepts for auth.
+type AuthInherit struct{}
+
+func (AuthInherit) MarshalYAML() (any, error) { return "inherit", nil }
+
+func (AuthInherit) isAuthConfig() {}
+func (*Auth) isAuthConfig()       {}
+func (*AuthOAuth2) isAuthConfig() {}
+
 // Auth represents authentication configuration, discriminated by the Type field.
+// It covers the auth types whose fields are flat: bearer, basic, digest and apikey.
+// oauth2 nests its configuration and differs per flow, so it has its own type.
 type Auth struct {
-	Type             string `yaml:"type"`
-	Token            string `yaml:"token,omitempty"`
-	Username         string `yaml:"username,omitempty"`
-	Password         string `yaml:"password,omitempty"`
-	Key              string `yaml:"key,omitempty"`
-	Value            string `yaml:"value,omitempty"`
-	Placement        string `yaml:"placement,omitempty"`
-	GrantType        string `yaml:"grantType,omitempty"`
-	AuthorizationURL string `yaml:"authorizationUrl,omitempty"`
-	TokenURL         string `yaml:"tokenUrl,omitempty"`
-	CallbackURL      string `yaml:"callbackUrl,omitempty"`
-	Scope            string `yaml:"scope,omitempty"`
+	Type      string `yaml:"type"`
+	Token     string `yaml:"token,omitempty"`
+	Username  string `yaml:"username,omitempty"`
+	Password  string `yaml:"password,omitempty"`
+	Key       string `yaml:"key,omitempty"`
+	Value     string `yaml:"value,omitempty"`
+	Placement string `yaml:"placement,omitempty"`
+}
+
+// AuthOAuth2 represents an oauth2 auth block. Each flow permits a different set of
+// fields and OpenCollection rejects any it does not recognise, so the mapper sets
+// only the ones its flow allows.
+type AuthOAuth2 struct {
+	Type             string               `yaml:"type"`
+	Flow             string               `yaml:"flow"`
+	AuthorizationURL string               `yaml:"authorizationUrl,omitempty"`
+	AccessTokenURL   string               `yaml:"accessTokenUrl,omitempty"`
+	RefreshTokenURL  string               `yaml:"refreshTokenUrl,omitempty"`
+	CallbackURL      string               `yaml:"callbackUrl,omitempty"`
+	Credentials      *OAuth2Credentials   `yaml:"credentials,omitempty"`
+	ResourceOwner    *OAuth2ResourceOwner `yaml:"resourceOwner,omitempty"`
+	Scope            string               `yaml:"scope,omitempty"`
+	State            string               `yaml:"state,omitempty"`
+	Settings         *OAuth2Settings      `yaml:"settings,omitempty"`
+}
+
+// OAuth2Credentials holds the client credentials. The implicit flow accepts only
+// clientId, so the other two fields stay empty there.
+type OAuth2Credentials struct {
+	ClientID     string `yaml:"clientId,omitempty"`
+	ClientSecret string `yaml:"clientSecret,omitempty"`
+	Placement    string `yaml:"placement,omitempty"`
+}
+
+// OAuth2ResourceOwner holds the end-user credentials for the password flow.
+type OAuth2ResourceOwner struct {
+	Username string `yaml:"username,omitempty"`
+	Password string `yaml:"password,omitempty"`
+}
+
+// OAuth2Settings controls Bruno's token handling.
+type OAuth2Settings struct {
+	AutoFetchToken   bool `yaml:"autoFetchToken"`
+	AutoRefreshToken bool `yaml:"autoRefreshToken"`
 }
 
 // Environment represents an environment .yml file.
