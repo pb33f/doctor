@@ -9,13 +9,13 @@ import (
 	"testing"
 
 	drV3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/datamodel/high"
 	highV3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/testify/require"
-	"go.yaml.in/yaml/v4"
 )
 
 const matchingCoordinatesFixture = "../test_specs/matching-coordinates/openapi.yaml"
