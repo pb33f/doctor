@@ -1,6 +1,6 @@
 module github.com/pb33f/doctor
 
-go 1.25.7
+go 1.26.0
 
 require (
 	charm.land/bubbles/v2 v2.1.0
@@ -15,7 +15,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pb33f/libasyncapi v0.0.2
-	github.com/pb33f/libopenapi v0.38.6
+	github.com/pb33f/libopenapi v0.39.1
 	github.com/pb33f/ordered-map/v2 v2.3.1
 	github.com/pb33f/testify v0.1.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
@@ -23,7 +23,7 @@ require (
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	go.yaml.in/yaml/v4 v4.0.0-rc.6
 	golang.org/x/net v0.56.0
-	golang.org/x/sync v0.21.0
+	golang.org/x/sync v0.23.0
 	golang.org/x/text v0.38.0
 	modernc.org/sqlite v1.52.0
 )
@@ -49,7 +49,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
-	github.com/pb33f/jsonpath v0.8.2 // indirect
+	github.com/pb33f/jsonpath v0.8.3 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
