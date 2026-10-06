@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/pb33f/jsonschema/v6"
+	"github.com/pb33f/jsonschema/v6/kind"
 	"github.com/pb33f/testify/assert"
-	"github.com/santhosh-tekuri/jsonschema/v6"
-	"github.com/santhosh-tekuri/jsonschema/v6/kind"
 )
 
 func TestDiveIntoValidationError_EmptyInstanceLocation(t *testing.T) {
