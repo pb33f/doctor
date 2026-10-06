@@ -15,11 +15,11 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pb33f/go-yaml v0.1.1
+	github.com/pb33f/jsonschema/v6 v6.0.3
 	github.com/pb33f/libasyncapi v0.0.3-0.20261006133119-e34489c04636
 	github.com/pb33f/libopenapi v0.41.2
 	github.com/pb33f/ordered-map/v2 v2.3.2
 	github.com/pb33f/testify v0.1.1
-	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/yuin/goldmark v1.8.2
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	golang.org/x/net v0.56.0
