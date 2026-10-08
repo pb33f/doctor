@@ -517,7 +517,12 @@ items:
                   value: application/xml
             body:
                 type: xml
-                data: ""
+                data: |-
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <root>
+                      <url>https://hIn-HWU-Qih.com/pMS</url>
+                      <event>zUY</event>
+                    </root>
             auth:
                 type: oauth2
                 flow: client_credentials
