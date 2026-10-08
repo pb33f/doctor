@@ -555,6 +555,53 @@ func TestBuildBody_MultipartMarksBinaryPartsAsFiles(t *testing.T) {
 	}, body.Data)
 }
 
+func TestBuildBody_FormFieldsPreferTheMediaTypeExample(t *testing.T) {
+	properties := orderedmap.New[string, *highBase.SchemaProxy]()
+	properties.Set("name", highBase.CreateSchemaProxy(&highBase.Schema{
+		Type:    []string{"string"},
+		Example: yamlNode("Bob"),
+	}))
+	properties.Set("role", highBase.CreateSchemaProxy(&highBase.Schema{
+		Type:    []string{"string"},
+		Default: yamlNode("viewer"),
+	}))
+	mt := &highV3.MediaType{
+		Schema:  highBase.CreateSchemaProxy(&highBase.Schema{Properties: properties}),
+		Example: yamlNode("{name: Alice}"),
+	}
+
+	f := &Frank{log: testLog}
+	body, ok := f.buildBody(&selectedRequestBody{bodyType: "form-urlencoded", mediaType: mt}, "createUser").(*FormUrlEncodedBody)
+	require.True(t, ok)
+	assert.Equal(t, []FormField{
+		{Name: "name", Value: "Alice"},
+		{Name: "role", Value: "viewer"},
+	}, body.Data)
+}
+
+func TestBuildBody_MultipartFieldsPreferTheMediaTypeExamples(t *testing.T) {
+	properties := orderedmap.New[string, *highBase.SchemaProxy]()
+	properties.Set("name", highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"string"}}))
+	properties.Set("avatar", highBase.CreateSchemaProxy(&highBase.Schema{
+		Type:   []string{"string"},
+		Format: "binary",
+	}))
+	examples := orderedmap.New[string, *highBase.Example]()
+	examples.Set("alice", &highBase.Example{Value: yamlNode("{name: Alice, avatar: alice.png}")})
+	mt := &highV3.MediaType{
+		Schema:   highBase.CreateSchemaProxy(&highBase.Schema{Properties: properties}),
+		Examples: examples,
+	}
+
+	f := &Frank{log: testLog}
+	body, ok := f.buildBody(&selectedRequestBody{bodyType: "multipart-form", mediaType: mt}, "uploadAvatar").(*MultipartFormBody)
+	require.True(t, ok)
+	assert.Equal(t, []MultipartField{
+		{Name: "name", Type: "text", Value: "Alice"},
+		{Name: "avatar", Type: "file"},
+	}, body.Data)
+}
+
 func TestBuildBody_PrefersTheExampleDeclaredInTheSpec(t *testing.T) {
 	mt := &highV3.MediaType{
 		Schema:  highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"object"}}),
@@ -598,6 +645,51 @@ func TestBuildBody_SeedsFromTheOperationSoDataIsStable(t *testing.T) {
 
 	assert.Equal(t, first.Data, second.Data)
 	assert.NotEqual(t, first.Data, other.Data, "a different operation should seed differently")
+}
+
+func TestBuildBody_PatternStringsAreStable(t *testing.T) {
+	properties := orderedmap.New[string, *highBase.SchemaProxy]()
+	properties.Set("grade", highBase.CreateSchemaProxy(&highBase.Schema{
+		Type:    []string{"string"},
+		Pattern: "^[ab]$",
+	}))
+	mt := &highV3.MediaType{Schema: highBase.CreateSchemaProxy(&highBase.Schema{
+		Type:       []string{"object"},
+		Properties: properties,
+	})}
+
+	render := func() string {
+		f := &Frank{log: testLog, bodyGenJSON: newBodyGenerator(renderer.JSON)}
+		return f.buildBody(&selectedRequestBody{bodyType: "json", mediaType: mt}, "gradeItem").(*RawBody).Data
+	}
+
+	// A pattern with two possible values matches itself half the time by chance,
+	// so a single comparison proves very little.
+	first := render()
+	assert.Regexp(t, `"grade": "[ab]"`, first)
+	for range 20 {
+		assert.Equal(t, first, render())
+	}
+}
+
+func TestBuildBody_XMLElementsFollowTheSchema(t *testing.T) {
+	properties := orderedmap.New[string, *highBase.SchemaProxy]()
+	for _, name := range []string{"url", "event", "secret", "active", "retries", "timeout", "format", "owner"} {
+		properties.Set(name, highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"string"}}))
+	}
+	mt := &highV3.MediaType{Schema: highBase.CreateSchemaProxy(&highBase.Schema{
+		Type:       []string{"object"},
+		Properties: properties,
+	})}
+
+	// Ranging over a small Go map often lands in insertion order anyway, so one
+	// render in the right order proves very little.
+	for range 20 {
+		f := &Frank{log: testLog, bodyGenXML: newBodyGenerator(renderer.XML)}
+		body, ok := f.buildBody(&selectedRequestBody{bodyType: "xml", mediaType: mt}, "createWebhook").(*RawBody)
+		require.True(t, ok)
+		assert.Regexp(t, `(?s)<url>.*<event>.*<secret>.*<active>.*<retries>.*<timeout>.*<format>.*<owner>`, body.Data)
+	}
 }
 
 func TestDeriveEnvironmentName(t *testing.T) {

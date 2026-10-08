@@ -18,6 +18,7 @@ import (
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	highV3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"github.com/pb33f/libopenapi/renderer"
 )
 
 var nonAlnum = regexp.MustCompile(`[^a-z0-9]+`)
@@ -679,53 +680,37 @@ func (f *Frank) buildBody(selected *selectedRequestBody, operationID string) Req
 }
 
 // The generator prefers examples declared in the spec and only derives a payload
-// from the schema when there are none.
-//
-// Only JSON is generated, because libopenapi's renderXMLMap ranges over a Go map
-// to emit child elements and so orders them differently on every run. Other raw
-// types fall back to the example the spec declares. Once that renderer emits a
-// stable order, XML can be generated the same way JSON is.
+// from the schema when there are none. Other raw types have no generator, so they
+// carry only the example the spec declares.
 func (f *Frank) renderBodyData(selected *selectedRequestBody, operationID string) string {
 	if selected.mediaType == nil {
 		return ""
 	}
-	if selected.bodyType != "json" {
-		if selected.mediaType.Example != nil {
-			return renderYAMLNode(selected.mediaType.Example)
-		}
-		return ""
+	switch selected.bodyType {
+	case "json":
+		return f.generateBody(f.bodyGenJSON, selected.mediaType, operationID)
+	case "xml":
+		return f.generateBody(f.bodyGenXML, selected.mediaType, operationID)
 	}
-
-	if f.bodyGenJSON == nil {
-		return ""
+	if selected.mediaType.Example != nil {
+		return renderYAMLNode(selected.mediaType.Example)
 	}
-
-	// Seeding covers most of the generator, but libopenapi derives
-	// pattern-constrained strings through reggen.Generate, which SetSeed does not
-	// reach, so a schema using pattern renders differently every time. Rendering
-	// twice and keeping only a payload that settles stops those operations
-	// rewriting themselves on each run. This second render exists for that reason
-	// alone and can go once the seed reaches the pattern generator.
-	first := f.generateBody(selected.mediaType, operationID)
-	second := f.generateBody(selected.mediaType, operationID)
-	if first != second {
-		f.log.Warn("generated body is not reproducible between runs; omitting it",
-			"operation", operationID)
-		return ""
-	}
-	return first
+	return ""
 }
 
-// generateBody renders the media type once from a seed fixed to the operation, so
-// a body stays the same as other operations come and go around it.
-func (f *Frank) generateBody(mt *highV3.MediaType, operationID string) string {
-	f.bodyGenJSON.SetSeed(bodySeed(operationID))
+// generateBody renders the media type from a seed fixed to the operation, so a
+// body stays the same as other operations come and go around it.
+func (f *Frank) generateBody(gen *renderer.MockGenerator, mt *highV3.MediaType, operationID string) string {
+	if gen == nil {
+		return ""
+	}
+	gen.SetSeed(bodySeed(operationID))
 
 	warn := func(message, context string, err error) {
 		f.log.Warn(message, "operation", context, "error", err)
 	}
 
-	data, err := mocks.SafeGenerate(f.bodyGenJSON, mt, operationID, maxGeneratedBodyBytes, warn)
+	data, err := mocks.SafeGenerate(gen, mt, operationID, maxGeneratedBodyBytes, warn)
 	if err != nil || data == nil {
 		return ""
 	}
@@ -739,17 +724,19 @@ func bodySeed(operationID string) int64 {
 }
 
 func buildFormFields(mt *highV3.MediaType) []FormField {
+	example := mediaTypeExample(mt)
 	var fields []FormField
 	for name, prop := range bodyProperties(mt) {
-		fields = append(fields, FormField{Name: name, Value: schemaValue(prop)})
+		fields = append(fields, FormField{Name: name, Value: fieldValue(example, name, prop)})
 	}
 	return fields
 }
 
 func buildMultipartFields(mt *highV3.MediaType) []MultipartField {
+	example := mediaTypeExample(mt)
 	var fields []MultipartField
 	for name, prop := range bodyProperties(mt) {
-		part := MultipartField{Name: name, Type: "text", Value: schemaValue(prop)}
+		part := MultipartField{Name: name, Type: "text", Value: fieldValue(example, name, prop)}
 		if prop != nil && prop.Format == "binary" {
 			part.Type = "file"
 			part.Value = ""
@@ -757,6 +744,34 @@ func buildMultipartFields(mt *highV3.MediaType) []MultipartField {
 		fields = append(fields, part)
 	}
 	return fields
+}
+
+func mediaTypeExample(mt *highV3.MediaType) *yaml.Node {
+	if mt == nil {
+		return nil
+	}
+	if mt.Example != nil {
+		return mt.Example
+	}
+	for _, example := range mt.Examples.FromOldest() {
+		if example != nil && example.Value != nil {
+			return example.Value
+		}
+	}
+	return nil
+}
+
+// fieldValue takes the field from the media type example before the schema,
+// because OpenAPI has a media type example override the schema's own.
+func fieldValue(example *yaml.Node, name string, prop *highBase.Schema) string {
+	if example != nil && example.Kind == yaml.MappingNode {
+		for i := 0; i+1 < len(example.Content); i += 2 {
+			if example.Content[i].Value == name {
+				return renderYAMLNode(example.Content[i+1])
+			}
+		}
+	}
+	return schemaValue(prop)
 }
 
 func bodyProperties(mt *highV3.MediaType) iter.Seq2[string, *highBase.Schema] {

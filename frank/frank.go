@@ -41,6 +41,7 @@ type Frank struct {
 	securitySchemes *orderedmap.Map[string, *highV3.SecurityScheme]
 
 	bodyGenJSON *renderer.MockGenerator
+	bodyGenXML  *renderer.MockGenerator
 }
 
 // 8KB rather than the 64KB printingpress allows, because these bodies are inlined
@@ -82,6 +83,7 @@ func KnowWhatIMeanArry(config *FrankConfig) (*Frank, error) {
 		drDoc:       config.DrDoc.V3Document,
 		folders:     make(map[string]*folderBuildState),
 		bodyGenJSON: newBodyGenerator(renderer.JSON),
+		bodyGenXML:  newBodyGenerator(renderer.XML),
 	}, nil
 }
 
