@@ -647,12 +647,16 @@ func TestBuildBody_SeedsFromTheOperationSoDataIsStable(t *testing.T) {
 	assert.NotEqual(t, first.Data, other.Data, "a different operation should seed differently")
 }
 
-func TestBuildBody_PatternStringsAreStable(t *testing.T) {
+func TestBuildBody_GeneratedValuesAreStable(t *testing.T) {
 	properties := orderedmap.New[string, *highBase.SchemaProxy]()
 	properties.Set("grade", highBase.CreateSchemaProxy(&highBase.Schema{
 		Type:    []string{"string"},
 		Pattern: "^[ab]$",
 	}))
+	properties.Set("id", highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"string"}, Format: "uuid"}))
+	properties.Set("createdAt", highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"string"}, Format: "date-time"}))
+	properties.Set("birthday", highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"string"}, Format: "date"}))
+	properties.Set("opensAt", highBase.CreateSchemaProxy(&highBase.Schema{Type: []string{"string"}, Format: "time"}))
 	mt := &highV3.MediaType{Schema: highBase.CreateSchemaProxy(&highBase.Schema{
 		Type:       []string{"object"},
 		Properties: properties,
@@ -670,6 +674,12 @@ func TestBuildBody_PatternStringsAreStable(t *testing.T) {
 	for range 20 {
 		assert.Equal(t, first, render())
 	}
+
+	// Renders this close together read the same time from the clock, so the dates
+	// are checked against the fixed instant a seeded generator renders from.
+	assert.Contains(t, first, `"createdAt": "2025-01-01T12:00:00Z"`)
+	assert.Contains(t, first, `"birthday": "2025-01-01"`)
+	assert.Contains(t, first, `"opensAt": "12:00:00"`)
 }
 
 func TestBuildBody_XMLElementsFollowTheSchema(t *testing.T) {

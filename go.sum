@@ -92,8 +92,8 @@ github.com/pb33f/jsonschema/v6 v6.0.3 h1:TMIkE1xCmnF8Cy+anIBs+r4ASfGtwzfFxYsrrIn
 github.com/pb33f/jsonschema/v6 v6.0.3/go.mod h1:cYPShw+w1Jrs0YgpE2rk1FLdIAsKfWcotv/54G6ddFo=
 github.com/pb33f/libasyncapi v0.0.3-0.20261006133119-e34489c04636 h1:uUhTvFiCwssojeWYPQzmeVWl4lCooX5koCf/yS2umhA=
 github.com/pb33f/libasyncapi v0.0.3-0.20261006133119-e34489c04636/go.mod h1:FWWmU6wdny1AJbjYlaavxoeqy4iVXnWRwX7ybYwFdbM=
-github.com/pb33f/libopenapi v0.41.5 h1:kwEFkd/6W3tmTfsWQCVsMa0a9b1x3HYIZvt9Ek4jIDw=
-github.com/pb33f/libopenapi v0.41.5/go.mod h1:mUldESjO6ownR1TCcywvoYp7e4v/bCdQyiiIqsgWne0=
+github.com/pb33f/libopenapi v0.41.6 h1:W1X/5rOaAk3/Mjwrt+DHaiJO6buhruKWrbQ+pumONkA=
+github.com/pb33f/libopenapi v0.41.6/go.mod h1:mUldESjO6ownR1TCcywvoYp7e4v/bCdQyiiIqsgWne0=
 github.com/pb33f/ordered-map/v2 v2.3.2 h1:wDyaZ2Pv9QLh64X4utCeD5Zoi9nIv2aW3lwv172O5PQ=
 github.com/pb33f/ordered-map/v2 v2.3.2/go.mod h1:1OhFrXu3OYw3kM+FXF+Ug3ugmmZ9LE8z0JfQMLvtV0w=
 github.com/pb33f/testify v0.1.1 h1:mnHe7uxKt8dyNYEGUspow72VjD264DB5rOJq4bz5tJw=
