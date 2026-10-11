@@ -11,9 +11,9 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/x/term v0.2.2
+	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/go-github/v72 v72.0.0
 	github.com/google/uuid v1.6.0
-	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pb33f/go-yaml v0.1.1
 	github.com/pb33f/jsonschema/v6 v6.0.3
 	github.com/pb33f/libasyncapi v0.0.3-0.20261006133119-e34489c04636

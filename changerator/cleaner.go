@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/what-changed/model"
 )
