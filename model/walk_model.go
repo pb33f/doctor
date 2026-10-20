@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -424,7 +425,13 @@ func stableLocatedModels(models []drV3.Foundational) []drV3.Foundational {
 		model drV3.Foundational
 		key   string
 	}
-	entries := make([]locatedModelSortEntry, len(stable))
+	var scratch [16]locatedModelSortEntry
+	entries := scratch[:0]
+	if len(stable) <= len(scratch) {
+		entries = scratch[:len(stable)]
+	} else {
+		entries = make([]locatedModelSortEntry, len(stable))
+	}
 	for i, model := range stable {
 		entries[i] = locatedModelSortEntry{
 			model: model,
@@ -432,8 +439,8 @@ func stableLocatedModels(models []drV3.Foundational) []drV3.Foundational {
 		}
 	}
 
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].key < entries[j].key
+	slices.SortFunc(entries, func(a, b locatedModelSortEntry) int {
+		return strings.Compare(a.key, b.key)
 	})
 	for i, entry := range entries {
 		stable[i] = entry.model
@@ -448,14 +455,38 @@ func locatedModelSortKey(model drV3.Foundational) string {
 	path := model.GenerateJSONPath()
 	keyNode := model.GetKeyNode()
 	valueNode := model.GetValueNode()
-	return fmt.Sprintf("%s|%08d:%08d|%08d:%08d|%T",
-		path,
-		nodeLine(keyNode),
-		nodeColumn(keyNode),
-		nodeLine(valueNode),
-		nodeColumn(valueNode),
-		model,
-	)
+	// preserve the serialized lexical ordering, including signed and wide coordinates.
+	var coordinates [84]byte
+	buf := appendLookupCoordinate(coordinates[:0], nodeLine(keyNode))
+	buf = append(buf, ':')
+	buf = appendLookupCoordinate(buf, nodeColumn(keyNode))
+	buf = append(buf, '|')
+	buf = appendLookupCoordinate(buf, nodeLine(valueNode))
+	buf = append(buf, ':')
+	buf = appendLookupCoordinate(buf, nodeColumn(valueNode))
+	buf = append(buf, '|')
+	typeName := reflect.TypeOf(model).String()
+	var key strings.Builder
+	key.Grow(len(path) + 1 + len(buf) + len(typeName))
+	key.WriteString(path)
+	key.WriteByte('|')
+	key.Write(buf)
+	key.WriteString(typeName)
+	return key.String()
+}
+
+func appendLookupCoordinate(dst []byte, value int) []byte {
+	var digits [20]byte
+	number := strconv.AppendInt(digits[:0], int64(value), 10)
+	padding := 8 - len(number)
+	if number[0] == '-' {
+		dst = append(dst, '-')
+		number = number[1:]
+	}
+	for ; padding > 0; padding-- {
+		dst = append(dst, '0')
+	}
+	return append(dst, number...)
 }
 
 func nodeLine(node *yaml.Node) int {
