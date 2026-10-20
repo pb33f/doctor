@@ -580,12 +580,26 @@ func joinedPathPrefix(base, suffix, prefix string) bool {
 }
 
 func (f *Foundation) buildJSONPathIterative() string {
-	// the traversal already stops at 150 ancestors; bounded scratch avoids slice growth
-	// without keeping ancestor strings alive after the final path is built.
+	// short paths avoid clearing the full 150-ancestor scratch buffer.
+	var segments [16]jsonPathSegment
+	next, count, size := collectJSONPathSegments(f, segments[:])
+	if next != nil {
+		return f.buildLongJSONPath(next, segments[:count], size)
+	}
+	return f.encodeJSONPathSegments(segments[:count], size)
+}
+
+func (f *Foundation) buildLongJSONPath(current Foundational, prefix []jsonPathSegment, size int) string {
 	var segments [150]jsonPathSegment
+	copy(segments[:], prefix)
+	// sixteen ancestors were already visited, including any empty segments.
+	_, count, remainingSize := collectJSONPathSegments(current, segments[len(prefix):len(prefix)+134])
+	return f.encodeJSONPathSegments(segments[:len(prefix)+count], size+remainingSize)
+}
+
+func collectJSONPathSegments(current Foundational, segments []jsonPathSegment) (Foundational, int, int) {
 	var digits [20]byte
 	count, size := 0, 0
-	var current Foundational = f
 	for depth := 0; current != nil && depth < len(segments); depth++ {
 		key := current.GetKeyValue()
 		base := current.GetPathSegment()
@@ -624,6 +638,12 @@ func (f *Foundation) buildJSONPathIterative() string {
 		current = current.GetParent()
 	}
 
+	return current, count, size
+}
+
+func (f *Foundation) encodeJSONPathSegments(segments []jsonPathSegment, size int) string {
+	count := len(segments)
+
 	if count == 0 {
 		if f.PathSegment == "document" || f.PathSegment == "$" {
 			return "$"
@@ -639,6 +659,7 @@ func (f *Foundation) buildJSONPathIterative() string {
 		root.base = "$"
 	}
 
+	var digits [20]byte
 	var result strings.Builder
 	result.Grow(size)
 	for i := count - 1; i >= 0; i-- {
