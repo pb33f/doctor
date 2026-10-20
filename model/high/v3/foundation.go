@@ -538,13 +538,16 @@ func (f *Foundation) setCanonicalJSONPathFromContext(drCtx *DrContext, rootNode 
 	f.setCanonicalJSONPath(path)
 }
 
+const (
+	jsonPathKeyOpen  = "['"
+	jsonPathKeyClose = "']"
+)
+
 // AppendKeySegment appends a quoted key segment to a JSONPath base, e.g.
-// base + ['key']. This is THE single encoding of the key-segment grammar:
-// Foundation.buildJSONPathIterative and the canonical-path pre-population in
-// the model package (prePopulate* family) must both use it so walked paths
-// and pre-seeded definition-site paths can never drift apart.
+// base + ['key']. Its delimiters are shared with the iterative path encoder
+// so walked paths and pre-seeded definition-site paths use the same grammar.
 func AppendKeySegment(base, key string) string {
-	return base + "['" + key + "']"
+	return base + jsonPathKeyOpen + key + jsonPathKeyClose
 }
 
 // AppendIndexSegment appends an indexed segment to a JSONPath base, e.g.
@@ -560,90 +563,106 @@ func (f *Foundation) GenerateJSONPath() string {
 	return f.JSONPath
 }
 
+type jsonPathSegment struct {
+	base, key  string
+	index      int
+	indexed    bool
+	cacheSplit bool
+	dot        bool
+}
+
+// joinedPathPrefix checks the encoded prefix without allocating a segment string.
+func joinedPathPrefix(base, suffix, prefix string) bool {
+	if len(base) >= len(prefix) {
+		return strings.HasPrefix(base, prefix)
+	}
+	return strings.HasPrefix(prefix, base) && strings.HasPrefix(suffix, prefix[len(base):])
+}
+
 func (f *Foundation) buildJSONPathIterative() string {
-	// Collect path segments bottom-up
-	segments := make([]string, 0, 16) // Pre-allocate reasonable capacity
+	// the traversal already stops at 150 ancestors; bounded scratch avoids slice growth
+	// without keeping ancestor strings alive after the final path is built.
+	var segments [150]jsonPathSegment
+	var digits [20]byte
+	count, size := 0, 0
 	var current Foundational = f
-	depth := 0
-
-	for current != nil && depth < 150 { // Keep the depth limit for safety
-		depth++
-
-		// Build the segment for current level
-		var segment string
+	for depth := 0; current != nil && depth < len(segments); depth++ {
 		key := current.GetKeyValue()
-		pathSeg := current.GetPathSegment()
+		base := current.GetPathSegment()
 		index := current.GetIndexValue()
-
-		// Check if this is a cache split (Foundation specific)
 		cacheSplit := false
 		if found, ok := current.(*Foundation); ok {
 			cacheSplit = found.CacheSplit
 		}
 
+		segment := jsonPathSegment{base: base, key: key}
+		length := len(base)
+		suffix := ""
 		if key != "" {
-			if pathSeg == "" {
-				segment = AppendKeySegment("", key)
-			} else {
-				segment = AppendKeySegment(pathSeg, key)
-			}
+			suffix = jsonPathKeyOpen
+			length += len(jsonPathKeyOpen) + len(key) + len(jsonPathKeyClose)
 		} else if index != nil {
+			// snapshot before GetParent: custom parents can mutate the index pointer.
+			segment.index, segment.indexed, segment.cacheSplit = *index, true, cacheSplit
+			suffix = "["
+			length += len(strconv.AppendInt(digits[:0], int64(segment.index), 10)) + 2
 			if cacheSplit {
-				segment = pathSeg + "CACHE-SPLIT[" + strconv.Itoa(*index) + "]--"
-			} else {
-				segment = pathSeg + "[" + strconv.Itoa(*index) + "]"
+				suffix = "CACHE-SPLIT["
+				length += len("CACHE-SPLIT") + len("--")
 			}
-		} else {
-			segment = pathSeg
 		}
-
-		if segment != "" {
-			segments = append(segments, segment)
+		if length != 0 {
+			segment.dot = !joinedPathPrefix(base, suffix, "[") &&
+				!joinedPathPrefix(base, suffix, "CACHE-SPLIT[")
+			segments[count] = segment
+			count++
+			size += length
+			if segment.dot {
+				size++
+			}
 		}
-
-		// Move up the chain using the interface method
-		parent := current.GetParent()
-		if parent != nil {
-			current = parent
-		} else {
-			break
-		}
+		current = current.GetParent()
 	}
 
-	// Handle edge cases
-	if len(segments) == 0 {
+	if count == 0 {
 		if f.PathSegment == "document" || f.PathSegment == "$" {
 			return "$"
 		}
 		return f.PathSegment
 	}
-
-	// Reverse segments (we collected bottom-up, need top-down)
-	for i, j := 0, len(segments)-1; i < j; i, j = i+1, j-1 {
-		segments[i], segments[j] = segments[j], segments[i]
+	root := &segments[count-1]
+	if root.dot {
+		size--
+	}
+	if root.key == "" && !root.indexed && (root.base == "document" || root.base == "$") {
+		size -= len(root.base) - 1
+		root.base = "$"
 	}
 
-	// Handle document root
-	if segments[0] == "document" || segments[0] == "$" {
-		segments[0] = "$"
-	}
-
-	// Build the final path efficiently
 	var result strings.Builder
-	result.Grow(128) // Pre-allocate for typical paths
-
-	for i, segment := range segments {
-		if i == 0 {
-			result.WriteString(segment)
-		} else {
-			// Add separator if needed (not for array/map access)
-			if !strings.HasPrefix(segment, "[") && !strings.HasPrefix(segment, "CACHE-SPLIT[") {
-				result.WriteByte('.')
+	result.Grow(size)
+	for i := count - 1; i >= 0; i-- {
+		segment := &segments[i]
+		if i != count-1 && segment.dot {
+			result.WriteByte('.')
+		}
+		result.WriteString(segment.base)
+		if segment.key != "" {
+			result.WriteString(jsonPathKeyOpen)
+			result.WriteString(segment.key)
+			result.WriteString(jsonPathKeyClose)
+		} else if segment.indexed {
+			if segment.cacheSplit {
+				result.WriteString("CACHE-SPLIT")
 			}
-			result.WriteString(segment)
+			result.WriteByte('[')
+			result.Write(strconv.AppendInt(digits[:0], int64(segment.index), 10))
+			result.WriteByte(']')
+			if segment.cacheSplit {
+				result.WriteString("--")
+			}
 		}
 	}
-
 	return result.String()
 }
 
