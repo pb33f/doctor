@@ -173,3 +173,19 @@ func FuzzJSONPathParity(f *testing.F) {
 		}
 	})
 }
+
+func TestJSONPathSparseDepthBoundary(t *testing.T) {
+	var parent Foundational
+	for depth := 151; depth >= 1; depth-- {
+		segment := ""
+		if depth == 150 {
+			segment = "included"
+		} else if depth == 151 {
+			segment = "excluded"
+		}
+		parent = &Foundation{Parent: parent, PathSegment: segment}
+	}
+	if got := parent.GenerateJSONPath(); got != "included" {
+		t.Fatalf("sparse depth boundary: got %q, want included", got)
+	}
+}

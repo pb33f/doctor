@@ -12,7 +12,8 @@ parent paths, change key escaping, share occurrence objects, or change collector
 ## Implementation
 
 1. Capture the unchanged model benchmark binary and add regression tests against the current algorithm.
-2. Snapshot at most 150 segment descriptors on the stack. Calculate the encoded byte length.
+2. Snapshot segment descriptors on the stack. Use a 16-entry buffer for short paths and
+   a separate 150-entry buffer only for deeper paths. Calculate the encoded byte length.
 3. Write the descriptors in reverse into one exactly sized strings.Builder. Share key delimiters
    with AppendKeySegment. Format integer indexes with a stack buffer.
 4. Run the performance-code-reviewer agent and resolve verified findings before committing.
