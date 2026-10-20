@@ -1343,19 +1343,11 @@ func (w *DrDocument) addLineObject(line int, obj any, ln []any) {
 	if w.lineObjects == nil {
 		w.lineObjects = make(map[int][]any)
 	}
-	if w.lineObjectPtrs == nil {
-		w.lineObjectPtrs = make(map[int]map[uintptr]struct{})
-	}
-
 	ptr := objectIdentity(obj)
 	objects := w.lineObjects[line]
 
 	if objects == nil {
 		w.lineObjects[line] = []any{obj}
-		if ptr != 0 {
-			w.lineObjectPtrs[line] = map[uintptr]struct{}{ptr: {}}
-		}
-
 		if ln != nil {
 			ln[line] = w.lineObjects[line]
 		}
@@ -1365,6 +1357,15 @@ func (w *DrDocument) addLineObject(line int, obj any, ln []any) {
 	if ptr != 0 {
 		ptrs := w.lineObjectPtrs[line]
 		if ptrs == nil {
+			// avoid a map until a distinct pointer arrives on this line.
+			for _, existing := range objects {
+				if objectIdentity(existing) == ptr {
+					return
+				}
+			}
+			if w.lineObjectPtrs == nil {
+				w.lineObjectPtrs = make(map[int]map[uintptr]struct{})
+			}
 			ptrs = make(map[uintptr]struct{}, len(objects))
 			for _, existing := range objects {
 				existingPtr := objectIdentity(existing)
