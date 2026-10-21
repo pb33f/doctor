@@ -1,13 +1,14 @@
 package model
 
 import (
+	"reflect"
+	"sort"
+	"testing"
+
 	dr "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	base "github.com/pb33f/libopenapi/datamodel/low/base"
-	"reflect"
-	"sort"
-	"testing"
 )
 
 type customNodeMap struct{ low.NodeMap }
@@ -22,18 +23,18 @@ type legacyNodes struct{}
 
 func (*legacyNodes) GetNodes() map[int][]*yaml.Node { return map[int][]*yaml.Node{99: nil} }
 
-type snapshotValue struct{ value any }
+type nodeMapValue struct{ value any }
 
-func (v snapshotValue) GoLowUntyped() any { return v.value }
+func (v nodeMapValue) GoLowUntyped() any { return v.value }
 
-type snapshotObject struct {
+type nodeMapObject struct {
 	dr.Foundation
 	value any
 }
 
-func (o *snapshotObject) GetValue() any { return snapshotValue{o.value} }
+func (o *nodeMapObject) GetValue() any { return nodeMapValue{o.value} }
 
-func TestProcessObjectNodeLines(t *testing.T) {
+func TestProcessObjectGetNodes(t *testing.T) {
 	nm := low.NodeMap{Nodes: &low.NodeLines{}}
 	nm.Nodes.Store(5, &yaml.Node{Line: 5})
 	nm.Nodes.Store(9, []*yaml.Node{{Line: 9}})
@@ -54,7 +55,7 @@ func TestProcessObjectNodeLines(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			w := &DrDocument{}
-			obj := &snapshotObject{value: tc.nodes}
+			obj := &nodeMapObject{value: tc.nodes}
 			w.processObject(obj, nil)
 			got := []int{}
 			for line, objects := range w.lineObjects {
@@ -69,32 +70,16 @@ func TestProcessObjectNodeLines(t *testing.T) {
 			}
 		})
 	}
-	// The same test runs against old and new libopenapi dependencies.
-	_, available := any(&nm).(interface{ GetNodeLines() []int })
-	lines, used := builtInNodeLines(&nm)
-	if used != available {
-		t.Fatalf("snapshot available=%v used=%v", available, used)
-	}
-	if used {
-		sort.Ints(lines)
-		if !reflect.DeepEqual(lines, []int{5, 9}) {
-			t.Fatal(lines)
-		}
-	}
-	for _, n := range []low.HasNodes{custom, schema, &legacyNodes{}} {
-		if _, used := builtInNodeLines(n); used {
-			t.Fatal("custom override bypassed")
-		}
-	}
+
 	nm.Nodes.Store(12, &yaml.Node{})
 	w := &DrDocument{}
-	w.processObject(&snapshotObject{value: &nm}, nil)
+	w.processObject(&nodeMapObject{value: &nm}, nil)
 	if len(w.lineObjects[12]) != 1 {
-		t.Fatal("stale snapshot")
+		t.Fatal("updated node line was omitted")
 	}
 }
 
-func TestProcessObjectNodeLinesExclusions(t *testing.T) {
+func TestProcessObjectGetNodesExclusions(t *testing.T) {
 	schema := &base.Schema{Reference: &low.Reference{}}
 	schema.Nodes = &low.NodeLines{}
 	schema.Nodes.Store(5, &yaml.Node{Line: 5})
@@ -102,7 +87,7 @@ func TestProcessObjectNodeLinesExclusions(t *testing.T) {
 	var absent *base.Schema
 	for _, value := range []any{schema, absent} {
 		w := &DrDocument{}
-		w.processObject(&snapshotObject{value: value}, nil)
+		w.processObject(&nodeMapObject{value: value}, nil)
 		if len(w.lineObjects) != 0 {
 			t.Fatalf("referenced or nil model contributed lines: %v", w.lineObjects)
 		}

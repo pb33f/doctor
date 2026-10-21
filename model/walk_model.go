@@ -25,8 +25,6 @@ import (
 	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/datamodel/low"
-	lowbase "github.com/pb33f/libopenapi/datamodel/low/base"
-	lowv3 "github.com/pb33f/libopenapi/datamodel/low/v3"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
 )
@@ -426,7 +424,7 @@ func stableLocatedModels(models []drV3.Foundational) []drV3.Foundational {
 		key   string
 	}
 	var scratch [16]locatedModelSortEntry
-	entries := scratch[:0]
+	var entries []locatedModelSortEntry
 	if len(stable) <= len(scratch) {
 		entries = scratch[:len(stable)]
 	} else {
@@ -1303,12 +1301,6 @@ func (w *DrDocument) processObject(obj any, ln []any) {
 					if isReferencedValue(lowValue) {
 						return
 					}
-					if lines, ok := builtInNodeLines(nm); ok {
-						for _, line := range lines {
-							w.addLineObject(line, obj, ln)
-						}
-						return
-					}
 					no := nm.GetNodes()
 					for k := range no {
 						w.addLineObject(k, obj, ln)
@@ -1324,26 +1316,6 @@ func (w *DrDocument) processObject(obj any, ln []any) {
 			}
 		}
 	}
-}
-
-// custom wrappers may override GetNodes while inheriting GetNodeLines. Only
-// known concrete models can use the snapshot without bypassing such overrides.
-func builtInNodeLines(nodes low.HasNodes) ([]int, bool) {
-	switch nodes.(type) {
-	case *low.NodeMap,
-		*lowbase.Contact, *lowbase.Discriminator, *lowbase.Example, *lowbase.ExternalDoc,
-		*lowbase.Info, *lowbase.License, *lowbase.Schema, *lowbase.SchemaProxy,
-		*lowbase.SecurityRequirement, *lowbase.Tag, *lowbase.XML,
-		*lowv3.Callback, *lowv3.Components, *lowv3.Document, *lowv3.Encoding,
-		*lowv3.Header, *lowv3.Link, *lowv3.MediaType, *lowv3.OAuthFlow, *lowv3.OAuthFlows,
-		*lowv3.Operation, *lowv3.Parameter, *lowv3.PathItem, *lowv3.Paths,
-		*lowv3.RequestBody, *lowv3.Response, *lowv3.Responses, *lowv3.SecurityScheme,
-		*lowv3.Server, *lowv3.ServerVariable:
-		if snapshot, ok := nodes.(interface{ GetNodeLines() []int }); ok {
-			return snapshot.GetNodeLines(), true
-		}
-	}
-	return nil, false
 }
 
 func isReferenceInstance(instance any) bool {
@@ -1389,20 +1361,23 @@ func (w *DrDocument) addLineObject(line int, obj any, ln []any) {
 		ptrs := w.lineObjectPtrs[line]
 		if ptrs == nil {
 			// avoid a map until a distinct pointer arrives on this line.
+			var identityScratch [1]uintptr
+			identities := identityScratch[:0]
 			for _, existing := range objects {
-				if objectIdentity(existing) == ptr {
+				existingPtr := objectIdentity(existing)
+				if existingPtr == ptr {
 					return
+				}
+				if existingPtr != 0 {
+					identities = append(identities, existingPtr)
 				}
 			}
 			if w.lineObjectPtrs == nil {
 				w.lineObjectPtrs = make(map[int]map[uintptr]struct{})
 			}
 			ptrs = make(map[uintptr]struct{}, len(objects))
-			for _, existing := range objects {
-				existingPtr := objectIdentity(existing)
-				if existingPtr != 0 {
-					ptrs[existingPtr] = struct{}{}
-				}
+			for _, existingPtr := range identities {
+				ptrs[existingPtr] = struct{}{}
 			}
 			w.lineObjectPtrs[line] = ptrs
 		}
