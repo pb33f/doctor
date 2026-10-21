@@ -41,6 +41,28 @@ func TestCompactLineIndexPointerAndAlias(t *testing.T) {
 	}
 }
 
+func TestCompactLineIndexPromotionKeepsExistingIdentity(t *testing.T) {
+	calls := 0
+	first := &lineIndexObject{Foundation: &dr.Foundation{}, path: "first", calls: &calls}
+	second := &lineIndexObject{Foundation: &dr.Foundation{}, path: "second", calls: &calls}
+	w := &DrDocument{}
+	w.addLineObject(1, first, nil)
+	// Value objects have no pointer identity and must not add a zero map entry.
+	for i := 0; i < 24; i++ {
+		w.addLineObject(1, lineIndexObject{Foundation: &dr.Foundation{}, path: fmt.Sprint(i)}, nil)
+	}
+	w.addLineObject(1, second, nil)
+	if len(w.lineObjectPtrs[1]) != 2 {
+		t.Fatalf("expected two pointer identities, got %d", len(w.lineObjectPtrs[1]))
+	}
+	calls = 0
+	w.addLineObject(1, first, nil)
+	w.addLineObject(1, second, nil)
+	if calls != 0 || len(w.lineObjects[1]) != 26 {
+		t.Fatal("promotion lost an existing identity or changed pointer deduplication")
+	}
+}
+
 func TestCompactLineIndexDifferential(t *testing.T) {
 	for seed := int64(0); seed < 32; seed++ {
 		t.Run(fmt.Sprint(seed), func(t *testing.T) {
