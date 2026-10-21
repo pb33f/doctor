@@ -543,9 +543,11 @@ const (
 	jsonPathKeyClose = "']"
 )
 
-// AppendKeySegment appends a quoted key segment to a JSONPath base, e.g.
-// base + ['key']. Its delimiters are shared with the iterative path encoder
-// so walked paths and pre-seeded definition-site paths use the same grammar.
+// AppendKeySegment appends ['key'] to a JSONPath base without escaping the key.
+// Quotes, backslashes, and other key bytes are preserved for compatibility.
+// The iterative encoder must produce the same bytes for every non-empty key,
+// so walked paths and pre-seeded definition paths remain interchangeable.
+// An empty key is appended here; the walker uses an empty key as a missing-key sentinel.
 func AppendKeySegment(base, key string) string {
 	return base + jsonPathKeyOpen + key + jsonPathKeyClose
 }
@@ -598,7 +600,6 @@ func (f *Foundation) buildLongJSONPath(current Foundational, prefix []jsonPathSe
 }
 
 func collectJSONPathSegments(current Foundational, segments []jsonPathSegment) (Foundational, int, int) {
-	var digits [20]byte
 	count, size := 0, 0
 	for depth := 0; current != nil && depth < len(segments); depth++ {
 		key := current.GetKeyValue()
@@ -619,7 +620,7 @@ func collectJSONPathSegments(current Foundational, segments []jsonPathSegment) (
 			// snapshot before GetParent: custom parents can mutate the index pointer.
 			segment.index, segment.indexed, segment.cacheSplit = *index, true, cacheSplit
 			suffix = "["
-			length += len(strconv.AppendInt(digits[:0], int64(segment.index), 10)) + 2
+			length += jsonPathIndexLength(segment.index) + 2
 			if cacheSplit {
 				suffix = "CACHE-SPLIT["
 				length += len("CACHE-SPLIT") + len("--")
@@ -641,10 +642,27 @@ func collectJSONPathSegments(current Foundational, segments []jsonPathSegment) (
 	return current, count, size
 }
 
+// jsonPathIndexLength sizes the index without formatting it a second time.
+func jsonPathIndexLength(index int) int {
+	length := 1
+	magnitude := uint(index)
+	if index < 0 {
+		length++
+		// avoid negating the minimum signed integer.
+		magnitude = uint(-(index + 1)) + 1
+	}
+	for magnitude >= 10 {
+		magnitude /= 10
+		length++
+	}
+	return length
+}
+
 func (f *Foundation) encodeJSONPathSegments(segments []jsonPathSegment, size int) string {
 	count := len(segments)
 
 	if count == 0 {
+		// a custom parent getter can change this receiver after empty segments were read.
 		if f.PathSegment == "document" || f.PathSegment == "$" {
 			return "$"
 		}
