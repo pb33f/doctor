@@ -66,7 +66,7 @@ func NewAsyncDocument(doc libasyncapi.Document) (*AsyncDocument, error) {
 			target = d.walk(resolved.Node, idx, ref.owner, ref.owner.Id, ref.owner.Label, ref.owner.Type)
 		}
 		if target != nil && target != ref.owner {
-			d.Edges = append(d.Edges, &v3.Edge{Sources: []string{ref.owner.Id}, Targets: []string{target.Id}})
+			d.connect(ref.owner, target, ref.value.Value)
 		}
 	}
 	d.references = nil
@@ -128,8 +128,14 @@ func (d *AsyncDocument) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.
 		prior := n.DrInstance.(v3.Foundational)
 		foundation.Parent = prior.GetParent()
 		foundation.NodeParent = prior.GetNodeParent()
+		foundation.Edges = prior.GetEdges()
 	}
 	n.DrInstance = foundation
+	var parentEdge *v3.Edge
+	if parent != nil && parent != n {
+		parentEdge = d.connect(parent, n, "")
+		foundation.AddEdge(parentEdge)
+	}
 	d.visited[value] = n
 	d.nodesByPath[path] = n
 	d.locate(value, idx, n, path)
@@ -140,6 +146,9 @@ func (d *AsyncDocument) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.
 			childPath := AsyncObjectPath(path, key.Value)
 			if key.Value == "$ref" && d.isReference(value, idx) {
 				d.references = append(d.references, asyncReference{n, child, idx})
+				if parentEdge != nil {
+					parentEdge.Ref = child.Value
+				}
 			}
 			if child.Kind == yaml.MappingNode || child.Kind == yaml.SequenceNode || child.Kind == yaml.AliasNode {
 				cn := d.walk(child, idx, n, childPath, key.Value, asyncNodeType(kind, label, key.Value))
@@ -175,6 +184,15 @@ func (d *AsyncDocument) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.
 		}
 	}
 	return n
+}
+
+// connect uses the same edge identity and reference contract as the OpenAPI walk.
+func (d *AsyncDocument) connect(source, target *v3.Node, ref string) *v3.Edge {
+	edge := v3.GenerateEdge([]string{source.Id}, []string{target.Id})
+	edge.Ref = ref
+	d.Edges = append(d.Edges, edge)
+	source.DrInstance.(v3.Foundational).AddEdge(edge)
+	return edge
 }
 
 func (d *AsyncDocument) isReference(node *yaml.Node, idx *index.SpecIndex) bool {
@@ -274,7 +292,8 @@ func (d *AsyncDocument) copyOccurrence(target, parent *v3.Node, path, label stri
 	parent.Children = append(parent.Children, n)
 	d.Nodes = append(d.Nodes, n)
 	d.nodesByPath[path] = n
-	d.Edges = append(d.Edges, &v3.Edge{Sources: []string{n.Id}, Targets: []string{target.Id}})
+	f.AddEdge(d.connect(parent, n, ""))
+	d.connect(n, target, "")
 	return n
 }
 

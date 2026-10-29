@@ -26,6 +26,13 @@ message and component names remain literal code spans; JSONPaths remain machine
 identities, not report headings. Shared referenced changes appear once under
 their owning object. Channel statistics use the existing hash icon.
 
+The graph uses the existing parent-child edges and stable edge IDs. Authored
+references label both the containment edge into a reference site and its target
+edge. Removed branches keep their edges; retargeted sites discard old targets.
+Node timelines collapse repeated comparisons of the same shared definition but
+retain distinct edits such as an enum addition and removal. Native machine
+reports retain the raw change list.
+
 Run `go test ./changerator/... ./model/...` and the source/alias/removal tests
 before changing this adapter. Source correctness includes both old and new
 locations, even when their line/column values collide with unrelated objects.

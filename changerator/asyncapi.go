@@ -19,6 +19,16 @@ type AsyncAPIResult struct {
 	Left, Right *dr.AsyncDocument
 }
 
+// Preserve distinct edits to the same property (for example enum additions and
+// removals), while collapsing repeated comparisons through shared references.
+type asyncNodeChangeKey struct {
+	node                                   *v3.Node
+	property, original, modified           string
+	originalEncoded, newEncoded, reference string
+	changeType                             int
+	breaking                               bool
+}
+
 // CompareAsyncAPI compares complete parsed documents using AsyncAPI rules and
 // distributes their changes into doctor's shared node graph.
 func CompareAsyncAPI(left, right libasyncapi.Document, config *asyncModel.BreakingRulesConfig) (*AsyncAPIResult, error) {
@@ -69,6 +79,8 @@ func CompareAsyncAPI(left, right libasyncapi.Document, config *asyncModel.Breaki
 	for _, n := range r.Nodes {
 		nodesByPath[n.Id] = n
 	}
+	// Native reports retain repeated reference comparisons; node timelines do not.
+	attached := make(map[asyncNodeChangeKey]bool)
 	for _, ch := range all {
 		n, path := r.LocateChange(ch, true, scopes[ch])
 		old, oldPath := l.LocateChange(ch, false, scopes[ch])
@@ -97,6 +109,15 @@ func CompareAsyncAPI(left, right libasyncapi.Document, config *asyncModel.Breaki
 		if ch.Context != nil {
 			ch.Context.DocumentLocation = origin
 		}
+		key := asyncNodeChangeKey{
+			node: n, property: ch.Property, original: ch.Original, modified: ch.New,
+			originalEncoded: ch.OriginalEncoded, newEncoded: ch.NewEncoded,
+			reference: ch.Reference, changeType: ch.ChangeType, breaking: ch.Breaking,
+		}
+		if attached[key] {
+			continue
+		}
+		attached[key] = true
 		n.AppendChange(ChangeList{ch})
 		n.RenderedChanges = append(n.RenderedChanges, ch)
 		n.CleanedChanged = append(n.CleanedChanged, ch)
@@ -117,8 +138,10 @@ func CompareAsyncAPI(left, right libasyncapi.Document, config *asyncModel.Breaki
 	for _, n := range r.Nodes {
 		known[n.Id] = true
 	}
+	removed := false
 	for _, n := range l.Nodes {
 		if !known[n.Id] {
+			removed = true
 			ctr.ChangedNodes = append(ctr.ChangedNodes, n)
 			if known[n.ParentId] {
 				if p := nodesByPath[n.ParentId]; p != nil {
@@ -126,6 +149,21 @@ func CompareAsyncAPI(left, right libasyncapi.Document, config *asyncModel.Breaki
 				}
 			}
 			nodesByPath[n.Id] = n
+		}
+	}
+	// Keep containment into removed branches and references from removed sites.
+	// A surviving site may have a new target, so its old reference must not return.
+	if removed {
+		edgeIDs := make(map[string]bool, len(ctr.ChangedEdges))
+		for _, edge := range ctr.ChangedEdges {
+			edgeIDs[edge.Id] = true
+		}
+		for _, edge := range l.Edges {
+			source, target := edge.Sources[0], edge.Targets[0]
+			if !edgeIDs[edge.Id] && (!known[source] || (!known[target] && nodesByPath[target].ParentId == source)) {
+				ctr.ChangedEdges = append(ctr.ChangedEdges, edge)
+				edgeIDs[edge.Id] = true
+			}
 		}
 	}
 	result.Changerator = ctr
