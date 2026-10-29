@@ -1,6 +1,7 @@
 package renderer
 
 import (
+	asyncModel "github.com/pb33f/libasyncapi/what-changed/model"
 	"github.com/pb33f/libopenapi/what-changed/model"
 	"strings"
 )
@@ -52,6 +53,9 @@ func renderInputMarkdown(input *RenderInput) (string, error) {
 		return "", ErrInvalidInput
 	}
 	if input.ChangeReport != nil {
+		if native, ok := input.ChangeReport.(*asyncModel.DocumentChanges); ok {
+			return renderAsyncAPIReport(input, native), nil
+		}
 		if native, ok := input.ChangeReport.(*model.DocumentChanges); ok {
 			return MarkdownReport(native, input.Doctor, input.RightDocContent, input.Config, input.DeduplicatedChanges).Generate(), nil
 		}

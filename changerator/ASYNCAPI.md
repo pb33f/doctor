@@ -20,7 +20,11 @@ when aliases form a dense graph. The original source text is unchanged.
 `Changerator.ChangeReport` and `renderer.RenderInput.ChangeReport` are additive
 neutral report inputs. The concrete OpenAPI `DocumentChanges` field remains
 unchanged. Both engines use the same summary, per-change formatting, deduplication
-and HTML renderer. Paths in Markdown headings are literal code spans.
+and HTML renderer. AsyncAPI reports traverse the native change hierarchy and use
+the existing report sections, object headings and separators. Channel, operation,
+message and component names remain literal code spans; JSONPaths remain machine
+identities, not report headings. Shared referenced changes appear once under
+their owning object. Channel statistics use the existing hash icon.
 
 Run `go test ./changerator/... ./model/...` and the source/alias/removal tests
 before changing this adapter. Source correctness includes both old and new
