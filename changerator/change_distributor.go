@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
+	asyncModel "github.com/pb33f/libasyncapi/what-changed/model"
 	"github.com/pb33f/libopenapi/datamodel"
 	lowV3 "github.com/pb33f/libopenapi/datamodel/low/v3"
 	"github.com/pb33f/libopenapi/utils"
@@ -273,7 +274,10 @@ func (t *Changerator) DeduplicateChanges() []*whatChangedModel.Change {
 	}
 
 	var allChanges []*whatChangedModel.Change
-	if t.ChangeReport != nil {
+	if _, async := t.ChangeReport.(*asyncModel.DocumentChanges); async && t.Changes != nil {
+		// CompareAsyncAPI has already collected and sorted the native change tree.
+		allChanges = t.Changes
+	} else if t.ChangeReport != nil {
 		allChanges = t.ChangeReport.GetAllChanges()
 	} else {
 		allChanges = t.Config.DocumentChanges.GetAllChanges()

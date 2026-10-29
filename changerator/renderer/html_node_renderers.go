@@ -196,7 +196,7 @@ func (r *changeHTMLRenderer) renderCodeSpan(
 
 	for c := node.FirstChild(); c != nil; c = c.NextSibling() {
 		if text, ok := c.(*ast.Text); ok {
-			w.Write(text.Segment.Value(source))
+			w.Write(util.EscapeHTML(text.Segment.Value(source)))
 		}
 	}
 
@@ -927,11 +927,12 @@ func (r *changeHTMLRenderer) matchesObjectTypePattern(text string) (string, bool
 		{"External Doc", "externalDoc"},
 		{"Schema:", "schema"},
 		{"Schema", "schema"},
-		{"Query Parameter", "parameter"},   // compound patterns for parameter locations
+		{"Channel", "channel"},
+		{"Query Parameter", "parameter"}, // compound patterns for parameter locations
 		{"Path Parameter", "parameter"},
 		{"Header Parameter", "parameter"},
 		{"Cookie Parameter", "parameter"},
-		{"Parameter", "parameter"},          // generic fallback
+		{"Parameter", "parameter"}, // generic fallback
 		{"Response", "response"},
 		{"Responses", "response"},
 		{"Header", "header"},
@@ -945,7 +946,7 @@ func (r *changeHTMLRenderer) matchesObjectTypePattern(text string) (string, bool
 		{"Tag", "tag"},
 		{"Path", "path"},
 		{"Operation", "operation"},
-		{"Deprecated", "operation"},  // deprecated items use operation icon for consistency
+		{"Deprecated", "operation"}, // deprecated items use operation icon for consistency
 		{"Extension", "extension"},
 		{"Component", "components"},
 	}
@@ -953,9 +954,9 @@ func (r *changeHTMLRenderer) matchesObjectTypePattern(text string) (string, bool
 	for _, ot := range objectTypes {
 		// Check if text ends with the pattern (with optional colon and space)
 		if strings.HasSuffix(text, ot.pattern+" ") ||
-		   strings.HasSuffix(text, ot.pattern+": ") ||
-		   text == ot.pattern ||
-		   text == ot.pattern+":" {
+			strings.HasSuffix(text, ot.pattern+": ") ||
+			text == ot.pattern ||
+			text == ot.pattern+":" {
 			return ot.icon, true
 		}
 	}

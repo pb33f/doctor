@@ -21,6 +21,8 @@ var objectTypeToIcon = map[string]string{
 	"Contact":         "contact",
 	"License":         "license",
 	"Operation":       "operation",
+	"Channel":         "channel",
+	"Channels":        "channels",
 	"Parameter":       "parameter",
 	"Schema":          "schema",
 	"Response":        "response",

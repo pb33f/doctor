@@ -108,7 +108,7 @@ func CompareAsyncAPI(left, right libasyncapi.Document, config *asyncModel.Breaki
 		return all[i].Property < all[j].Property
 	})
 	ctr := NewChangerator(&ChangeratorConfig{})
-	ctr.ChangeReport = ChangeList(all)
+	ctr.ChangeReport = changes
 	ctr.Changes = all
 	ctr.ChangedNodes = r.Nodes
 	ctr.ChangedEdges = r.Edges
