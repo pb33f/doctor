@@ -328,11 +328,11 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 			} else {
 				// Source-backed engines decode only when explorer properties are requested.
 				if source, ok := n.Instance.(*yaml.Node); ok {
-					var value any
-					if err := source.Decode(&value); err != nil {
+					value, err := sourceProperties(source)
+					if err != nil {
 						return nil, err
 					}
-					propMap["instance"] = helpers.ConvertInterfaceMapKeys(value)
+					propMap["instance"] = value
 				}
 				if _, kk := n.Instance.(map[string]interface{}); kk {
 					propMap["instance"] = n.Instance
