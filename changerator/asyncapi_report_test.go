@@ -45,9 +45,16 @@ components:
 
 func compareAsyncReportFixture(t testing.TB, left, right string) *AsyncAPIResult {
 	t.Helper()
-	l, err := libasyncapi.NewDocument([]byte(left))
+	parse := func(source string) (libasyncapi.Document, error) {
+		config := libasyncapi.NewDocumentConfiguration()
+		// Match the CLI's file-backed index so shared references are compared.
+		config.SpecFilePath = "events.yaml"
+		config.BasePath = t.TempDir()
+		return libasyncapi.NewDocumentWithConfiguration([]byte(source), config)
+	}
+	l, err := parse(left)
 	require.NoError(t, err)
-	r, err := libasyncapi.NewDocument([]byte(right))
+	r, err := parse(right)
 	require.NoError(t, err)
 	result, err := CompareAsyncAPI(l, r, nil)
 	require.NoError(t, err)

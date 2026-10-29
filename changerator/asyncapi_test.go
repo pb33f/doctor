@@ -114,6 +114,12 @@ func TestAsyncAPISourceOriginsAndOpaqueReferences(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			defer result.Release()
+			assertAsyncGraphConnected(t, result.Changerator.ChangedNodes, result.Changerator.ChangedEdges)
+			var referenceEdge bool
+			for _, edge := range result.Changerator.ChangedEdges {
+				referenceEdge = referenceEdge || edge.Ref == "payload.yaml"
+			}
+			require.True(t, referenceEdge, "external resolution must retain the authored reference")
 			changes := result.Changerator.DeduplicateChanges()
 			require.Len(t, changes, 1)
 			require.Contains(t, changes[0].Path, "$.channels.events.messages.event.payload")
@@ -164,6 +170,7 @@ func TestAsyncAPIChannelAliasesKeepSemanticIdentity(t *testing.T) {
 	require.Len(t, changes, 2)
 	require.Equal(t, "$.channels.a", changes[0].Path)
 	require.Equal(t, "$.channels.b", changes[1].Path)
+	assertAsyncGraphConnected(t, result.Changerator.ChangedNodes, result.Changerator.ChangedEdges)
 }
 
 func TestAsyncAPINestedAliasesAndBoundedGraph(t *testing.T) {
@@ -190,6 +197,8 @@ func TestAsyncAPINestedAliasesAndBoundedGraph(t *testing.T) {
 	require.NoError(t, err)
 	defer graph.Release()
 	require.Len(t, graph.Nodes, 34, "alias references must not expand their target subtrees")
+	assertAsyncGraphConnected(t, graph.Nodes, graph.Edges)
+	require.Less(t, len(graph.Edges), 2*len(graph.Nodes), "alias edges must grow with authored nodes")
 	for _, node := range graph.Nodes {
 		node.RenderProps = true
 	}
