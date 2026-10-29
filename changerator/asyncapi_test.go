@@ -190,6 +190,39 @@ func TestAsyncAPINestedAliasesAndBoundedGraph(t *testing.T) {
 	require.NoError(t, err)
 	defer graph.Release()
 	require.Len(t, graph.Nodes, 34, "alias references must not expand their target subtrees")
+	for _, node := range graph.Nodes {
+		node.RenderProps = true
+	}
+	encoded, err := json.Marshal(graph.Nodes)
+	require.NoError(t, err)
+	require.Less(t, len(encoded), 100000, "explorer properties must not expand aliases during serialization")
+	require.Contains(t, string(encoded), `"$yamlAlias":"a9"`)
+}
+
+func TestAsyncAPIAliasPreviewGrowth(t *testing.T) {
+	for _, levels := range []int{2, 4, 8} {
+		t.Run(fmt.Sprint(levels), func(t *testing.T) {
+			var source strings.Builder
+			source.WriteString("asyncapi: 3.0.0\ninfo: {title: Events, version: 1.0.0}\nx-data:\n  a0: &a0 {value: data}\n")
+			for i := 1; i <= levels; i++ {
+				aliases := strings.TrimSuffix(strings.Repeat(fmt.Sprintf("*a%d, ", i-1), 8), ", ")
+				fmt.Fprintf(&source, "  a%d: &a%d [%s]\n", i, i, aliases)
+			}
+			doc, err := libasyncapi.NewDocument([]byte(source.String()))
+			require.NoError(t, err)
+			defer doc.Rolodex().Release()
+			graph, err := dr.NewAsyncDocument(doc)
+			require.NoError(t, err)
+			defer graph.Release()
+			for _, node := range graph.Nodes {
+				node.RenderProps = true
+			}
+			encoded, err := json.Marshal(graph.Nodes)
+			require.NoError(t, err)
+			require.Less(t, len(encoded), 3000*(levels+1), "the HTML node payload must grow with authored aliases")
+			require.Contains(t, string(encoded), `"$yamlAlias":"a0"`)
+		})
+	}
 }
 
 func TestAsyncAPIExternalEnumAndRemovalOrigins(t *testing.T) {

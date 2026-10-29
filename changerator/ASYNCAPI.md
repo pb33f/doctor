@@ -11,7 +11,11 @@ schema data as JSON Schema. Each node uses the existing synthetic-node and
 Foundation contracts. Source origins include the owning index; scalar source
 identity also covers delegated schema changes such as enum additions/removals.
 Aliases retain their named object identity through change scopes. Removed
-subtrees are attached once. Explorer properties decode only when serialized.
+subtrees are attached once. Explorer properties are projected only when serialized.
+These source previews preserve YAML aliases as `{"$yamlAlias":"anchorName"}`
+instead of expanding their targets. Merge keys remain authored keys; resolved
+relationships belong to the graph. This bounds output by authored content even
+when aliases form a dense graph. The original source text is unchanged.
 
 `Changerator.ChangeReport` and `renderer.RenderInput.ChangeReport` are additive
 neutral report inputs. The concrete OpenAPI `DocumentChanges` field remains
