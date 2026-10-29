@@ -14,6 +14,7 @@ import (
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	lowV3 "github.com/pb33f/libopenapi/datamodel/low/v3"
+	whatChanged "github.com/pb33f/libopenapi/what-changed"
 	"github.com/pb33f/libopenapi/what-changed/model"
 )
 
@@ -29,6 +30,7 @@ var indentCache = map[int]string{
 // MarkdownReporter generates markdown reports directly from DocumentChanges.
 // This approach avoids duplication by using the already-deduplicated what-changed model.
 type MarkdownReporter struct {
+	changeReport        whatChanged.Changed
 	docChanges          *model.DocumentChanges
 	doctor              *drModel.DrDocument
 	rightDocContent     []byte
@@ -227,7 +229,11 @@ func (r *MarkdownReporter) Generate() string {
 }
 
 func (r *MarkdownReporter) generateSummary(report *strings.Builder) {
-	if r.docChanges == nil {
+	changes := r.changeReport
+	if changes == nil && r.docChanges != nil {
+		changes = r.docChanges
+	}
+	if changes == nil {
 		report.WriteString("No changes detected.\n\n")
 		return
 	}
@@ -241,8 +247,8 @@ func (r *MarkdownReporter) generateSummary(report *strings.Builder) {
 			}
 		}
 	} else {
-		totalChanges = r.docChanges.TotalChanges()
-		breakingChanges = r.docChanges.TotalBreakingChanges()
+		totalChanges = changes.TotalChanges()
+		breakingChanges = changes.TotalBreakingChanges()
 	}
 
 	if totalChanges == 0 {
@@ -268,7 +274,7 @@ func (r *MarkdownReporter) generateSummary(report *strings.Builder) {
 	}
 
 	// Use deduplicated changes when available for accurate statistics.
-	allChanges := r.docChanges.GetAllChanges()
+	allChanges := changes.GetAllChanges()
 	if r.deduplicatedChanges != nil {
 		allChanges = r.deduplicatedChanges
 	}

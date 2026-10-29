@@ -18,15 +18,17 @@ func (t *Changerator) GenerateReportWithConfig(
 	outputFormat renderer.OutputFormat,
 	config *renderer.RenderConfig,
 ) (string, error) {
-	if t.Config == nil || t.Config.DocumentChanges == nil {
+	if t.ChangeReport == nil && (t.Config == nil || t.Config.DocumentChanges == nil) {
 		return "# What Changed?\n\nNo changes detected between the API versions.\n\n", nil
 	}
 
 	input := &renderer.RenderInput{
-		DocumentChanges: t.Config.DocumentChanges,
-		Doctor:          t.Config.Doctor,
-		RightDocContent: t.rightDocContent,
-		Config:          config,
+		ChangeReport:        t.ChangeReport,
+		DeduplicatedChanges: t.DeduplicateChanges(),
+		DocumentChanges:     t.Config.DocumentChanges,
+		Doctor:              t.Config.Doctor,
+		RightDocContent:     t.rightDocContent,
+		Config:              config,
 	}
 
 	switch outputFormat {
@@ -50,4 +52,3 @@ func (t *Changerator) GenerateHTMLWithConfig(config *renderer.RenderConfig) (str
 	htmlRenderer := renderer.NewHTMLRenderer(config)
 	return t.GenerateReportWithConfig(htmlRenderer, renderer.OutputFormatHTML, config)
 }
-

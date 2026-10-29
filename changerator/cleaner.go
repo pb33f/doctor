@@ -61,6 +61,9 @@ func (t *Changerator) PrepareNodesForGraph(root *v3.Node) {
 }
 
 func (t *Changerator) BuildNodeChangeTree(root *v3.Node) {
+	if t.ChangeReport != nil {
+		return
+	}
 	t.Changerify([]*v3.Node{root})
 
 	seen := make(map[string]bool)
