@@ -19,6 +19,8 @@ import (
 type ChangeratorChange whatChangedModel.Change
 
 type Changerator struct {
+	// ChangeReport holds a non-OpenAPI engine's shared change view.
+	ChangeReport whatChanged.Changed
 	Config       *ChangeratorConfig
 	NodeChan     chan *modelChange
 	ChangedNodes []*v3.Node
@@ -266,11 +268,16 @@ func (t *Changerator) GetDoctor() v3.Doctor {
 // This prevents the same change from appearing multiple times when a reference is used in multiple locations.
 // Returns a deduplicated array of changes.
 func (t *Changerator) DeduplicateChanges() []*whatChangedModel.Change {
-	if t.Config == nil || t.Config.DocumentChanges == nil {
+	if t.ChangeReport == nil && (t.Config == nil || t.Config.DocumentChanges == nil) {
 		return nil
 	}
 
-	allChanges := t.Config.DocumentChanges.GetAllChanges()
+	var allChanges []*whatChangedModel.Change
+	if t.ChangeReport != nil {
+		allChanges = t.ChangeReport.GetAllChanges()
+	} else {
+		allChanges = t.Config.DocumentChanges.GetAllChanges()
+	}
 	if len(allChanges) == 0 {
 		return allChanges
 	}

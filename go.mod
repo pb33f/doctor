@@ -16,22 +16,22 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/pb33f/go-yaml v0.1.1
 	github.com/pb33f/jsonschema/v6 v6.0.3
-	github.com/pb33f/libasyncapi v0.0.3-0.20261006133119-e34489c04636
-	github.com/pb33f/libopenapi v0.41.6
+	github.com/pb33f/libasyncapi v0.0.6-0.20261029161437-e98dec724c6b
+	github.com/pb33f/libopenapi v0.41.9-0.20261029160729-ce227ab7d3c9
 	github.com/pb33f/ordered-map/v2 v2.3.2
 	github.com/pb33f/testify v0.1.1
 	github.com/yuin/goldmark v1.8.2
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	golang.org/x/net v0.56.0
-	golang.org/x/sync v0.23.0
+	golang.org/x/sync v0.24.0
 	golang.org/x/text v0.38.0
 	modernc.org/sqlite v1.52.0
 )
 
 require (
-	github.com/Masterminds/semver/v3 v3.2.1 // indirect
+	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
-	github.com/buger/jsonparser v1.1.2 // indirect
+	github.com/buger/jsonparser v1.6.1 // indirect
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260525132238-948f4557a654 // indirect
 	github.com/charmbracelet/x/ansi v0.11.7 // indirect

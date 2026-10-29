@@ -62,23 +62,7 @@ func NewHTMLRenderer(config *RenderConfig) *HTMLRenderer {
 
 // RenderMarkdown generates markdown first, then converts to HTML.
 func (r *HTMLRenderer) RenderMarkdown(input *RenderInput) (string, error) {
-	if input == nil {
-		return "", ErrInvalidInput
-	}
-
-	if input.DocumentChanges == nil {
-		return "# What Changed?\n\nNo changes detected between the API versions.\n\n", nil
-	}
-
-	reporter := MarkdownReport(
-		input.DocumentChanges,
-		input.Doctor,
-		input.RightDocContent,
-		input.Config,
-		input.DeduplicatedChanges,
-	)
-
-	return reporter.Generate(), nil
+	return renderInputMarkdown(input)
 }
 
 // RenderHTML generates HTML output from the change data.

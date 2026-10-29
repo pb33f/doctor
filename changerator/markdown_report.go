@@ -16,6 +16,10 @@ import "github.com/pb33f/doctor/changerator/renderer"
 //	docChanges := cd.Changerate()
 //	report := cd.GenerateMarkdownReport()
 func (t *Changerator) GenerateMarkdownReport() string {
+	if t.ChangeReport != nil {
+		output, _ := t.GenerateReport(renderer.NewMarkdownRenderer(), renderer.OutputFormatMarkdown)
+		return output
+	}
 	if t.Config == nil || t.Config.DocumentChanges == nil {
 		return "# What Changed?\n\nNo changes detected between the API versions.\n\n"
 	}

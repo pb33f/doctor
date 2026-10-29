@@ -13,23 +13,7 @@ func NewMarkdownRenderer() *MarkdownRenderer {
 
 // RenderMarkdown generates markdown using the existing MarkdownReporter implementation.
 func (r *MarkdownRenderer) RenderMarkdown(input *RenderInput) (string, error) {
-	if input == nil {
-		return "", ErrInvalidInput
-	}
-
-	if input.DocumentChanges == nil {
-		return "# What Changed?\n\nNo changes detected between the API versions.\n\n", nil
-	}
-
-	reporter := MarkdownReport(
-		input.DocumentChanges,
-		input.Doctor,
-		input.RightDocContent,
-		input.Config,
-		input.DeduplicatedChanges,
-	)
-
-	return reporter.Generate(), nil
+	return renderInputMarkdown(input)
 }
 
 // RenderHTML is not supported by the markdown-only renderer.
