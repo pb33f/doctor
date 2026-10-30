@@ -4,7 +4,10 @@
 package changerator
 
 import (
+	"unicode/utf8"
+
 	v3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/what-changed/model"
 )
 
@@ -142,40 +145,42 @@ func recalculateChangeViewDimensions(node *v3.Node) {
 	h := v3.HEIGHT // header row
 	h += len(node.ChildChangeSummaries) * v3.HEIGHT
 
-	if nodeHasOwnChanges(node) {
-		h += v3.HEIGHT // change badges row
+	if node.GetExtensionCount() > 0 {
+		h += v3.HEIGHT
 	}
+	// Change annotations sit below the card, outside its layout box.
 	node.Height = h
 
 	w := v3.WIDTH
 
 	// Account for the header label width (icon + label + dependent control button + padding).
-	headerWidth := len(node.Label)*v3.CHAR_WIDTH + 90
+	label := node.Label
+	if node.Type == "document" {
+		label = "OpenAPI Document"
+		if node.Label == "AsyncAPI" {
+			label = "AsyncAPI Document"
+		}
+	}
+	headerWidth := utf8.RuneCountInString(label)*v3.CHAR_WIDTH + 90 + changeViewActionWidth(node)
 	if headerWidth > w {
 		w = headerWidth
 	}
 
 	for _, cs := range node.ChildChangeSummaries {
-		// Count how many badge types are visible for this child.
-		badgeCount := 0
-		if cs.Changes != nil {
-			if cs.Changes.Breaking > 0 {
-				badgeCount++
-			}
-			if cs.Changes.Modifications > 0 {
-				badgeCount++
-			}
-			if cs.Changes.Additions > 0 {
-				badgeCount++
-			}
-			if cs.Changes.Removals > 0 {
-				badgeCount++
-			}
-		}
-		// chevron(15) + icon(24) + gap(8) + label + gap(8) + badges(45 each) + padding(10)
-		rowWidth := len(cs.Label)*v3.CHAR_WIDTH + 65 + badgeCount*45
+		// Child rows contain a chevron, icon, label and padding.
+		rowWidth := utf8.RuneCountInString(cs.Label)*v3.CHAR_WIDTH + 65
 		if rowWidth > w {
 			w = rowWidth
+		}
+	}
+	for _, child := range node.Children {
+		if child.SubtreeChanges != nil && child.SubtreeChanges.Total > 0 {
+			if actionWidth := changeViewActionWidth(child); actionWidth > 0 {
+				rowWidth := utf8.RuneCountInString(child.Label)*v3.CHAR_WIDTH + 65 + actionWidth
+				if rowWidth > w {
+					w = rowWidth
+				}
+			}
 		}
 	}
 	if w > v3.MAX_WIDTH {
@@ -186,6 +191,30 @@ func recalculateChangeViewDimensions(node *v3.Node) {
 	for _, child := range node.Children {
 		recalculateChangeViewDimensions(child)
 	}
+}
+
+func changeViewActionWidth(node *v3.Node) int {
+	if node.Type != "operation" {
+		return 0
+	}
+	var action string
+	switch instance := node.Instance.(type) {
+	case map[string]interface{}:
+		action, _ = instance["action"].(string)
+	case *yaml.Node:
+		if instance != nil && instance.Kind == yaml.MappingNode {
+			for i := 0; i+1 < len(instance.Content); i += 2 {
+				if instance.Content[i].Value == "action" {
+					action = instance.Content[i+1].Value
+					break
+				}
+			}
+		}
+	}
+	if action == "send" || action == "receive" {
+		return len(action)*v3.CHAR_WIDTH + 24 // badge padding and label gap
+	}
+	return 0
 }
 
 // nodeHasOwnChanges checks whether a node has its own changes (not just

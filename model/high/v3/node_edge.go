@@ -162,6 +162,26 @@ func (n *Node) SetInstance(instance any) {
 	n.Instance = instance
 }
 
+// GetExtensionCount returns the extension metadata displayed by explorer cards.
+func (n *Node) GetExtensionCount() int {
+	if n.Extensions > 0 {
+		return n.Extensions
+	}
+	if gl, ok := n.Instance.(high.GoesLowUntyped); ok {
+		if ext, ok := gl.GoLowUntyped().(low.HasExtensions[*orderedmap.Map[low.KeyReference[string], low.ValueReference[*yaml.Node]]]); ok {
+			if extensions := ext.GetExtensions(); extensions != nil {
+				return extensions.Len()
+			}
+		}
+	}
+	if instance, ok := n.Instance.(map[string]interface{}); ok {
+		if count, ok := instance["extensions"].(int); ok && count > 0 {
+			return count
+		}
+	}
+	return 0
+}
+
 // CloneShallow copies node data without copying lock state. Slice and map
 // fields remain shared with the source, matching the historical shallow-copy
 // behavior.
@@ -265,14 +285,8 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		propMap["arrayValues"] = n.ArrayValues
 	}
 
-	if gl, kk := n.Instance.(high.GoesLowUntyped); kk {
-		if ext, ok := gl.GoLowUntyped().(low.HasExtensions[*orderedmap.Map[low.KeyReference[string], low.ValueReference[*yaml.Node]]]); ok {
-			if ext.GetExtensions() != nil {
-				if ext.GetExtensions().Len() > 0 {
-					propMap["extensions"] = ext.GetExtensions().Len()
-				}
-			}
-		}
+	if count := n.GetExtensionCount(); count > 0 {
+		propMap["extensions"] = count
 	}
 
 	if n.Instance != nil {
