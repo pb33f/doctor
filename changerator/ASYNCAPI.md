@@ -33,6 +33,10 @@ Node timelines collapse repeated comparisons of the same shared definition but
 retain distinct edits such as an enum addition and removal. Native machine
 reports retain the raw change list.
 
+Both formats size change-view cards from their visible header, child and extension
+rows. Change annotations sit outside the card and do not reserve an empty row or
+widen child labels. Native action badges are included in operation label widths.
+
 Run `go test ./changerator/... ./model/...` and the source/alias/removal tests
 before changing this adapter. Source correctness includes both old and new
 locations, even when their line/column values collide with unrelated objects.

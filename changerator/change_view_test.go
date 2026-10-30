@@ -194,7 +194,7 @@ func TestBuildChildChangeSummaries_Labels(t *testing.T) {
 }
 
 func TestRecalculateChangeViewDimensions(t *testing.T) {
-	// Node with 2 child summaries and own changes → 75 (25+25+25).
+	// Annotations sit outside the card; only the header and two child rows count.
 	node := &v3.Node{
 		Id: "op",
 		ChildChangeSummaries: []*v3.ChildChangeSummary{
@@ -208,8 +208,7 @@ func TestRecalculateChangeViewDimensions(t *testing.T) {
 
 	recalculateChangeViewDimensions(node)
 
-	// header(25) + 2 child rows(50) + own changes(25) = 100
-	assert.Equal(t, v3.HEIGHT*4, node.Height)
+	assert.Equal(t, v3.HEIGHT*3, node.Height)
 	assert.GreaterOrEqual(t, node.Width, v3.WIDTH)
 }
 
@@ -327,7 +326,7 @@ func TestPrepareChangeViewGraph_Integration(t *testing.T) {
 	// Heights should be recalculated.
 	assert.Equal(t, v3.HEIGHT*2, root.Height, "root: header + 1 child row")
 	assert.Equal(t, v3.HEIGHT*2, child.Height, "schemas: header + 1 child row")
-	assert.Equal(t, v3.HEIGHT*2, grandchild.Height, "Pet: header + own changes")
+	assert.Equal(t, v3.HEIGHT, grandchild.Height, "Pet: header only; annotations are outside the card")
 }
 
 func TestPrepareChangeViewGraph_RenderedChangesPreferred(t *testing.T) {
