@@ -16,7 +16,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/pb33f/go-yaml v0.1.1
 	github.com/pb33f/jsonschema/v6 v6.0.3
-	github.com/pb33f/libasyncapi v0.0.6-0.20261101004239-200d059f24e8
+	github.com/pb33f/libasyncapi v0.0.6
 	github.com/pb33f/libopenapi v0.42.0
 	github.com/pb33f/ordered-map/v2 v2.3.2
 	github.com/pb33f/testify v0.1.1
