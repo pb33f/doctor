@@ -22,22 +22,14 @@ func renderAsyncAPIReport(input *RenderInput, doc *async.DocumentChanges) string
 	if r.config == nil {
 		r.config = DefaultRenderConfig()
 	}
-	changes := r.deduplicatedChanges
-	deduplicate := changes == nil
-	if deduplicate {
-		changes = doc.GetAllChanges()
-		r.deduplicatedChanges = make([]*model.Change, 0, len(changes))
+	if r.deduplicatedChanges == nil {
+		r.deduplicatedChanges = DeduplicateChanges(doc.GetAllChanges())
 	}
-	w := asyncReportWriter{reporter: r, remaining: make(map[asyncChangeKey]*model.Change, len(changes))}
+	changes := r.deduplicatedChanges
+	w := asyncReportWriter{reporter: r, remaining: make(map[changeIdentity]*model.Change, len(changes))}
 	for _, ch := range changes {
 		if ch != nil {
-			if _, exists := w.remaining[asyncKey(ch)]; exists && deduplicate {
-				continue
-			}
-			w.remaining[asyncKey(ch)] = ch
-			if deduplicate {
-				r.deduplicatedChanges = append(r.deduplicatedChanges, ch)
-			}
+			w.remaining[changeKey(ch)] = ch
 		}
 	}
 	w.output.WriteString("# What Changed Report\n\n")
@@ -104,27 +96,89 @@ func renderAsyncAPIReport(input *RenderInput, doc *async.DocumentChanges) string
 		components.object("Extensions", "$.components", c.ExtensionChanges)
 	}
 	sections["extensions"].object("Extensions", "$", doc.ExtensionChanges)
+	// Removing a $ref locates the change at its unchanged target, outside every
+	// object's scope. It is still counted, so it must still be listed.
+	other := &asyncReportGroup{writer: &w, title: "Other Changes", level: 3}
+	for _, ch := range changes {
+		if ch = other.eligible(ch); ch != nil {
+			group := &asyncReportGroup{writer: &w, parent: other, title: pathCodeSpan(ch.Path), scope: ch.Path, level: 4}
+			group.write(changes)
+		}
+	}
 	return w.output.String()
 }
 
-type asyncChangeKey struct {
-	path, property string
-	// Unlocated native changes have no semantic path yet; preserve their identity.
+// changeIdentity keeps distinct edits to one property (an enum add and remove)
+// separate; only repeated comparisons through a shared reference collapse.
+type changeIdentity struct {
+	path, property, original, modified     string
+	originalEncoded, newEncoded, reference string
+	changeType                             int
+	breaking                               bool
+	// Changes without a semantic path are identified by their source position, or
+	// by the change itself when that is unknown too.
+	position  sourcePosition
 	unlocated *model.Change
 }
 
-func asyncKey(ch *model.Change) asyncChangeKey {
-	key := asyncChangeKey{path: ch.Path, property: ch.Property}
+type sourcePosition struct {
+	document                                         string
+	originalLine, originalColumn, newLine, newColumn int
+}
+
+// DeduplicateChanges collapses repeated comparisons of one edit.
+func DeduplicateChanges(changes []*model.Change) []*model.Change {
+	seen := make(map[changeIdentity]bool, len(changes))
+	deduplicated := make([]*model.Change, 0, len(changes))
+	for _, ch := range changes {
+		if ch == nil || seen[changeKey(ch)] {
+			continue
+		}
+		seen[changeKey(ch)] = true
+		deduplicated = append(deduplicated, ch)
+	}
+	return deduplicated
+}
+
+func changeKey(ch *model.Change) changeIdentity {
+	key := changeIdentity{
+		path: ch.Path, property: ch.Property, original: ch.Original, modified: ch.New,
+		originalEncoded: ch.OriginalEncoded, newEncoded: ch.NewEncoded,
+		reference: ch.Reference, changeType: ch.ChangeType, breaking: ch.Breaking,
+	}
 	if ch.Path == "" {
-		key.unlocated = ch
+		if position, ok := changePosition(ch.Context); ok {
+			key.position = position
+		} else {
+			key.unlocated = ch
+		}
 	}
 	return key
+}
+
+func changePosition(context *model.ChangeContext) (sourcePosition, bool) {
+	if context == nil || (context.OriginalLine == nil && context.NewLine == nil) {
+		return sourcePosition{}, false
+	}
+	value := func(number *int) int {
+		if number == nil {
+			return -1
+		}
+		return *number
+	}
+	return sourcePosition{
+		document:       context.DocumentLocation,
+		originalLine:   value(context.OriginalLine),
+		originalColumn: value(context.OriginalColumn),
+		newLine:        value(context.NewLine),
+		newColumn:      value(context.NewColumn),
+	}, true
 }
 
 type asyncReportWriter struct {
 	reporter  *MarkdownReporter
 	output    strings.Builder
-	remaining map[asyncChangeKey]*model.Change
+	remaining map[changeIdentity]*model.Change
 }
 
 type asyncReportGroup struct {
@@ -165,7 +219,7 @@ func (g *asyncReportGroup) eligible(ch *model.Change) *model.Change {
 		!strings.HasPrefix(ch.Path, g.scope+".") && !strings.HasPrefix(ch.Path, g.scope+"[")) {
 		return nil
 	}
-	return g.writer.remaining[asyncKey(ch)]
+	return g.writer.remaining[changeKey(ch)]
 }
 
 func (g *asyncReportGroup) write(changes []*model.Change) {
@@ -179,7 +233,7 @@ func (g *asyncReportGroup) write(changes []*model.Change) {
 		if ch = g.eligible(ch); ch != nil {
 			g.start()
 			g.writer.reporter.renderChange(&g.writer.output, ch)
-			delete(g.writer.remaining, asyncKey(ch))
+			delete(g.writer.remaining, changeKey(ch))
 			wrote = true
 		}
 	}

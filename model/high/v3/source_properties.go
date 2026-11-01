@@ -4,52 +4,60 @@
 package v3
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/pb33f/go-yaml"
 )
 
 // sourceProperties preserves authored aliases instead of expanding their targets.
 // Explorer instances are source previews; the graph owns resolved relationships.
-func sourceProperties(node *yaml.Node) (any, error) {
+// Values JSON cannot carry stay as authored so one of them cannot fail a graph.
+func sourceProperties(node *yaml.Node) any {
 	if node == nil {
-		return nil, nil
+		return nil
 	}
 	switch node.Kind {
 	case yaml.AliasNode:
-		return map[string]string{"$yamlAlias": node.Value}, nil
+		return map[string]string{"$yamlAlias": node.Value}
 	case yaml.DocumentNode:
 		if len(node.Content) == 0 {
-			return nil, nil
+			return nil
 		}
 		return sourceProperties(node.Content[0])
 	case yaml.MappingNode:
 		value := make(map[string]any, len(node.Content)/2)
 		for i := 0; i+1 < len(node.Content); i += 2 {
-			key := node.Content[i]
-			if key.Kind != yaml.ScalarNode {
-				return nil, fmt.Errorf("explorer property key at line %d must be a scalar", key.Line)
-			}
-			child, err := sourceProperties(node.Content[i+1])
-			if err != nil {
-				return nil, err
-			}
-			value[key.Value] = child
+			value[sourceKey(node.Content[i])] = sourceProperties(node.Content[i+1])
 		}
-		return value, nil
+		return value
 	case yaml.SequenceNode:
 		value := make([]any, len(node.Content))
 		for i, child := range node.Content {
-			var err error
-			value[i], err = sourceProperties(child)
-			if err != nil {
-				return nil, err
-			}
+			value[i] = sourceProperties(child)
 		}
-		return value, nil
+		return value
 	default:
 		var value any
-		err := node.Decode(&value)
-		return value, err
+		if err := node.Decode(&value); err != nil {
+			return node.Value
+		}
+		if _, err := json.Marshal(value); err != nil {
+			return node.Value
+		}
+		return value
 	}
+}
+
+// sourceKey renders a complex YAML key as its source, since JSON keys are strings.
+func sourceKey(key *yaml.Node) string {
+	if key.Kind == yaml.ScalarNode {
+		return key.Value
+	}
+	encoded, err := yaml.Marshal(key)
+	if err != nil {
+		return fmt.Sprintf("line %d", key.Line)
+	}
+	return strings.TrimSpace(string(encoded))
 }

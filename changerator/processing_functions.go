@@ -150,7 +150,8 @@ func handleChanges[N v3.Foundational](node *v3.Node, ch what_changed.Changed, mo
 	}
 	var m interface{}
 	m = mo
-	if hs, kk := m.(v3.HasSize); kk {
+	// an ancestor holding a change for a node-less model keeps its own size.
+	if hs, kk := m.(v3.HasSize); kk && mo.GetNode() == node {
 		if !reflect.ValueOf(hs).IsNil() {
 			h, w := hs.GetSize()
 			if node.Height <= 0 {
@@ -209,12 +210,58 @@ func PushChangesWithOverride[N v3.Foundational, R what_changed.Changed](ctx cont
 									change:            ch,
 								}
 							}
+							return
 						}
+					}
+				}
+			}
+
+			// primitive schemas have no graph node, so the nearest ancestor holds their changes.
+			if node := nearestNode(ctx, model); node != nil {
+				handleChanges(node, ch, model, nType, nPath)
+				if nChan != nil {
+					nChan.(chan *modelChange) <- &modelChange{
+						model: model,
+						node:  node,
 					}
 				}
 			}
 		}
 	}
+}
+
+// nearestNode returns the graph node of the closest ancestor that has one. A reference
+// resolves to its target first, because a parent chain follows the usage that reached a
+// shared component and the change belongs to the component itself. Usage nodes remain
+// the fallback when the target is not in the graph, such as an external file.
+func nearestNode(ctx context.Context, model v3.Foundational) *v3.Node {
+	nodes, _ := ctx.Value(NodeIndex).(map[string]*v3.Node)
+	for parent := model.GetParent(); parent != nil && !reflect.ValueOf(parent).IsNil(); parent = parent.GetParent() {
+		if node := nodes[referenceTarget(parent)]; node != nil {
+			return node
+		}
+		if node := nodes[parent.GenerateJSONPath()]; node != nil {
+			return node
+		}
+		if node := parent.GetNode(); node != nil {
+			return node
+		}
+	}
+	return nil
+}
+
+// referenceTarget returns the JSONPath a referencing model points at, if any.
+func referenceTarget(model v3.Foundational) string {
+	var q any = model
+	if wf, ok := q.(v3.HasValue); ok {
+		if c, kk := wf.GetValue().(high.GoesLowUntyped); kk {
+			if is, kp := c.GoLowUntyped().(low.IsReferenced); kp && is.IsReference() {
+				_, path := utils.ConvertComponentIdIntoFriendlyPathSearch(is.GetReference())
+				return path
+			}
+		}
+	}
+	return ""
 }
 
 func PushChanges[N v3.Foundational, R what_changed.Changed](ctx context.Context, model N, r R) {

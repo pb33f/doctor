@@ -9,12 +9,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/pb33f/doctor/changerator/renderer"
 	dr "github.com/pb33f/doctor/model"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libasyncapi"
+	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
 )
 
@@ -275,4 +277,70 @@ func TestAsyncAPIExternalEnumAndRemovalOrigins(t *testing.T) {
 			require.True(t, strings.HasSuffix(change.Context.DocumentLocation, "side-0.yaml"))
 		}
 	}
+}
+
+const asyncConcurrentLeft = `asyncapi: 3.0.0
+info: {title: Events, version: 1.0.0}
+servers:
+  s: {host: old, protocol: mqtt}
+channels:
+  c:
+    address: a/old
+    messages:
+      m:
+        payload:
+          type: object
+          title: old
+          enum: [a, b]
+          x-owner: old
+`
+
+// Reformatted so that every change sits at a different position on each side.
+const asyncConcurrentRight = `asyncapi: 3.0.0
+info: {title: Events, version: 1.0.0}
+
+
+servers:
+
+  s: {host: new, protocol: mqtt}
+channels:
+  c:
+
+    address: a/new
+
+    messages:
+      m:
+        payload:
+          type: object
+
+          title: new
+          description: added
+
+          enum: [a, c]
+
+          x-owner: new
+`
+
+func parseAsyncConcurrent(t *testing.T, source string) libasyncapi.Document {
+	t.Helper()
+	doc, err := libasyncapi.NewDocument([]byte(source))
+	require.NoError(t, err)
+	return doc
+}
+
+// Change contexts point into the shared source tree, which comparison must only read.
+func TestAsyncAPIConcurrentComparesShareDocuments(t *testing.T) {
+	left, right := parseAsyncConcurrent(t, asyncConcurrentLeft), parseAsyncConcurrent(t, asyncConcurrentRight)
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			result, err := CompareAsyncAPI(left, right, nil)
+			if assert.NoError(t, err) && assert.NotNil(t, result) {
+				result.Release()
+			}
+		}()
+	}
+	wg.Wait()
 }

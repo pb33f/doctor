@@ -600,3 +600,13 @@ tags:
 	assert.Contains(t, report, "including real-time updates", "Report should show updated tag description values")
 	assert.NotContains(t, report, "Tag `description` changed", "Report should not collapse tag property edits into whole-tag changes")
 }
+
+func TestChangerator_ReportsWithoutConfig(t *testing.T) {
+	const fixture = "asyncapi: 3.0.0\ninfo: {title: Events, version: 1.0.0}\ncomponents:\n  schemas:\n    S: {type: string}\n"
+	result := compareAsyncReportFixture(t, fixture, strings.Replace(fixture, "type: string", "type: integer", 1))
+	bare := &Changerator{ChangeReport: result.Changes}
+	report, err := bare.GenerateReport(renderer.NewMarkdownRenderer(), renderer.OutputFormatMarkdown)
+	assert.NoError(t, err)
+	assert.Contains(t, report, "What Changed Report")
+	assert.Contains(t, bare.GenerateMarkdownReport(), "What Changed Report")
+}

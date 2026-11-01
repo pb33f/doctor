@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/pb33f/doctor/changerator/renderer"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	asyncModel "github.com/pb33f/libasyncapi/what-changed/model"
 	"github.com/pb33f/libopenapi/datamodel"
@@ -53,6 +54,9 @@ type modelChange struct {
 }
 
 const NodeChannel string = "node-channel"
+
+// NodeIndex is the context key for the right document's nodes, keyed by canonical path.
+const NodeIndex string = "node-index"
 
 func NewChangerator(config *ChangeratorConfig) *Changerator {
 	seen := make(map[string]*whatChangedModel.Change)
@@ -151,7 +155,9 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 		doneChan <- struct{}{}
 	}()
 
+	nodeIndex := t.nodeIndex()
 	chCtx := context.WithValue(context.Background(), NodeChannel, t.NodeChan)
+	chCtx = context.WithValue(chCtx, NodeIndex, nodeIndex)
 	cctx := context.WithValue(chCtx, v3.Context, docChanges)
 	go t.Config.RightDrDoc.Travel(cctx, t)
 	<-doneChan
@@ -159,6 +165,7 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 	if len(referenceNodeeChanges) > 0 {
 		t.NodeChan = make(chan *modelChange)
 		chCtx = context.WithValue(context.Background(), NodeChannel, t.NodeChan)
+		chCtx = context.WithValue(chCtx, NodeIndex, nodeIndex)
 		doneChan = make(chan struct{})
 		// process referenced nodes with changes
 		go func() {
@@ -193,8 +200,39 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 		<-doneChan
 	}
 
+	t.placeUnattachedChanges(docChanges)
 	return docChanges
 
+}
+
+// placeUnattachedChanges puts any change the walk could not place on the document
+// root, so the graph can never report fewer changes than the comparison found. // of a placed change are skipped, and each change keeps its path and type for the reports.
+func (t *Changerator) placeUnattachedChanges(docChanges *whatChangedModel.DocumentChanges) {
+	if t.Config.Doctor == nil || t.Config.RightDrDoc == nil || t.Config.RightDrDoc.Node == nil {
+		return
+	}
+	placed := make(map[string]bool)
+	for _, node := range t.Config.Doctor.Nodes {
+		for _, changed := range node.GetChanges() {
+			for _, change := range changed.GetPropertyChanges() {
+				placed[generateChangeHash(change)] = true
+			}
+		}
+	}
+	root := t.Config.RightDrDoc.Node
+	var unattached []*whatChangedModel.Change
+	for _, change := range docChanges.GetAllChanges() {
+		if hash := generateChangeHash(change); !placed[hash] {
+			placed[hash] = true
+			unattached = append(unattached, change)
+		}
+	}
+	if len(unattached) > 0 {
+		root.AppendChange(&nodePropertyChanges{changes: unattached})
+		t.mutex.Lock()
+		t.ChangedNodes = append(t.ChangedNodes, root)
+		t.mutex.Unlock()
+	}
 }
 
 func compareOpenAPIDocuments(leftDoc, rightDoc *v3.Document) *whatChangedModel.DocumentChanges {
@@ -265,9 +303,22 @@ func (t *Changerator) GetDoctor() v3.Doctor {
 	return t.Config.Doctor
 }
 
-// DeduplicateChanges removes duplicate changes using JSONPath + property as the unique key.
-// This prevents the same change from appearing multiple times when a reference is used in multiple locations.
-// Returns a deduplicated array of changes.
+func (t *Changerator) nodeIndex() map[string]*v3.Node {
+	if t.Config == nil || t.Config.Doctor == nil {
+		return nil
+	}
+	nodes := make(map[string]*v3.Node, len(t.Config.Doctor.Nodes))
+	for _, node := range t.Config.Doctor.Nodes {
+		if _, ok := nodes[node.Id]; !ok {
+			nodes[node.Id] = node
+		}
+	}
+	return nodes
+}
+
+// DeduplicateChanges removes changes that repeat one edit, which happens when a
+// reference is used in multiple locations. Distinct edits to one property, such as
+// an enum addition and removal, are kept so a breaking change is never hidden.
 func (t *Changerator) DeduplicateChanges() []*whatChangedModel.Change {
 	if t.ChangeReport == nil && (t.Config == nil || t.Config.DocumentChanges == nil) {
 		return nil
@@ -285,20 +336,7 @@ func (t *Changerator) DeduplicateChanges() []*whatChangedModel.Change {
 	if len(allChanges) == 0 {
 		return allChanges
 	}
-
-	seen := make(map[string]bool)
-	var deduplicated []*whatChangedModel.Change
-
-	for _, change := range allChanges {
-		key := change.Path + ":" + change.Property
-
-		if !seen[key] {
-			seen[key] = true
-			deduplicated = append(deduplicated, change)
-		}
-	}
-
-	return deduplicated
+	return renderer.DeduplicateChanges(allChanges)
 }
 
 // ResolveParameterName returns the semantic name for a parameter at the given

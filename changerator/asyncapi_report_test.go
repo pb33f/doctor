@@ -193,3 +193,105 @@ func BenchmarkAsyncAPIMarkdownReport(b *testing.B) {
 		})
 	}
 }
+
+// A CI gate reads the summary, so the add and the remove must both survive.
+func TestAsyncAPIReportKeepsDistinctEditsToOneProperty(t *testing.T) {
+	const fixture = "asyncapi: 3.0.0\ninfo: {title: Events, version: 1.0.0}\ncomponents:\n  schemas:\n    S:\n      type: string\n      enum: [a, b]\n"
+	result := compareAsyncReportFixture(t, fixture, strings.Replace(fixture, "[a, b]", "[a, c]", 1))
+	require.Equal(t, 2, result.Changes.TotalChanges())
+	require.Equal(t, 1, result.Changes.TotalBreakingChanges())
+	deduplicated := result.Changerator.DeduplicateChanges()
+	require.Len(t, deduplicated, 2)
+
+	for _, listed := range [][]*wc.Change{deduplicated, nil} {
+		input := &renderer.RenderInput{ChangeReport: result.Changes, DeduplicatedChanges: listed}
+		markdown, err := renderer.NewMarkdownRenderer().RenderMarkdown(input)
+		require.NoError(t, err)
+		require.Contains(t, markdown, "**2** changes detected, **1** are")
+		breakdown := strings.SplitN(markdown, "## Change Breakdown", 2)[1]
+		require.Equal(t, 2, strings.Count(breakdown, "\n- "))
+		require.Contains(t, breakdown, "`enum` removed *'b'* "+renderer.Breaking)
+		require.Contains(t, breakdown, "`enum` added *'c'*")
+	}
+}
+
+// Identical edits reached through a shared reference still collapse to one row.
+func TestAsyncAPIReportCollapsesRepeatedReferenceChanges(t *testing.T) {
+	const fixture = `asyncapi: 3.0.0
+info: {title: Events, version: 1.0.0}
+channels:
+  a:
+    address: a
+    messages:
+      m: {payload: {$ref: '#/components/schemas/S'}}
+  b:
+    address: b
+    messages:
+      m: {payload: {$ref: '#/components/schemas/S'}}
+components:
+  schemas:
+    S:
+      type: string
+      enum: [a, b]
+`
+	result := compareAsyncReportFixture(t, fixture, strings.Replace(fixture, "[a, b]", "[a, c]", 1))
+	require.Greater(t, result.Changes.TotalChanges(), 2)
+	require.Len(t, result.Changerator.DeduplicateChanges(), 2)
+}
+
+// Removing a reference leaves its component untouched, so no component group owns
+// the change. It is still counted and must still be listed.
+func TestAsyncAPIReportListsEveryCountedChange(t *testing.T) {
+	const server = `asyncapi: 3.0.0
+info: {title: Events, version: 1.0.0}
+servers:
+  s:
+    host: h
+    protocol: mqtt
+    security:
+      - $ref: '#/components/securitySchemes/k'
+components:
+  securitySchemes:
+    k:
+      type: apiKey
+      in: user
+`
+	const operation = `asyncapi: 3.0.0
+info: {title: Events, version: 1.0.0}
+channels:
+  c:
+    address: a
+operations:
+  o:
+    action: send
+    channel: {$ref: '#/channels/c'}
+    traits:
+      - $ref: '#/components/operationTraits/t'
+components:
+  operationTraits:
+    t:
+      summary: x
+`
+	for name, pair := range map[string][2]string{
+		"server security":  {server, strings.Replace(server, "    security:\n      - $ref: '#/components/securitySchemes/k'\n", "", 1)},
+		"operation traits": {operation, strings.Replace(operation, "    traits:\n      - $ref: '#/components/operationTraits/t'\n", "", 1)},
+		"both directions":  {strings.Replace(server, "    security:\n      - $ref: '#/components/securitySchemes/k'\n", "", 1), server},
+	} {
+		t.Run(name, func(t *testing.T) {
+			result := compareAsyncReportFixture(t, pair[0], pair[1])
+			input := &renderer.RenderInput{ChangeReport: result.Changes, DeduplicatedChanges: result.Changerator.DeduplicateChanges()}
+			require.NotEmpty(t, input.DeduplicatedChanges)
+			markdown, err := renderer.NewMarkdownRenderer().RenderMarkdown(input)
+			require.NoError(t, err)
+			breakdown := strings.SplitN(markdown, "## Change Breakdown", 2)[1]
+			require.Equal(t, len(input.DeduplicatedChanges), strings.Count(breakdown, "\n- "))
+			require.Contains(t, breakdown, "### Other Changes")
+			for _, ch := range input.DeduplicatedChanges {
+				require.Contains(t, breakdown, ch.Path)
+				if ch.Breaking {
+					require.Contains(t, breakdown, ch.Path+" ` "+renderer.Breaking)
+				}
+			}
+		})
+	}
+}
