@@ -17,6 +17,11 @@ instead of expanding their targets. Merge keys remain authored keys; resolved
 relationships belong to the graph. This bounds output by authored content even
 when aliases form a dense graph. The original source text is unchanged.
 
+libopenapi v0.42.0 limits YAML alias expansion during indexing. Keep this default
+for untrusted input. The graph stress tests explicitly enable libasyncapi's
+`AllowExcessiveAliases` option for their trusted fixtures, so they still measure
+graph and serialization growth beyond the indexing limit.
+
 `Changerator.ChangeReport` and `renderer.RenderInput.ChangeReport` are additive
 neutral report inputs. The concrete OpenAPI `DocumentChanges` field remains
 unchanged. Both engines use the same summary, per-change formatting, deduplication
