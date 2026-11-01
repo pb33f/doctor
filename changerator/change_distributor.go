@@ -206,7 +206,8 @@ func (t *Changerator) Changerate() *whatChangedModel.DocumentChanges {
 }
 
 // placeUnattachedChanges puts any change the walk could not place on the document
-// root, so the graph can never report fewer changes than the comparison found. // of a placed change are skipped, and each change keeps its path and type for the reports.
+// root, so the graph can never report fewer changes than the comparison found. Repeats
+// of a placed change are skipped, and each change keeps its path and type for the reports.
 func (t *Changerator) placeUnattachedChanges(docChanges *whatChangedModel.DocumentChanges) {
 	if t.Config.Doctor == nil || t.Config.RightDrDoc == nil || t.Config.RightDrDoc.Node == nil {
 		return
