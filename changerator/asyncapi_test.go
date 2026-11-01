@@ -191,7 +191,10 @@ func TestAsyncAPINestedAliasesAndBoundedGraph(t *testing.T) {
 	for i := 1; i <= 10; i++ {
 		fmt.Fprintf(&source, "  a%d: &a%d {left: *a%d, right: *a%d}\n", i, i, i-1, i-1)
 	}
-	doc, err := libasyncapi.NewDocument([]byte(source.String()))
+	// This trusted stress fixture exceeds the default indexing alias limit.
+	config := libasyncapi.NewDocumentConfiguration()
+	config.AllowExcessiveAliases = true
+	doc, err := libasyncapi.NewDocumentWithConfiguration([]byte(source.String()), config)
 	require.NoError(t, err)
 	graph, err := dr.NewAsyncDocument(doc)
 	require.NoError(t, err)
@@ -217,7 +220,10 @@ func TestAsyncAPIAliasPreviewGrowth(t *testing.T) {
 				aliases := strings.TrimSuffix(strings.Repeat(fmt.Sprintf("*a%d, ", i-1), 8), ", ")
 				fmt.Fprintf(&source, "  a%d: &a%d [%s]\n", i, i, aliases)
 			}
-			doc, err := libasyncapi.NewDocument([]byte(source.String()))
+			// Exercise graph bounds independently of the indexing alias limit.
+			config := libasyncapi.NewDocumentConfiguration()
+			config.AllowExcessiveAliases = true
+			doc, err := libasyncapi.NewDocumentWithConfiguration([]byte(source.String()), config)
 			require.NoError(t, err)
 			defer doc.Rolodex().Release()
 			graph, err := dr.NewAsyncDocument(doc)
