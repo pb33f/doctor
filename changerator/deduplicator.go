@@ -76,10 +76,17 @@ func generateChangeHash(change *model.Change) string {
 		change.New)))
 
 	if change.Context != nil {
+		h.Write([]byte(change.Context.DocumentLocation))
 		if change.Context.NewLine != nil && change.Context.NewColumn != nil {
 			h.Write([]byte(fmt.Sprintf(":%d:%d",
 				*change.Context.NewLine,
 				*change.Context.NewColumn)))
+		} else if change.Context.OriginalLine != nil && change.Context.OriginalColumn != nil {
+			// removals have no new position, so only the original one tells them apart.
+			// it is not used otherwise: objects moved to one reference share a new position.
+			h.Write([]byte(fmt.Sprintf(":%d:%d",
+				*change.Context.OriginalLine,
+				*change.Context.OriginalColumn)))
 		}
 	}
 

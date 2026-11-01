@@ -4,10 +4,13 @@
 package changerator
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
+	dr "github.com/pb33f/doctor/model"
 	v3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libasyncapi"
 	"github.com/pb33f/testify/require"
 )
 
@@ -121,4 +124,28 @@ func TestAsyncAPIExplorerKeepsDistinctEditsOnOneProperty(t *testing.T) {
 		}
 	}
 	t.Fatal("schema property missing")
+}
+
+func TestAsyncAPIGraphSerializesUnrepresentableValues(t *testing.T) {
+	for name, value := range map[string]string{
+		"positive infinity": "maximum: .inf",
+		"not a number":      "maximum: .nan",
+		"complex key":       "x-m: {[a, b]: 1}",
+		"bad tag":           "x-m: !!int abc",
+	} {
+		t.Run(name, func(t *testing.T) {
+			source := "asyncapi: 3.0.0\ninfo: {title: Events, version: 1.0.0}\ncomponents:\n  schemas:\n    S:\n      type: number\n      " + value + "\n"
+			doc, err := libasyncapi.NewDocument([]byte(source))
+			require.NoError(t, err)
+			require.False(t, doc.IsPartial(), "%v", doc.Errors())
+			graph, err := dr.NewAsyncDocument(doc)
+			require.NoError(t, err)
+			defer graph.Release()
+			for _, node := range graph.Nodes {
+				node.RenderProps = true
+			}
+			_, err = json.Marshal(graph.Nodes)
+			require.NoError(t, err)
+		})
+	}
 }

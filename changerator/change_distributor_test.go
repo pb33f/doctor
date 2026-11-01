@@ -15,6 +15,50 @@ import (
 	"testing"
 )
 
+// An enum add and remove share a path and property but are separate edits, so
+// deduplication must keep both or it loses the breaking removal.
+func TestDeduplicateChanges_KeepsDistinctEditsToOneProperty(t *testing.T) {
+	spec := func(values string) []byte {
+		return []byte("openapi: 3.1.0\ninfo: {title: t, version: 1.0.0}\npaths: {}\ncomponents:\n  schemas:\n    S:\n      type: string\n      enum: [" + values + "]\n")
+	}
+	read := func(name string) []byte {
+		bytes, err := os.ReadFile("../test_specs/" + name)
+		assert.NoError(t, err)
+		return bytes
+	}
+	for name, tc := range map[string]struct {
+		left, right                     []byte
+		total, breaking, deduped, broke int
+	}{
+		"enum":     {spec("a, b"), spec("a, c"), 2, 1, 2, 1},
+		"petstore": {read("petstorev3-original.json"), read("petstorev3-openapi-changes.json"), 45, 19, 45, 19},
+	} {
+		t.Run(name, func(t *testing.T) {
+			build := func(source []byte) *model.DrDocument {
+				doc, err := libopenapi.NewDocument(source)
+				assert.NoError(t, err)
+				high, err := doc.BuildV3Model()
+				assert.NoError(t, err)
+				return model.NewDrDocumentAndGraph(high)
+			}
+			left, right := build(tc.left), build(tc.right)
+			c := NewChangerator(&ChangeratorConfig{LeftDrDoc: left.V3Document, RightDrDoc: right.V3Document, Doctor: right})
+			changes := c.Changerate()
+			assert.Equal(t, tc.total, changes.TotalChanges())
+			assert.Equal(t, tc.breaking, changes.TotalBreakingChanges())
+			deduped := c.DeduplicateChanges()
+			assert.Len(t, deduped, tc.deduped)
+			broke := 0
+			for _, change := range deduped {
+				if change.Breaking {
+					broke++
+				}
+			}
+			assert.Equal(t, tc.broke, broke)
+		})
+	}
+}
+
 func TestTardis_Changerate(t *testing.T) {
 
 	ymlLeft := `openapi: "3.1

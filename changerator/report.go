@@ -25,10 +25,12 @@ func (t *Changerator) GenerateReportWithConfig(
 	input := &renderer.RenderInput{
 		ChangeReport:        t.ChangeReport,
 		DeduplicatedChanges: t.DeduplicateChanges(),
-		DocumentChanges:     t.Config.DocumentChanges,
-		Doctor:              t.Config.Doctor,
 		RightDocContent:     t.rightDocContent,
 		Config:              config,
+	}
+	if t.Config != nil {
+		input.DocumentChanges = t.Config.DocumentChanges
+		input.Doctor = t.Config.Doctor
 	}
 
 	switch outputFormat {

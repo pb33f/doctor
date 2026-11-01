@@ -27,7 +27,7 @@ type AsyncDocument struct {
 	objects     map[*yaml.Node]asyncLocation
 	aliases     map[string]asyncAlias
 	nodesByPath map[string]*v3.Node
-	refSites    map[*index.SpecIndex]map[*yaml.Node]bool
+	refSites    map[*index.SpecIndex]map[*yaml.Node]*index.Reference
 	references  []asyncReference
 }
 
@@ -44,6 +44,7 @@ type asyncReference struct {
 	owner *v3.Node
 	value *yaml.Node
 	index *index.SpecIndex
+	site  *index.Reference
 }
 
 type asyncAlias struct{ target, occurrence *v3.Node }
@@ -53,14 +54,19 @@ func NewAsyncDocument(doc libasyncapi.Document) (*AsyncDocument, error) {
 	if doc == nil || doc.IsPartial() {
 		return nil, fmt.Errorf("complete AsyncAPI document required")
 	}
-	d := &AsyncDocument{locations: make(map[asyncPosition]asyncLocation), visited: make(map[*yaml.Node]*v3.Node), refSites: make(map[*index.SpecIndex]map[*yaml.Node]bool)}
+	d := &AsyncDocument{locations: make(map[asyncPosition]asyncLocation), visited: make(map[*yaml.Node]*v3.Node), refSites: make(map[*index.SpecIndex]map[*yaml.Node]*index.Reference)}
 	d.objects = make(map[*yaml.Node]asyncLocation)
 	d.aliases = make(map[string]asyncAlias)
 	d.nodesByPath = make(map[string]*v3.Node)
 	d.Root = d.walk(doc.RootNode(), doc.Index(), nil, "$", "AsyncAPI", "document")
 	for i := 0; i < len(d.references); i++ {
 		ref := d.references[i]
-		resolved, idx := ref.index.SearchIndexForReference(ref.value.Value)
+		// the raw $ref would re-resolve against the root's local path and lose its base URL,
+		// but repaired aliases are only registered under it.
+		resolved, idx := ref.index.SearchIndexForReferenceByReference(ref.site)
+		if resolved == nil || resolved.Node == nil {
+			resolved, idx = ref.index.SearchIndexForReference(ref.value.Value)
+		}
 		if resolved == nil || resolved.Node == nil || idx == nil {
 			return nil, fmt.Errorf("unresolved AsyncAPI reference %q", ref.value.Value)
 		}
@@ -147,10 +153,12 @@ func (d *AsyncDocument) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.
 		for i := 0; i+1 < len(value.Content); i += 2 {
 			key, child := value.Content[i], value.Content[i+1]
 			childPath := AsyncObjectPath(path, key.Value)
-			if key.Value == "$ref" && d.isReference(value, idx) {
-				d.references = append(d.references, asyncReference{n, child, idx})
-				if parentEdge != nil {
-					parentEdge.Ref = child.Value
+			if key.Value == "$ref" {
+				if site := d.referenceSite(value, idx); site != nil {
+					d.references = append(d.references, asyncReference{n, child, idx, site})
+					if parentEdge != nil {
+						parentEdge.Ref = child.Value
+					}
 				}
 			}
 			if child.Kind == yaml.MappingNode || child.Kind == yaml.SequenceNode || child.Kind == yaml.AliasNode {
@@ -198,15 +206,15 @@ func (d *AsyncDocument) connect(source, target *v3.Node, ref string) *v3.Edge {
 	return edge
 }
 
-func (d *AsyncDocument) isReference(node *yaml.Node, idx *index.SpecIndex) bool {
+func (d *AsyncDocument) referenceSite(node *yaml.Node, idx *index.SpecIndex) *index.Reference {
 	sites, ok := d.refSites[idx]
 	if !ok {
-		sites = make(map[*yaml.Node]bool)
+		sites = make(map[*yaml.Node]*index.Reference)
 		for _, ref := range idx.GetRawReferencesSequenced() {
 			if ref.IsExtensionRef && idx.GetConfig().ExcludeExtensionRefs {
 				continue
 			}
-			sites[ref.Node] = true
+			sites[ref.Node] = ref
 		}
 		d.refSites[idx] = sites
 	}
@@ -328,6 +336,15 @@ func (d *AsyncDocument) LocateChange(change *wc.Change, modified bool, scopes ..
 	if line == nil || column == nil {
 		return nil, ""
 	}
+	// Context pointers alias shared yaml.Node fields, so replace them, never write through.
+	setPosition := func(position *yaml.Node) {
+		l, c := position.Line, position.Column
+		if modified {
+			change.Context.NewLine, change.Context.NewColumn = &l, &c
+		} else {
+			change.Context.OriginalLine, change.Context.OriginalColumn = &l, &c
+		}
+	}
 	scope := ""
 	if len(scopes) > 0 {
 		scope = scopes[0]
@@ -342,7 +359,7 @@ func (d *AsyncDocument) LocateChange(change *wc.Change, modified bool, scopes ..
 	if sourceNode != nil {
 		loc := d.objectLocation(sourceNode, scope)
 		if loc.node != nil {
-			*line, *column = sourceNode.Line, sourceNode.Column
+			setPosition(sourceNode)
 			return loc.node, loc.path
 		}
 	}
@@ -357,8 +374,7 @@ func (d *AsyncDocument) LocateChange(change *wc.Change, modified bool, scopes ..
 			source = n.OriginLocation
 			for i := 0; root.Kind == yaml.MappingNode && i+1 < len(root.Content); i += 2 {
 				if root.Content[i].Value == change.Property && root.Content[i+1].Kind == yaml.ScalarNode {
-					position := root.Content[i+1]
-					*line, *column = position.Line, position.Column
+					setPosition(root.Content[i+1])
 					path := n.Id
 					if path == "root" {
 						path = "$"
@@ -377,8 +393,7 @@ func (d *AsyncDocument) LocateChange(change *wc.Change, modified bool, scopes ..
 		if n := d.nodesByPath[scope]; n != nil && n.Type == "channel" && n.Value.Kind == yaml.MappingNode {
 			for i := 0; i+1 < len(n.Value.Content); i += 2 {
 				if n.Value.Content[i].Value == change.Property {
-					position := n.Value.Content[i+1]
-					*line, *column = position.Line, position.Column
+					setPosition(n.Value.Content[i+1])
 					return n, scope
 				}
 			}
@@ -400,7 +415,7 @@ func (d *AsyncDocument) LocateChange(change *wc.Change, modified bool, scopes ..
 						break
 					}
 				}
-				*line, *column = position.Line, position.Column
+				setPosition(position)
 				path := n.Id
 				if path == "root" {
 					path = "$"
