@@ -32,6 +32,9 @@ const (
 	SiteNavItemService SiteNavItemKind = "service"
 	// SiteNavItemLink is a link that leaves the site.
 	SiteNavItemLink SiteNavItemKind = "link"
+	// SiteNavItemGroup is a titled group of items: a nested folder, or a group
+	// in nav.yaml. Its Href, when set, is its landing page.
+	SiteNavItemGroup SiteNavItemKind = "group"
 )
 
 // SiteNav is the typed navigation tree of a directory build: tabs, sections

@@ -10,13 +10,15 @@ import (
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 )
 
-func (ap *AggregatePrintingPress) collectCatalogContentPages() []*ppmodel.ContentPage {
+// collectCatalogContentPages returns the guides of a directory build and its
+// home content (the docs folder top-level _index.md), when there is one.
+func (ap *AggregatePrintingPress) collectCatalogContentPages() ([]*ppmodel.ContentPage, *ppmodel.ContentPage) {
 	if ap == nil || ap.config == nil {
-		return nil
+		return nil, nil
 	}
 	root := strings.TrimSpace(ap.config.ScanRoot)
 	if root == "" {
-		return nil
+		return nil, nil
 	}
 	pp := &PrintingPress{
 		engineConfig: &pressEngineConfig{
@@ -27,5 +29,5 @@ func (ap *AggregatePrintingPress) collectCatalogContentPages() []*ppmodel.Conten
 		site: &ppmodel.Site{},
 	}
 	pp.collectContentPages()
-	return pp.site.ContentPages
+	return pp.site.ContentPages, pp.contentHome
 }

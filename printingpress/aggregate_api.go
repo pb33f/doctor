@@ -119,6 +119,9 @@ type AggregatePrintingPressConfig struct {
 	SiteKind ppmodel.SiteKind
 	// Brand is the site's brand content (logo, favicon, header links).
 	Brand *ppmodel.SiteBrand
+	// NavPath is the docs site's nav.yaml. Empty looks for docs/nav.yaml,
+	// then nav.yaml, under the scan root.
+	NavPath string
 
 	// mockSeed is passed to every entry's mock generators (tests only).
 	mockSeed int64

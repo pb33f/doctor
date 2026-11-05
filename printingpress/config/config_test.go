@@ -62,6 +62,7 @@ headerLinks:
     href: https://status.example.com
 site:
   mode: docs
+  nav: docs/nav.yaml
 `), 0o644))
 
 	cfg, err := Load(filepath.Join(projectDir, "printing-press.yaml"), "")
@@ -71,7 +72,7 @@ site:
 	assert.Equal(t, "brand/logo.svg", cfg.Logo)
 	assert.Equal(t, "brand/favicon.png", cfg.Favicon)
 	assert.Equal(t, []HeaderLinkConfig{{Label: "Status", Href: "https://status.example.com"}}, cfg.HeaderLinks)
-	assert.Equal(t, SiteConfig{Mode: "docs"}, cfg.Site)
+	assert.Equal(t, SiteConfig{Mode: "docs", Nav: filepath.Join(projectDir, "docs", "nav.yaml")}, cfg.Site, "site.nav is relative to the config file")
 
 	brand := cfg.SiteBrand()
 	require.NotNil(t, brand)

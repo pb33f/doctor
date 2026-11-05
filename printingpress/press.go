@@ -115,6 +115,8 @@ type PrintingPress struct {
 	resolvedOutputDir   string
 	activity            *activityManager
 	currentJob          *activityJob
+	// contentHome is the docs folder top-level _index.md, kept off the page list.
+	contentHome *ContentPage
 }
 
 func newPressEngine(config *pressEngineConfig) *PrintingPress {

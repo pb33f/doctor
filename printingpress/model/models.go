@@ -73,6 +73,17 @@ type ContentPage struct {
 	Order       int                 `json:"order,omitempty"`
 	Hidden      bool                `json:"hidden,omitempty"`
 	Assets      []*ContentPageAsset `json:"-"`
+	// Section is the folder the page sits in, relative to the docs folder.
+	// Empty for a top-level page.
+	Section string `json:"section,omitempty"`
+	// SectionIndex marks a folder's _index.md: the landing page of Section.
+	SectionIndex bool `json:"sectionIndex,omitempty"`
+	// Tab names the top-level tab a section joins (from _index.md).
+	Tab string `json:"tab,omitempty"`
+	// Icon is a short icon name a theme may draw.
+	Icon string `json:"icon,omitempty"`
+	// SourceRelPath is the source file relative to its content folder.
+	SourceRelPath string `json:"-"`
 }
 
 // ContentPageAsset is a local or remote image copied into the generated docs.

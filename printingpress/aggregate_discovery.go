@@ -185,7 +185,7 @@ func (ap *AggregatePrintingPress) buildPlan(intent aggregatePlanIntent) (*aggreg
 	ap.finalizeCatalog(plan.catalog)
 	ap.applyAggregateNavigationFingerprints(plan.catalog, discovered)
 	plan.catalog.Warnings = append(plan.catalog.Warnings, discoveryWarnings...)
-	plan.catalog.ContentPages = ap.collectCatalogContentPages()
+	plan.catalog.ContentPages, plan.catalog.HomePage = ap.collectCatalogContentPages()
 	ap.applySite(plan.catalog)
 	for _, spec := range discovered {
 		if !spec.RenderSkipped && aggregateSpecSelectedOutputDirty(spec, intent.selection, ap.config.BuildMode) {

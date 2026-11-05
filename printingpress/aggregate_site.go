@@ -28,7 +28,30 @@ func (ap *AggregatePrintingPress) applySite(catalog *ppmodel.CatalogSite) {
 		catalog.Title = siteTitleFallback(catalog.Kind)
 	}
 	catalog.Brand = cloneSiteBrand(ap.config.Brand)
-	catalog.Nav = buildSiteNav(catalog)
+	catalog.Nav = ap.buildNav(catalog)
+}
+
+// buildNav builds the navigation tree. A catalog keeps one tab of guides and
+// services. A docs site uses nav.yaml when there is one, and its folders
+// otherwise. A nav.yaml that cannot be read is logged, and the folder
+// navigation is used.
+func (ap *AggregatePrintingPress) buildNav(catalog *ppmodel.CatalogSite) *ppmodel.SiteNav {
+	if !catalog.Kind.IsDocs() {
+		return buildCatalogNav(catalog)
+	}
+	warn := func(message, context string) {
+		if ap.config.Logger != nil {
+			ap.config.Logger.Warn(message, "context", context)
+		}
+	}
+	if navPath := findSiteNavFile(ap.config.NavPath, ap.config.ScanRoot); navPath != "" {
+		file, err := readSiteNavFile(navPath)
+		if err == nil {
+			return buildSiteNavFromFile(file, newSiteNavFileResolver(navPath, catalog, warn))
+		}
+		warn("nav.yaml could not be read; using the folder navigation", navPath+": "+err.Error())
+	}
+	return buildDocsFolderNav(catalog)
 }
 
 // resolveSiteKind uses the configured kind when there is one. Otherwise a
@@ -84,9 +107,9 @@ func siteHomeLabel(catalog *ppmodel.CatalogSite) string {
 	return catalogSiteTitleFallback
 }
 
-// buildSiteNav builds the navigation tree: one tab holding the guides, then
-// the API references. Tabs from folders and nav.yaml extend this tree.
-func buildSiteNav(catalog *ppmodel.CatalogSite) *ppmodel.SiteNav {
+// buildCatalogNav builds a catalog navigation tree: one tab holding the
+// guides, then the services.
+func buildCatalogNav(catalog *ppmodel.CatalogSite) *ppmodel.SiteNav {
 	tab := &ppmodel.SiteNavTab{
 		Title: catalog.Title,
 		Slug:  "home",

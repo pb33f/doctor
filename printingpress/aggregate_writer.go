@@ -1231,6 +1231,9 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 		}
 		contentPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(contentPage.Href))
 		content := render.ContentPageTemplWithBreadcrumb(contentPage, "", catalogContentPageBreadcrumb(contentPage))
+		if catalog.Kind.IsDocs() {
+			content = docsContentPageContent(catalog, contentPage)
+		}
 		page := ap.catalogPageData(contentPage.Href, fmt.Sprintf("%s - %s", contentPage.Title, catalog.Title), "", nil, false, content)
 		page = withCatalogContentNav(page, catalog, "content/"+contentPage.Slug)
 		if err := writeCatalogPage(contentPath, page); err != nil {
@@ -1534,6 +1537,8 @@ type catalogPageData struct {
 	// HomeLabel is the nav label of the site's home page: the site title in a
 	// docs site, "API Catalog" in a catalog.
 	HomeLabel string
+	// docsSite is set on pages of a docs site, whose nav comes from its tree.
+	docsSite *ppmodel.CatalogSite
 }
 
 func (ap *AggregatePrintingPress) catalogPageData(relPath, title, subtitle string, service *ppmodel.CatalogService, showHeroTitle bool, content templ.Component) catalogPageData {
@@ -1562,6 +1567,10 @@ func withCatalogContentNav(page catalogPageData, catalog *ppmodel.CatalogSite, a
 	page.ShowCatalogNav = hasContentPagesForNav(catalog.ContentPages)
 	page.CatalogPages = catalog.ContentPages
 	page.ActiveNavSlug = activeSlug
+	if catalog.Kind.IsDocs() {
+		page.docsSite = catalog
+		page.ShowCatalogNav = siteNavHasItems(catalog.Nav)
+	}
 	return page
 }
 
@@ -1769,12 +1778,18 @@ func writeCatalogOptionalAttr(w io.Writer, key, value string) error {
 }
 
 func catalogPageHasNav(page catalogPageData) bool {
+	if page.docsSite != nil {
+		return page.ShowCatalogNav
+	}
 	return page.ShowCatalogNav && hasContentPagesForNav(page.CatalogPages)
 }
 
 func catalogNavHTML(page catalogPageData) string {
 	if !catalogPageHasNav(page) {
 		return ""
+	}
+	if page.docsSite != nil {
+		return docsNavHTML(page.docsSite, page.RelPath)
 	}
 	fromDir := path.Dir(page.RelPath)
 	var builder strings.Builder
@@ -1878,10 +1893,11 @@ func catalogRootContent(catalog *ppmodel.CatalogSite, disableSkippedRendering bo
 			}
 		}
 		if catalog.Kind.IsDocs() {
-			if pages := contentPagesForNav(catalog.ContentPages); len(pages) > 0 {
-				if err := render.ContentIndexTempl(pages, nil, "").Render(ctx, w); err != nil {
-					return err
-				}
+			if err := docsHomeContent(catalog.HomePage).Render(ctx, w); err != nil {
+				return err
+			}
+			if _, err := io.WriteString(w, docsNavItemCardsHTML(".", docsHomeCardItems(catalog.Nav))); err != nil {
+				return err
 			}
 			if len(visibleCatalogServices(catalog)) == 0 {
 				return nil

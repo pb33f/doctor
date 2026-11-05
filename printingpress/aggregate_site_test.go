@@ -62,14 +62,17 @@ func TestDocsSiteWithoutSpecsIsNotACatalog(t *testing.T) {
 	assert.FileExists(t, filepath.Join(outputDir, "getting-started", "install.html"))
 
 	require.NotNil(t, catalog.Nav)
-	require.Len(t, catalog.Nav.Tabs, 1)
-	sections := catalog.Nav.Tabs[0].Sections
-	require.Len(t, sections, 1, "no API section without specs")
-	assert.Equal(t, "Guides", sections[0].Title)
-	require.Len(t, sections[0].Items, 2)
-	assert.Equal(t, ppmodel.SiteNavItemPage, sections[0].Items[0].Kind)
-	assert.Equal(t, "Welcome", sections[0].Items[0].Title)
-	assert.Equal(t, "welcome.html", sections[0].Items[0].Href)
+	require.Len(t, catalog.Nav.Tabs, 2, "home, and one tab for the getting-started folder; no APIs tab without specs")
+	home := catalog.Nav.Tabs[0].Sections
+	require.Len(t, home, 1)
+	assert.Equal(t, "Guides", home[0].Title)
+	require.Len(t, home[0].Items, 1)
+	assert.Equal(t, ppmodel.SiteNavItemPage, home[0].Items[0].Kind)
+	assert.Equal(t, "Welcome", home[0].Items[0].Title)
+	assert.Equal(t, "welcome.html", home[0].Items[0].Href)
+	folder := catalog.Nav.Tabs[1]
+	assert.Equal(t, "Getting Started", folder.Title)
+	assert.Equal(t, "getting-started/install.html", folder.Href)
 }
 
 func TestDocsSiteUsesConfiguredTitleAndBrand(t *testing.T) {
@@ -125,7 +128,11 @@ func TestDocsSiteKindOverrideNamesSpecsAPIs(t *testing.T) {
 	assert.Contains(t, llms, "## APIs")
 	assert.NotContains(t, llms, "## Services")
 	assert.NotContains(t, readOutput(t, outputDir, "index.html"), "API Catalog")
-	sections := catalog.Nav.Tabs[0].Sections
-	require.Len(t, sections, 2)
-	assert.Equal(t, "APIs", sections[1].Title)
+	require.Len(t, catalog.Nav.Tabs, 2, "home, then the APIs tab")
+	apis := catalog.Nav.Tabs[1]
+	assert.Equal(t, "APIs", apis.Title)
+	require.Len(t, apis.Sections, 1)
+	require.Len(t, apis.Sections[0].Items, 1)
+	assert.Equal(t, ppmodel.SiteNavItemService, apis.Sections[0].Items[0].Kind)
+	assert.Equal(t, apis.Sections[0].Items[0].Href, apis.Href)
 }

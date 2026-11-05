@@ -101,6 +101,12 @@ type contentPageDraft struct {
 	meta          contentPageFrontMatter
 	hasMeta       bool
 	fromDocs      bool
+	// section is the folder the page sits in, relative to the docs folder;
+	// empty for a top-level page.
+	section string
+	// sectionIndex marks an _index.md file: the landing page and metadata of
+	// its folder.
+	sectionIndex bool
 }
 
 type contentPageSource struct {
@@ -117,6 +123,12 @@ type contentPageFrontMatter struct {
 	Order       *int   `yaml:"order"`
 	Description string `yaml:"description"`
 	Hidden      bool   `yaml:"hidden"`
+	// Tab names the top-level tab a section belongs to (on _index.md).
+	Tab string `yaml:"tab"`
+	// Icon is a short icon name a theme may draw beside the page or section.
+	Icon string `yaml:"icon"`
+	// Draft keeps the page out of the build.
+	Draft bool `yaml:"draft"`
 }
 
 type contentPageContext struct {
@@ -129,10 +141,27 @@ type contentPageContext struct {
 
 func (pp *PrintingPress) collectContentPages() {
 	pages, _ := pp.resolveContentPagesOnly()
+	pages, pp.contentHome = splitContentHome(pages)
 	if len(pages) == 0 {
 		return
 	}
 	pp.site.ContentPages = pages
+}
+
+// splitContentHome takes the top-level _index.md page out of the page list.
+// It is the home content of a docs site, drawn on index.html, not a page of
+// its own.
+func splitContentHome(pages []*ppmodel.ContentPage) ([]*ppmodel.ContentPage, *ppmodel.ContentPage) {
+	var home *ppmodel.ContentPage
+	kept := pages[:0]
+	for _, page := range pages {
+		if page != nil && page.SectionIndex && page.Section == "" {
+			home = page
+			continue
+		}
+		kept = append(kept, page)
+	}
+	return kept, home
 }
 
 func (pp *PrintingPress) resolveContentPagesOnly() ([]*ppmodel.ContentPage, *contentPageContext) {
@@ -350,6 +379,8 @@ func (pp *PrintingPress) newContentPageDraft(ctx *contentPageContext, convention
 		meta:          meta,
 		hasMeta:       hasMeta,
 		fromDocs:      fromDocs,
+		section:       contentSectionPath(sourceRelPath, fromDocs),
+		sectionIndex:  isSectionIndexFile(sourceRelPath),
 	}
 }
 
@@ -386,11 +417,20 @@ func (pp *PrintingPress) resolveContentPages(drafts []*contentPageDraft) []*ppmo
 }
 
 func (pp *PrintingPress) resolveContentPage(draft *contentPageDraft) *ppmodel.ContentPage {
-	if draft == nil {
+	if draft == nil || draft.meta.Draft {
 		return nil
 	}
 	defaultTitle := contentDraftDefaultTitle(draft)
 	defaultSlug := contentDraftDefaultSlug(draft)
+	if draft.sectionIndex {
+		if draft.section == "" {
+			return contentHomePage(draft, defaultTitle)
+		}
+		defaultSlug = draft.section + "/index"
+		if strings.TrimSpace(draft.meta.Title) == "" {
+			defaultTitle = contentTitleFromFilename(draft.section)
+		}
+	}
 	title := strings.TrimSpace(draft.meta.Title)
 	if title == "" {
 		title = defaultTitle
@@ -413,18 +453,61 @@ func (pp *PrintingPress) resolveContentPage(draft *contentPageDraft) *ppmodel.Co
 		}
 	}
 	return &ppmodel.ContentPage{
-		Title:       title,
-		Label:       label,
-		Slug:        slugPath,
-		Href:        pppaths.ContentPageHTML(slugPath),
-		Description: strings.TrimSpace(draft.meta.Description),
-		SourcePath:  draft.sourcePath,
-		SourceDir:   draft.sourceDir,
-		SourceAlias: append([]string(nil), draft.aliases...),
-		Body:        draft.body,
-		Order:       contentDraftOrder(draft),
-		Hidden:      draft.meta.Hidden,
+		Title:         title,
+		Label:         label,
+		Slug:          slugPath,
+		Href:          pppaths.ContentPageHTML(slugPath),
+		Description:   strings.TrimSpace(draft.meta.Description),
+		SourcePath:    draft.sourcePath,
+		SourceDir:     draft.sourceDir,
+		SourceAlias:   append([]string(nil), draft.aliases...),
+		Body:          draft.body,
+		Order:         contentDraftOrder(draft),
+		Hidden:        draft.meta.Hidden,
+		Section:       draft.section,
+		SectionIndex:  draft.sectionIndex,
+		Tab:           strings.TrimSpace(draft.meta.Tab),
+		Icon:          strings.TrimSpace(draft.meta.Icon),
+		SourceRelPath: filepath.ToSlash(draft.sourceRelPath),
 	}
+}
+
+// contentHomePage is the top-level _index.md: the home page content of a docs
+// site. Its href is the site index.
+func contentHomePage(draft *contentPageDraft, defaultTitle string) *ppmodel.ContentPage {
+	title := strings.TrimSpace(draft.meta.Title)
+	if title == "" {
+		title = defaultTitle
+	}
+	return &ppmodel.ContentPage{
+		Title:         title,
+		Label:         title,
+		Href:          pppaths.FileIndexHTML,
+		Description:   strings.TrimSpace(draft.meta.Description),
+		SourcePath:    draft.sourcePath,
+		SourceDir:     draft.sourceDir,
+		Body:          draft.body,
+		SectionIndex:  true,
+		SourceRelPath: filepath.ToSlash(draft.sourceRelPath),
+	}
+}
+
+// contentSectionPath is the folder of a docs page relative to the docs
+// folder, or empty for a top-level page.
+func contentSectionPath(sourceRelPath string, fromDocs bool) string {
+	if !fromDocs {
+		return ""
+	}
+	dir := path.Dir(filepath.ToSlash(strings.TrimSpace(sourceRelPath)))
+	if dir == "." || dir == "/" {
+		return ""
+	}
+	return strings.Trim(dir, "/")
+}
+
+// isSectionIndexFile reports whether a content file is a folder's _index.md.
+func isSectionIndexFile(sourceRelPath string) bool {
+	return strings.EqualFold(path.Base(filepath.ToSlash(sourceRelPath)), "_index.md")
 }
 
 func (pp *PrintingPress) renderContentPage(ctx *contentPageContext, page *ppmodel.ContentPage) {
@@ -730,7 +813,10 @@ func contentFrontMatterHasRecognizedKey(meta contentPageFrontMatter) bool {
 		strings.TrimSpace(meta.Slug) != "" ||
 		meta.Order != nil ||
 		strings.TrimSpace(meta.Description) != "" ||
-		meta.Hidden
+		meta.Hidden ||
+		strings.TrimSpace(meta.Tab) != "" ||
+		strings.TrimSpace(meta.Icon) != "" ||
+		meta.Draft
 }
 
 func findContentFrontMatterClose(rest string) (int, int) {

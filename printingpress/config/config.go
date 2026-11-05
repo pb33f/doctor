@@ -83,6 +83,9 @@ type SiteConfig struct {
 	// Mode is api, catalog or docs. Empty lets the build decide from the
 	// input. The --mode flag overrides it.
 	Mode string `mapstructure:"mode" yaml:"mode"`
+	// Nav is the docs site nav.yaml. Empty looks for docs/nav.yaml, then
+	// nav.yaml, under the scan root. Relative paths are relative to this file.
+	Nav string `mapstructure:"nav" yaml:"nav"`
 }
 
 type ScanConfig struct {
@@ -239,6 +242,7 @@ func (c *File) ResolveRelativePaths() {
 	c.BasePath = ResolveRelativePath(c.configDir, c.BasePath)
 	c.Scan.Root = ResolveRelativePath(c.configDir, c.Scan.Root)
 	c.State.SQLite.Path = ResolveRelativePath(c.configDir, c.State.SQLite.Path)
+	c.Site.Nav = ResolveRelativePath(c.configDir, c.Site.Nav)
 }
 
 func ResolveRelativePath(baseDir, raw string) string {
