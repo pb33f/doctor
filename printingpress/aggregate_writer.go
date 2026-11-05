@@ -76,6 +76,7 @@ func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, 
 		DeveloperMode:                      ap.developerMode,
 		LintResults:                        ap.specLintResults[spec.RelativePath],
 		EnableContentPages:                 true,
+		mockSeed:                           ap.config.mockSeed,
 	}
 	if ap.config.BaseURL != "" {
 		if joined, err := joinBaseURLPath(ap.config.BaseURL, spec.OutputSubdir); err == nil {
@@ -1530,6 +1531,9 @@ type catalogPageData struct {
 	ShowCatalogNav bool
 	CatalogPages   []*ppmodel.ContentPage
 	ActiveNavSlug  string
+	// HomeLabel is the nav label of the site's home page: the site title in a
+	// docs site, "API Catalog" in a catalog.
+	HomeLabel string
 }
 
 func (ap *AggregatePrintingPress) catalogPageData(relPath, title, subtitle string, service *ppmodel.CatalogService, showHeroTitle bool, content templ.Component) catalogPageData {
@@ -1547,6 +1551,7 @@ func (ap *AggregatePrintingPress) catalogPageData(relPath, title, subtitle strin
 		AssetBase:     ap.catalogAssetBase(relPath),
 		ShowHeroTitle: showHeroTitle,
 		Footer:        cloneFooterConfig(ap.config.Footer),
+		HomeLabel:     siteHomeLabel(ap.catalog),
 	}
 }
 
@@ -1774,7 +1779,11 @@ func catalogNavHTML(page catalogPageData) string {
 	fromDir := path.Dir(page.RelPath)
 	var builder strings.Builder
 	builder.WriteString(`<div class="pp-nav-preview">`)
-	builder.WriteString(catalogNavHomeHTML("API Catalog", relativeCatalogHref(fromDir, pppaths.FileIndexHTML), page.ActiveNavSlug == "catalog"))
+	homeLabel := page.HomeLabel
+	if homeLabel == "" {
+		homeLabel = catalogSiteTitleFallback
+	}
+	builder.WriteString(catalogNavHomeHTML(homeLabel, relativeCatalogHref(fromDir, pppaths.FileIndexHTML), page.ActiveNavSlug == "catalog"))
 	builder.WriteString(`<div class="nav-section nav-pages-section"><h4>Guides</h4><ul class="nav-pages-list">`)
 	for _, contentPage := range contentPagesForNav(page.CatalogPages) {
 		active := page.ActiveNavSlug == "content/"+contentPage.Slug
@@ -1866,6 +1875,16 @@ func catalogRootContent(catalog *ppmodel.CatalogSite, disableSkippedRendering bo
 		if !disableSkippedRendering {
 			if err := renderCatalogWarnings(w, catalog.Warnings); err != nil {
 				return err
+			}
+		}
+		if catalog.Kind.IsDocs() {
+			if pages := contentPagesForNav(catalog.ContentPages); len(pages) > 0 {
+				if err := render.ContentIndexTempl(pages, nil, "").Render(ctx, w); err != nil {
+					return err
+				}
+			}
+			if len(visibleCatalogServices(catalog)) == 0 {
+				return nil
 			}
 		}
 		if _, err := io.WriteString(w, `<section class="pp-catalog-section"><div class="pp-model-cards">`); err != nil {
@@ -2489,8 +2508,14 @@ func buildCatalogAgentsGuide(catalog *ppmodel.CatalogSite) string {
 	}
 
 	builder.WriteString("## Files\n\n")
-	builder.WriteString("- [llms.txt](llms.txt) — Aggregate discovery index for all visible services, versions, and spec entry indexes.\n\n")
-	builder.WriteString("## Services\n\n")
+	if catalog != nil && catalog.Kind.IsDocs() {
+		builder.WriteString("- [llms.txt](llms.txt) — Discovery index for this documentation site.\n\n")
+	} else {
+		builder.WriteString("- [llms.txt](llms.txt) — Aggregate discovery index for all visible services, versions, and spec entry indexes.\n\n")
+	}
+	if !writeSiteServicesHeading(&builder, catalog) {
+		return builder.String()
+	}
 	for _, service := range visibleCatalogServices(catalog) {
 		serviceLLM := pppaths.AggregateServiceLLM(service.Slug)
 		builder.WriteString("- [")
@@ -2549,8 +2574,14 @@ func buildCatalogLLMIndex(catalog *ppmodel.CatalogSite) string {
 		builder.WriteString("\n\n")
 	}
 	builder.WriteString("## Files\n\n")
-	builder.WriteString("- [AGENTS.md](AGENTS.md) — Start-here guide for traversing the aggregate catalog and spec entry indexes\n\n")
-	builder.WriteString("## Services\n\n")
+	if catalog != nil && catalog.Kind.IsDocs() {
+		builder.WriteString("- [AGENTS.md](AGENTS.md) — Start-here guide for agents reading this documentation site\n\n")
+	} else {
+		builder.WriteString("- [AGENTS.md](AGENTS.md) — Start-here guide for traversing the aggregate catalog and spec entry indexes\n\n")
+	}
+	if !writeSiteServicesHeading(&builder, catalog) {
+		return builder.String()
+	}
 	for _, service := range visibleCatalogServices(catalog) {
 		serviceLLM := pppaths.AggregateServiceLLM(service.Slug)
 		builder.WriteString("- [")

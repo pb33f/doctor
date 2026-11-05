@@ -104,6 +104,10 @@ type PrintingPressConfig struct {
 	contentDiscoveryEnabled bool
 	contentBasePath         string
 	contentSpecPath         string
+
+	// mockSeed fixes the mock generators' random source. Package tests set it
+	// so golden output is byte-stable between builds; zero keeps random mocks.
+	mockSeed int64
 }
 
 const (
@@ -421,6 +425,7 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 		LLMAggregateSpecSizeThresholdBytes: pp.config.LLMAggregateSpecSizeThresholdBytes,
 		LLMMaxAggregateFileBytes:           pp.config.LLMMaxAggregateFileBytes,
 		LLMGenerateMonoliths:               pp.config.LLMGenerateMonoliths,
+		mockSeed:                           pp.config.mockSeed,
 		SyntheticTagFallback: &SyntheticTagFallbackConfig{
 			Enabled:         true,
 			MaxDistinctTags: 2,

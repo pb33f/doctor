@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/go-yaml"
 )
 
@@ -39,6 +40,49 @@ type File struct {
 	Build         BuildConfig    `mapstructure:"build" yaml:"build"`
 	State         StateConfig    `mapstructure:"state" yaml:"state"`
 	Footer        FooterConfig   `mapstructure:"footer" yaml:"footer"`
+	// Logo, Favicon and HeaderLinks are the site's brand content. They live
+	// at the top level beside title and footer, and nowhere else.
+	Logo        string             `mapstructure:"logo" yaml:"logo"`
+	Favicon     string             `mapstructure:"favicon" yaml:"favicon"`
+	HeaderLinks []HeaderLinkConfig `mapstructure:"headerLinks" yaml:"headerLinks"`
+	// Site holds docs-site behaviour. Brand content never goes here.
+	Site SiteConfig `mapstructure:"site" yaml:"site"`
+}
+
+// HeaderLinkConfig is one link in the site header.
+type HeaderLinkConfig struct {
+	Label string `mapstructure:"label" yaml:"label"`
+	Href  string `mapstructure:"href" yaml:"href"`
+}
+
+// SiteBrand returns the brand content for a directory build, or nil when the
+// config sets none.
+func (c *File) SiteBrand() *ppmodel.SiteBrand {
+	if c == nil {
+		return nil
+	}
+	brand := &ppmodel.SiteBrand{
+		Logo:    strings.TrimSpace(c.Logo),
+		Favicon: strings.TrimSpace(c.Favicon),
+	}
+	for _, link := range c.HeaderLinks {
+		label, href := strings.TrimSpace(link.Label), strings.TrimSpace(link.Href)
+		if label == "" || href == "" {
+			continue
+		}
+		brand.HeaderLinks = append(brand.HeaderLinks, &ppmodel.SiteHeaderLink{Label: label, Href: href})
+	}
+	if brand.Logo == "" && brand.Favicon == "" && len(brand.HeaderLinks) == 0 {
+		return nil
+	}
+	return brand
+}
+
+// SiteConfig is the site: block. Each docs-site step adds its own fields.
+type SiteConfig struct {
+	// Mode is api, catalog or docs. Empty lets the build decide from the
+	// input. The --mode flag overrides it.
+	Mode string `mapstructure:"mode" yaml:"mode"`
 }
 
 type ScanConfig struct {

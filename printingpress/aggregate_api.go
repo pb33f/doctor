@@ -113,6 +113,15 @@ type AggregatePrintingPressConfig struct {
 	// and llms-models.txt are generated for each entry. Supported values are
 	// "auto", "always", and "never".
 	LLMGenerateMonoliths string
+
+	// SiteKind forces the directory build to be a docs site or a catalog. Empty
+	// lets the build decide: a directory with no specs is a docs site.
+	SiteKind ppmodel.SiteKind
+	// Brand is the site's brand content (logo, favicon, header links).
+	Brand *ppmodel.SiteBrand
+
+	// mockSeed is passed to every entry's mock generators (tests only).
+	mockSeed int64
 }
 
 // AggregatePressStatistics reports the outcome of an aggregate print run.
@@ -227,6 +236,7 @@ func cloneAggregateConfig(config *AggregatePrintingPressConfig) *AggregatePrinti
 	cloned.ServiceIdentity.StripSuffixes = append([]string(nil), config.ServiceIdentity.StripSuffixes...)
 	cloned.ContractRoles = append([]AggregateContractRoleRule(nil), config.ContractRoles...)
 	cloned.Footer = cloneFooterConfig(config.Footer)
+	cloned.Brand = cloneSiteBrand(config.Brand)
 	return &cloned
 }
 

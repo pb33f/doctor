@@ -92,10 +92,14 @@ type SiteVersionLink struct {
 	Active bool   `json:"active,omitempty"`
 }
 
-// CatalogSite is the aggregate multi-spec documentation catalog.
+// CatalogSite is the model of a directory build: an API catalog, or a docs
+// site (Kind says which).
 type CatalogSite struct {
+	Kind         SiteKind          `json:"kind"`
 	Title        string            `json:"title,omitempty"`
 	Description  string            `json:"description,omitempty"`
+	Brand        *SiteBrand        `json:"brand,omitempty"`
+	Nav          *SiteNav          `json:"nav,omitempty"`
 	ScanRoot     string            `json:"scanRoot,omitempty"`
 	OutputDir    string            `json:"-"`
 	BaseURL      string            `json:"-"`

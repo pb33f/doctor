@@ -186,6 +186,7 @@ func (ap *AggregatePrintingPress) buildPlan(intent aggregatePlanIntent) (*aggreg
 	ap.applyAggregateNavigationFingerprints(plan.catalog, discovered)
 	plan.catalog.Warnings = append(plan.catalog.Warnings, discoveryWarnings...)
 	plan.catalog.ContentPages = ap.collectCatalogContentPages()
+	ap.applySite(plan.catalog)
 	for _, spec := range discovered {
 		if !spec.RenderSkipped && aggregateSpecSelectedOutputDirty(spec, intent.selection, ap.config.BuildMode) {
 			plan.changed = append(plan.changed, spec)
@@ -355,7 +356,7 @@ func (ap *AggregatePrintingPress) discoverSpecs(existing map[string]*SpecStateRe
 
 func (ap *AggregatePrintingPress) buildCatalog(discovered []*aggregateDiscoveredSpec) (*ppmodel.CatalogSite, error) {
 	catalog := &ppmodel.CatalogSite{
-		Title:       fallbackValue(ap.config.Title, "API Catalog"),
+		Title:       fallbackValue(ap.config.Title, catalogSiteTitleFallback),
 		Description: ap.config.Description,
 		ScanRoot:    ap.config.ScanRoot,
 	}
