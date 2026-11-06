@@ -129,13 +129,17 @@ type contentPageFrontMatter struct {
 	Icon string `yaml:"icon"`
 	// Draft keeps the page out of the build.
 	Draft bool `yaml:"draft"`
+	// Audience is all (the default), agents or humans.
+	Audience string `yaml:"audience"`
 }
 
 type contentPageContext struct {
-	root                  string
-	docsRoot              string
-	loader                *contentLoader
-	linkByPath            map[string]string
+	root       string
+	docsRoot   string
+	loader     *contentLoader
+	linkByPath map[string]string
+	// markdownByPath maps a page's source to its page.md href.
+	markdownByPath        map[string]string
 	unresolvedAssetByPath map[string]struct{}
 }
 
@@ -178,11 +182,15 @@ func (pp *PrintingPress) resolveContentPagesOnly() ([]*ppmodel.ContentPage, *con
 		return nil, ctx
 	}
 	ctx.linkByPath = make(map[string]string, len(pages))
+	ctx.markdownByPath = make(map[string]string, len(pages))
 	for _, page := range pages {
 		if page == nil {
 			continue
 		}
 		ctx.linkByPath[canonicalContentPath(ctx.loader, page.SourcePath)] = page.Href
+		if page.MarkdownHref != "" {
+			ctx.markdownByPath[canonicalContentPath(ctx.loader, page.SourcePath)] = page.MarkdownHref
+		}
 		for _, alias := range page.SourceAlias {
 			ctx.linkByPath[canonicalContentPath(ctx.loader, alias)] = page.Href
 		}
@@ -420,6 +428,10 @@ func (pp *PrintingPress) resolveContentPage(draft *contentPageDraft) *ppmodel.Co
 	if draft == nil || draft.meta.Draft {
 		return nil
 	}
+	audience, ok := parseContentAudience(draft.meta.Audience)
+	if !ok {
+		pp.warnContentPage("custom page audience must be all, agents or humans; using all", draft.sourcePath, nil)
+	}
 	defaultTitle := contentDraftDefaultTitle(draft)
 	defaultSlug := contentDraftDefaultSlug(draft)
 	if draft.sectionIndex {
@@ -469,7 +481,17 @@ func (pp *PrintingPress) resolveContentPage(draft *contentPageDraft) *ppmodel.Co
 		Tab:           strings.TrimSpace(draft.meta.Tab),
 		Icon:          strings.TrimSpace(draft.meta.Icon),
 		SourceRelPath: filepath.ToSlash(draft.sourceRelPath),
+		Audience:      audience,
+		MarkdownHref:  contentMarkdownHrefFor(pppaths.ContentPageHTML(slugPath), audience),
 	}
+}
+
+// contentMarkdownHrefFor is the page.md href of a page agents read, or empty.
+func contentMarkdownHrefFor(htmlHref string, audience ppmodel.ContentAudience) string {
+	if !audience.ForAgents() {
+		return ""
+	}
+	return contentMarkdownHref(htmlHref)
 }
 
 // contentHomePage is the top-level _index.md: the home page content of a docs
@@ -489,6 +511,7 @@ func contentHomePage(draft *contentPageDraft, defaultTitle string) *ppmodel.Cont
 		Body:          draft.body,
 		SectionIndex:  true,
 		SourceRelPath: filepath.ToSlash(draft.sourceRelPath),
+		MarkdownHref:  contentMarkdownHref(pppaths.FileIndexHTML),
 	}
 }
 
@@ -515,6 +538,13 @@ func (pp *PrintingPress) renderContentPage(ctx *contentPageContext, page *ppmode
 		return
 	}
 	body := pp.expandContentPartials(ctx, page, page.Body)
+	if page.Audience.ForAgents() {
+		page.Markdown = pp.renderContentPageMarkdown(ctx, page, applyAudienceBlocks(body, true))
+	}
+	if !page.Audience.ForHumans() {
+		return
+	}
+	body = applyAudienceBlocks(body, false)
 	extension := &contentRewriteExtension{
 		rewriteLink: func(raw string) (string, bool) {
 			return pp.rewriteContentPageLink(ctx, page, raw)
@@ -816,7 +846,8 @@ func contentFrontMatterHasRecognizedKey(meta contentPageFrontMatter) bool {
 		meta.Hidden ||
 		strings.TrimSpace(meta.Tab) != "" ||
 		strings.TrimSpace(meta.Icon) != "" ||
-		meta.Draft
+		meta.Draft ||
+		strings.TrimSpace(meta.Audience) != ""
 }
 
 func findContentFrontMatterClose(rest string) (int, int) {
@@ -1166,7 +1197,7 @@ func contentPagesForNav(pages []*ppmodel.ContentPage) []*ppmodel.ContentPage {
 	}
 	result := make([]*ppmodel.ContentPage, 0, len(pages))
 	for _, page := range pages {
-		if page == nil || page.Hidden {
+		if page == nil || page.Hidden || !page.Audience.ForHumans() {
 			continue
 		}
 		result = append(result, &ppmodel.ContentPage{
@@ -1183,7 +1214,7 @@ func contentPagesForNav(pages []*ppmodel.ContentPage) []*ppmodel.ContentPage {
 
 func hasContentPagesForNav(pages []*ppmodel.ContentPage) bool {
 	for _, page := range pages {
-		if page != nil && !page.Hidden {
+		if page != nil && !page.Hidden && page.Audience.ForHumans() {
 			return true
 		}
 	}

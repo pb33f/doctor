@@ -84,6 +84,35 @@ type ContentPage struct {
 	Icon string `json:"icon,omitempty"`
 	// SourceRelPath is the source file relative to its content folder.
 	SourceRelPath string `json:"-"`
+	// Audience says who the page is for: everyone, agents only or humans only.
+	Audience ContentAudience `json:"audience,omitempty"`
+	// MarkdownHref is the page.md file agents read. Empty for a humans-only page.
+	MarkdownHref string `json:"markdownHref,omitempty"`
+	// Markdown is the page.md text: the page as clean Markdown for agents.
+	Markdown string `json:"-"`
+}
+
+// ContentAudience says who a content page or block is for. Audience controls
+// presentation, not secrecy: every output is public.
+type ContentAudience string
+
+const (
+	// ContentAudienceAll is the default: HTML for humans and page.md for agents.
+	ContentAudienceAll ContentAudience = ""
+	// ContentAudienceAgents writes only page.md and llms entries. No HTML.
+	ContentAudienceAgents ContentAudience = "agents"
+	// ContentAudienceHumans writes only HTML. No page.md.
+	ContentAudienceHumans ContentAudience = "humans"
+)
+
+// ForAgents reports whether agents read it.
+func (a ContentAudience) ForAgents() bool {
+	return a != ContentAudienceHumans
+}
+
+// ForHumans reports whether humans read it.
+func (a ContentAudience) ForHumans() bool {
+	return a != ContentAudienceAgents
 }
 
 // ContentPageAsset is a local or remote image copied into the generated docs.

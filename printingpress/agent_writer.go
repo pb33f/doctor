@@ -205,6 +205,12 @@ func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFu
 		progress("writing llm operation markdown", step, total)
 	}
 
+	guideFiles, err := writeLLMContentPages(site, resolvedOutputDir)
+	if err != nil {
+		return nil, fmt.Errorf("writing guide page.md files: %w", err)
+	}
+	written = append(written, guideFiles...)
+
 	modelFiles, err := writeLLMModelFiles(site, resolvedOutputDir)
 	if err != nil {
 		return nil, fmt.Errorf("writing model .md files: %w", err)
@@ -294,6 +300,9 @@ func writeLLMFullPreamble(ctx llmRenderContext, w io.StringWriter) error {
 		if err := writeString(w, howTo); err != nil {
 			return err
 		}
+	}
+	if guides := renderLLMGuidesFull(site); guides != "" {
+		return writeString(w, guides)
 	}
 	return nil
 }
@@ -584,6 +593,7 @@ func writeLLMIndex(site *Site, outputDir string, plans ...llmWritePlan) error {
 	if quickStart != "" {
 		b.WriteString(quickStart)
 	}
+	b.WriteString(renderLLMGuidesIndex(site))
 
 	// Operations index grouped by tags
 	opsIndex := renderOperationsIndex(site)
@@ -640,6 +650,7 @@ func renderAgentsGuide(site *Site, plans ...llmWritePlan) string {
 	if quickStart := renderQuickStart(site); quickStart != "" {
 		b.WriteString(quickStart)
 	}
+	b.WriteString(renderLLMGuidesIndex(site))
 
 	b.WriteString("## Artifact Map\n\n")
 	writeLLMFileMap(&b, plan)

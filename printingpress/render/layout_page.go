@@ -23,6 +23,10 @@ type HeadParams struct {
 	SharedAssetBaseURL string
 	ExtraCSS           []string
 	Lite               bool
+	// Description is the page meta description.
+	Description string
+	// MarkdownHref is the page.md beside the page, for the alternate link.
+	MarkdownHref string
 }
 
 // LayoutPageParams holds the full page chrome for a rendered HTML page.
@@ -54,6 +58,8 @@ type LayoutPageParams struct {
 	Footer             *ppmodel.FooterConfig
 	SharedAssetBaseURL string
 	HasContentPages    bool
+	Description        string
+	MarkdownHref       string
 }
 
 func (params LayoutPageParams) headParams() HeadParams {
@@ -65,6 +71,8 @@ func (params LayoutPageParams) headParams() HeadParams {
 		SharedAssetBaseURL: params.headSharedAssetBaseURL(),
 		ExtraCSS:           params.ExtraCSS,
 		Lite:               params.Lite,
+		Description:        params.Description,
+		MarkdownHref:       params.MarkdownHref,
 	}
 }
 

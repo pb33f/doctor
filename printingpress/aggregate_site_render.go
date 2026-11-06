@@ -71,7 +71,7 @@ func docsNavItemCardsHTML(fromDir string, items []*ppmodel.SiteNavItem) string {
 	var builder strings.Builder
 	builder.WriteString(`<div class="pp-root pp-content-index"><div class="pp-guide-cards">`)
 	for _, item := range items {
-		if item.Href == "" {
+		if item.Href == "" || !item.Audience.ForHumans() {
 			continue
 		}
 		href := item.Href
@@ -145,6 +145,9 @@ func docsNavItemsHTML(fromDir, relPath string, items []*ppmodel.SiteNavItem) str
 	var builder strings.Builder
 	builder.WriteString(`<ul class="nav-pages-list">`)
 	for _, item := range items {
+		if !item.Audience.ForHumans() {
+			continue
+		}
 		builder.WriteString(`<li>`)
 		switch {
 		case item.Kind == ppmodel.SiteNavItemLink:

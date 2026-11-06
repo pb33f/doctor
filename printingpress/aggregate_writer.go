@@ -1209,6 +1209,10 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 	rootPath := filepath.Join(ap.config.OutputDir, pppaths.FileIndexHTML)
 	rootPage := ap.catalogPageData(pppaths.FileIndexHTML, catalog.Title, catalog.Description, nil, false, catalogRootContent(catalog, ap.config.DisableSkippedRendering))
 	rootPage = withCatalogContentNav(rootPage, catalog, "catalog")
+	if home := catalog.HomePage; catalog.Kind.IsDocs() && home != nil {
+		rootPage.MarkdownHref = home.MarkdownHref
+		rootPage.MetaDescription = home.Description
+	}
 	if err := writeCatalogPage(rootPath, rootPage); err != nil {
 		return nil, err
 	}
@@ -1216,7 +1220,7 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 
 	if len(catalog.ContentPages) > 0 {
 		guidesPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(pppaths.GuidesIndexHTML()))
-		guidesPage := ap.catalogPageData(pppaths.GuidesIndexHTML(), "Guides", "", nil, false, render.ContentIndexTempl(catalog.ContentPages, render.GuidesIndexBreadcrumb(), ""))
+		guidesPage := ap.catalogPageData(pppaths.GuidesIndexHTML(), "Guides", "", nil, false, render.ContentIndexTempl(contentPagesForNav(catalog.ContentPages), render.GuidesIndexBreadcrumb(), ""))
 		guidesPage = withCatalogContentNav(guidesPage, catalog, "guides")
 		if err := writeCatalogPage(guidesPath, guidesPage); err != nil {
 			return nil, err
@@ -1226,7 +1230,7 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 	}
 
 	for _, contentPage := range catalog.ContentPages {
-		if contentPage == nil {
+		if contentPage == nil || !contentPage.Audience.ForHumans() {
 			continue
 		}
 		contentPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(contentPage.Href))
@@ -1236,6 +1240,8 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 		}
 		page := ap.catalogPageData(contentPage.Href, fmt.Sprintf("%s - %s", contentPage.Title, catalog.Title), "", nil, false, content)
 		page = withCatalogContentNav(page, catalog, "content/"+contentPage.Slug)
+		page.MarkdownHref = contentPage.MarkdownHref
+		page.MetaDescription = contentPage.Description
 		if err := writeCatalogPage(contentPath, page); err != nil {
 			return nil, err
 		}
@@ -1258,10 +1264,10 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 			written = append(written, versionPath)
 		}
 	}
-	if err := ap.removePreviousCatalogContentArtifacts(contentStatePaths); err != nil {
+	if err := ap.removePreviousContentArtifacts(pppaths.FileCatalogContentStateJSON, contentStatePaths); err != nil {
 		return nil, err
 	}
-	if err := ap.writeCatalogContentState(contentStatePaths); err != nil {
+	if err := ap.writeContentState(pppaths.FileCatalogContentStateJSON, contentStatePaths); err != nil {
 		return nil, err
 	}
 	return written, nil
@@ -1308,8 +1314,10 @@ type catalogContentState struct {
 	Paths []string `json:"paths"`
 }
 
-func (ap *AggregatePrintingPress) removePreviousCatalogContentArtifacts(currentPaths []string) error {
-	paths, err := ap.readCatalogContentState()
+// removePreviousContentArtifacts removes the files an earlier build listed in
+// stateFile that this build no longer writes.
+func (ap *AggregatePrintingPress) removePreviousContentArtifacts(stateFile string, currentPaths []string) error {
+	paths, err := ap.readContentState(stateFile)
 	if err != nil {
 		if ap != nil && ap.config != nil && ap.config.Logger != nil {
 			ap.config.Logger.Warn("printingpress: unable to read previous catalog content state", "error", err)
@@ -1339,8 +1347,8 @@ func (ap *AggregatePrintingPress) removePreviousCatalogContentArtifacts(currentP
 	return nil
 }
 
-func (ap *AggregatePrintingPress) readCatalogContentState() ([]string, error) {
-	statePath := filepath.Join(ap.config.OutputDir, pppaths.FileCatalogContentStateJSON)
+func (ap *AggregatePrintingPress) readContentState(stateFile string) ([]string, error) {
+	statePath := filepath.Join(ap.config.OutputDir, stateFile)
 	data, err := os.ReadFile(statePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -1355,8 +1363,8 @@ func (ap *AggregatePrintingPress) readCatalogContentState() ([]string, error) {
 	return state.Paths, nil
 }
 
-func (ap *AggregatePrintingPress) writeCatalogContentState(paths []string) error {
-	statePath := filepath.Join(ap.config.OutputDir, pppaths.FileCatalogContentStateJSON)
+func (ap *AggregatePrintingPress) writeContentState(stateFile string, paths []string) error {
+	statePath := filepath.Join(ap.config.OutputDir, stateFile)
 	if len(paths) == 0 {
 		err := os.Remove(statePath)
 		if err != nil && !os.IsNotExist(err) {
@@ -1403,9 +1411,15 @@ func cleanCatalogContentStatePath(relPath string) (string, bool) {
 	if clean == pppaths.GuidesIndexHTML() || strings.HasPrefix(clean, path.Join(pppaths.DirAssets, "docs")+"/") {
 		return clean, true
 	}
-	if strings.ToLower(path.Ext(clean)) == pppaths.ExtHTML {
-		slugPath := strings.TrimSuffix(clean, pppaths.ExtHTML)
-		if isReservedContentSlug(slugPath) {
+	// The agent files of content pages: the home page.md and llms-full.txt.
+	if clean == contentMarkdownHref(pppaths.FileIndexHTML) || clean == pppaths.FileLLMFull {
+		return clean, true
+	}
+	for _, ext := range []string{pppaths.ExtHTML, pppaths.ExtMarkdown} {
+		if strings.ToLower(path.Ext(clean)) != ext {
+			continue
+		}
+		if isReservedContentSlug(strings.TrimSuffix(clean, ext)) {
 			return "", false
 		}
 		return clean, true
@@ -1484,15 +1498,19 @@ func (ap *AggregatePrintingPress) writeCatalogJSON(catalog *ppmodel.CatalogSite)
 }
 
 func (ap *AggregatePrintingPress) writeCatalogLLM(catalog *ppmodel.CatalogSite) ([]string, error) {
-	var written []string
+	pages := newSiteAgentPages(catalog)
+	written, err := ap.writeSiteAgentPages(catalog, pages)
+	if err != nil {
+		return nil, err
+	}
 	rootAgentsPath := filepath.Join(ap.config.OutputDir, pppaths.FileAgentsGuide)
-	if err := os.WriteFile(rootAgentsPath, []byte(buildCatalogAgentsGuide(catalog)), 0o644); err != nil {
+	if err := os.WriteFile(rootAgentsPath, []byte(buildCatalogAgentsGuide(catalog, pages)), 0o644); err != nil {
 		return nil, err
 	}
 	written = append(written, rootAgentsPath)
 
 	rootPath := filepath.Join(ap.config.OutputDir, pppaths.FileLLMIndex)
-	if err := os.WriteFile(rootPath, []byte(buildCatalogLLMIndex(catalog)), 0o644); err != nil {
+	if err := os.WriteFile(rootPath, []byte(buildCatalogLLMIndex(catalog, pages)), 0o644); err != nil {
 		return nil, err
 	}
 	written = append(written, rootPath)
@@ -1539,6 +1557,10 @@ type catalogPageData struct {
 	HomeLabel string
 	// docsSite is set on pages of a docs site, whose nav comes from its tree.
 	docsSite *ppmodel.CatalogSite
+	// MarkdownHref is the page.md beside this page, for the alternate link.
+	MarkdownHref string
+	// MetaDescription is the page's meta description.
+	MetaDescription string
 }
 
 func (ap *AggregatePrintingPress) catalogPageData(relPath, title, subtitle string, service *ppmodel.CatalogService, showHeroTitle bool, content templ.Component) catalogPageData {
@@ -1600,7 +1622,10 @@ func writeCatalogPage(filePath string, page catalogPageData) error {
 	return shell.Render(context.Background(), f)
 }
 
-func writeCatalogHead(w io.Writer, title, assetBase string) error {
+// writeCatalogHead writes the page head. A description adds a meta
+// description; a markdownHref adds the alternate link agents follow to the
+// page.md beside the page.
+func writeCatalogHead(w io.Writer, title, assetBase, description, markdownHref string) error {
 	assets := []string{
 		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePB33FThemeCSS)),
 		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FileCowboyComponentsCSS)),
@@ -1629,6 +1654,16 @@ func writeCatalogHead(w io.Writer, title, assetBase string) error {
 		</script><title>`+templ.EscapeString(title)+`</title>`); err != nil {
 		return err
 	}
+	if strings.TrimSpace(description) != "" {
+		if _, err := io.WriteString(w, `<meta name="description" content="`+templ.EscapeString(strings.TrimSpace(description))+`">`); err != nil {
+			return err
+		}
+	}
+	if markdownHref != "" {
+		if _, err := io.WriteString(w, `<link rel="alternate" type="text/markdown" href="`+templ.EscapeString(path.Base(markdownHref))+`">`); err != nil {
+			return err
+		}
+	}
 	for _, asset := range assets {
 		if _, err := io.WriteString(w, `<link rel="stylesheet" href="`+templ.EscapeString(asset)+`">`); err != nil {
 			return err
@@ -1653,7 +1688,7 @@ func catalogShell(page catalogPageData) templ.Component {
 		if _, err := io.WriteString(w, `<!doctype html><html lang="en" class="sl-theme-dark">`); err != nil {
 			return err
 		}
-		if err := writeCatalogHead(w, page.Title, page.AssetBase); err != nil {
+		if err := writeCatalogHead(w, page.Title, page.AssetBase, page.MetaDescription, page.MarkdownHref); err != nil {
 			return err
 		}
 		if showNav {
@@ -2511,7 +2546,7 @@ func catalogWarningText(warning *ppmodel.BuildWarning) string {
 	return warning.Message + " (" + warning.Context + ")"
 }
 
-func buildCatalogAgentsGuide(catalog *ppmodel.CatalogSite) string {
+func buildCatalogAgentsGuide(catalog *ppmodel.CatalogSite, pages *siteAgentPages) string {
 	var builder strings.Builder
 	builder.WriteString("# ")
 	builder.WriteString(catalogLLMTitle(catalog))
@@ -2525,10 +2560,14 @@ func buildCatalogAgentsGuide(catalog *ppmodel.CatalogSite) string {
 
 	builder.WriteString("## Files\n\n")
 	if catalog != nil && catalog.Kind.IsDocs() {
-		builder.WriteString("- [llms.txt](llms.txt) — Discovery index for this documentation site.\n\n")
+		builder.WriteString("- [llms.txt](llms.txt) — Discovery index for this documentation site.\n")
 	} else {
-		builder.WriteString("- [llms.txt](llms.txt) — Aggregate discovery index for all visible services, versions, and spec entry indexes.\n\n")
+		builder.WriteString("- [llms.txt](llms.txt) — Aggregate discovery index for all visible services, versions, and spec entry indexes.\n")
 	}
+	writeSiteLLMFullFileLine(&builder, pages)
+	builder.WriteString("\n")
+	writeSiteAgentStartHere(&builder, catalog, pages)
+	writeSiteAgentPagesMarkdown(&builder, catalog, pages)
 	if !writeSiteServicesHeading(&builder, catalog) {
 		return builder.String()
 	}
@@ -2579,7 +2618,7 @@ func buildCatalogAgentsGuide(catalog *ppmodel.CatalogSite) string {
 	return builder.String()
 }
 
-func buildCatalogLLMIndex(catalog *ppmodel.CatalogSite) string {
+func buildCatalogLLMIndex(catalog *ppmodel.CatalogSite, pages *siteAgentPages) string {
 	var builder strings.Builder
 	builder.WriteString("# ")
 	builder.WriteString(catalogLLMTitle(catalog))
@@ -2591,10 +2630,13 @@ func buildCatalogLLMIndex(catalog *ppmodel.CatalogSite) string {
 	}
 	builder.WriteString("## Files\n\n")
 	if catalog != nil && catalog.Kind.IsDocs() {
-		builder.WriteString("- [AGENTS.md](AGENTS.md) — Start-here guide for agents reading this documentation site\n\n")
+		builder.WriteString("- [AGENTS.md](AGENTS.md) — Start-here guide for agents reading this documentation site\n")
 	} else {
-		builder.WriteString("- [AGENTS.md](AGENTS.md) — Start-here guide for traversing the aggregate catalog and spec entry indexes\n\n")
+		builder.WriteString("- [AGENTS.md](AGENTS.md) — Start-here guide for traversing the aggregate catalog and spec entry indexes\n")
 	}
+	writeSiteLLMFullFileLine(&builder, pages)
+	builder.WriteString("\n")
+	writeSiteAgentPagesMarkdown(&builder, catalog, pages)
 	if !writeSiteServicesHeading(&builder, catalog) {
 		return builder.String()
 	}

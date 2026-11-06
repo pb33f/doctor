@@ -67,6 +67,11 @@ type SiteNavItem struct {
 	Href        string          `json:"href"`
 	Description string          `json:"description,omitempty"`
 	Children    []*SiteNavItem  `json:"children,omitempty"`
+	// MarkdownHref is the page.md of a page item, for agents.
+	MarkdownHref string `json:"markdownHref,omitempty"`
+	// Audience is the page item audience. Human surfaces skip agents-only
+	// items; agent files skip humans-only items.
+	Audience ContentAudience `json:"audience,omitempty"`
 }
 
 // SiteBrand is the brand content a directory build shows. Templates render

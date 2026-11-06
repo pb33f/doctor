@@ -5173,12 +5173,14 @@ Hidden direct page.
 
 	aboutHTML := readAggregateFile(t, filepath.Join(outputDir, "about.html"))
 	assert.Contains(t, aboutHTML, `<sl-breadcrumb-item href="guides.html">GUIDES</sl-breadcrumb-item>`)
-	breadcrumbIndex := strings.Index(aboutHTML, `<sl-breadcrumb class="pp-breadcrumb">`)
-	descriptionIndex := strings.Index(aboutHTML, "Higher-level catalog context.")
+	aboutBody := aboutHTML[strings.Index(aboutHTML, "<body"):]
+	breadcrumbIndex := strings.Index(aboutBody, `<sl-breadcrumb class="pp-breadcrumb">`)
+	descriptionIndex := strings.Index(aboutBody, "Higher-level catalog context.")
 	require.NotEqual(t, -1, breadcrumbIndex)
 	require.NotEqual(t, -1, descriptionIndex)
 	assert.Less(t, breadcrumbIndex, descriptionIndex)
-	assert.Equal(t, 1, strings.Count(aboutHTML, "Higher-level catalog context."))
+	assert.Equal(t, 1, strings.Count(aboutBody, "Higher-level catalog context."), "the description shows once in the page; the head carries it as the meta description")
+	assert.Contains(t, aboutHTML, `<meta name="description" content="Higher-level catalog context.">`)
 	assert.Contains(t, aboutHTML, "Shared catalog note.")
 	assert.Contains(t, aboutHTML, `src="assets/docs/about/map.svg"`)
 	assert.Contains(t, aboutHTML, `href="guides/setup.html"`)

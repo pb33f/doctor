@@ -18,7 +18,7 @@ import (
 	"github.com/pb33f/testify/require"
 )
 
-func TestContentPages_DiscoverRenderWriteAndStayOutOfLLM(t *testing.T) {
+func TestContentPages_DiscoverRenderWriteAndReachLLM(t *testing.T) {
 	restoreLogger := silenceDefaultLogger()
 	defer restoreLogger()
 
@@ -219,9 +219,12 @@ Hidden FAQ content.
 
 	_, err = pp.PrintLLM()
 	require.NoError(t, err)
+	// Guides are agent content too (docs-sites D14): each has a page.md and
+	// llms-full.txt carries them.
 	llmFull := readFile(t, filepath.Join(outputDir, "llms-full.txt"))
-	assert.NotContains(t, llmFull, "Root content unique to custom docs.")
-	assert.NotContains(t, llmFull, "Webhooks guide content.")
+	assert.Contains(t, llmFull, "Root content unique to custom docs.")
+	assert.Contains(t, llmFull, "Webhooks guide content.")
+	assert.FileExists(t, filepath.Join(outputDir, "webhooks-guide.md"))
 }
 
 func TestContentPages_RequireExplicitEnable(t *testing.T) {

@@ -24,6 +24,12 @@ templ Head(params HeadParams) {
 			})();
 		</script>
 		<title>{ params.Title }</title>
+		if params.Description != "" {
+			<meta name="description" content={ params.Description }/>
+		}
+		if params.MarkdownHref != "" {
+			<link rel="alternate" type="text/markdown" href={ params.MarkdownHref }/>
+		}
 		// Portable nested pages keep a relative base tag for file:// navigation.
 		// Hosted and served docs resolve runtime assets from data-pp-base-url instead.
 		if params.EmitBaseHref {

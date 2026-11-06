@@ -197,10 +197,12 @@ func docsFolderOrder(index *ppmodel.ContentPage) int {
 
 func pageNavItem(page *ppmodel.ContentPage) *ppmodel.SiteNavItem {
 	return &ppmodel.SiteNavItem{
-		Kind:        ppmodel.SiteNavItemPage,
-		Title:       catalogContentPageNavLabel(page),
-		Href:        page.Href,
-		Description: page.Description,
+		Kind:         ppmodel.SiteNavItemPage,
+		Title:        catalogContentPageNavLabel(page),
+		Href:         page.Href,
+		Description:  page.Description,
+		MarkdownHref: page.MarkdownHref,
+		Audience:     page.Audience,
 	}
 }
 
@@ -227,6 +229,9 @@ func firstSectionsHref(sections []*ppmodel.SiteNavSection) string {
 
 func firstItemsHref(items []*ppmodel.SiteNavItem) string {
 	for _, item := range items {
+		if !item.Audience.ForHumans() {
+			continue
+		}
 		if item.Kind != ppmodel.SiteNavItemLink && item.Href != "" {
 			return item.Href
 		}
@@ -316,6 +321,9 @@ func siteNavReadingOrder(nav *ppmodel.SiteNav) []siteNavTrailStep {
 	var walk func(items []*ppmodel.SiteNavItem)
 	walk = func(items []*ppmodel.SiteNavItem) {
 		for _, item := range items {
+			if !item.Audience.ForHumans() {
+				continue
+			}
 			switch item.Kind {
 			case ppmodel.SiteNavItemPage:
 				add(item.Title, item.Href)

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -322,9 +323,16 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			return nil, err
 		}
 		staticPaths = append(staticPaths, assetPaths...)
+		if !page.Audience.ForHumans() {
+			continue
+		}
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, contentPageDepth(page.Href))
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
+		p.Description = page.Description
+		if page.MarkdownHref != "" {
+			p.MarkdownHref = path.Base(page.MarkdownHref)
+		}
 		content := render.ContentPageTempl(page, templateDocBaseURL(p.AssetMode, p.BaseURL))
 		jobs = append(jobs, htmlWriteJob{
 			path:       filepath.Join(resolvedOutputDir, filepath.FromSlash(page.Href)),
@@ -341,7 +349,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p := *params
 		p.BaseURL = resolvedBaseURL
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
-		content := render.ContentIndexTempl(site.ContentPages, render.GuidesIndexBreadcrumb(), templateDocBaseURL(p.AssetMode, p.BaseURL))
+		content := render.ContentIndexTempl(contentPagesForNav(site.ContentPages), render.GuidesIndexBreadcrumb(), templateDocBaseURL(p.AssetMode, p.BaseURL))
 		jobs = append(jobs, htmlWriteJob{
 			path:       filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.GuidesIndexHTML())),
 			pageTitle:  "Guides - " + title,
@@ -723,6 +731,8 @@ type pageParams struct {
 	Footer             *ppmodel.FooterConfig
 	SharedAssetBaseURL string
 	HasContentPages    bool
+	Description        string
+	MarkdownHref       string
 }
 
 func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content templ.Component) error {
@@ -763,6 +773,8 @@ func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content t
 		Footer:             p.Footer,
 		SharedAssetBaseURL: p.SharedAssetBaseURL,
 		HasContentPages:    p.HasContentPages,
+		Description:        p.Description,
+		MarkdownHref:       p.MarkdownHref,
 	}, content)
 	return layout.Render(context.Background(), f)
 }
