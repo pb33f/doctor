@@ -1,0 +1,12 @@
+{{/* operation-item.html is one operation in a list. Data: render.OperationItemArgs. */}}
+<li>
+	<a href="{{docHref .Base (operationHTML .Op.Slug)}}" class="{{opItemClass .Op.Deprecated}}">
+		{{if .Op.SpecKind.IsAsyncAPI}}
+			{{template "api/partials/asyncapi-action.html" (asyncAPIAction (operationNavActionLabel .Op) "small")}} <pb33f-render-operation-path path="{{operationNavPathLabel .Op}}"></pb33f-render-operation-path>
+		{{else}}
+			<pb33f-http-method small method="{{lower .Op.Method}}"></pb33f-http-method>
+			<pb33f-render-operation-path path="{{.Op.Path}}"></pb33f-render-operation-path>
+		{{end}}
+	</a> {{if .Op.OperationID}}<span class="op-id">{{operationRootIDLabel .Op}} <span class="op-id-value">{{.Op.OperationID}}</span></span> {{end}}
+	{{if .Op.Summary}}<span class="op-summary">{{.Op.Summary}}</span>{{end}}
+</li>

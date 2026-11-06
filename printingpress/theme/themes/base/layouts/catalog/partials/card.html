@@ -1,0 +1,18 @@
+{{/* card.html is one catalog card: a service, a version or a specification entry. Data: the engine's catalog card view. */}}
+<article class="{{.Class}}">
+	{{if eq .Heading 3}}
+		<h3 class="pp-catalog-card-title"><a href="{{.Href}}">{{.Title}}</a></h3>
+	{{else}}
+		<h2 class="pp-catalog-card-title"><a href="{{.Href}}">{{.Title}}</a></h2>
+	{{end}}
+	{{with .SpecKind}}<p class="pp-catalog-spec-kind"><span class="pp-catalog-spec-kind-badge" data-spec-kind="{{.Machine}}">{{.Label}}</span></p>{{end}}
+	{{with .Summary}}<div class="pp-catalog-card-summary"><p class="pp-catalog-summary">{{.}}</p></div>{{end}}
+	{{with .Contact}}
+		<dl class="pp-catalog-contact-grid">
+			{{with .Name}}<dt>Contact:</dt><dd>{{.}}</dd>{{end}}
+			{{with .Email}}<dt>Email</dt><dd><a href="mailto:{{.}}">{{.}}</a></dd>{{end}}
+		</dl>
+	{{end}}
+	{{with .Picker}}{{template "catalog/partials/version-picker.html" .}}{{end}}
+	{{with .Diagnostics}}{{template "catalog/partials/diagnostics.html" .}}{{end}}
+</article>

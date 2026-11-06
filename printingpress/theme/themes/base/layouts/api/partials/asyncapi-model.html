@@ -1,0 +1,130 @@
+{{/* asyncapi-model.html is the AsyncAPI part of a model page. Data: render.AsyncAPIModelArgs. */}}
+{{$base := .Base}}
+{{with .Info}}
+<div class="pp-asyncapi-model">
+	{{if eq .Kind "message"}}
+		{{if .Content}}
+			<div class="pp-request-body" id="section-message-content" data-nav-label="Content">
+				<h3>CONTENT</h3>
+				<pp-media-type-selector id="pp-message-content"></pp-media-type-selector>
+			</div>
+		{{end}}
+	{{else if eq .Kind "reply"}}
+		{{if or .Address .Channel .Messages}}
+			<div class="pp-asyncapi-operation pp-asyncapi-reply-model" id="section-reply" data-nav-label="Reply">
+				<h3>REPLY</h3>
+				{{with .Address}}
+					<div class="pp-asyncapi-meta-row">
+						<span class="pp-asyncapi-meta-label">Address</span><div class="pp-asyncapi-meta-value"><pb33f-render-operation-path path="{{.}}"></pb33f-render-operation-path></div>
+					</div>
+				{{end}}
+				{{with .Channel}}
+					<div class="pp-asyncapi-meta-row">
+						<span class="pp-asyncapi-meta-label">Channel</span><div class="pp-asyncapi-meta-value">
+							{{if .Href}}
+								{{template "api/partials/component-ref.html" (componentRef "channels" (docHref $base .Href) .Name)}}
+							{{else if .Name}}
+								{{template "api/partials/component-ref.html" (componentRef "channels" "" .Name)}}
+							{{end}}
+							{{with .Address}}<pb33f-render-operation-path path="{{.}}"></pb33f-render-operation-path>{{end}}
+						</div>
+					</div>
+				{{end}}
+				{{if .Messages}}
+					<div class="pp-asyncapi-meta-row">
+						<span class="pp-asyncapi-meta-label">Messages</span><div class="pp-asyncapi-meta-value">
+							<div class="pp-asyncapi-reply-messages">
+								{{range .Messages}}{{template "api/partials/component-ref.html" (componentRef "messages" (and .Href (docHref $base .Href)) .Name)}}{{end}}
+							</div>
+						</div>
+					</div>
+				{{end}}
+			</div>
+		{{end}}
+	{{else if eq .Kind "replyAddress"}}
+		{{with .Address}}
+			<div class="pp-asyncapi-operation pp-asyncapi-reply-address-model" id="section-reply-address" data-nav-label="Reply Address">
+				<h3>REPLY ADDRESS</h3>
+				<div class="pp-asyncapi-meta-row">
+					<span class="pp-asyncapi-meta-label">Address</span><div class="pp-asyncapi-meta-value"><span class="pp-asyncapi-address-value">{{.}}</span></div>
+				</div>
+			</div>
+		{{end}}
+	{{else if eq .Kind "correlationId"}}
+		{{with .Address}}
+			<div class="pp-asyncapi-operation pp-asyncapi-correlation-id-model" id="section-correlation-id" data-nav-label="Correlation ID">
+				<h3>CORRELATION ID</h3>
+				<div class="pp-asyncapi-meta-row">
+					<span class="pp-asyncapi-meta-label">Location</span><div class="pp-asyncapi-meta-value"><span class="pp-asyncapi-address-value">{{.}}</span></div>
+				</div>
+			</div>
+		{{end}}
+	{{else if eq .Kind "channel"}}
+		<div class="pp-asyncapi-operation" id="section-channel" data-nav-label="Channel">
+			{{with .Address}}<div class="pp-asyncapi-channel-target"><pb33f-render-operation-path path="{{.}}"></pb33f-render-operation-path></div>{{end}}
+			{{if .Bindings}}
+				<div class="pp-asyncapi-meta-row pp-asyncapi-bindings-row">
+					<span class="pp-asyncapi-meta-label">Bindings</span><div class="pp-security-scopes" aria-label="Bindings">
+						{{range .Bindings}}<pp-asyncapi-protocol protocol="{{.}}" size="small"></pp-asyncapi-protocol>{{end}}
+					</div>
+				</div>
+			{{end}}
+			{{if .Messages}}
+				<div class="pp-asyncapi-meta-row">
+					<span class="pp-asyncapi-meta-label">Messages</span><div class="pp-asyncapi-meta-value">
+						{{range .Messages}}{{template "api/partials/component-ref.html" (componentRef "messages" (and .Href (docHref $base .Href)) .Name)}}{{end}}
+					</div>
+				</div>
+			{{end}}
+		</div>
+	{{else}}
+		{{if and (ne .Kind "parameter") (or .Kind .Address .Protocol .ContentType)}}
+			<div class="pp-server-entry">
+				{{with .Kind}}<span class="pp-security-badge">{{.}}</span>{{end}}
+				{{with .Address}}<code>{{.}}</code>{{end}}
+				{{with .Protocol}}<pp-asyncapi-protocol protocol="{{.}}" size="medium"></pp-asyncapi-protocol>{{end}}
+				{{with .ContentType}}<code>{{.}}</code>{{end}}
+			</div>
+		{{end}}
+		{{if .Messages}}
+			<div class="pp-operations-overview">
+				<h3>MESSAGES</h3>
+				<ul class="pp-operation-list">
+					{{range .Messages}}
+						<li>
+							{{if .Href}}<a class="pp-ref-link" href="{{docHref $base .Href}}">{{.Name}}</a>{{else}}<span>{{.Name}}</span>{{end}}
+							{{with .Summary}}<span class="op-summary">{{.}}</span>{{end}}
+						</li>
+					{{end}}
+				</ul>
+			</div>
+		{{end}}
+		{{if .Schemas}}
+			<div class="pp-operations-overview">
+				<h3>SCHEMAS</h3>
+				<ul class="pp-operation-list">
+					{{range .Schemas}}
+						<li>
+							<span class="pp-security-badge">{{.Role}}</span>
+							{{if .Ref}}<a class="pp-ref-link" href="{{docHref $base (modelHTML .Ref.TypeSlug .Ref.Slug)}}">{{.Ref.Name}}</a>{{else}}<span>{{.Name}}</span>{{end}}
+						</li>
+					{{end}}
+				</ul>
+			</div>
+		{{end}}
+		{{if .Examples}}
+			<sl-details class="pp-details" style="display:block;min-height:64px;">
+				<span slot="summary" class="pp-details-summary"><h2>Message Examples</h2></span>
+				{{range .Examples}}
+					<div class="pp-code-sample">
+						{{with .Name}}<h4 class="pp-code-sample-label">{{.}}</h4>{{end}}
+						{{with .Summary}}<p>{{.}}</p>{{end}}
+						{{with .Headers}}<h5 class="pp-code-sample-part-label">Headers</h5><pre class="chroma pp-code-sample-code"><code>{{.}}</code></pre>{{end}}
+						{{with .Payload}}<h5 class="pp-code-sample-part-label">Payload</h5><pre class="chroma pp-code-sample-code"><code>{{.}}</code></pre>{{end}}
+					</div>
+				{{end}}
+			</sl-details>
+		{{end}}
+	{{end}}
+</div>
+{{end}}

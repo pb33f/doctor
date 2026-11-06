@@ -1,0 +1,7 @@
+{{/* model-type-index.html is the page of one model group. Data: render.PageData of *model.NavModelGroup. */}}
+<div class="pp-root">
+	{{template "api/partials/breadcrumb.html" .Crumbs}}
+	<pp-icon-title icon="{{.Page.TypeSlug}}" heading="{{.Page.Name}}"></pp-icon-title><div class="pp-model-category">
+		{{template "api/partials/model-cards.html" (modelGroup .Page .Base)}}
+	</div>
+</div>

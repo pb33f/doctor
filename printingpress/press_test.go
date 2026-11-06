@@ -694,7 +694,8 @@ func TestPrintingPress_WriteHTMLSite_RendersCodeSamplesFromSourceRefs(t *testing
 	assert.Contains(t, html, `<sl-tab slot="nav" panel="code-sample-1">typescript</sl-tab>`)
 	assert.Contains(t, html, `<sl-tab slot="nav" panel="code-sample-2">go</sl-tab>`)
 	assert.Contains(t, html, `<sl-tab slot="nav" panel="code-sample-3">python</sl-tab>`)
-	assert.Contains(t, html, `<sl-tab slot="nav" panel="code-sample-4">c++</sl-tab>`)
+	// html/template writes + as &#43;; a browser shows c++.
+	assert.Contains(t, html, `<sl-tab slot="nav" panel="code-sample-4">c&#43;&#43;</sl-tab>`)
 	assert.Contains(t, html, `<h4 class="pp-code-sample-label">create-booking_go</h4>`)
 	assert.Contains(t, html, `<h4 class="pp-code-sample-label">create-booking_python</h4>`)
 	assert.Contains(t, html, `<h4 class="pp-code-sample-label">create-booking_cpp</h4>`)

@@ -1,15 +1,11 @@
 package render
 
 import (
-	"context"
 	"encoding/json"
-	"github.com/pb33f/doctor/printingpress/theme"
 	stdhtml "html"
-	"io"
 	"strings"
 	"testing"
 
-	"github.com/a-h/templ"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 )
 
@@ -261,29 +257,27 @@ func TestLayoutPageSharedAssetBaseURLAttribute(t *testing.T) {
 	}
 }
 
-func TestLayoutPageHeadParamsAdjustsRelativeSharedAssetBaseWithoutBaseHref(t *testing.T) {
+func TestLayoutPageSharedAssetBaseAdjustsRelativeSharedAssetBaseWithoutBaseHref(t *testing.T) {
 	params := LayoutPageParams{
 		BaseURL:            "../",
 		StaticAssetBaseURL: "../",
 		SharedAssetBaseURL: "../../../../../../static",
 	}
 
-	head := params.headParams()
-	if head.SharedAssetBaseURL != "../../../../../../../static" {
-		t.Fatalf("expected page-aware shared asset base, got %q", head.SharedAssetBaseURL)
+	if got := params.headSharedAssetBaseURL(); got != "../../../../../../../static" {
+		t.Fatalf("expected page-aware shared asset base, got %q", got)
 	}
 }
 
-func TestLayoutPageHeadParamsKeepsRelativeSharedAssetBaseWithBaseHref(t *testing.T) {
+func TestLayoutPageSharedAssetBaseKeepsRelativeSharedAssetBaseWithBaseHref(t *testing.T) {
 	params := LayoutPageParams{
 		BaseURL:            "../",
 		EmitBaseHref:       true,
 		SharedAssetBaseURL: "../../../../../../static",
 	}
 
-	head := params.headParams()
-	if head.SharedAssetBaseURL != "../../../../../../static" {
-		t.Fatalf("expected root-relative shared asset base when base href is active, got %q", head.SharedAssetBaseURL)
+	if got := params.headSharedAssetBaseURL(); got != "../../../../../../static" {
+		t.Fatalf("expected root-relative shared asset base when base href is active, got %q", got)
 	}
 }
 
@@ -391,11 +385,8 @@ func TestSharedNavPreviewDefersContractRenderingToServerAndComponent(t *testing.
 func renderLayoutPageForTest(t *testing.T, params LayoutPageParams) string {
 	t.Helper()
 
-	stack := theme.MustLoadDefault()
-	view, err := APIPageView(params, templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		_, err := io.WriteString(w, `<section>body</section>`)
-		return err
-	}), stack.AssetDir())
+	stack := MustLoadDefaultTheme()
+	view, err := APIPageView(params, `<section>body</section>`, stack.AssetDir())
 	if err != nil {
 		t.Fatalf("build page view: %v", err)
 	}

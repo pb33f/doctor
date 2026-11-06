@@ -1,0 +1,94 @@
+{{/* root.html is the API overview page. Data: render.PageData of *model.RootPage. */}}
+{{$base := .Base}}
+{{with .Page}}
+<div class="pp-root">
+	<div class="pp-hero">
+		<h1>{{.Title}}</h1>
+		{{if .Version}}<span class="pp-version">{{.Version}}</span>{{end}}
+	</div>
+	{{if .Source}}{{template "api/partials/source.html" (source .Source .Source.Path .Source.Line $base)}}{{end}}
+	{{if .DescHTML}}<div class="pp-description">{{raw .DescHTML}}</div>{{end}}
+	{{if .Servers}}
+		<div class="pp-servers">
+			<h2>SERVERS</h2>
+			{{range .Servers}}
+				<div class="pp-server-entry">
+					<span class="pp-server-name">{{if .Description}}{{.Description}} {{end}}<sl-icon name="hdd-network" class="pp-server-icon"></sl-icon></span>
+					<a class="pp-server-url" href="{{specURL (serverURL .)}}" target="_blank" rel="noopener">{{.URL}}</a>
+				</div>
+			{{end}}
+		</div>
+	{{end}}
+	{{if .Security}}
+		<div class="pp-security">
+			<h2>SECURITY</h2>
+			{{range .Security}}
+				<div class="pp-security-scheme">
+					{{if .Ref}}
+						<a class="pp-ref-link pp-security-name" href="{{docHref $base (modelHTML .Ref.TypeSlug .Ref.Slug)}}">&#10140; {{.Name}}</a>
+					{{else}}
+						<span class="pp-security-name">{{.Name}}</span>
+					{{end}}
+					<div class="pp-security-details">
+						{{if .SchemeType}}{{template "api/partials/security-badge.html" .}}{{end}}
+						{{if .Scopes}}
+							<div class="pp-security-scopes" aria-label="Required OAuth scopes">
+								{{range .Scopes}}<span class="pp-security-scope">{{.}}</span>{{end}}
+							</div>
+						{{end}}
+					</div>
+				</div>
+			{{end}}
+		</div>
+	{{end}}
+	{{if or .TagTree .UntaggedOperations}}
+		<div class="pp-operations-overview">
+			<h2>OPERATIONS</h2>
+			{{range .TagTree}}{{template "api/partials/tag-section.html" (tagSection . 0 $base)}}{{end}}
+			{{if .UntaggedOperations}}
+				<div class="pp-tag-group">
+					<h3>Other</h3>
+					<ul class="pp-operation-list">
+						{{range .UntaggedOperations}}{{template "api/partials/operation-item.html" (opItem . $base)}}{{end}}
+					</ul>
+				</div>
+			{{end}}
+		</div>
+	{{end}}
+	{{if .Webhooks}}
+		<div class="pp-operations-overview">
+			<h2>WEBHOOKS</h2>
+			<ul class="pp-operation-list">
+				{{range .Webhooks}}{{template "api/partials/operation-item.html" (opItem . $base)}}{{end}}
+			</ul>
+		</div>
+	{{end}}
+	{{with .Contact}}
+		<div class="pp-contact">
+			<h3>CONTACT INFORMATION</h3>
+			{{if .Name}}<span>{{.Name}}</span> {{end}}
+			{{if .Email}}&lt;<a href="mailto:{{.Email}}">{{.Email}}</a>&gt; {{end}}
+			{{if .URL}}<br><br><a href="{{specURL .URL}}">{{.URL}}</a>{{end}}
+		</div>
+	{{end}}
+	{{with .License}}
+		<div class="pp-license">
+			<h3>LICENSE</h3>
+			{{if .URL}}<a href="{{specURL .URL}}">{{.Name}}</a>{{else}}<span>{{.Name}}</span>{{end}}
+		</div>
+	{{end}}
+	{{if .Warnings}}
+		<details class="pp-warnings">
+			<summary>BUILD WARNINGS ({{len .Warnings}})</summary>
+			<ul>
+				{{range .Warnings}}
+					<li>
+						<strong>{{.Message}}</strong> {{if .Context}}<span>({{.Context}})</span> {{end}}
+						{{if .Err}}<div class="pp-warning-error">{{.Err.Error}}</div>{{end}}
+					</li>
+				{{end}}
+			</ul>
+		</details>
+	{{end}}
+</div>
+{{end}}

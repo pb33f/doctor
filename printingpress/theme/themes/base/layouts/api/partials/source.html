@@ -1,0 +1,9 @@
+{{/* source.html says where a page's content is defined. Data: render.SourceArgs. */}}
+<div class="pp-origin">
+	<span class="pp-label">Defined in:</span> {{if and .Source .Source.LinkEnabled .Source.Href}}
+		<a class="pp-ref-link pp-source-link" href="{{docHref .Base .Source.Href}}">{{sourceDisplayPath .Source .FallbackPath}}</a>
+	{{else}}
+		<span>{{sourceDisplayPath .Source .FallbackPath}}</span>
+	{{end}} {{$line := sourceDisplayLine .Source .FallbackLine}}
+	{{if gt $line 0}}<span>(line {{$line}})</span>{{end}}
+</div>

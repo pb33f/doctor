@@ -1,0 +1,11 @@
+{{/* catalog/root.html is the home page of a catalog or docs site. Data: the engine's catalog root view. */}}
+{{with .Warnings}}{{template "catalog/partials/warnings.html" .}}{{end}}
+{{with .Home}}{{template "content/page.html" .}}{{end}}
+{{template "content/partials/guide-cards.html" .HomeCards}}
+{{if .ShowServices}}
+	<section class="pp-catalog-section">
+		<div class="pp-model-cards">
+			{{range .Services}}{{template "catalog/partials/card.html" .}}{{end}}
+		</div>
+	</section>
+{{end}}

@@ -1,0 +1,10 @@
+{{/* catalog/version.html is one version of a service. Data: the engine's catalog version view. */}}
+{{if .Entries}}
+	<section class="pp-catalog-section">{{template "catalog/partials/card.html" .Card}}</section>
+	<section class="pp-catalog-section">
+		<h2>Specification Entries</h2>
+		<div class="pp-model-cards">
+			{{range .Entries}}{{template "catalog/partials/card.html" .}}{{end}}
+		</div>
+	</section>
+{{end}}

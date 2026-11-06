@@ -1,0 +1,20 @@
+{{/* model-cards.html is the card grid of one model group. Data: render.ModelGroupArgs. */}}
+<div class="pp-model-cards" style="{{css .Group.CardGridStyle}}">
+	{{range .Group.Models}}
+		<a href="{{docHref $.Base (modelHTML .TypeSlug .Slug)}}" class="pp-model-card">
+			<div class="pp-model-card-title">
+				{{if .Protocol}}
+					<pp-asyncapi-protocol protocol="{{.Protocol}}" size="small"></pp-asyncapi-protocol>
+				{{else}}
+					<pb33f-model-icon icon="{{.TypeSlug}}" size="small"></pb33f-model-icon>
+					<strong>{{.Name}}</strong> {{if .Protocols}}
+						<span class="pp-model-card-protocols">
+							{{range .Protocols}}<pp-asyncapi-protocol protocol="{{.}}" size="small"></pp-asyncapi-protocol>{{end}}
+						</span>
+					{{end}}
+				{{end}}
+			</div>
+			{{if .Description}}<p>{{truncate .Description 120}}</p>{{end}}
+		</a>
+	{{end}}
+</div>

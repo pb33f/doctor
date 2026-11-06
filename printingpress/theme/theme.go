@@ -4,8 +4,13 @@
 
 // Package theme renders Printing Press pages through Go templates. A page is
 // drawn by layout.html, found in the first of: the site's own layouts folder,
-// the selected theme, the embedded base. A site can override one partial or
-// every page.
+// the selected theme, the embedded base. A site can override one partial,
+// one page body (api/operation.html, for example) or every page.
+//
+// Templates are laid out for people to read. Before a template is parsed, a
+// line break and the indentation after it are removed when they sit next to
+// a tag or an action, so the markup a page gets is compact. Other whitespace
+// stays, and text inside pre, script, style and textarea is not changed.
 package theme
 
 import (
@@ -78,8 +83,9 @@ func BuiltinNames() []string {
 // Load builds the template stack for a theme. selection is a built-in theme
 // name or a path to a theme folder; empty selects the default theme.
 // siteLayouts, when it exists, is the site's own layouts folder and wins over
-// the theme.
-func Load(selection, siteLayouts string) (*Stack, error) {
+// the theme. funcs are the engine's template functions; the page bodies call
+// them, so every theme gets them.
+func Load(selection, siteLayouts string, funcs template.FuncMap) (*Stack, error) {
 	themeFS, err := resolveTheme(selection)
 	if err != nil {
 		return nil, err
@@ -98,7 +104,7 @@ func Load(selection, siteLayouts string) (*Stack, error) {
 			layers = append(layers, siteLayoutFS{os.DirFS(siteLayouts)})
 		}
 	}
-	templates, err := parseLayers(layers)
+	templates, err := parseLayers(layers, funcs)
 	if err != nil {
 		return nil, fmt.Errorf("theme %q: %w", config.Name, err)
 	}
@@ -110,16 +116,6 @@ func Load(selection, siteLayouts string) (*Stack, error) {
 		return nil, err
 	}
 	return &Stack{config: config, templates: templates, assets: assets}, nil
-}
-
-// MustLoadDefault loads the default theme. The default theme is embedded and
-// tested, so a failure here is a build defect.
-func MustLoadDefault() *Stack {
-	stack, err := Load("", "")
-	if err != nil {
-		panic(err)
-	}
-	return stack
 }
 
 func resolveTheme(selection string) (fs.FS, error) {
@@ -179,7 +175,7 @@ func (s siteLayoutFS) Open(name string) (fs.File, error) {
 
 // parseLayers parses every template under layouts/ in each layer. A file in a
 // later layer replaces the file with the same path in an earlier one.
-func parseLayers(layers []fs.FS) (*template.Template, error) {
+func parseLayers(layers []fs.FS, funcs template.FuncMap) (*template.Template, error) {
 	sources := make(map[string]string)
 	for _, layer := range layers {
 		err := fs.WalkDir(layer, layoutsDir, func(filePath string, entry fs.DirEntry, walkErr error) error {
@@ -208,9 +204,9 @@ func parseLayers(layers []fs.FS) (*template.Template, error) {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	root := template.New("")
+	root := template.New("").Funcs(funcs)
 	for _, name := range names {
-		if _, err := root.New(name).Parse(sources[name]); err != nil {
+		if _, err := root.New(name).Parse(compactSource(sources[name])); err != nil {
 			return nil, err
 		}
 	}
@@ -220,6 +216,16 @@ func parseLayers(layers []fs.FS) (*template.Template, error) {
 // Render draws one page through layout.html.
 func (s *Stack) Render(w io.Writer, view *PageView) error {
 	return s.templates.ExecuteTemplate(w, LayoutTemplate, view)
+}
+
+// RenderTemplate draws one named template, such as a page body, and returns
+// it, so a failed template writes nothing.
+func (s *Stack) RenderTemplate(name string, data any) (template.HTML, error) {
+	var buffer bytes.Buffer
+	if err := s.templates.ExecuteTemplate(&buffer, name, data); err != nil {
+		return "", err
+	}
+	return template.HTML(buffer.String()), nil
 }
 
 // RenderString draws one page and returns it, so a failed page writes

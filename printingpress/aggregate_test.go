@@ -5,13 +5,11 @@
 package printingpress
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	stdhtml "html"
-	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -23,10 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/a-h/templ"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
+	"github.com/pb33f/doctor/printingpress/render"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
 )
@@ -4109,9 +4107,7 @@ func TestAggregateServicePrimaryHrefAndLegacyCompatibility(t *testing.T) {
 
 	assert.Equal(t, defaultContract.LatestVersion.OverviewHref, servicePrimaryHref(service))
 	assert.Empty(t, catalogServiceSummary(service))
-	var html strings.Builder
-	require.NoError(t, catalogRootContent(catalog, false).Render(context.Background(), &html))
-	assert.Contains(t, html.String(), `href="`+defaultContract.LatestVersion.OverviewHref+`"`)
+	assert.Contains(t, renderBodyForTest(t, catalogRootContent(catalog, false)), `href="`+defaultContract.LatestVersion.OverviewHref+`"`)
 	assert.Equal(t, "services/orders/index.html", service.OverviewHref)
 	assert.Equal(t, "services/orders/versions/index.html", service.VersionsHref)
 	require.Len(t, service.Versions, 2)
@@ -4136,9 +4132,7 @@ func TestAggregateCatalogCardVersionPickerUsesDefaultContract(t *testing.T) {
 	require.Len(t, defaultContract.Versions, 2)
 	require.NotNil(t, defaultContract.LatestVersion)
 
-	var html strings.Builder
-	require.NoError(t, catalogRootContent(catalog, false).Render(context.Background(), &html))
-	rendered := html.String()
+	rendered := renderBodyForTest(t, catalogRootContent(catalog, false))
 	assert.Contains(t, rendered, `>v2 (latest)</sl-button>`)
 	for _, version := range defaultContract.Versions {
 		assert.Contains(t, rendered, `value="`+version.OverviewHref+`"`)
@@ -5339,11 +5333,7 @@ func TestCatalogRootContent_RendersAllWarningsInSingleAttentionBox(t *testing.T)
 		},
 	}
 
-	var html strings.Builder
-	err := catalogRootContent(catalog, false).Render(context.Background(), &html)
-	require.NoError(t, err)
-
-	rendered := html.String()
+	rendered := renderBodyForTest(t, catalogRootContent(catalog, false))
 	assert.Contains(t, rendered, `headerText="Skipped Render Builds"`)
 	assert.Contains(t, rendered, `<ul class="pp-catalog-warning-list">`)
 	assert.Contains(t, rendered, `<li>skipped render build for discovered spec (APIs/1forge.com/0.0.1/swagger.yaml)</li>`)
@@ -5371,11 +5361,7 @@ func TestCatalogRootContent_DisableSkippedRenderingSuppressesWarningBox(t *testi
 		},
 	}
 
-	var html strings.Builder
-	err := catalogRootContent(catalog, true).Render(context.Background(), &html)
-	require.NoError(t, err)
-
-	rendered := html.String()
+	rendered := renderBodyForTest(t, catalogRootContent(catalog, true))
 	assert.NotContains(t, rendered, `pb33f-attention-box`)
 	assert.Contains(t, rendered, `Users API`)
 }
@@ -5385,7 +5371,7 @@ func TestCatalogShell_WithContentNavIncludesVersionSelectScript(t *testing.T) {
 		RelPath:        pppaths.FileIndexHTML,
 		HeaderTitle:    "Platform Catalog",
 		Title:          "Platform Catalog",
-		Content:        templ.ComponentFunc(func(ctx context.Context, w io.Writer) error { _, err := w.Write([]byte("content")); return err }),
+		Content:        render.Body{},
 		ShowCatalogNav: true,
 		CatalogPages: []*ppmodel.ContentPage{
 			{Title: "About", Label: "About", Slug: "about", Href: "about.html"},
@@ -7145,4 +7131,12 @@ func findCatalogEntry(t *testing.T, service *ppmodel.CatalogService, versionLabe
 	}
 	t.Fatalf("entry for version %s not found", versionLabel)
 	return nil
+}
+
+// renderBodyForTest draws a page body through the default theme.
+func renderBodyForTest(t *testing.T, body render.Body) string {
+	t.Helper()
+	html, err := render.MustLoadDefaultTheme().RenderTemplate(body.Template, body.Data)
+	require.NoError(t, err)
+	return string(html)
 }

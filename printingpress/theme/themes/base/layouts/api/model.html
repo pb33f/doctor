@@ -1,0 +1,73 @@
+{{/* model.html is one model page. Data: render.PageData of *model.ModelPage. */}}
+{{$base := .Base}}
+{{$crumbs := .Crumbs}}
+{{with .Page}}
+<div class="pp-model">
+	{{template "api/partials/breadcrumb.html" $crumbs}}
+	<div class="pp-model-header">
+		{{with asyncAPIModelProtocol .}}
+			<pp-asyncapi-protocol protocol="{{.}}" size="large" heading></pp-asyncapi-protocol>
+		{{else}}
+			<pp-icon-title icon="{{.ComponentType}}" heading="{{.Name}}"></pp-icon-title>
+		{{end}} {{if or .RawYAML .SchemaJSON}}
+			<pp-raw-viewer-btn id="pp-model-raw" title="{{.Name}}" component-type="{{.ComponentType}}"
+				{{- with .Origin}}{{if gt .Line 0}} start-line="{{.Line}}"{{end}}{{with .OriginalFile}} location="{{.}}"{{end}}{{end}}></pp-raw-viewer-btn>
+		{{end}}
+	</div>
+	{{with .Origin}}
+		{{template "api/partials/source.html" (source $.Page.Source .OriginalFile .Line $base)}}
+		{{if .WasRenamed}}<div class="pp-renamed">Originally: {{.OriginalName}}</div>{{end}}
+	{{else}}
+		{{if .Source}}{{template "api/partials/source.html" (source .Source "" 0 $base)}}{{end}}
+	{{end}}
+	{{template "api/partials/violation-stats.html" .Name}}
+	{{if .DescHTML}}<div class="pp-description">{{raw .DescHTML}}</div>{{end}}
+	{{if shouldRenderAsyncAPITraitProtocols .}}
+		<div class="pp-asyncapi-operation" id="section-protocols" data-nav-label="Protocols">
+			<h3>PROTOCOLS</h3>
+			<div class="pp-security-scopes" aria-label="Protocols">
+				{{range .AsyncAPI.Bindings}}<pp-asyncapi-protocol protocol="{{.}}" size="medium"></pp-asyncapi-protocol>{{end}}
+			</div>
+		</div>
+	{{end}}
+	{{if shouldRenderAsyncAPIModelSection .}}{{template "api/partials/asyncapi-model.html" (asyncAPIModel .AsyncAPI $base)}}{{end}}
+	{{if and (eq .ComponentType "securitySchemes") .SchemaJSON}}
+		<pp-security-scheme id="pp-model-security-scheme"></pp-security-scheme>
+	{{else if and .SchemaJSON (not (isAsyncAPIMessagePage .)) (not (isAsyncAPIReplyPage .)) (not (isAsyncAPIChannelPage .))}}
+		<pp-model-page id="pp-model-page" name="{{.Name}}" component-type="{{.ComponentType}}"
+			{{- with .LayoutMode}} layout-mode="{{.}}"{{end}}
+			{{- if gt .EstimatedBodyHeight 0}} estimated-body-height="{{.EstimatedBodyHeight}}"{{end}}
+			{{- if gt .EstimatedSplitHeight 0}} estimated-split-height="{{.EstimatedSplitHeight}}"{{end}}
+			{{- if gt .PropertyCount 0}} property-count="{{.PropertyCount}}"{{end}}
+			{{- if gt .RequiredCount 0}} required-count="{{.RequiredCount}}"{{end}}
+			{{- if .HasExamplePayload}} has-example{{end}}
+			{{- if gt .SchemaStartLine 0}} schema-start-line="{{.SchemaStartLine}}"{{end}}
+			{{- with .Origin}}{{if gt .Line 0}} start-line="{{.Line}}"{{end}}{{with .OriginalFile}} location="{{.}}"{{end}}{{end}}></pp-model-page>
+	{{end}}
+	{{if .ExtensionsJSON}}
+		<sl-details class="pp-details" style="display:block;min-height:64px;">
+			<span slot="summary" class="pp-details-summary"><h2>{{modelExtensionsSummary .}}</h2></span>
+			<pp-extensions extensions-json="{{.ExtensionsJSON}}"></pp-extensions>
+		</sl-details>
+	{{end}}
+	{{if .CrossRefsJSON}}
+		<pp-cross-refs refs-json="{{.CrossRefsJSON}}" style="display:block;min-height:{{if gt .EstimatedCrossRefsHeight 0}}{{.EstimatedCrossRefsHeight}}{{else}}240{{end}}px;"></pp-cross-refs>
+	{{end}}
+	{{if or .MermaidDiagram .GraphJSON}}
+		<div class="pp-visualization-section">
+			{{if and .MermaidDiagram .GraphJSON}}
+				<sl-tab-group>
+					<sl-tab slot="nav" panel="class-diagram">CLASS DIAGRAM</sl-tab>
+					<sl-tab slot="nav" panel="focused-view">DEPENDENCY EXPLORER</sl-tab>
+					<sl-tab-panel name="class-diagram"><pp-class-diagram id="pp-model-diagram" name="{{.Name}}"></pp-class-diagram></sl-tab-panel>
+					<sl-tab-panel name="focused-view"><pp-focused-explorer id="pp-model-explorer" node-id="{{.GraphNodeID}}" name="{{.Name}}"></pp-focused-explorer></sl-tab-panel>
+				</sl-tab-group>
+			{{else if .MermaidDiagram}}
+				<pp-class-diagram id="pp-model-diagram" name="{{.Name}}"></pp-class-diagram>
+			{{else}}
+				<pp-focused-explorer id="pp-model-explorer" node-id="{{.GraphNodeID}}"></pp-focused-explorer>
+			{{end}}
+		</div>
+	{{end}}
+</div>
+{{end}}

@@ -361,7 +361,7 @@ type OperationPage struct {
 	Responses             []*ResponseInfo
 	ResponsesJSON         string `json:"-"` // pre-serialized for Lit component; excluded from JSON writer
 	CommonHeaders         []*HeaderInfo
-	CommonHeadersJSON     string `json:"-"` // pre-serialized for templ rendering
+	CommonHeadersJSON     string `json:"-"` // pre-serialized for the page template
 	Security              []*SecurityRequirement
 	SecurityGroups        []*SecurityRequirementGroup `json:"securityGroups,omitempty"`
 	HasSecurityOverride   bool                        `json:"-"`
@@ -376,7 +376,7 @@ type OperationPage struct {
 	Callbacks             []*CallbackInfo   `json:"callbacks,omitempty"`
 	CallbacksJSON         string            `json:"-"` // pre-serialized for Lit component
 	SchemaJSON            string            // full operation rendered as JSON for cowboy-components
-	SchemaHighlightedHTML string            `json:"-"` // chroma output, templ only
+	SchemaHighlightedHTML string            `json:"-"` // chroma output, for the page template
 	RawYAML               string            `json:"-"` // re-rendered YAML from Render(), for raw viewer
 	SourceLine            int               `json:"-"` // 1-based YAML line number of the operation
 	Location              string            `json:"-"` // source file path for multi-file specs
@@ -502,7 +502,7 @@ type RequestBodyInfo struct {
 type MediaTypeInfo struct {
 	MediaType             string            `json:"mediaType"`
 	SchemaJSON            string            `json:"schemaJson"`
-	SchemaHighlightedHTML string            `json:"-"` // chroma output, templ only
+	SchemaHighlightedHTML string            `json:"-"` // chroma output, for the page template
 	MermaidDiagram        string            `json:"mermaidDiagram,omitempty"`
 	SchemaFormat          string            `json:"schemaFormat,omitempty"`
 	RawSchemaJSON         string            `json:"rawSchemaJson,omitempty"`
@@ -589,7 +589,7 @@ type ModelPage struct {
 	Description              string
 	DescHTML                 string
 	SchemaJSON               string // JSON representation for cowboy-components rendering
-	SchemaHighlightedHTML    string `json:"-"` // chroma output, templ only
+	SchemaHighlightedHTML    string `json:"-"` // chroma output, for the page template
 	RawYAML                  string `json:"-"` // re-rendered YAML from Render(), for raw viewer
 	SchemaRawYAML            string `json:"-"` // schema-only YAML for inline viewer (parameters, headers)
 	SchemaRawJSON            string `json:"-"` // schema-only JSON for inline viewer (parameters, headers)

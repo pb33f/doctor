@@ -5,33 +5,17 @@
 package render
 
 import (
-	"context"
 	"encoding/json"
+	"html"
 	"html/template"
 	"io"
 	"path"
 	"strings"
 
-	"github.com/a-h/templ"
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/doctor/printingpress/theme"
 )
-
-// HeadParams holds document-head metadata and static asset roots.
-type HeadParams struct {
-	Title              string
-	BaseURL            string
-	EmitBaseHref       bool
-	StaticAssetBaseURL string
-	SharedAssetBaseURL string
-	ExtraCSS           []string
-	Lite               bool
-	// Description is the page meta description.
-	Description string
-	// MarkdownHref is the page.md beside the page, for the alternate link.
-	MarkdownHref string
-}
 
 // LayoutPageParams holds the full page chrome for a rendered HTML page.
 type LayoutPageParams struct {
@@ -66,20 +50,6 @@ type LayoutPageParams struct {
 	MarkdownHref       string
 }
 
-func (params LayoutPageParams) headParams() HeadParams {
-	return HeadParams{
-		Title:              params.PageTitle,
-		BaseURL:            params.BaseURL,
-		EmitBaseHref:       params.EmitBaseHref,
-		StaticAssetBaseURL: params.StaticAssetBaseURL,
-		SharedAssetBaseURL: params.headSharedAssetBaseURL(),
-		ExtraCSS:           params.ExtraCSS,
-		Lite:               params.Lite,
-		Description:        params.Description,
-		MarkdownHref:       params.MarkdownHref,
-	}
-}
-
 func (params LayoutPageParams) headSharedAssetBaseURL() string {
 	sharedBase := strings.TrimSpace(params.SharedAssetBaseURL)
 	if sharedBase == "" || params.EmitBaseHref || params.BaseURL == "" || isLiteralHref(sharedBase) || isLiteralHref(params.BaseURL) {
@@ -91,12 +61,7 @@ func (params LayoutPageParams) headSharedAssetBaseURL() string {
 // APIPageView builds the theme view for one API reference page. The engine's
 // wiring (hydration attributes, the pp-nav element, bootstrap scripts) is
 // built here; the theme's layout.html places it.
-func APIPageView(params LayoutPageParams, content templ.Component, themeAssetDir string) (*theme.PageView, error) {
-	ctx := context.Background()
-	var body strings.Builder
-	if err := content.Render(ctx, &body); err != nil {
-		return nil, err
-	}
+func APIPageView(params LayoutPageParams, content template.HTML, themeAssetDir string) (*theme.PageView, error) {
 	var htmlAttrs strings.Builder
 	if params.Embedded {
 		htmlAttrs.WriteString(` data-pp-embedded-docs`)
@@ -108,7 +73,7 @@ func APIPageView(params LayoutPageParams, content templ.Component, themeAssetDir
 	if err != nil {
 		return nil, err
 	}
-	nav, err := apiNav(ctx, params)
+	nav, err := apiNav(params)
 	if err != nil {
 		return nil, err
 	}
@@ -119,9 +84,7 @@ func APIPageView(params LayoutPageParams, content templ.Component, themeAssetDir
 		}
 	}
 	var after strings.Builder
-	if err := BootstrapHydrationScript(params.AssetMode, params.AssetBaseURL, params.SharedDataBase, params.PageDataBase).Render(ctx, &after); err != nil {
-		return nil, err
-	}
+	after.WriteString(BootstrapHydrationScript(params.AssetMode, params.AssetBaseURL, params.SharedDataBase, params.PageDataBase))
 	if params.Embedded {
 		after.WriteString(embeddedReadyScript)
 	}
@@ -165,7 +128,7 @@ func APIPageView(params LayoutPageParams, content templ.Component, themeAssetDir
 			BeforeContent: template.HTML(before.String()),
 			AfterBody:     template.HTML(after.String()),
 		},
-		Content: template.HTML(body.String()),
+		Content: content,
 	}, nil
 }
 
@@ -266,9 +229,9 @@ func apiBodyAttrs(params LayoutPageParams) (template.HTMLAttr, error) {
 
 // apiNav is the complete pp-nav element of an API page, with its fallback
 // skeleton and the shared nav cache script.
-func apiNav(ctx context.Context, params LayoutPageParams) (template.HTML, error) {
+func apiNav(params LayoutPageParams) (template.HTML, error) {
 	var w strings.Builder
-	w.WriteString(`<pp-nav id="pp-nav" slot="nav" data-active="` + templ.EscapeString(params.ActiveSlug) + `"`)
+	w.WriteString(`<pp-nav id="pp-nav" slot="nav" data-active="` + html.EscapeString(params.ActiveSlug) + `"`)
 	if err := writeOptionalAttr(&w, "data-docs-expires-at", params.DocsExpiresAt); err != nil {
 		return "", err
 	}
@@ -282,9 +245,7 @@ func apiNav(ctx context.Context, params LayoutPageParams) (template.HTML, error)
 	}
 	w.WriteString(`>`)
 	w.WriteString(navFallbackHTML(params.DocsExpiresAt, params.DeveloperMode, params.ArchiveExportURL, params.HasContentPages, params.HeaderContext))
-	if err := BootstrapSharedNavCacheScript(params.AssetBaseURL, params.SharedDataBase, params.SharedDataHash).Render(ctx, &w); err != nil {
-		return "", err
-	}
+	w.WriteString(BootstrapSharedNavCacheScript(params.AssetBaseURL, params.SharedDataBase, params.SharedDataHash))
 	return template.HTML(w.String()), nil
 }
 
@@ -297,7 +258,7 @@ func writeContractRelationships(w io.Writer, baseURL string, relationships []*pp
 			continue
 		}
 		href := DocHref(baseURL, relationship.Href)
-		if _, err := io.WriteString(w, `<li><a class="pp-op-item" href="`+templ.EscapeString(href)+`">`+templ.EscapeString(relationship.Label)+`</a></li>`); err != nil {
+		if _, err := io.WriteString(w, `<li><a class="pp-op-item" href="`+html.EscapeString(href)+`">`+html.EscapeString(relationship.Label)+`</a></li>`); err != nil {
 			return err
 		}
 	}
@@ -328,7 +289,7 @@ func navFallbackHTML(docsExpiresAt string, developerMode bool, archiveExportURL 
 	if header != nil && strings.TrimSpace(header.OverviewLabel) != "" {
 		overviewLabel = header.OverviewLabel
 	}
-	local := `<div class="pp-nav-fallback-home">` + templ.EscapeString(overviewLabel) + `</div>` + diagnostics + guides + `<div class="pp-nav-fallback-section"><h4>Operations</h4><div class="pp-nav-fallback-list"><div class="pp-nav-fallback-row" style="width:100%;"></div><div class="pp-nav-fallback-row" style="width:92%;"></div><div class="pp-nav-fallback-row" style="width:84%;"></div><div class="pp-nav-fallback-row" style="width:78%;"></div><div class="pp-nav-fallback-row" style="width:88%;"></div><div class="pp-nav-fallback-row" style="width:74%;"></div></div></div><div class="pp-nav-fallback-section"><h4>Models</h4><div class="pp-nav-fallback-list"><div class="pp-nav-fallback-row" style="width:96%;"></div><div class="pp-nav-fallback-row" style="width:86%;"></div><div class="pp-nav-fallback-row" style="width:82%;"></div><div class="pp-nav-fallback-row" style="width:90%;"></div><div class="pp-nav-fallback-row" style="width:76%;"></div><div class="pp-nav-fallback-row" style="width:88%;"></div><div class="pp-nav-fallback-row" style="width:80%;"></div><div class="pp-nav-fallback-row" style="width:72%;"></div></div></div>`
+	local := `<div class="pp-nav-fallback-home">` + html.EscapeString(overviewLabel) + `</div>` + diagnostics + guides + `<div class="pp-nav-fallback-section"><h4>Operations</h4><div class="pp-nav-fallback-list"><div class="pp-nav-fallback-row" style="width:100%;"></div><div class="pp-nav-fallback-row" style="width:92%;"></div><div class="pp-nav-fallback-row" style="width:84%;"></div><div class="pp-nav-fallback-row" style="width:78%;"></div><div class="pp-nav-fallback-row" style="width:88%;"></div><div class="pp-nav-fallback-row" style="width:74%;"></div></div></div><div class="pp-nav-fallback-section"><h4>Models</h4><div class="pp-nav-fallback-list"><div class="pp-nav-fallback-row" style="width:96%;"></div><div class="pp-nav-fallback-row" style="width:86%;"></div><div class="pp-nav-fallback-row" style="width:82%;"></div><div class="pp-nav-fallback-row" style="width:90%;"></div><div class="pp-nav-fallback-row" style="width:76%;"></div><div class="pp-nav-fallback-row" style="width:88%;"></div><div class="pp-nav-fallback-row" style="width:80%;"></div><div class="pp-nav-fallback-row" style="width:72%;"></div></div></div>`
 	if hasMultiContractFallback(header) {
 		local = navFallbackContractGroupsHTML(header, local)
 	}
@@ -363,7 +324,7 @@ func navFallbackContractGroupsHTML(header *ppmodel.SiteHeaderContext, local stri
 	builder.WriteString(`<div class="pp-nav-fallback-contracts">`)
 	if strings.TrimSpace(header.ServiceName) != "" {
 		builder.WriteString(`<div class="pp-nav-fallback-service">`)
-		builder.WriteString(templ.EscapeString(header.ServiceName))
+		builder.WriteString(html.EscapeString(header.ServiceName))
 		builder.WriteString(`</div>`)
 	}
 	for _, group := range header.ContractGroups {
@@ -371,7 +332,7 @@ func navFallbackContractGroupsHTML(header *ppmodel.SiteHeaderContext, local stri
 			continue
 		}
 		builder.WriteString(`<div class="pp-nav-fallback-contract-group"><h4>`)
-		builder.WriteString(templ.EscapeString(group.Label))
+		builder.WriteString(html.EscapeString(group.Label))
 		builder.WriteString(`</h4>`)
 		for _, contract := range group.Contracts {
 			if contract == nil {
@@ -382,7 +343,7 @@ func navFallbackContractGroupsHTML(header *ppmodel.SiteHeaderContext, local stri
 				builder.WriteString(` active`)
 			}
 			builder.WriteString(`">`)
-			builder.WriteString(templ.EscapeString(contract.Label))
+			builder.WriteString(html.EscapeString(contract.Label))
 			builder.WriteString(`</div>`)
 			if contract.Active {
 				builder.WriteString(`<div class="contract-local-navigation">`)
@@ -409,7 +370,7 @@ func navFallbackArchiveControlsHTML() string {
 }
 
 func writeAttr(w io.Writer, key, value string) error {
-	_, err := io.WriteString(w, ` `+key+`="`+templ.EscapeString(value)+`"`)
+	_, err := io.WriteString(w, ` `+key+`="`+html.EscapeString(value)+`"`)
 	return err
 }
 

@@ -16,7 +16,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/a-h/templ"
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/doctor/printingpress/render"
@@ -34,7 +33,7 @@ type htmlWriteJob struct {
 	pageTitle  string
 	activeSlug string
 	params     pageParams
-	content    templ.Component
+	content    render.Body
 }
 
 type htmlHydrationJob struct {
@@ -213,7 +212,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	}
 	progressTracker.advance("cleaning old html artifacts")
 
-	themeStack, err := theme.Load(site.Theme, site.SiteLayouts)
+	themeStack, err := render.LoadTheme(site.Theme, site.SiteLayouts)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +312,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 				payload:  buildRootHydrationPayload(site.Root, sourceCache),
 			}
 		}
-		rootContent := render.RootPageTempl(site.Root, templateDocBaseURL(p.AssetMode, p.BaseURL))
+		rootContent := render.RootBody(site.Root, templateDocBaseURL(p.AssetMode, p.BaseURL))
 		staticPaths, jobs, err = appendHydratedHTMLJob(resolvedOutputDir, staticPaths, jobs, assetMode, p, hydration, htmlWriteJob{
 			path:      filepath.Join(resolvedOutputDir, pppaths.FileIndexHTML),
 			pageTitle: title,
@@ -345,7 +344,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		if page.MarkdownHref != "" {
 			p.MarkdownHref = path.Base(page.MarkdownHref)
 		}
-		content := render.ContentPageTempl(page, templateDocBaseURL(p.AssetMode, p.BaseURL))
+		content := render.ContentPageBody(page, templateDocBaseURL(p.AssetMode, p.BaseURL))
 		jobs = append(jobs, htmlWriteJob{
 			path:       filepath.Join(resolvedOutputDir, filepath.FromSlash(page.Href)),
 			pageTitle:  fmt.Sprintf("%s - %s", page.Title, title),
@@ -361,7 +360,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p := *params
 		p.BaseURL = resolvedBaseURL
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
-		content := render.ContentIndexTempl(contentPagesForNav(site.ContentPages), render.GuidesIndexBreadcrumb(), templateDocBaseURL(p.AssetMode, p.BaseURL))
+		content := render.ContentIndexBody(contentPagesForNav(site.ContentPages), render.GuidesIndexBreadcrumb(), templateDocBaseURL(p.AssetMode, p.BaseURL))
 		jobs = append(jobs, htmlWriteJob{
 			path:       filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.GuidesIndexHTML())),
 			pageTitle:  "Guides - " + title,
@@ -378,7 +377,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressOperationCSS)}
 		highlightCodeSamplesForHTML(op)
-		opContent := render.OperationPageTempl(op, templateDocBaseURL(p.AssetMode, p.BaseURL))
+		opContent := render.OperationBody(op, templateDocBaseURL(p.AssetMode, p.BaseURL))
 		pageTitle := fmt.Sprintf("%s %s - %s", op.Method, op.Path, title)
 		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.OperationHTML(op.Slug)))
 		staticPaths, jobs, err = appendHydratedHTMLJob(resolvedOutputDir, staticPaths, jobs, assetMode, p, htmlHydrationJob{
@@ -429,7 +428,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 				}
 				staticPaths = append(staticPaths, graphAssetPaths...)
 			}
-			modelContent := render.ModelPageTempl(page, templateDocBaseURL(p.AssetMode, p.BaseURL))
+			modelContent := render.ModelBody(page, templateDocBaseURL(p.AssetMode, p.BaseURL))
 			pageTitle := fmt.Sprintf("%s - %s", page.Name, title)
 			path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.ModelHTML(typeSlug, page.Slug)))
 			activeModelSlug := page.TypeSlug + "/" + page.Slug
@@ -455,7 +454,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
-		indexContent := render.ModelsIndexTempl(site.NavModelGroups, render.ModelsIndexBreadcrumb(), templateDocBaseURL(p.AssetMode, p.BaseURL))
+		indexContent := render.ModelsIndexBody(site.NavModelGroups, render.ModelsIndexBreadcrumb(), templateDocBaseURL(p.AssetMode, p.BaseURL))
 		jobs = append(jobs, htmlWriteJob{
 			path:      filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.ModelsIndexHTML())),
 			pageTitle: "Models - " + title,
@@ -471,7 +470,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p.BaseURL = resolveBase(resolvedBaseURL, 2)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
 		bc := render.ModelTypeIndexBreadcrumb(group.Name)
-		content := render.ModelTypeIndexTempl(group, bc, templateDocBaseURL(p.AssetMode, p.BaseURL))
+		content := render.ModelTypeIndexBody(group, bc, templateDocBaseURL(p.AssetMode, p.BaseURL))
 		pageTitle := fmt.Sprintf("%s - %s", group.Name, title)
 		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.ModelTypeIndexHTML(group.TypeSlug)))
 		jobs = append(jobs, htmlWriteJob{
@@ -496,7 +495,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			path:       filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.DiagnosticsHTMLPath())),
 			pageTitle:  "Diagnostics - " + title,
 			activeSlug: pppaths.DiagnosticsSlug,
-			content:    render.DiagnosticsPageTempl(site.Diagnostics),
+			content:    render.DiagnosticsBody(site.Diagnostics),
 		})
 		if err != nil {
 			return nil, err
@@ -528,7 +527,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			p.BaseURL = resolveBase(resolvedBaseURL, 1)
 			p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
 			bc := render.TagIndexBreadcrumb(tag, tagParentMap)
-			content := render.TagIndexTempl(tag, bc, templateDocBaseURL(p.AssetMode, p.BaseURL))
+			content := render.TagIndexBody(tag, bc, templateDocBaseURL(p.AssetMode, p.BaseURL))
 			pageTitle := fmt.Sprintf("%s - %s", tag.DisplayName(), title)
 			path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.TagHTML(tag.Slug)))
 			jobs = append(jobs, htmlWriteJob{
@@ -549,7 +548,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressOperationCSS)}
 		highlightCodeSamplesForHTML(wh)
-		whContent := render.OperationPageTempl(wh, templateDocBaseURL(p.AssetMode, p.BaseURL))
+		whContent := render.OperationBody(wh, templateDocBaseURL(p.AssetMode, p.BaseURL))
 		pageTitle := fmt.Sprintf("Webhook: %s %s - %s", wh.Method, wh.Path, title)
 		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.OperationHTML(wh.Slug)))
 		staticPaths, jobs, err = appendHydratedHTMLJob(resolvedOutputDir, staticPaths, jobs, assetMode, p, htmlHydrationJob{
@@ -574,7 +573,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	for _, job := range jobs {
 		job := job
 		g.Go(func() error {
-			if err := writeTemplPage(job.path, job.pageTitle, job.activeSlug, &job.params, job.content); err != nil {
+			if err := writeAPIPage(job.path, job.pageTitle, job.activeSlug, &job.params, job.content); err != nil {
 				return fmt.Errorf("writing %s: %w", job.path, err)
 			}
 			progressTracker.advance("writing html pages")
@@ -718,7 +717,7 @@ func validateExplicitBaseURL(baseURL string) error {
 	return fmt.Errorf("%w: %s", ErrInvalidBaseURL, explicitBaseURLRequirements)
 }
 
-// pageParams holds the shared parameters for writing a templ page.
+// pageParams holds the shared parameters for writing an API page.
 type pageParams struct {
 	SiteTitle          string
 	BaseURL            string
@@ -749,13 +748,18 @@ type pageParams struct {
 	Theme *theme.Stack
 }
 
-// writeTemplPage draws one API page through the theme. A theme template that
-// fails is logged with the page, and the page is skipped; the rest of the
-// build goes on.
-func writeTemplPage(filePath, pageTitle, activeSlug string, p *pageParams, content templ.Component) error {
+// writeAPIPage draws one API page through the theme: its body, then the
+// layout around it. A theme template that fails is logged with the page, and
+// the page is skipped; the rest of the build goes on.
+func writeAPIPage(filePath, pageTitle, activeSlug string, p *pageParams, body render.Body) error {
 	stack := p.Theme
 	if stack == nil {
-		stack = theme.MustLoadDefault()
+		stack = render.MustLoadDefaultTheme()
+	}
+	content, err := stack.RenderTemplate(body.Template, body.Data)
+	if err != nil {
+		slog.Default().Warn("printingpress: theme template failed; skipping page", "page", filePath, "theme", stack.Name(), "error", err)
+		return nil
 	}
 	view, err := render.APIPageView(render.LayoutPageParams{
 		PageTitle:          pageTitle,

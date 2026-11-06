@@ -5,7 +5,6 @@
 package printingpress
 
 import (
-	"context"
 	htmlstd "html"
 	"html/template"
 	"os"
@@ -14,7 +13,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/a-h/templ"
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/doctor/printingpress/render"
@@ -26,7 +24,7 @@ func (ap *AggregatePrintingPress) themeStack() (*theme.Stack, error) {
 	if ap.theme != nil {
 		return ap.theme, nil
 	}
-	stack, err := theme.Load(ap.config.Theme, ap.siteLayoutsDir())
+	stack, err := render.LoadTheme(ap.config.Theme, ap.siteLayoutsDir())
 	if err != nil {
 		return nil, err
 	}
@@ -54,10 +52,10 @@ func (ap *AggregatePrintingPress) writeCatalogPage(filePath string, page catalog
 		return err
 	}
 	view, err := ap.catalogPageView(page, stack)
-	if err != nil {
-		return err
+	var html string
+	if err == nil {
+		html, err = stack.RenderString(view)
 	}
-	html, err := stack.RenderString(view)
 	if err != nil {
 		if ap.config.Logger != nil {
 			ap.config.Logger.Warn("printingpress: theme template failed; skipping page", "page", filePath, "theme", stack.Name(), "error", err)
@@ -70,11 +68,13 @@ func (ap *AggregatePrintingPress) writeCatalogPage(filePath string, page catalog
 	return os.WriteFile(filePath, []byte(html), 0o644)
 }
 
-// catalogPageView builds the theme view of a directory-build page.
+// catalogPageView builds the theme view of a directory-build page, drawing
+// its body and header tools through the theme.
 func (ap *AggregatePrintingPress) catalogPageView(page catalogPageData, stack *theme.Stack) (*theme.PageView, error) {
-	var body strings.Builder
-	if page.Content != nil {
-		if err := page.Content.Render(context.Background(), &body); err != nil {
+	var body template.HTML
+	if page.Content.Template != "" {
+		var err error
+		if body, err = stack.RenderTemplate(page.Content.Template, page.Content.Data); err != nil {
 			return nil, err
 		}
 	}
@@ -101,7 +101,7 @@ func (ap *AggregatePrintingPress) catalogPageView(page catalogPageData, stack *t
 			RelPath:      page.RelPath,
 			HomeHref:     relativeCatalogHref(fromDir, pppaths.FileIndexHTML),
 			Root:         strings.TrimSuffix(relativeCatalogHref(fromDir, pppaths.FileIndexHTML), pppaths.FileIndexHTML),
-			Headings:     pageHeadings(body.String()),
+			Headings:     pageHeadings(string(body)),
 		},
 		Site: theme.SiteInfo{Title: page.HeaderTitle},
 		Head: theme.NewHeadView("", extra, resolve(pppaths.StaticAsset(pppaths.FilePrintingPressJS)),
@@ -110,7 +110,7 @@ func (ap *AggregatePrintingPress) catalogPageView(page catalogPageData, stack *t
 		),
 		Hero:    theme.HeroView{ShowTitle: page.ShowHeroTitle, Title: page.Title, Subtitle: subtitle},
 		Footer:  render.FooterView(page.Footer),
-		Content: template.HTML(body.String()),
+		Content: body,
 	}
 	if catalog := ap.catalog; catalog != nil {
 		view.Site.Kind = catalog.Kind
@@ -127,11 +127,15 @@ func (ap *AggregatePrintingPress) catalogPageView(page catalogPageData, stack *t
 			}
 		}
 		view.Engine.BodyAttrs = template.HTMLAttr(attrs.String())
-		view.Engine.Nav = template.HTML(`<pp-nav id="pp-nav" slot="nav" data-active="` + templ.EscapeString(page.ActiveNavSlug) + `" data-pp-preview-hold="true">` + catalogNavHTML(page) + `</pp-nav>`)
+		view.Engine.Nav = template.HTML(`<pp-nav id="pp-nav" slot="nav" data-active="` + htmlstd.EscapeString(page.ActiveNavSlug) + `" data-pp-preview-hold="true">` + catalogNavHTML(page) + `</pp-nav>`)
 		return view, nil
 	}
-	if hasCatalogVersionSwitcher(page.Service) {
-		view.Engine.HeaderTools = template.HTML(catalogVersionPickerHTML(fromDir, page.RelPath, page.Service, "version-picker version-picker--catalog", "pp-catalog-select", true))
+	if picker := catalogHeaderVersionPicker(fromDir, page.RelPath, page.Service); picker != nil {
+		tools, err := stack.RenderTemplate(templateCatalogVersionPicker, picker)
+		if err != nil {
+			return nil, err
+		}
+		view.Engine.HeaderTools = tools
 	}
 	return view, nil
 }

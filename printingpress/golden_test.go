@@ -16,6 +16,7 @@ import (
 	"strings"
 	"testing"
 
+	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/testify/require"
 )
 
@@ -24,6 +25,10 @@ import (
 // not. Run `go test -run TestGolden -update` to rewrite the manifests after an
 // intended output change, and review the diff.
 var updateGoldens = flag.Bool("update", false, "rewrite golden output manifests")
+
+// goldenDump, when set, copies each golden build's output under it, so two
+// builds can be compared file by file.
+var goldenDump = flag.String("golden-dump", "", "copy golden output trees into this folder")
 
 const (
 	goldenMockSeed = 20261105
@@ -107,7 +112,32 @@ func TestGoldenOutputIsStableAcrossBuilds(t *testing.T) {
 // directories do not leak into the manifest.
 func assertGoldenTree(t *testing.T, name, outputDir string, roots ...string) {
 	t.Helper()
+	assertGoldenTreeExcept(t, name, outputDir, nil, roots...)
+}
+
+// assertGoldenTreeExcept is assertGoldenTree without the files under the
+// given output-relative prefixes.
+func assertGoldenTreeExcept(t *testing.T, name, outputDir string, excluded []string, roots ...string) {
+	t.Helper()
+	if *goldenDump != "" {
+		require.NoError(t, os.CopyFS(filepath.Join(*goldenDump, name), os.DirFS(outputDir)))
+	}
 	got := goldenManifest(t, outputDir, roots...)
+	if len(excluded) > 0 {
+		kept := make([]string, 0)
+		for _, line := range strings.Split(strings.TrimSuffix(got, "\n"), "\n") {
+			skip := false
+			for _, prefix := range excluded {
+				if strings.HasPrefix(line[strings.Index(line, "  ")+2:], prefix) {
+					skip = true
+				}
+			}
+			if !skip {
+				kept = append(kept, line)
+			}
+		}
+		got = strings.Join(kept, "\n") + "\n"
+	}
 	path := filepath.Join("fixtures", "testdata", "golden", name+".txt")
 	if *updateGoldens {
 		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
@@ -158,6 +188,8 @@ func goldenManifest(t *testing.T, outputDir string, roots ...string) string {
 // docs-sites template port on, HTML is compared this way, so a template that
 // lays out the same markup differently still matches.
 func normalizeGoldenHTML(text string) string {
+	// html/template writes + as &#43;; templ wrote it plain. Both read the same.
+	text = strings.ReplaceAll(text, "&#43;", "+")
 	text = goldenWhitespacePattern.ReplaceAllString(text, " ")
 	return goldenBetweenTagsPattern.ReplaceAllString(text, "><")
 }
@@ -179,4 +211,65 @@ func writeGoldenFile(t *testing.T, root, rel, content string) {
 	path := filepath.Join(root, filepath.FromSlash(rel))
 	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+}
+
+// goldenLint is a small, fixed set of lint results, so the golden fixtures
+// cover the diagnostics page, violation stats and problem lists.
+func goldenLint() []*drV3.RuleFunctionResult {
+	return []*drV3.RuleFunctionResult{
+		{Message: "operation should have a description", Path: "$.paths['/burgers'].post", RuleId: "operation-description", RuleSeverity: "warn", Rule: &drV3.Rule{Id: "operation-description", Severity: "warn"}},
+		{Message: "schema is missing an example", Path: "$.components.schemas['Burger']", RuleId: "oas-schema-check", RuleSeverity: "error", Rule: &drV3.Rule{Id: "oas-schema-check", Severity: "error"}},
+		{Message: "tag should have a description", Path: "$.tags[0]", RuleId: "tag-description", RuleSeverity: "info", Rule: &drV3.Rule{Id: "tag-description", Severity: "info"}},
+	}
+}
+
+func TestGoldenDeveloperModeOpenAPIOutput(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/burgershop.openapi.yaml")
+	require.NoError(t, err)
+	outputDir := t.TempDir()
+	pp, err := CreatePrintingPressFromBytes(specBytes, &PrintingPressConfig{
+		Title:         "Burger Shop",
+		OutputDir:     outputDir,
+		DeveloperMode: true,
+		LintResults:   goldenLint(),
+		mockSeed:      goldenMockSeed,
+	})
+	require.NoError(t, err)
+	_, err = pp.PrintHTML()
+	require.NoError(t, err)
+	assertGoldenTree(t, "developer-burgershop", outputDir, outputDir)
+}
+
+func TestGoldenAsyncAPIOutput(t *testing.T) {
+	outputDir := t.TempDir()
+	pp, err := CreatePrintingPressFromBytes(streetlightsAsyncAPISpec(), &PrintingPressConfig{
+		OutputDir:     outputDir,
+		DeveloperMode: true,
+		LintResults: []*drV3.RuleFunctionResult{
+			{Message: "message should define examples", Path: "$.operations.turnOn.messages[0]", RuleId: "asyncapi-message-examples", RuleSeverity: "warn", Rule: &drV3.Rule{Id: "asyncapi-message-examples", Severity: "warn"}},
+		},
+		mockSeed: goldenMockSeed,
+	})
+	require.NoError(t, err)
+	_, err = pp.PrintHTML()
+	require.NoError(t, err)
+	// AsyncAPI explorer graph data is not stable between runs yet; it is JSON
+	// the templates do not produce, so this golden leaves it out.
+	assertGoldenTreeExcept(t, "asyncapi-streetlights", outputDir, []string{"data/viz/"}, outputDir)
+}
+
+func TestGoldenPolymorphicOutput(t *testing.T) {
+	specBytes, err := os.ReadFile("../test_specs/polymorphic-ecommerce.yaml")
+	require.NoError(t, err)
+	outputDir := t.TempDir()
+	pp, err := CreatePrintingPressFromBytes(specBytes, &PrintingPressConfig{
+		OutputDir: outputDir,
+		mockSeed:  goldenMockSeed,
+	})
+	require.NoError(t, err)
+	_, err = pp.PrintHTML()
+	require.NoError(t, err)
+	// Mermaid diagram data is not stable between runs yet; it is JSON the
+	// templates do not produce, so this golden leaves it out.
+	assertGoldenTreeExcept(t, "polymorphic-ecommerce", outputDir, []string{"data/viz/"}, outputDir)
 }

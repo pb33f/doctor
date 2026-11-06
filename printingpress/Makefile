@@ -1,10 +1,9 @@
 UI_DIR   = ui
 STATIC   = static
-TEMPL    = $(wildcard templ_*.templ)
 
-.PHONY: all clean deps build-ui templ site watch
+.PHONY: all clean deps build-ui site watch
 
-all: deps build-ui templ
+all: deps build-ui
 
 deps:
 	cd $(UI_DIR) && npm install
@@ -12,9 +11,6 @@ deps:
 build-ui:
 	cd $(UI_DIR) && npm run build
 	cp $(UI_DIR)/dist/printing-press.js $(STATIC)/printing-press.js
-
-templ:
-	cd .. && templ generate $(addprefix printingpress/,$(TEMPL))
 
 site:
 ifndef SPEC
