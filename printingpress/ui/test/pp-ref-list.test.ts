@@ -1,20 +1,5 @@
 import {beforeEach, describe, expect, it} from 'vitest';
-import {html, LitElement} from 'lit';
 import '../src/components/shared/ref-list.js';
-
-if (!customElements.get('pb33f-paginator-navigation')) {
-  customElements.define('pb33f-paginator-navigation', class extends LitElement {
-    static properties = {
-      values: {attribute: false},
-    };
-
-    values: unknown[] = [];
-
-    render() {
-      return html`<div part="values">${this.values}</div>`;
-    }
-  });
-}
 
 describe('pp-ref-list', () => {
   beforeEach(() => {
@@ -25,12 +10,12 @@ describe('pp-ref-list', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const paginator = el.shadowRoot?.querySelector('pb33f-paginator-navigation') as HTMLElement & {
+    const list = el.shadowRoot?.querySelector('pp-paginated-list') as HTMLElement & {
       updateComplete?: Promise<unknown>;
     };
-    await paginator?.updateComplete;
+    await list?.updateComplete;
 
-    return paginator?.shadowRoot?.querySelector('[part="values"]');
+    return list?.querySelector('.pp-paginated-list__values');
   }
 
   it('renders AsyncAPI operation refs with directional actions and wrapping paths', async () => {
@@ -60,7 +45,7 @@ describe('pp-ref-list', () => {
     const values = await renderedValues(el);
     const actions = values?.querySelectorAll('pp-asyncapi-action');
     const methods = values?.querySelectorAll<HTMLElement>('.operation-ref-method');
-    const paths = values?.querySelectorAll('pb33f-render-operation-path');
+    const paths = values?.querySelectorAll('pp-render-operation-path');
     const titles = values?.querySelectorAll('.operation-ref-title');
 
     expect(actions?.length).toBe(2);
@@ -71,7 +56,7 @@ describe('pp-ref-list', () => {
     expect(actions?.[0]?.getAttribute('action')).toBe('receive');
     expect(actions?.[0]?.getAttribute('size')).toBe('small');
     expect(actions?.[1]?.getAttribute('action')).toBe('send');
-    expect(values?.querySelector('pb33f-http-method')).toBeNull();
+    expect(values?.querySelector('pp-http-method')).toBeNull();
     expect(titles?.length).toBe(1);
     expect(titles?.[0]?.textContent).toBe('receiveLightMeasurement');
     expect((titles?.[0] as HTMLElement | undefined)?.style.lineHeight).toBe('1');
@@ -123,7 +108,7 @@ describe('pp-ref-list', () => {
     }];
 
     const compValues = await renderedValues(components);
-    const compRow = compValues?.querySelector<HTMLElement>('pb33f-model-icon')?.parentElement as HTMLElement | null;
+    const compRow = compValues?.querySelector<HTMLElement>('pp-model-icon')?.parentElement as HTMLElement | null;
 
     expect(compRow?.style.display).toBe('flex');
     expect(compRow?.style.paddingLeft).toBe('0px');

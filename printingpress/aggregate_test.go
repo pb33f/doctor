@@ -5338,7 +5338,7 @@ func TestCatalogRootContent_RendersAllWarningsInSingleAttentionBox(t *testing.T)
 	assert.Contains(t, rendered, `<ul class="pp-catalog-warning-list">`)
 	assert.Contains(t, rendered, `<li>skipped render build for discovered spec (APIs/1forge.com/0.0.1/swagger.yaml)</li>`)
 	assert.Contains(t, rendered, `<li>skipped render build for discovered spec (APIs/example.com/2024-01-01/openapi.yaml)</li>`)
-	assert.NotContains(t, rendered, `</p></pb33f-attention-box>`)
+	assert.NotContains(t, rendered, `</p></pp-attention-box>`)
 }
 
 func TestCatalogRootContent_DisableSkippedRenderingSuppressesWarningBox(t *testing.T) {
@@ -5362,7 +5362,7 @@ func TestCatalogRootContent_DisableSkippedRenderingSuppressesWarningBox(t *testi
 	}
 
 	rendered := renderBodyForTest(t, catalogRootContent(catalog, true))
-	assert.NotContains(t, rendered, `pb33f-attention-box`)
+	assert.NotContains(t, rendered, `pp-attention-box`)
 	assert.Contains(t, rendered, `Users API`)
 }
 

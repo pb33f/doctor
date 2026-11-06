@@ -18,23 +18,24 @@ describe('pp-curl-command', () => {
     const el = create('[]');
     await el.updateComplete;
 
-    expect(el.shadowRoot?.querySelector('terminal-example')).toBeNull();
+    expect(el.shadowRoot?.querySelector('pp-terminal-example')).toBeNull();
   });
 
-  it('renders a single command in terminal-example', async () => {
+  it('renders a single command in the terminal example', async () => {
     const el = create(JSON.stringify([
       {label: 'Production · No Auth', serverUrl: 'https://api.example.com', command: "curl 'https://api.example.com/burgers'"},
     ]));
     await el.updateComplete;
 
-    expect(el.shadowRoot?.querySelector('terminal-example')?.textContent).toContain("curl 'https://api.example.com/burgers'");
+    const terminal = el.shadowRoot?.querySelector('pp-terminal-example') as HTMLElement & {command: string};
+    expect(terminal?.command).toContain("curl 'https://api.example.com/burgers'");
   });
 
   it('ignores invalid JSON safely', async () => {
     const el = create('not-json');
     await el.updateComplete;
 
-    expect(el.shadowRoot?.querySelector('terminal-example')).toBeNull();
+    expect(el.shadowRoot?.querySelector('pp-terminal-example')).toBeNull();
   });
 
   it('renders a dropdown for multiple variants', async () => {
@@ -66,8 +67,8 @@ describe('pp-curl-command', () => {
     }));
     await el.updateComplete;
 
-    const terminal = el.shadowRoot?.querySelector('terminal-example');
-    expect(terminal?.textContent).toContain('Authorization: Bearer YOUR_TOKEN');
+    const terminal = el.shadowRoot?.querySelector('pp-terminal-example') as HTMLElement & {command: string};
+    expect(terminal?.command).toContain('Authorization: Bearer YOUR_TOKEN');
     expect(el.shadowRoot?.querySelector('sl-button')?.textContent).toContain('Production · Bearer Auth');
   });
 });

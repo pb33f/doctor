@@ -24,6 +24,7 @@ import '@shoelace-style/shoelace/dist/components/badge/badge.js';
 import '@shoelace-style/shoelace/dist/components/format-number/format-number.js';
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.js';
 import { registerIconLibrary } from '@shoelace-style/shoelace/dist/utilities/icon-library.js';
+import { useBootstrapIcons } from '@pb33f/printing-press-components/icons.js';
 setBasePath(printingPressStaticAssetHref('shoelace'));
 
 // Inline shoelace icons, the ones we need.
@@ -85,16 +86,14 @@ registerIconLibrary('default', {
     return printingPressStaticAssetHref(`shoelace/assets/icons/${name}.svg`);
   },
 });
+// Web Awesome draws the same Bootstrap icons, from the same files.
+useBootstrapIcons(printingPressStaticAssetHref('shoelace/assets/icons'), inlineIcons);
 
+// Printing Press components: light DOM, on Web Awesome.
+import '@pb33f/printing-press-components';
 // Import cowboy-components
-import '@pb33f/cowboy-components/components/http-method/http-method.js';
-import '@pb33f/cowboy-components/components/render-operation-path/render-operation-path.js';
 import '@pb33f/cowboy-components/components/header/header.js';
 import '@pb33f/cowboy-components/components/theme-switcher/theme-switcher.js';
-import '@pb33f/cowboy-components/components/model-icon/model-icon.js';
-import '@pb33f/cowboy-components/components/attention-box/attention-box.js';
-import '@pb33f/cowboy-components/components/paginator/paginator.js';
-import '@pb33f/cowboy-components/components/terminal/terminal-example.js';
 import '@pb33f/cowboy-components/components/footer/footer.js';
 
 export { PpLayout } from './components/layout/layout.js';
@@ -168,9 +167,9 @@ function applyHostTheme(theme: HostThemeName) {
   }
   document.documentElement.setAttribute('theme', theme);
   if (theme === 'light') {
-    document.documentElement.classList.remove('sl-theme-dark');
+    document.documentElement.classList.remove('sl-theme-dark', 'wa-dark');
   } else {
-    document.documentElement.classList.add('sl-theme-dark');
+    document.documentElement.classList.add('sl-theme-dark', 'wa-dark');
   }
   window.dispatchEvent(new CustomEvent(PB33F_THEME_CHANGE, {detail: {theme}}));
 }

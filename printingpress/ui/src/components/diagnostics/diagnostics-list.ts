@@ -13,7 +13,8 @@ import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
 import '@shoelace-style/shoelace/dist/components/tab/tab.js';
 import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
-import '@pb33f/cowboy-components/components/paginator/paginator-navigator.js';
+import '@pb33f/printing-press-components/paginator/paginator.js';
+import ppComponentsCss from '../../styles/pp-components.css.js';
 
 enum ProblemSortView {
   LineNumber = 'Line Number',
@@ -62,7 +63,7 @@ const GROUP_ORDER: Record<string, number> = {
 
 @customElement('pp-diagnostics-list')
 export class PpDiagnosticsList extends LitElement {
-  static styles = [markdownCss, diagnosticsListCss];
+  static styles = [ppComponentsCss, markdownCss, diagnosticsListCss];
 
   @state() private payload: PageDeveloperPayload | null = null;
   @state() private selectedSort: ProblemSortView = ProblemSortView.Severity;
@@ -246,15 +247,15 @@ export class PpDiagnosticsList extends LitElement {
         <a class="page page-operation" href=${docHref(href)}>
           ${operationId
             ? html`<span class="operation-label">${operationId}</span>`
-            : html`<pb33f-render-operation-path path=${path} nowrap></pb33f-render-operation-path>`}
-          <pb33f-http-method mode="nav-naked" method=${method}></pb33f-http-method>
+            : html`<pp-render-operation-path path=${path} nowrap></pp-render-operation-path>`}
+          <pp-http-method mode="nav-naked" method=${method}></pp-http-method>
         </a>
       `;
     }
     if (kind === 'model' && component) {
       return html`
         <a class="page page-model" href=${docHref(href)}>
-          <pb33f-model-icon icon=${component} size="small"></pb33f-model-icon>
+          <pp-model-icon icon=${component} size="small"></pp-model-icon>
           <span>${label}</span>
         </a>
       `;
@@ -380,7 +381,7 @@ export class PpDiagnosticsList extends LitElement {
       <div class="list">
         ${problems.length
           ? html`
-            <pb33f-paginator
+            <pp-paginator
               .currentPage=${currentPage}
               .totalPages=${totalPages}
               .totalItems=${problems.length}
@@ -390,7 +391,7 @@ export class PpDiagnosticsList extends LitElement {
               @paginatorPreviousPage=${this.handlePreviousPage}
               @paginatorNextPage=${this.handleNextPage}
               @paginatorLastPage=${this.handleLastPage}
-            ></pb33f-paginator>
+            ></pp-paginator>
             ${pageProblems.map((problem) => this.renderProblemRow(problem))}
           `
           : html`<div class="empty">No diagnostics found</div>`}
@@ -420,7 +421,7 @@ export class PpDiagnosticsList extends LitElement {
       <section class="problem-group">
         <div class="group-header">
           <div class="group-title">
-            <pb33f-model-icon icon=${group.icon} size="medium"></pb33f-model-icon>
+            <pp-model-icon icon=${group.icon} size="medium"></pp-model-icon>
             <h2>${group.title}</h2>
           </div>
           <div class="group-actions">
@@ -429,7 +430,7 @@ export class PpDiagnosticsList extends LitElement {
           </div>
         </div>
         <div class="list group-problems">
-          <pb33f-paginator
+          <pp-paginator
             .currentPage=${currentPage}
             .totalPages=${totalPages}
             .totalItems=${group.problems.length}
@@ -439,7 +440,7 @@ export class PpDiagnosticsList extends LitElement {
             @paginatorPreviousPage=${(event: Event) => this.handleGroupPreviousPage(group, event)}
             @paginatorNextPage=${(event: Event) => this.handleGroupNextPage(group, event)}
             @paginatorLastPage=${(event: Event) => this.handleGroupLastPage(group, event)}
-          ></pb33f-paginator>
+          ></pp-paginator>
           ${pageProblems.map((problem) => this.renderProblemRow(problem))}
         </div>
       </section>

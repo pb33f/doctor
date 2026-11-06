@@ -6,7 +6,7 @@
 				{{if .Protocol}}
 					<pp-asyncapi-protocol protocol="{{.Protocol}}" size="small"></pp-asyncapi-protocol>
 				{{else}}
-					<pb33f-model-icon icon="{{.TypeSlug}}" size="small"></pb33f-model-icon>
+					<pp-model-icon icon="{{.TypeSlug}}" size="small"></pp-model-icon>
 					<strong>{{.Name}}</strong> {{if .Protocols}}
 						<span class="pp-model-card-protocols">
 							{{range .Protocols}}<pp-asyncapi-protocol protocol="{{.}}" size="small"></pp-asyncapi-protocol>{{end}}

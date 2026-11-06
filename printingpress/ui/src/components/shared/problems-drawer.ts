@@ -6,6 +6,7 @@ import {renderMarkdown} from '../../utils/markdown.js';
 import {problemSeverityClass, problemSeverityIcon, problemSeverityLabel} from '../../utils/violations.js';
 import problemsDrawerCss from './problems-drawer.css.js';
 import './code-viewer.js';
+import ppComponentsCss from '../../styles/pp-components.css.js';
 
 interface ShowProblemsDetail {
   scopeLabel?: string;
@@ -20,7 +21,7 @@ interface ShowProblemsDetail {
 
 @customElement('pp-problems-drawer')
 export class PpProblemsDrawer extends LitElement {
-  static styles = [markdownCss, problemsDrawerCss];
+  static styles = [ppComponentsCss, markdownCss, problemsDrawerCss];
 
   @query('sl-drawer') private drawer: any;
   @query('pp-code-viewer') private viewer?: {scrollToLine(line: number): void};
@@ -120,15 +121,15 @@ export class PpProblemsDrawer extends LitElement {
     if (this.method && this.path) {
       return html`
         <div class="rich-header">
-          <pb33f-http-method method=${this.method}></pb33f-http-method>
-          <pb33f-render-operation-path path=${this.path} nowrap></pb33f-render-operation-path>
+          <pp-http-method method=${this.method}></pp-http-method>
+          <pp-render-operation-path path=${this.path} nowrap></pp-render-operation-path>
         </div>
       `;
     }
     if (this.componentType) {
       return html`
         <div class="component-header">
-          <pb33f-model-icon icon=${this.componentType} size="large"></pb33f-model-icon>
+          <pp-model-icon icon=${this.componentType} size="large"></pp-model-icon>
           <span class="drawer-component-title">${this.scopeLabel}</span>
         </div>
       `;

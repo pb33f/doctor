@@ -120,7 +120,7 @@ export default css`
         white-space: normal;
     }
 
-    pb33f-http-method,
+    pp-http-method,
     pp-asyncapi-action {
         justify-self: end;
     }
@@ -183,17 +183,17 @@ export default css`
 
     /* global html[theme] override in printing-press.css cannot reach into shadow DOM,
        so replicate the monochrome override here via :host-context */
-    :host-context(html[theme="light"]) pb33f-http-method,
-    :host-context(html[theme="tektronix"]) pb33f-http-method {
-        --http-get-color: var(--font-color);
-        --http-post-color: var(--font-color);
-        --http-put-color: var(--font-color);
-        --http-delete-color: var(--font-color);
-        --http-patch-color: var(--font-color);
-        --http-options-color: var(--font-color);
-        --http-head-color: var(--font-color);
-        --http-trace-color: var(--font-color);
-        --http-query-color: var(--font-color);
+    :host-context(html[theme="light"]) pp-http-method,
+    :host-context(html[theme="tektronix"]) pp-http-method {
+        --pp-http-get: var(--font-color);
+        --pp-http-post: var(--font-color);
+        --pp-http-put: var(--font-color);
+        --pp-http-delete: var(--font-color);
+        --pp-http-patch: var(--font-color);
+        --pp-http-options: var(--font-color);
+        --pp-http-head: var(--font-color);
+        --pp-http-trace: var(--font-color);
+        --pp-http-query: var(--font-color);
     }
 
     li a.active .op-title {

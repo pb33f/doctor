@@ -7,7 +7,7 @@ export default css`
         gap: var(--global-padding);
     }
 
-    pb33f-model-icon {
+    pp-model-icon {
         flex-shrink: 0;
         margin-top: var(--icon-title-icon-offset, 0.2em);
     }

@@ -5,6 +5,7 @@ import {operationHref} from '../../utils/doc-links.js';
 import {renderViolationBadges, type ViolationCounts} from '../../utils/violations.js';
 import '../shared/asyncapi-action.js';
 import '../shared/asyncapi-protocol.js';
+import ppComponentsCss from '../../styles/pp-components.css.js';
 
 interface NavTag {
     name: string;
@@ -40,7 +41,7 @@ function tagContainsSlug(tag: NavTag, slug: string): boolean {
 
 @customElement('pp-nav-tag')
 export class PpNavTag extends LitElement {
-    static styles = navTagCss;
+    static styles = [ppComponentsCss, navTagCss];
 
     @property({type: Object}) tag: NavTag = {
         name: '',
@@ -104,8 +105,8 @@ export class PpNavTag extends LitElement {
                                                                 <span class="op-title">${op.summary || op.path}</span>
                                                                 ${isAsyncAPIOperation(op)
                                                                         ? html`<pp-asyncapi-action action=${op.method} size="small"></pp-asyncapi-action>`
-                                                                        : html`<pb33f-http-method mode="nav-naked"
-                                                                                method=${op.method}></pb33f-http-method>`}
+                                                                        : html`<pp-http-method mode="nav-naked"
+                                                                                method=${op.method}></pp-http-method>`}
                                                                 ${dev ? renderViolationBadges(op.counts) : nothing}
                                                             </a>
                                                         </li>

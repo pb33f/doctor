@@ -1,6 +1,8 @@
 import {LitElement, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import refListCss from './ref-list.css.js';
+import ppComponentsCss from '../../styles/pp-components.css.js';
+import '@pb33f/printing-press-components/paginator/paginated-list.js';
 import {modelHref, operationHref} from '../../utils/doc-links.js';
 import './asyncapi-action.js';
 import '@shoelace-style/shoelace/dist/components/input/input.js';
@@ -52,7 +54,7 @@ function isAsyncAPIAction(method: string): boolean {
 
 @customElement('pp-ref-list')
 export class PpRefList extends LitElement {
-    static styles = refListCss;
+    static styles = [ppComponentsCss, refListCss];
 
     @property() type: 'operations' | 'components' = 'operations';
     @property() heading = '';
@@ -135,7 +137,7 @@ export class PpRefList extends LitElement {
         if (isAsyncAPIAction(method)) {
             return html`<pp-asyncapi-action action=${normalizeAsyncAction(method)} size="small"></pp-asyncapi-action>`;
         }
-        return html`<pb33f-http-method method=${method} tiny></pb33f-http-method>`;
+        return html`<pp-http-method method=${method} tiny></pp-http-method>`;
     }
 
     private renderToolbar() {
@@ -183,7 +185,7 @@ export class PpRefList extends LitElement {
                 class="operation-ref-title"
                 style="display:block;color:var(--terminal-text);line-height:1;overflow-wrap:anywhere;word-break:break-word;">${operationID}</span>`;
         }
-        return html`<pb33f-render-operation-path path=${op.path}></pb33f-render-operation-path>`;
+        return html`<pp-render-operation-path path=${op.path}></pp-render-operation-path>`;
     }
 
     private renderOperationItem(op: OperationRef) {
@@ -212,7 +214,7 @@ export class PpRefList extends LitElement {
     private renderComponentItem(comp: ComponentRef) {
         return html`
             <div style="display:flex;align-items:center;gap:var(--global-padding);padding:0.2rem 0">
-                <pb33f-model-icon icon=${comp.componentType} size="medium"></pb33f-model-icon>
+                <pp-model-icon icon=${comp.componentType} size="medium"></pp-model-icon>
                 <a style="color:var(--terminal-text);text-decoration:none;font-family:var(--font-stack),monospace"
                    @mouseenter=${(e: Event) => (e.target as HTMLElement).style.textDecoration = 'underline'}
                    @mouseleave=${(e: Event) => (e.target as HTMLElement).style.textDecoration = 'none'}
@@ -234,11 +236,10 @@ export class PpRefList extends LitElement {
             <h2>${this.heading}</h2>
             ${showToolbar ? this.renderToolbar() : nothing}
             ${this.filteredItems.length
-                ? html`<pb33f-paginator-navigation
+                ? html`<pp-paginated-list
                             .values=${renderedItems as any}
-                            .label=${this.heading}
-                            hideSparks>
-                        </pb33f-paginator-navigation>`
+                            .label=${this.heading}>
+                        </pp-paginated-list>`
                 : html`<div class="empty-state">No matching references</div>`}
         `;
     }

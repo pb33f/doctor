@@ -1,8 +1,8 @@
 {{/* warnings.html lists the specifications whose render was skipped. Data: the engine's warnings view. */}}
-<pb33f-attention-box class="pp-catalog-warning" type="warning" headerText="{{.Heading}}">
+<pp-attention-box class="pp-catalog-warning" type="warning" headerText="{{.Heading}}">
 	{{if eq (len .Items) 1}}
 		<p>{{index .Items 0}}</p>
 	{{else}}
 		<ul class="pp-catalog-warning-list">{{range .Items}}<li>{{.}}</li>{{end}}</ul>
 	{{end}}
-</pb33f-attention-box>
+</pp-attention-box>

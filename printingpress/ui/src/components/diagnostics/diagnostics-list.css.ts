@@ -143,7 +143,7 @@ export default css`
     border-top: 1px dashed var(--hrcolor);
   }
 
-  pb33f-paginator {
+  pp-paginator {
     display: block;
   }
 
@@ -302,7 +302,7 @@ export default css`
         overflow-wrap: anywhere;
     }
 
-    .page-operation pb33f-http-method {
+    .page-operation pp-http-method {
         flex: 0 0 auto;
     }
 

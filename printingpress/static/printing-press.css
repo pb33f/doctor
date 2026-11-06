@@ -1161,7 +1161,7 @@ code {
     flex: 1 1 0;
 }
 
-.pp-asyncapi-channel-target pb33f-render-operation-path {
+.pp-asyncapi-channel-target pp-render-operation-path {
     min-width: 0;
     max-width: 100%;
     white-space: normal;
@@ -1210,7 +1210,7 @@ code {
     min-width: 0;
 }
 
-.pp-asyncapi-meta-value pb33f-render-operation-path {
+.pp-asyncapi-meta-value pp-render-operation-path {
     min-width: 0;
     max-width: 100%;
 }
@@ -1451,7 +1451,7 @@ pp-curl-command {
     overflow-wrap: anywhere;
 }
 
-.pp-operation-path pb33f-render-operation-path {
+.pp-operation-path pp-render-operation-path {
     min-width: 0;
     max-width: 100%;
     overflow-wrap: anywhere;
@@ -1468,7 +1468,7 @@ pp-curl-command {
     margin-top: 0.1em;
 }
 
-.pp-operation-path.pp-operation-path-asyncapi pb33f-render-operation-path {
+.pp-operation-path.pp-operation-path-asyncapi pp-render-operation-path {
     flex: 1 1 0;
     min-width: 0;
     white-space: normal;
@@ -1550,17 +1550,17 @@ pp-asyncapi-action[action="send"] {
 }
 
 /* Force monochrome HTTP method badges in light/tektronix modes */
-html[theme="light"] pb33f-http-method,
-html[theme="tektronix"] pb33f-http-method {
-    --http-get-color: var(--font-color);
-    --http-post-color: var(--font-color);
-    --http-put-color: var(--font-color);
-    --http-delete-color: var(--font-color);
-    --http-patch-color: var(--font-color);
-    --http-options-color: var(--font-color);
-    --http-head-color: var(--font-color);
-    --http-trace-color: var(--font-color);
-    --http-query-color: var(--font-color);
+html[theme="light"] pp-http-method,
+html[theme="tektronix"] pp-http-method {
+    --pp-http-get: var(--font-color);
+    --pp-http-post: var(--font-color);
+    --pp-http-put: var(--font-color);
+    --pp-http-delete: var(--font-color);
+    --pp-http-patch: var(--font-color);
+    --pp-http-options: var(--font-color);
+    --pp-http-head: var(--font-color);
+    --pp-http-trace: var(--font-color);
+    --pp-http-query: var(--font-color);
 }
 
 /* Model pages */
@@ -1825,7 +1825,7 @@ ul.pp-operation-list > li:before {
     padding: 0;
 }
 
-.pp-operation-list pb33f-render-operation-path {
+.pp-operation-list pp-render-operation-path {
     font-size: 1.2rem;
     margin-left: var(--global-padding);
 }
@@ -1960,7 +1960,7 @@ span.pp-common-header-name {
 }
 
 /* Method badge (fallback for when JS hasn't loaded) */
-pb33f-http-method:not(:defined) {
+pp-http-method:not(:defined) {
     display: inline-block;
     font-size: 0.7em;
     text-align: center;
@@ -1973,11 +1973,11 @@ pb33f-http-method:not(:defined) {
     border: 1px solid var(--hrcolor);
 }
 
-pb33f-http-method:not(:defined)::before {
+pp-http-method:not(:defined)::before {
     content: attr(method);
 }
 
-pb33f-http-method[mode="nav-naked"]:not(:defined) {
+pp-http-method[mode="nav-naked"]:not(:defined) {
     background: none;
     border: none;
     padding: 0;
@@ -1985,7 +1985,7 @@ pb33f-http-method[mode="nav-naked"]:not(:defined) {
     color: var(--font-color-sub1);
 }
 
-pb33f-render-operation-path:not(:defined) {
+pp-render-operation-path:not(:defined) {
     display: inline-block;
     min-width: 0;
     line-height: 1;
@@ -1994,7 +1994,7 @@ pb33f-render-operation-path:not(:defined) {
     overflow-wrap: anywhere;
 }
 
-pb33f-render-operation-path:not(:defined)::before {
+pp-render-operation-path:not(:defined)::before {
     content: attr(path);
 }
 

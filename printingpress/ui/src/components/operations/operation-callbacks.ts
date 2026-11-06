@@ -14,6 +14,7 @@ import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';
 import '../shared/example-selector.js';
 import '../shared/media-type-selector.js';
+import ppComponentsCss from '../../styles/pp-components.css.js';
 
 interface RequestBodyData {
     description?: string;
@@ -40,7 +41,7 @@ interface CallbackData {
 
 @customElement('pp-operation-callbacks')
 export class PpOperationCallbacks extends LitElement {
-    static styles = [sharedCss, markdownCss, refLinkCss, statusColorsCss, operationCallbacksCss];
+    static styles = [ppComponentsCss, sharedCss, markdownCss, refLinkCss, statusColorsCss, operationCallbacksCss];
 
     @property({attribute: 'callbacks-json'}) callbacksJson = '';
     @state() private callbacks: CallbackData[] = [];
@@ -95,7 +96,7 @@ export class PpOperationCallbacks extends LitElement {
         return html`
             <div class="callback-operation">
                 <div class="callback-method-expression">
-                    <pb33f-http-method method=${op.method}></pb33f-http-method>
+                    <pp-http-method method=${op.method}></pp-http-method>
                     <span class="callback-expression">${op.expression}</span>
                 </div>
                 ${op.descHtml

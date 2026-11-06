@@ -8,10 +8,10 @@
 					root.setAttribute('theme', theme);
 					root.style.setProperty('--pp-split-position', splitPos ? splitPos + '%' : '20%');
 					if (theme === 'light') {
-						root.classList.remove('sl-theme-dark');
+						root.classList.remove('sl-theme-dark', 'wa-dark');
 					} else {
-						root.classList.add('sl-theme-dark');
+						root.classList.add('sl-theme-dark', 'wa-dark');
 					}
 				} catch (_) {}
 			})();
-		</script><title>{{.Page.Title}}</title>{{with .Page.Description}}<meta name="description" content="{{.}}">{{end}}{{with .Page.MarkdownHref}}<link rel="alternate" type="text/markdown" href="{{.}}">{{end}}{{with .Head.BaseHref}}<base href="{{.}}">{{end}}<link rel="stylesheet" href="{{.Head.Static "pb33f-theme.css"}}"><link rel="stylesheet" href="{{.Head.Static "cowboy-components.css"}}"><link rel="stylesheet" href="{{.Head.Static "shoelace-dark.css"}}"><link rel="stylesheet" href="{{.Head.Static "printing-press.css"}}"><link rel="stylesheet" href="{{.Head.Static "chroma.css"}}">{{range .Head.Extra}}<link rel="stylesheet" href="{{.}}">{{end}}<script defer src="{{.Head.Script}}"></script></head>
+		</script><title>{{.Page.Title}}</title>{{with .Page.Description}}<meta name="description" content="{{.}}">{{end}}{{with .Page.MarkdownHref}}<link rel="alternate" type="text/markdown" href="{{.}}">{{end}}{{with .Head.BaseHref}}<base href="{{.}}">{{end}}<link rel="stylesheet" href="{{.Head.Static "pb33f-theme.css"}}"><link rel="stylesheet" href="{{.Head.Static "cowboy-components.css"}}"><link rel="stylesheet" href="{{.Head.Static "shoelace-dark.css"}}"><link rel="stylesheet" href="{{.Head.Static "webawesome.css"}}"><link rel="stylesheet" href="{{.Head.Static "printing-press-components.css"}}"><link rel="stylesheet" href="{{.Head.Asset "tokens.css"}}"><link rel="stylesheet" href="{{.Head.Static "printing-press.css"}}"><link rel="stylesheet" href="{{.Head.Static "chroma.css"}}">{{range .Head.Extra}}<link rel="stylesheet" href="{{.}}">{{end}}<script defer src="{{.Head.Script}}"></script></head>

@@ -6,6 +6,7 @@ import './code-viewer.js';
 import type {PpCodeViewer} from './code-viewer.js';
 import exampleDrawerCss from './example-drawer.css.js';
 import tooltipCss from '../../styles/tooltip.css.js';
+import ppComponentsCss from '../../styles/pp-components.css.js';
 
 export interface ShowExampleDetail {
   title: string;
@@ -23,7 +24,7 @@ export interface ShowExampleDetail {
 
 @customElement('pp-example-drawer')
 export class PpExampleDrawer extends LitElement {
-  static styles = [exampleDrawerCss, tooltipCss];
+  static styles = [ppComponentsCss, exampleDrawerCss, tooltipCss];
 
   @state() private title = '';
   @state() private json = '';
@@ -104,15 +105,15 @@ export class PpExampleDrawer extends LitElement {
     if (this.method && this.path) {
       return html`
         <div class="rich-header">
-          <pb33f-http-method method=${this.method}></pb33f-http-method>
-          <pb33f-render-operation-path path=${this.path} nowrap></pb33f-render-operation-path>
+          <pp-http-method method=${this.method}></pp-http-method>
+          <pp-render-operation-path path=${this.path} nowrap></pp-render-operation-path>
         </div>
       `;
     }
     if (this.componentType) {
       return html`
         <div class="component-header">
-          <pb33f-model-icon icon=${this.componentType} size="large"></pb33f-model-icon>
+          <pp-model-icon icon=${this.componentType} size="large"></pp-model-icon>
           <span class="drawer-component-title">${this.title}</span>
         </div>
       `;

@@ -31,7 +31,7 @@ export default css`
         flex: 1;
     }
 
-    pb33f-paginator-navigation::part(values) {
+    pp-paginated-list .pp-paginated-list__values {
         max-height: none;
         overflow-y: visible;
         padding-top: var(--global-padding-half);

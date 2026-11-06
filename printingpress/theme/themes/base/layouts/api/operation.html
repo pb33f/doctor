@@ -14,8 +14,8 @@
 			{{end}} <pp-icon-title icon="operation" heading="{{operationPageTitle .}}"></pp-icon-title>
 			{{if not .SpecKind.IsAsyncAPI}}
 				<div class="{{operationPathClass .}}">
-					<pb33f-http-method method="{{.Method}}"></pb33f-http-method>
-					<pb33f-render-operation-path path="{{.Path}}" nowrap></pb33f-render-operation-path>
+					<pp-http-method method="{{.Method}}"></pp-http-method>
+					<pp-render-operation-path path="{{.Path}}" nowrap></pp-render-operation-path>
 				</div>
 			{{end}}
 			{{if .OperationID}}
@@ -43,14 +43,14 @@
 								<span class="pp-server-url">{{.Name}}</span>
 							{{end}}
 						</div>
-						{{with .Address}}<pb33f-render-operation-path path="{{.}}"></pb33f-render-operation-path>{{end}}
+						{{with .Address}}<pp-render-operation-path path="{{.}}"></pp-render-operation-path>{{end}}
 					</div>
 				</div>
 			{{end}}
 			{{with .Reply}}
 				<div class="pp-asyncapi-meta-row">
 					<span class="pp-asyncapi-meta-label">Reply</span><div class="pp-asyncapi-meta-value">
-						{{with .Address}}<pb33f-render-operation-path path="{{.}}"></pb33f-render-operation-path>{{end}} {{with .Channel}}
+						{{with .Address}}<pp-render-operation-path path="{{.}}"></pp-render-operation-path>{{end}} {{with .Channel}}
 							{{if .Href}}
 								{{template "api/partials/component-ref.html" (componentRef "channels" (operationDocHref $base .Href) .Name)}}
 							{{else if .Name}}

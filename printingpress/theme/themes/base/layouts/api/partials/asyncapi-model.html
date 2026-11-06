@@ -15,7 +15,7 @@
 				<h3>REPLY</h3>
 				{{with .Address}}
 					<div class="pp-asyncapi-meta-row">
-						<span class="pp-asyncapi-meta-label">Address</span><div class="pp-asyncapi-meta-value"><pb33f-render-operation-path path="{{.}}"></pb33f-render-operation-path></div>
+						<span class="pp-asyncapi-meta-label">Address</span><div class="pp-asyncapi-meta-value"><pp-render-operation-path path="{{.}}"></pp-render-operation-path></div>
 					</div>
 				{{end}}
 				{{with .Channel}}
@@ -26,7 +26,7 @@
 							{{else if .Name}}
 								{{template "api/partials/component-ref.html" (componentRef "channels" "" .Name)}}
 							{{end}}
-							{{with .Address}}<pb33f-render-operation-path path="{{.}}"></pb33f-render-operation-path>{{end}}
+							{{with .Address}}<pp-render-operation-path path="{{.}}"></pp-render-operation-path>{{end}}
 						</div>
 					</div>
 				{{end}}
@@ -61,7 +61,7 @@
 		{{end}}
 	{{else if eq .Kind "channel"}}
 		<div class="pp-asyncapi-operation" id="section-channel" data-nav-label="Channel">
-			{{with .Address}}<div class="pp-asyncapi-channel-target"><pb33f-render-operation-path path="{{.}}"></pb33f-render-operation-path></div>{{end}}
+			{{with .Address}}<div class="pp-asyncapi-channel-target"><pp-render-operation-path path="{{.}}"></pp-render-operation-path></div>{{end}}
 			{{if .Bindings}}
 				<div class="pp-asyncapi-meta-row pp-asyncapi-bindings-row">
 					<span class="pp-asyncapi-meta-label">Bindings</span><div class="pp-security-scopes" aria-label="Bindings">

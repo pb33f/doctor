@@ -28,7 +28,7 @@ func TestRootPageAsyncAPIOperationUsesSharedActionAndPathRenderers(t *testing.T)
 
 			html := renderTemplateForTest(t, "api/partials/operation-item.html", newOperationItemArgs(op, ""))
 			actionMarkup := `<pp-asyncapi-action action="` + tt.action + `" size="small">`
-			pathMarkup := `<pb33f-render-operation-path path="` + destination + `"></pb33f-render-operation-path>`
+			pathMarkup := `<pp-render-operation-path path="` + destination + `"></pp-render-operation-path>`
 			actionIndex := strings.Index(html, actionMarkup)
 			pathIndex := strings.Index(html, pathMarkup)
 			if actionIndex < 0 || pathIndex < 0 || actionIndex >= pathIndex {
@@ -38,7 +38,7 @@ func TestRootPageAsyncAPIOperationUsesSharedActionAndPathRenderers(t *testing.T)
 				t.Fatalf("expected %s action code, got:\n%s", tt.code, html)
 			}
 			for _, unwanted := range []string{
-				`<pb33f-http-method`,
+				`<pp-http-method`,
 				`<code>` + destination + `</code>`,
 			} {
 				if strings.Contains(html, unwanted) {

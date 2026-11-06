@@ -5,7 +5,8 @@ import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
-import '@pb33f/cowboy-components/components/terminal/terminal-example.js';
+import '@pb33f/printing-press-components/terminal-example/terminal-example.js';
+import ppComponentsCss from '../../styles/pp-components.css.js';
 
 interface CurlVariant {
   label: string;
@@ -17,7 +18,7 @@ interface CurlVariant {
 
 @customElement('pp-curl-command')
 export class PpCurlCommand extends LitElement {
-  static styles = [curlCommandCss];
+  static styles = [ppComponentsCss, curlCommandCss];
 
   @property({attribute: 'curl-json'}) curlJson = '';
   @state() private variants: CurlVariant[] = [];
@@ -87,7 +88,7 @@ export class PpCurlCommand extends LitElement {
 
     return html`
       ${this.renderSelector()}
-      <terminal-example>${current.command}</terminal-example>
+      <pp-terminal-example .command=${current.command}></pp-terminal-example>
     `;
   }
 }

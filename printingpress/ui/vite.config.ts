@@ -1,4 +1,4 @@
-import { defineConfig, Plugin } from 'vite';
+import { defineConfig, Plugin, searchForWorkspaceRoot } from 'vite';
 import path from 'path';
 import { copyFileSync, readFileSync, writeFileSync } from 'fs';
 import { createRequire } from 'module';
@@ -33,6 +33,33 @@ function copyCowboyStaticAssets() {
         .replaceAll("url('../fonts/", "url('fonts/")
         .replaceAll('url("../fonts/', 'url("fonts/');
       writeFileSync(themeDest, themeCss);
+    },
+  };
+}
+
+// The Web Awesome theme and the Printing Press component styles, written to
+// ../static/ as single files for the page head. Only the theme tokens are
+// taken from Web Awesome: its native and utility styles would restyle the
+// whole page.
+const webAwesomeThemePath = require.resolve('@awesome.me/webawesome/dist/styles/themes/default.css');
+const ppComponentsCssPath = require.resolve('@pb33f/printing-press-components/styles/components.css');
+const ppComponentsRoot = path.resolve(path.dirname(ppComponentsCssPath), '..');
+
+// inlineCssImports replaces each @import url('...') with the file it names, so
+// the result needs no further requests.
+function inlineCssImports(file: string, seen = new Set<string>()): string {
+  if (seen.has(file)) return '';
+  seen.add(file);
+  return readFileSync(file, 'utf8').replace(/@import\s+url\(['"]?([^'")]+)['"]?\)\s*;/g, (_m, rel: string) =>
+    inlineCssImports(path.resolve(path.dirname(file), rel), seen));
+}
+
+function writeComponentStyles() {
+  return {
+    name: 'write-component-styles',
+    closeBundle() {
+      writeFileSync(path.resolve(__dirname, '../static/webawesome.css'), inlineCssImports(webAwesomeThemePath));
+      copyFileSync(ppComponentsCssPath, path.resolve(__dirname, '../static/printing-press-components.css'));
     },
   };
 }
@@ -96,11 +123,19 @@ function stubWorkerInline(): Plugin {
 
 export default defineConfig({
   resolve: {
+    // The component library is linked from its own checkout; one copy of Lit
+    // and Web Awesome serves both.
+    dedupe: ['lit', '@awesome.me/webawesome'],
     alias: {
       '@report-elkjs': elkBundlePath,
     },
   },
-  plugins: [copyCowboyStaticAssets(), stubVisualizationsInLite(), stubWorkerInline()],
+  // The linked component library sits outside this folder; the dev server and
+  // the tests may read it.
+  server: {
+    fs: { allow: [searchForWorkspaceRoot(process.cwd()), ppComponentsRoot] },
+  },
+  plugins: [copyCowboyStaticAssets(), writeComponentStyles(), stubVisualizationsInLite(), stubWorkerInline()],
   build: {
     lib: {
       entry: 'src/index.ts',
@@ -115,5 +150,6 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    setupFiles: ['test/setup-internals.ts'],
   },
 });
