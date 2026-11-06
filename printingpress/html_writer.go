@@ -5,10 +5,10 @@
 package printingpress
 
 import (
-	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"path"
@@ -20,6 +20,7 @@ import (
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/doctor/printingpress/render"
+	"github.com/pb33f/doctor/printingpress/theme"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -212,6 +213,11 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	}
 	progressTracker.advance("cleaning old html artifacts")
 
+	themeStack, err := theme.Load(site.Theme, site.SiteLayouts)
+	if err != nil {
+		return nil, err
+	}
+
 	// only materialize the embedded static asset tree when the host has not
 	// taken responsibility for serving it. when SharedAssetBaseURL is set the
 	// renderer emits absolute references at that prefix and never writes the
@@ -245,6 +251,11 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			return nil, fmt.Errorf("copying static assets: %w", copyErr)
 		}
 		staticPaths = append(staticPaths, copied...)
+		themeAssets, copyErr := themeStack.CopyAssets(resolvedOutputDir)
+		if copyErr != nil {
+			return nil, fmt.Errorf("copying theme assets: %w", copyErr)
+		}
+		staticPaths = append(staticPaths, themeAssets...)
 		progressTracker.advance("copying static assets")
 	}
 	assetMode := resolveHTMLAssetMode(site)
@@ -283,6 +294,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		Footer:             site.Footer,
 		SharedAssetBaseURL: site.SharedAssetBaseURL,
 		HasContentPages:    hasContentPagesForNav(site.ContentPages),
+		Theme:              themeStack,
 	}
 
 	var jobs []htmlWriteJob
@@ -733,19 +745,19 @@ type pageParams struct {
 	HasContentPages    bool
 	Description        string
 	MarkdownHref       string
+	// Theme draws the page.
+	Theme *theme.Stack
 }
 
-func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content templ.Component) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
+// writeTemplPage draws one API page through the theme. A theme template that
+// fails is logged with the page, and the page is skipped; the rest of the
+// build goes on.
+func writeTemplPage(filePath, pageTitle, activeSlug string, p *pageParams, content templ.Component) error {
+	stack := p.Theme
+	if stack == nil {
+		stack = theme.MustLoadDefault()
 	}
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	layout := render.LayoutPage(render.LayoutPageParams{
+	view, err := render.APIPageView(render.LayoutPageParams{
 		PageTitle:          pageTitle,
 		SiteTitle:          p.SiteTitle,
 		BaseURL:            p.BaseURL,
@@ -775,8 +787,19 @@ func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content t
 		HasContentPages:    p.HasContentPages,
 		Description:        p.Description,
 		MarkdownHref:       p.MarkdownHref,
-	}, content)
-	return layout.Render(context.Background(), f)
+	}, content, stack.AssetDir())
+	if err != nil {
+		return err
+	}
+	html, err := stack.RenderString(view)
+	if err != nil {
+		slog.Default().Warn("printingpress: theme template failed; skipping page", "page", filePath, "theme", stack.Name(), "error", err)
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(filePath, []byte(html), 0o644)
 }
 
 func resolveHTMLAssetMode(site *ppmodel.Site) string {

@@ -137,6 +137,9 @@ func goldenManifest(t *testing.T, outputDir string, roots ...string) string {
 		// Explorer graph nodes carry libopenapi's low-level model hash, which
 		// is not stable across processes. Blank it; everything else stays exact.
 		text = goldenNodeHashPattern.ReplaceAllString(text, `${1}<hash>${2}`)
+		if strings.HasSuffix(path, ".html") {
+			text = normalizeGoldenHTML(text)
+		}
 		sum := sha256.Sum256([]byte(text))
 		rel, err := filepath.Rel(outputDir, path)
 		if err != nil {
@@ -149,6 +152,20 @@ func goldenManifest(t *testing.T, outputDir string, roots ...string) string {
 	sort.Strings(lines)
 	return strings.Join(lines, "\n") + "\n"
 }
+
+// normalizeGoldenHTML removes whitespace that does not change a page: runs
+// of whitespace become one space, and whitespace between tags goes. From the
+// docs-sites template port on, HTML is compared this way, so a template that
+// lays out the same markup differently still matches.
+func normalizeGoldenHTML(text string) string {
+	text = goldenWhitespacePattern.ReplaceAllString(text, " ")
+	return goldenBetweenTagsPattern.ReplaceAllString(text, "><")
+}
+
+var (
+	goldenWhitespacePattern  = regexp.MustCompile(`\s+`)
+	goldenBetweenTagsPattern = regexp.MustCompile(`>\s+<`)
+)
 
 func readGoldenSource(t *testing.T, path string) string {
 	t.Helper()

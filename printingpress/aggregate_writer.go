@@ -77,6 +77,8 @@ func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, 
 		LintResults:                        ap.specLintResults[spec.RelativePath],
 		EnableContentPages:                 true,
 		mockSeed:                           ap.config.mockSeed,
+		Theme:                              ap.config.Theme,
+		SiteLayouts:                        ap.siteLayoutsDir(),
 	}
 	if ap.config.BaseURL != "" {
 		if joined, err := joinBaseURLPath(ap.config.BaseURL, spec.OutputSubdir); err == nil {
@@ -1213,7 +1215,7 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 		rootPage.MarkdownHref = home.MarkdownHref
 		rootPage.MetaDescription = home.Description
 	}
-	if err := writeCatalogPage(rootPath, rootPage); err != nil {
+	if err := ap.writeCatalogPage(rootPath, rootPage); err != nil {
 		return nil, err
 	}
 	written = append(written, rootPath)
@@ -1222,7 +1224,7 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 		guidesPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(pppaths.GuidesIndexHTML()))
 		guidesPage := ap.catalogPageData(pppaths.GuidesIndexHTML(), "Guides", "", nil, false, render.ContentIndexTempl(contentPagesForNav(catalog.ContentPages), render.GuidesIndexBreadcrumb(), ""))
 		guidesPage = withCatalogContentNav(guidesPage, catalog, "guides")
-		if err := writeCatalogPage(guidesPath, guidesPage); err != nil {
+		if err := ap.writeCatalogPage(guidesPath, guidesPage); err != nil {
 			return nil, err
 		}
 		written = append(written, guidesPath)
@@ -1242,7 +1244,7 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 		page = withCatalogContentNav(page, catalog, "content/"+contentPage.Slug)
 		page.MarkdownHref = contentPage.MarkdownHref
 		page.MetaDescription = contentPage.Description
-		if err := writeCatalogPage(contentPath, page); err != nil {
+		if err := ap.writeCatalogPage(contentPath, page); err != nil {
 			return nil, err
 		}
 		written = append(written, contentPath)
@@ -1258,7 +1260,7 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 				continue
 			}
 			versionPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(version.OverviewHref))
-			if err := writeCatalogPage(versionPath, ap.catalogPageData(version.OverviewHref, service.DisplayName+" "+version.Label, versionSubtitle(version), service, true, catalogVersionContent(version))); err != nil {
+			if err := ap.writeCatalogPage(versionPath, ap.catalogPageData(version.OverviewHref, service.DisplayName+" "+version.Label, versionSubtitle(version), service, true, catalogVersionContent(version))); err != nil {
 				return nil, err
 			}
 			written = append(written, versionPath)
@@ -1608,188 +1610,11 @@ func (ap *AggregatePrintingPress) catalogAssetBase(relPath string) string {
 	return strings.Repeat("../", depth)
 }
 
-func writeCatalogPage(filePath string, page catalogPageData) error {
-	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
-		return err
-	}
-	f, err := os.Create(filePath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	shell := catalogShell(page)
-	return shell.Render(context.Background(), f)
-}
-
-// writeCatalogHead writes the page head. A description adds a meta
-// description; a markdownHref adds the alternate link agents follow to the
-// page.md beside the page.
-func writeCatalogHead(w io.Writer, title, assetBase, description, markdownHref string) error {
-	assets := []string{
-		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePB33FThemeCSS)),
-		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FileCowboyComponentsCSS)),
-		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FileShoelaceDarkCSS)),
-		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePrintingPressCSS)),
-		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FileChromaCSS)),
-		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)),
-		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePrintingPressCatalogCSS)),
-	}
-	if _, err := io.WriteString(w, `<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><script>
-			(function() {
-				try {
-					var root = document.documentElement;
-					var storedTheme = localStorage.getItem('pb33f-theme');
-					var theme = storedTheme === 'tektronix' ? 'tektronix' : (storedTheme === 'light' ? 'light' : 'dark');
-					var splitPos = sessionStorage.getItem('pp-split-position');
-					root.setAttribute('theme', theme);
-					root.style.setProperty('--pp-split-position', splitPos ? splitPos + '%' : '20%');
-					if (theme === 'light') {
-						root.classList.remove('sl-theme-dark');
-					} else {
-						root.classList.add('sl-theme-dark');
-					}
-				} catch (_) {}
-			})();
-		</script><title>`+templ.EscapeString(title)+`</title>`); err != nil {
-		return err
-	}
-	if strings.TrimSpace(description) != "" {
-		if _, err := io.WriteString(w, `<meta name="description" content="`+templ.EscapeString(strings.TrimSpace(description))+`">`); err != nil {
-			return err
-		}
-	}
-	if markdownHref != "" {
-		if _, err := io.WriteString(w, `<link rel="alternate" type="text/markdown" href="`+templ.EscapeString(path.Base(markdownHref))+`">`); err != nil {
-			return err
-		}
-	}
-	for _, asset := range assets {
-		if _, err := io.WriteString(w, `<link rel="stylesheet" href="`+templ.EscapeString(asset)+`">`); err != nil {
-			return err
-		}
-	}
-	if _, err := io.WriteString(w, `<script defer src="`+templ.EscapeString(catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePrintingPressJS)))+`"></script></head>`); err != nil {
-		return err
-	}
-	return nil
-}
-
 func catalogAssetHref(assetBase, href string) string {
 	if strings.TrimSpace(assetBase) == "" {
 		return href
 	}
 	return assetBase + href
-}
-
-func catalogShell(page catalogPageData) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		showNav := catalogPageHasNav(page)
-		if _, err := io.WriteString(w, `<!doctype html><html lang="en" class="sl-theme-dark">`); err != nil {
-			return err
-		}
-		if err := writeCatalogHead(w, page.Title, page.AssetBase, page.MetaDescription, page.MarkdownHref); err != nil {
-			return err
-		}
-		if showNav {
-			return renderCatalogNavShell(ctx, w, page)
-		}
-		if _, err := io.WriteString(w, `<body class="pp-catalog-body"><pb33f-header name="`+templ.EscapeString(page.HeaderTitle)+`" url="`+templ.EscapeString(relativeCatalogHref(path.Dir(page.RelPath), pppaths.FileIndexHTML))+`" fluid><div class="header-tools">`); err != nil {
-			return err
-		}
-		if hasCatalogVersionSwitcher(page.Service) {
-			if _, err := io.WriteString(w, catalogVersionPickerHTML(path.Dir(page.RelPath), page.RelPath, page.Service, "version-picker version-picker--catalog", "pp-catalog-select", true)); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(w, `<div class="theme-controls"><pb33f-theme-switcher></pb33f-theme-switcher></div></div></pb33f-header>`); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(w, `<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">`+templ.EscapeString(page.HeaderTitle)+`</span></div>`); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(w, `<main class="pp-catalog-shell">`); err != nil {
-			return err
-		}
-		if page.ShowHeroTitle || strings.TrimSpace(page.Subtitle) != "" {
-			if _, err := io.WriteString(w, `<section class="pp-catalog-hero">`); err != nil {
-				return err
-			}
-			if page.ShowHeroTitle {
-				if _, err := io.WriteString(w, `<h1 class="pp-catalog-title">`+templ.EscapeString(page.Title)+`</h1>`); err != nil {
-					return err
-				}
-			}
-			if strings.TrimSpace(page.Subtitle) != "" {
-				if _, err := io.WriteString(w, `<p class="pp-catalog-subtitle">`+templ.EscapeString(page.Subtitle)+`</p>`); err != nil {
-					return err
-				}
-			}
-			if _, err := io.WriteString(w, `</section>`); err != nil {
-				return err
-			}
-		}
-		if err := page.Content.Render(ctx, w); err != nil {
-			return err
-		}
-		if err := render.WriteFooter(w, page.Footer); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(w, `</main>`); err != nil {
-			return err
-		}
-		_, err := io.WriteString(w, catalogVersionSelectScriptHTML()+`</body></html>`)
-		return err
-	})
-}
-
-func renderCatalogNavShell(ctx context.Context, w io.Writer, page catalogPageData) error {
-	if _, err := io.WriteString(w, `<body class="pp-catalog-body"`); err != nil {
-		return err
-	}
-	if strings.TrimSpace(page.AssetBase) != "" {
-		if err := writeCatalogOptionalAttr(w, "data-pp-base-url", page.AssetBase); err != nil {
-			return err
-		}
-	}
-	if _, err := io.WriteString(w, `><pp-layout data-title="`+templ.EscapeString(page.HeaderTitle)+`">`); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(w, `<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">`+templ.EscapeString(page.HeaderTitle)+`</span></div>`); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(w, `<pp-nav id="pp-nav" slot="nav" data-active="`+templ.EscapeString(page.ActiveNavSlug)+`" data-pp-preview-hold="true">`+catalogNavHTML(page)+`</pp-nav>`); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(w, `<main slot="content" class="pp-catalog-shell">`); err != nil {
-		return err
-	}
-	if page.ShowHeroTitle || strings.TrimSpace(page.Subtitle) != "" {
-		if _, err := io.WriteString(w, `<section class="pp-catalog-hero">`); err != nil {
-			return err
-		}
-		if page.ShowHeroTitle {
-			if _, err := io.WriteString(w, `<h1 class="pp-catalog-title">`+templ.EscapeString(page.Title)+`</h1>`); err != nil {
-				return err
-			}
-		}
-		if strings.TrimSpace(page.Subtitle) != "" {
-			if _, err := io.WriteString(w, `<p class="pp-catalog-subtitle">`+templ.EscapeString(page.Subtitle)+`</p>`); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(w, `</section>`); err != nil {
-			return err
-		}
-	}
-	if err := page.Content.Render(ctx, w); err != nil {
-		return err
-	}
-	if err := render.WriteFooter(w, page.Footer); err != nil {
-		return err
-	}
-	_, err := io.WriteString(w, `</main></pp-layout>`+catalogVersionSelectScriptHTML()+`</body></html>`)
-	return err
 }
 
 func catalogVersionSelectScriptHTML() string {

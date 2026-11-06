@@ -1,0 +1,17 @@
+{{if .IsAPI}}{{template "engine-layout.html" .}}{{else}}<!doctype html>
+<html lang="en">
+{{template "partials/simple-head.html" .}}
+<body class="simple">
+{{template "partials/simple-header.html" .}}
+<div class="simple-body">
+{{template "partials/simple-sidebar.html" .}}
+<main class="simple-main" id="content">
+{{template "partials/hero.html" .}}
+{{.Content}}
+</main>
+{{template "partials/simple-toc.html" .}}
+</div>
+{{template "partials/simple-footer.html" .}}
+{{.Engine.AfterBody}}
+</body>
+</html>{{end}}

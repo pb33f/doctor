@@ -86,6 +86,12 @@ type SiteConfig struct {
 	// Nav is the docs site nav.yaml. Empty looks for docs/nav.yaml, then
 	// nav.yaml, under the scan root. Relative paths are relative to this file.
 	Nav string `mapstructure:"nav" yaml:"nav"`
+	// Theme is the site theme: a built-in theme name (pb33f, simple) or the
+	// path to a theme folder, relative to this file.
+	Theme string `mapstructure:"theme" yaml:"theme"`
+	// Layouts is the site's own layouts folder, which wins over the theme.
+	// Empty uses layouts/ beside the content.
+	Layouts string `mapstructure:"layouts" yaml:"layouts"`
 }
 
 type ScanConfig struct {
@@ -243,6 +249,17 @@ func (c *File) ResolveRelativePaths() {
 	c.Scan.Root = ResolveRelativePath(c.configDir, c.Scan.Root)
 	c.State.SQLite.Path = ResolveRelativePath(c.configDir, c.State.SQLite.Path)
 	c.Site.Nav = ResolveRelativePath(c.configDir, c.Site.Nav)
+	c.Site.Layouts = ResolveRelativePath(c.configDir, c.Site.Layouts)
+	if isThemePath(c.Site.Theme) {
+		c.Site.Theme = ResolveRelativePath(c.configDir, c.Site.Theme)
+	}
+}
+
+// isThemePath reports whether a theme value is a folder path rather than a
+// built-in theme name.
+func isThemePath(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	return strings.ContainsAny(raw, `/\\`) || strings.HasPrefix(raw, ".")
 }
 
 func ResolveRelativePath(baseDir, raw string) string {

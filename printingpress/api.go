@@ -105,6 +105,12 @@ type PrintingPressConfig struct {
 	contentBasePath         string
 	contentSpecPath         string
 
+	// Theme is the theme selection: a built-in theme name or a theme folder.
+	// Empty selects the default theme.
+	Theme string
+	// SiteLayouts is the site's own layouts folder, which wins over the theme.
+	SiteLayouts string
+
 	// mockSeed fixes the mock generators' random source. Package tests set it
 	// so golden output is byte-stable between builds; zero keeps random mocks.
 	mockSeed int64
@@ -426,6 +432,8 @@ func (pp *PrintingPress) prepareEngineConfig(job *activityJob) (*pressEngineConf
 		LLMMaxAggregateFileBytes:           pp.config.LLMMaxAggregateFileBytes,
 		LLMGenerateMonoliths:               pp.config.LLMGenerateMonoliths,
 		mockSeed:                           pp.config.mockSeed,
+		Theme:                              pp.config.Theme,
+		SiteLayouts:                        pp.config.SiteLayouts,
 		SyntheticTagFallback: &SyntheticTagFallbackConfig{
 			Enabled:         true,
 			MaxDistinctTags: 2,

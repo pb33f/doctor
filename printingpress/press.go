@@ -75,6 +75,9 @@ type pressEngineConfig struct {
 	SyntheticTagFallback *SyntheticTagFallbackConfig
 	// mockSeed, when non-zero, seeds the mock generators (tests only).
 	mockSeed int64
+	// Theme and SiteLayouts select the theme that draws the pages.
+	Theme       string
+	SiteLayouts string
 }
 
 // SyntheticTagFallbackConfig controls when tagged operations should be treated as effectively untagged.
@@ -191,6 +194,8 @@ func (pp *PrintingPress) initEngine(config *pressEngineConfig) {
 		DocsExpiresAt:      config.DocsExpiresAt,
 		ArchiveExportURL:   config.ArchiveExportURL,
 		IncludedSpecs:      append([]*IncludedSpecAsset(nil), config.IncludedSpecs...),
+		Theme:              config.Theme,
+		SiteLayouts:        config.SiteLayouts,
 	}
 	pp.devOperationPages = nil
 	pp.devModelPages = nil

@@ -49,6 +49,11 @@ type Site struct {
 	Source             *SourceRef                      `json:"source,omitempty"`
 	IncludedSpecs      []*IncludedSpecAsset            `json:"-"`
 	HeaderContext      *SiteHeaderContext              `json:"headerContext,omitempty"`
+	// Theme is the theme selection: a built-in theme name or a theme folder.
+	// Empty selects the default theme.
+	Theme string `json:"-"`
+	// SiteLayouts is the site's own layouts folder, which wins over the theme.
+	SiteLayouts string `json:"-"`
 }
 
 // IncludedSpecAsset is a source specification file emitted with HTML docs.

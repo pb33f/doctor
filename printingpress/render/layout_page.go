@@ -7,11 +7,15 @@ package render
 import (
 	"context"
 	"encoding/json"
+	"html/template"
 	"io"
+	"path"
 	"strings"
 
 	"github.com/a-h/templ"
+	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
+	"github.com/pb33f/doctor/printingpress/theme"
 )
 
 // HeadParams holds document-head metadata and static asset roots.
@@ -84,179 +88,204 @@ func (params LayoutPageParams) headSharedAssetBaseURL() string {
 	return strings.TrimRight(params.BaseURL, "/") + "/" + strings.TrimLeft(sharedBase, "/")
 }
 
-// LayoutPage renders the shared printing press shell with optional aggregate header context.
-func LayoutPage(params LayoutPageParams, content templ.Component) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		if _, err := io.WriteString(w, `<!doctype html><html lang="en" class="sl-theme-dark"`); err != nil {
-			return err
+// APIPageView builds the theme view for one API reference page. The engine's
+// wiring (hydration attributes, the pp-nav element, bootstrap scripts) is
+// built here; the theme's layout.html places it.
+func APIPageView(params LayoutPageParams, content templ.Component, themeAssetDir string) (*theme.PageView, error) {
+	ctx := context.Background()
+	var body strings.Builder
+	if err := content.Render(ctx, &body); err != nil {
+		return nil, err
+	}
+	var htmlAttrs strings.Builder
+	if params.Embedded {
+		htmlAttrs.WriteString(` data-pp-embedded-docs`)
+	}
+	if err := writeOptionalAttr(&htmlAttrs, "data-pp-shared-asset-base-url", params.SharedAssetBaseURL); err != nil {
+		return nil, err
+	}
+	bodyAttrs, err := apiBodyAttrs(params)
+	if err != nil {
+		return nil, err
+	}
+	nav, err := apiNav(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	var before strings.Builder
+	if params.IsEntryOverview && params.HeaderContext != nil && len(params.HeaderContext.Relationships) > 0 {
+		if err := writeContractRelationships(&before, params.BaseURL, params.HeaderContext.Relationships); err != nil {
+			return nil, err
 		}
-		if params.Embedded {
-			if _, err := io.WriteString(w, ` data-pp-embedded-docs`); err != nil {
-				return err
+	}
+	var after strings.Builder
+	if err := BootstrapHydrationScript(params.AssetMode, params.AssetBaseURL, params.SharedDataBase, params.PageDataBase).Render(ctx, &after); err != nil {
+		return nil, err
+	}
+	if params.Embedded {
+		after.WriteString(embeddedReadyScript)
+	}
+	after.WriteString(`<pp-example-drawer></pp-example-drawer><pp-problems-drawer></pp-problems-drawer>`)
+
+	shared := params.headSharedAssetBaseURL()
+	resolve := func(href string) string {
+		return SharedAssetHref(shared, params.StaticAssetBaseURL, href)
+	}
+	extra := make([]string, 0, len(params.ExtraCSS))
+	for _, css := range params.ExtraCSS {
+		extra = append(extra, resolve(css))
+	}
+	script := resolve(pppaths.StaticAsset(pppaths.FilePrintingPressJS))
+	if params.Lite {
+		script = resolve(pppaths.StaticAsset(pppaths.FilePrintingPressLiteJS))
+	}
+	baseHref := ""
+	if params.EmitBaseHref {
+		baseHref = params.BaseURL
+	}
+	return &theme.PageView{
+		Shape:    theme.ShapeAPI,
+		Embedded: params.Embedded,
+		Page: theme.PageInfo{
+			Title:        params.PageTitle,
+			Description:  params.Description,
+			MarkdownHref: params.MarkdownHref,
+			HomeHref:     DocHref(params.BaseURL, pppaths.FileIndexHTML),
+		},
+		Site: theme.SiteInfo{Title: params.SiteTitle},
+		Head: theme.NewHeadView(baseHref, extra, script,
+			func(name string) string { return resolve(pppaths.StaticAsset(name)) },
+			func(name string) string { return resolve(path.Join(themeAssetDir, name)) },
+		),
+		Footer: footerView(params.Footer),
+		Engine: theme.EngineView{
+			HTMLAttrs:     template.HTMLAttr(htmlAttrs.String()),
+			BodyAttrs:     bodyAttrs,
+			Nav:           nav,
+			BeforeContent: template.HTML(before.String()),
+			AfterBody:     template.HTML(after.String()),
+		},
+		Content: template.HTML(body.String()),
+	}, nil
+}
+
+// footerView turns the footer config into the theme's footer view. A nil
+// config means the footer is on; themes supply its default link.
+func footerView(footer *ppmodel.FooterConfig) theme.FooterView {
+	if footer == nil {
+		return theme.FooterView{Enabled: true}
+	}
+	return theme.FooterView{
+		Enabled:   !footer.Disabled,
+		URL:       strings.TrimSpace(footer.URL),
+		LinkTitle: strings.TrimSpace(footer.LinkTitle),
+		Build:     footer.Build,
+	}
+}
+
+// FooterView is footerView for callers outside the render package.
+func FooterView(footer *ppmodel.FooterConfig) theme.FooterView {
+	return footerView(footer)
+}
+
+func apiBodyAttrs(params LayoutPageParams) (template.HTMLAttr, error) {
+	var w strings.Builder
+	if err := writeAttr(&w, "data-spec-format", params.SpecFormat); err != nil {
+		return "", err
+	}
+	if params.Embedded {
+		if err := writeOptionalAttr(&w, "data-pp-embedded-docs", "true"); err != nil {
+			return "", err
+		}
+		if err := writeOptionalAttr(&w, "data-pp-document-id", params.DocumentID); err != nil {
+			return "", err
+		}
+	}
+	optional := []struct{ key, value string }{
+		{"data-pp-base-url", params.BaseURL},
+		{"data-pp-asset-mode", params.AssetMode},
+		{"data-pp-shared", AssetHref(params.AssetBaseURL, params.SharedDataBase)},
+		{"data-pp-shared-hash", params.SharedDataHash},
+		{"data-pp-page", AssetHref(params.AssetBaseURL, params.PageDataBase)},
+		{"data-pp-viz-graph", AssetHref(params.AssetBaseURL, params.VizGraphDataBase)},
+		{"data-pp-viz-diagram", AssetHref(params.AssetBaseURL, params.VizDiagramDataBase)},
+	}
+	for _, attr := range optional {
+		if err := writeOptionalAttr(&w, attr.key, attr.value); err != nil {
+			return "", err
+		}
+	}
+	if params.DeveloperMode {
+		if err := writeOptionalAttr(&w, "data-pp-developer-mode", "true"); err != nil {
+			return "", err
+		}
+	}
+	if params.NoMermaid {
+		if err := writeOptionalAttr(&w, "data-pp-no-mermaid", "true"); err != nil {
+			return "", err
+		}
+	}
+	if err := writeOptionalAttr(&w, "data-pp-docs-expires-at", params.DocsExpiresAt); err != nil {
+		return "", err
+	}
+	if header := params.HeaderContext; header != nil {
+		headerAttrs := []struct{ key, value string }{
+			{"data-pp-catalog-href", header.CatalogHref},
+			{"data-pp-overview-href", header.OverviewHref},
+			{"data-pp-overview-label", header.OverviewLabel},
+			{"data-pp-service-name", header.ServiceName},
+			{"data-pp-current-version", header.CurrentVersion},
+			{"data-pp-versions-href", header.VersionsHref},
+		}
+		for _, attr := range headerAttrs {
+			if err := writeOptionalAttr(&w, attr.key, attr.value); err != nil {
+				return "", err
 			}
 		}
-		if err := writeOptionalAttr(w, "data-pp-shared-asset-base-url", params.SharedAssetBaseURL); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(w, `>`); err != nil {
-			return err
-		}
-		if err := Head(params.headParams()).Render(ctx, w); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(w, `<body`); err != nil {
-			return err
-		}
-		if err := writeAttr(w, "data-spec-format", params.SpecFormat); err != nil {
-			return err
-		}
-		if params.Embedded {
-			if err := writeOptionalAttr(w, "data-pp-embedded-docs", "true"); err != nil {
-				return err
+		if len(header.Versions) > 0 {
+			encoded, err := json.Marshal(header.Versions)
+			if err != nil {
+				return "", err
 			}
-			if err := writeOptionalAttr(w, "data-pp-document-id", params.DocumentID); err != nil {
-				return err
+			if err := writeOptionalAttr(&w, "data-pp-versions", string(encoded)); err != nil {
+				return "", err
 			}
 		}
-		if err := writeOptionalAttr(w, "data-pp-base-url", params.BaseURL); err != nil {
-			return err
-		}
-		if err := writeOptionalAttr(w, "data-pp-asset-mode", params.AssetMode); err != nil {
-			return err
-		}
-		if err := writeOptionalAttr(w, "data-pp-shared", AssetHref(params.AssetBaseURL, params.SharedDataBase)); err != nil {
-			return err
-		}
-		if err := writeOptionalAttr(w, "data-pp-shared-hash", params.SharedDataHash); err != nil {
-			return err
-		}
-		if err := writeOptionalAttr(w, "data-pp-page", AssetHref(params.AssetBaseURL, params.PageDataBase)); err != nil {
-			return err
-		}
-		if err := writeOptionalAttr(w, "data-pp-viz-graph", AssetHref(params.AssetBaseURL, params.VizGraphDataBase)); err != nil {
-			return err
-		}
-		if err := writeOptionalAttr(w, "data-pp-viz-diagram", AssetHref(params.AssetBaseURL, params.VizDiagramDataBase)); err != nil {
-			return err
-		}
-		if params.DeveloperMode {
-			if err := writeOptionalAttr(w, "data-pp-developer-mode", "true"); err != nil {
-				return err
+		if len(header.ContractGroups) > 0 {
+			encoded, err := json.Marshal(header.ContractGroups)
+			if err != nil {
+				return "", err
+			}
+			if err := writeOptionalAttr(&w, "data-pp-contracts", string(encoded)); err != nil {
+				return "", err
 			}
 		}
-		if params.NoMermaid {
-			if err := writeOptionalAttr(w, "data-pp-no-mermaid", "true"); err != nil {
-				return err
-			}
+	}
+	return template.HTMLAttr(w.String()), nil
+}
+
+// apiNav is the complete pp-nav element of an API page, with its fallback
+// skeleton and the shared nav cache script.
+func apiNav(ctx context.Context, params LayoutPageParams) (template.HTML, error) {
+	var w strings.Builder
+	w.WriteString(`<pp-nav id="pp-nav" slot="nav" data-active="` + templ.EscapeString(params.ActiveSlug) + `"`)
+	if err := writeOptionalAttr(&w, "data-docs-expires-at", params.DocsExpiresAt); err != nil {
+		return "", err
+	}
+	if err := writeOptionalAttr(&w, "data-archive-export-url", params.ArchiveExportURL); err != nil {
+		return "", err
+	}
+	if params.HasContentPages {
+		if err := writeOptionalAttr(&w, "data-has-content-pages", "true"); err != nil {
+			return "", err
 		}
-		if err := writeOptionalAttr(w, "data-pp-docs-expires-at", params.DocsExpiresAt); err != nil {
-			return err
-		}
-		if params.HeaderContext != nil {
-			if err := writeOptionalAttr(w, "data-pp-catalog-href", params.HeaderContext.CatalogHref); err != nil {
-				return err
-			}
-			if err := writeOptionalAttr(w, "data-pp-overview-href", params.HeaderContext.OverviewHref); err != nil {
-				return err
-			}
-			if err := writeOptionalAttr(w, "data-pp-overview-label", params.HeaderContext.OverviewLabel); err != nil {
-				return err
-			}
-			if err := writeOptionalAttr(w, "data-pp-service-name", params.HeaderContext.ServiceName); err != nil {
-				return err
-			}
-			if err := writeOptionalAttr(w, "data-pp-current-version", params.HeaderContext.CurrentVersion); err != nil {
-				return err
-			}
-			if err := writeOptionalAttr(w, "data-pp-versions-href", params.HeaderContext.VersionsHref); err != nil {
-				return err
-			}
-			if len(params.HeaderContext.Versions) > 0 {
-				encoded, err := json.Marshal(params.HeaderContext.Versions)
-				if err != nil {
-					return err
-				}
-				if err := writeOptionalAttr(w, "data-pp-versions", string(encoded)); err != nil {
-					return err
-				}
-			}
-			if len(params.HeaderContext.ContractGroups) > 0 {
-				encoded, err := json.Marshal(params.HeaderContext.ContractGroups)
-				if err != nil {
-					return err
-				}
-				if err := writeOptionalAttr(w, "data-pp-contracts", string(encoded)); err != nil {
-					return err
-				}
-			}
-		}
-		if _, err := io.WriteString(w, `><pp-layout data-title="`+templ.EscapeString(params.SiteTitle)+`"`); err != nil {
-			return err
-		}
-		if params.Embedded {
-			if _, err := io.WriteString(w, ` embedded`); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(w, `>`); err != nil {
-			return err
-		}
-		if !params.Embedded {
-			if _, err := io.WriteString(w, `<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">`+templ.EscapeString(params.SiteTitle)+`</span></div>`); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(w, `<pp-nav id="pp-nav" slot="nav" data-active="`+templ.EscapeString(params.ActiveSlug)+`"`); err != nil {
-			return err
-		}
-		if err := writeOptionalAttr(w, "data-docs-expires-at", params.DocsExpiresAt); err != nil {
-			return err
-		}
-		if err := writeOptionalAttr(w, "data-archive-export-url", params.ArchiveExportURL); err != nil {
-			return err
-		}
-		if params.HasContentPages {
-			if err := writeOptionalAttr(w, "data-has-content-pages", "true"); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(w, `>`); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(w, navFallbackHTML(params.DocsExpiresAt, params.DeveloperMode, params.ArchiveExportURL, params.HasContentPages, params.HeaderContext)); err != nil {
-			return err
-		}
-		if err := BootstrapSharedNavCacheScript(params.AssetBaseURL, params.SharedDataBase, params.SharedDataHash).Render(ctx, w); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(w, `<main slot="content">`); err != nil {
-			return err
-		}
-		if params.IsEntryOverview && params.HeaderContext != nil && len(params.HeaderContext.Relationships) > 0 {
-			if err := writeContractRelationships(w, params.BaseURL, params.HeaderContext.Relationships); err != nil {
-				return err
-			}
-		}
-		if err := content.Render(ctx, w); err != nil {
-			return err
-		}
-		if err := WriteFooter(w, params.Footer); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(w, `</main></pp-layout>`); err != nil {
-			return err
-		}
-		if err := BootstrapHydrationScript(params.AssetMode, params.AssetBaseURL, params.SharedDataBase, params.PageDataBase).Render(ctx, w); err != nil {
-			return err
-		}
-		if params.Embedded {
-			if _, err := io.WriteString(w, embeddedReadyScript); err != nil {
-				return err
-			}
-		}
-		_, err := io.WriteString(w, `<pp-example-drawer></pp-example-drawer><pp-problems-drawer></pp-problems-drawer></body></html>`)
-		return err
-	})
+	}
+	w.WriteString(`>`)
+	w.WriteString(navFallbackHTML(params.DocsExpiresAt, params.DeveloperMode, params.ArchiveExportURL, params.HasContentPages, params.HeaderContext))
+	if err := BootstrapSharedNavCacheScript(params.AssetBaseURL, params.SharedDataBase, params.SharedDataHash).Render(ctx, &w); err != nil {
+		return "", err
+	}
+	return template.HTML(w.String()), nil
 }
 
 func writeContractRelationships(w io.Writer, baseURL string, relationships []*ppmodel.SiteContractRelationship) error {
@@ -275,11 +304,6 @@ func writeContractRelationships(w io.Writer, baseURL string, relationships []*pp
 	_, err := io.WriteString(w, `</ul></div>`)
 	return err
 }
-
-const (
-	defaultFooterURL       = "https://github.com/pb33f/printing-press"
-	defaultFooterLinkTitle = "documentation generated by the printing press"
-)
 
 const embeddedReadyScript = `<script>(()=>{if(!window.parent||window.parent===window)return;var targetOrigin;try{targetOrigin=document.referrer?new URL(document.referrer).origin:location.origin}catch(e){targetOrigin=location.origin}var posted=false;var post=function(){if(posted)return;posted=true;try{window.parent.postMessage({type:"ppress:ready"},targetOrigin)}catch(e){}};var nextFrame=function(){return new Promise(function(resolve){requestAnimationFrame(function(){requestAnimationFrame(resolve)})})};var waitForHydration=function(){if(document.body&&document.body.dataset.ppHydrated==="true")return Promise.resolve();return new Promise(function(resolve){var finish=function(){document.removeEventListener("pp:hydrated",finish);resolve()};document.addEventListener("pp:hydrated",finish,{once:true})})};var waitForLayout=function(){var el=document.querySelector("pp-layout");if(!el||!window.customElements||!customElements.whenDefined)return Promise.resolve();return customElements.whenDefined("pp-layout").then(function(){el=document.querySelector("pp-layout");var p=el&&el.updateComplete;if(p&&typeof p.then==="function")return p.catch(function(){})}).catch(function(){})};var ready=function(){Promise.all([waitForHydration(),waitForLayout()]).then(nextFrame).then(post,post)};if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",ready,{once:true})}else{ready()}})();</script>`
 
@@ -382,40 +406,6 @@ func navFallbackArchiveControlsHTML() string {
 		`<div class="pp-nav-fallback-archive-button">EXPORT</div>` +
 		`</div>` +
 		`</div>`
-}
-
-// WriteFooter renders the configured pb33f footer. A nil config means the
-// default footer is enabled; a config with Disabled set suppresses it.
-func WriteFooter(w io.Writer, footer *ppmodel.FooterConfig) error {
-	if footer != nil && footer.Disabled {
-		return nil
-	}
-	if _, err := io.WriteString(w, `<pb33f-footer fluid`); err != nil {
-		return err
-	}
-	url := defaultFooterURL
-	linkTitle := defaultFooterLinkTitle
-	build := ""
-	if footer != nil {
-		if strings.TrimSpace(footer.URL) != "" {
-			url = footer.URL
-		}
-		if strings.TrimSpace(footer.LinkTitle) != "" {
-			linkTitle = footer.LinkTitle
-		}
-		build = footer.Build
-	}
-	if err := writeOptionalAttr(w, "url", url); err != nil {
-		return err
-	}
-	if err := writeOptionalAttr(w, "link-title", linkTitle); err != nil {
-		return err
-	}
-	if err := writeOptionalAttr(w, "build", build); err != nil {
-		return err
-	}
-	_, err := io.WriteString(w, `></pb33f-footer>`)
-	return err
 }
 
 func writeAttr(w io.Writer, key, value string) error {

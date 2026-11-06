@@ -1,9 +1,9 @@
 package render
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/pb33f/doctor/printingpress/theme"
 	stdhtml "html"
 	"io"
 	"strings"
@@ -391,13 +391,17 @@ func TestSharedNavPreviewDefersContractRenderingToServerAndComponent(t *testing.
 func renderLayoutPageForTest(t *testing.T, params LayoutPageParams) string {
 	t.Helper()
 
-	var buf bytes.Buffer
-	err := LayoutPage(params, templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+	stack := theme.MustLoadDefault()
+	view, err := APIPageView(params, templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 		_, err := io.WriteString(w, `<section>body</section>`)
 		return err
-	})).Render(context.Background(), &buf)
+	}), stack.AssetDir())
+	if err != nil {
+		t.Fatalf("build page view: %v", err)
+	}
+	html, err := stack.RenderString(view)
 	if err != nil {
 		t.Fatalf("render layout page: %v", err)
 	}
-	return buf.String()
+	return html
 }

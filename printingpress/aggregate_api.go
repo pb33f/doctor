@@ -17,6 +17,7 @@ import (
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
+	"github.com/pb33f/doctor/printingpress/theme"
 )
 
 const (
@@ -119,6 +120,12 @@ type AggregatePrintingPressConfig struct {
 	SiteKind ppmodel.SiteKind
 	// Brand is the site's brand content (logo, favicon, header links).
 	Brand *ppmodel.SiteBrand
+	// Theme is the site theme: a built-in theme name or a theme folder.
+	// Empty selects the default theme.
+	Theme string
+	// SiteLayouts is the site's own layouts folder, which wins over the
+	// theme. Empty uses layouts/ under the scan root.
+	SiteLayouts string
 	// NavPath is the docs site's nav.yaml. Empty looks for docs/nav.yaml,
 	// then nav.yaml, under the scan root.
 	NavPath string
@@ -197,6 +204,8 @@ type AggregatePrintingPress struct {
 	beginEntryPromotion     func(string, string) (*aggregateEntryPromotion, error, error)
 	cleanupPromotionBackup  func(string) error
 	removeStagedOutput      func(string) error
+	// theme is the loaded site theme.
+	theme *theme.Stack
 }
 
 // CreateAggregatePrintingPressFromPath creates a multi-spec printing press rooted at scanRoot.

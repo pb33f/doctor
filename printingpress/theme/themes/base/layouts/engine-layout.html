@@ -1,0 +1,8 @@
+{{/*
+  engine-layout.html draws the three page shapes the engine builds:
+  - api: one API reference page, hydrated by the pp-layout and pp-nav
+    components;
+  - site-nav: a directory-build page with a navigation column;
+  - site: a directory-build page with a header and no navigation column.
+  Themes override the partials for their look, or replace layout.html.
+*/}}<!doctype html><html lang="en"{{template "partials/html-class.html" .}}{{.Engine.HTMLAttrs}}>{{template "partials/head.html" .}}{{if .IsAPI}}<body{{.Engine.BodyAttrs}}><pp-layout data-title="{{.Site.Title}}"{{if .Embedded}} embedded{{end}}>{{if not .Embedded}}{{template "partials/brand.html" .}}{{end}}{{.Engine.Nav}}<main slot="content">{{.Engine.BeforeContent}}{{.Content}}{{template "partials/footer.html" .}}</main></pp-layout>{{.Engine.AfterBody}}</body></html>{{else if .HasNav}}<body class="pp-catalog-body"{{.Engine.BodyAttrs}}><pp-layout data-title="{{.Site.Title}}">{{template "partials/brand.html" .}}{{.Engine.Nav}}<main slot="content" class="pp-catalog-shell">{{template "partials/hero.html" .}}{{.Content}}{{template "partials/footer.html" .}}</main></pp-layout>{{.Engine.AfterBody}}</body></html>{{else}}<body class="pp-catalog-body">{{template "partials/site-header.html" .}}{{template "partials/brand.html" .}}<main class="pp-catalog-shell">{{template "partials/hero.html" .}}{{.Content}}{{template "partials/footer.html" .}}</main>{{.Engine.AfterBody}}</body></html>{{end}}

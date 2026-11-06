@@ -5392,9 +5392,14 @@ func TestCatalogShell_WithContentNavIncludesVersionSelectScript(t *testing.T) {
 		},
 		ActiveNavSlug: "catalog",
 	}
-	var html strings.Builder
-	require.NoError(t, catalogShell(page).Render(context.Background(), &html))
-	assert.Contains(t, html.String(), `sl-menu[data-catalog-version-menu]`)
+	ap := &AggregatePrintingPress{config: &AggregatePrintingPressConfig{}}
+	stack, err := ap.themeStack()
+	require.NoError(t, err)
+	view, err := ap.catalogPageView(page, stack)
+	require.NoError(t, err)
+	html, err := stack.RenderString(view)
+	require.NoError(t, err)
+	assert.Contains(t, html, `sl-menu[data-catalog-version-menu]`)
 }
 
 func TestCatalogVersionPrimaryHref_UsesVersionOverviewForCollisions(t *testing.T) {
