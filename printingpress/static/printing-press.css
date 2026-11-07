@@ -7,6 +7,8 @@
     /* PP-specific layout tokens */
     --pp-nav-width: 300px;
     --pp-header-height: 57px;
+    /* The navigation column's width; the head script sets the stored one. */
+    --pp-split-position: 20%;
 
     /* Table header gradient (magenta fade) */
     --pp-table-header-bg: linear-gradient(90deg, rgba(248, 58, 255, 0.30) 0%, rgba(13, 17, 23, 0.80) 60%);
@@ -37,6 +39,17 @@
     --sl-tooltip-padding: 0.25rem 0.75rem;
     --sl-tooltip-arrow-size: 6px;
 
+    /* Web Awesome tooltips: the same look */
+    --wa-tooltip-background-color: var(--background-color);
+    --wa-tooltip-content-color: var(--font-color);
+    --wa-tooltip-border-color: var(--secondary-color);
+    --wa-tooltip-border-style: dashed;
+    --wa-tooltip-border-width: 1px;
+    --wa-tooltip-border-radius: 0;
+    --wa-tooltip-font-size: 0.9rem;
+    --wa-tooltip-line-height: 1.4;
+    --wa-tooltip-arrow-size: 6px;
+
 
 }
 
@@ -51,6 +64,18 @@ sl-tooltip::part(body) {
 
 }
 
+/* A tooltip floats above the page, so its look holds inside components too. */
+wa-tooltip {
+    --max-width: 20rem;
+}
+
+wa-tooltip::part(body) {
+    padding: 0.25rem 0.75rem;
+    font-family: var(--font-stack), monospace;
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
+}
+
 /* Prevent body scroll — the split-panel content-panel owns scrolling */
 html, body {
     height: 100%;
@@ -58,81 +83,350 @@ html, body {
     scroll-behavior: auto;
 }
 
-pp-layout:not(:defined) {
-    display: grid;
-    width: 100%;
-    grid-template-columns: minmax(200px, var(--pp-split-position, 20%)) minmax(0, 1fr);
-    grid-template-rows: var(--pp-header-height) minmax(0, 1fr);
-    min-height: 100vh;
-    justify-items: stretch;
-    align-items: stretch;
-}
-
-html[data-pp-embedded-docs] pp-layout:not(:defined) {
-    grid-template-rows: minmax(0, 1fr);
-    min-height: 100vh;
-    height: 100vh;
-}
-
-html[data-pp-embedded-docs] pp-layout:not(:defined) > .pp-layout-fallback-header {
-    display: none !important;
-}
-
-pp-layout:not(:defined) > .pp-layout-fallback-header {
-    grid-column: 1 / -1;
+/*
+ * Layout. The header, the navigation column, the divider and the main area
+ * are page markup (engine-layout.html), so they look right before any script
+ * runs. The pp-layout component only adds the divider's resizing.
+ */
+pp-layout {
     display: flex;
-    align-items: center;
-    gap: 0.2em;
-    height: var(--pp-header-height);
-    box-sizing: border-box;
-    padding: 6px 0 10px 10px;
-    border-bottom: 1px dashed var(--secondary-color);
+    flex-direction: column;
+    min-height: 100vh;
     background: var(--background-color);
+}
+
+.pp-doc-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    height: var(--pp-header-height);
+    flex-direction: row;
+    background-color: var(--background-color);
+}
+
+.pp-doc-header > .logo {
+    width: auto;
+    min-width: 0;
+    max-width: calc(100% - 5rem);
+    flex: 1 1 auto;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    padding: 9px 0 10px 10px;
+    border-bottom: 1px dashed var(--secondary-color);
+    height: 36px;
 }
 
-pp-layout:not(:defined) > .pp-layout-fallback-header .pp-layout-fallback-caret {
+.pp-doc-header > .logo .caret {
     font-size: 1.6em;
-    display: inline-block;
-    margin-right: 3px;
     color: var(--secondary-color);
+}
+
+.pp-doc-header > .logo .name {
+    display: inline-flex;
+    max-width: calc(100% - 1.2em);
+    min-width: 0;
+    font-size: 1.7em;
+    font-family: var(--font-stack-bold), sans-serif;
+    color: var(--primary-color);
+    text-shadow: 0 0 10px var(--primary-color-text-shadow), 0 0 10px var(--primary-color-text-shadow);
+    vertical-align: bottom;
+}
+
+html[theme="light"] .pp-doc-header > .logo .name {
+    text-shadow: none;
+}
+
+.pp-doc-header > .logo .name > a {
+    display: inline-block;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: inherit;
+    text-decoration: none;
+}
+
+.pp-doc-header > .logo .name > a:hover {
+    text-decoration: underline;
+}
+
+.pp-doc-header > .logo .name > a:active {
+    text-decoration: underline;
+    color: var(--secondary-color);
+    text-shadow: 0 0 5px var(--secondary-color-text-shadow), 0 0 10px var(--secondary-color-text-shadow-outer);
+}
+
+html[theme="light"] .pp-doc-header > .logo .name > a:active {
+    text-shadow: none;
+}
+
+.pp-doc-header > .logo .name::after {
+    content: "";
+    animation: layout-cursor .8s infinite;
+    background: var(--primary-color);
+    border-radius: 0;
+    display: inline-block;
+    height: 0.9em;
+    margin-left: 0.2em;
+    width: 3px;
+    bottom: -2px;
+    position: relative;
+}
+
+.pp-doc-header .header-space {
+    height: 55px;
+    flex: 0 0 auto;
+    min-width: max-content;
+    border-bottom: 1px dashed var(--secondary-color);
+}
+
+.pp-doc-header .header-tools {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 12px;
+    width: 100%;
+    height: 55px;
+    box-sizing: border-box;
+    padding: 0 8px 0 0;
+}
+
+.pp-doc-header .header-context {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
     flex: 0 0 auto;
 }
 
-pp-layout:not(:defined) > .pp-layout-fallback-header .pp-layout-fallback-name {
-    font-family: var(--font-stack-bold), sans-serif;
-    font-size: 1.7em;
-    line-height: 1;
+.pp-doc-header .version-picker {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    margin-left: 0;
+    margin-top: 8px;
+}
+
+.pp-doc-header .version-picker sl-dropdown {
+    margin-top: 0;
+}
+
+.pp-doc-header .version-picker sl-button::part(base) {
+    border: 1px solid var(--primary-color);
+    border-radius: 0;
+    font-family: var(--font-stack), monospace;
+    background-color: var(--background-color);
     color: var(--primary-color);
-    text-shadow: 0 0 10px var(--primary-color-text-shadow), 0 0 10px var(--primary-color-text-shadow);
-    overflow: hidden;
-    text-overflow: ellipsis;
+    min-height: 20px;
+    max-height: 40px;
 }
 
-html[theme="light"] pp-layout:not(:defined) > .pp-layout-fallback-header {
-    text-shadow: none;
+.pp-doc-header .version-picker sl-button::part(label) {
+    overflow-x: hidden;
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
 }
 
-html[theme="light"] pp-layout:not(:defined) > .pp-layout-fallback-header .pp-layout-fallback-name {
-    text-shadow: none;
+.pp-doc-header .version-picker sl-menu {
+    border: 1px solid var(--primary-color);
+    border-radius: 0;
 }
 
-pp-layout:not(:defined) > [slot="nav"] {
-    display: block;
+.pp-doc-header .version-picker sl-menu-item::part(base) {
+    color: var(--primary-color);
+    font-family: var(--font-stack);
+    --sl-color-neutral-100: var(--secondary-color-lowalpha);
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
+}
+
+.pp-doc-header .version-picker sl-button::part(base) {
+    min-width: 120px;
+    max-width: 220px;
+}
+
+.pp-doc-header .theme-controls {
+    flex: 0 0 auto;
+    margin-top: var(--global-padding-half);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0;
+    min-width: 4.5rem;
+    min-height: 2.25rem;
+}
+
+.pp-doc-header .theme-icon-button {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--secondary-color);
+    cursor: pointer;
+}
+
+.pp-doc-header .theme-icon-button wa-icon {
+    width: 1.4rem;
+    height: 1.4rem;
+    font-size: 1.4rem;
+}
+
+.pp-doc-header .theme-icon-button:hover,
+.pp-doc-header .theme-icon-button:focus-visible {
+    color: var(--primary-color);
+}
+
+.pp-doc-header .theme-icon-button:focus-visible {
+    outline: 1px solid var(--secondary-color);
+    outline-offset: 2px;
+}
+
+.pp-doc-header .theme-icon-button.tek-active {
+    color: #33ff33;
+    text-shadow: 0 0 8px rgba(51, 255, 51, 0.6);
+}
+
+/*
+ * The navigation column, the divider and the main area. The navigation
+ * column's width is the stored split position, which the head script puts in
+ * --pp-split-position before the first paint; 200px to 40% of the width.
+ */
+.pp-split {
+    flex: 1;
+    display: grid;
+    grid-template-columns:
+        clamp(0%, clamp(200px, var(--pp-split-position) - 5px, 40%), calc(100% - 10px))
+        10px
+        auto;
+    min-height: 0;
+}
+
+pp-layout[embedded] .pp-split {
+    height: 100vh;
+}
+
+.pp-split-divider {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: col-resize;
+    touch-action: none;
+    background: linear-gradient(
+            to right,
+            transparent 0,
+            transparent 4px,
+            var(--secondary-color) 4px,
+            var(--secondary-color) 6px,
+            transparent 6px,
+            transparent 100%
+        );
+}
+
+/* A wider area to grab the divider by. */
+.pp-split-divider::after {
+    content: "";
+    position: absolute;
+    height: 100%;
+    left: -1px;
+    width: 12px;
+}
+
+.pp-split-divider:focus {
+    outline: none;
+}
+
+.pp-split-divider:focus-visible {
+    background-color: var(--primary-color);
+}
+
+.pp-split-divider wa-icon.divider-vert {
+    position: absolute;
+    left: 0;
+    border-radius: 0;
+    background: var(--secondary-color);
+    color: var(--background-color);
+    cursor: col-resize;
+    padding: 0;
+    width: 10px;
+    height: 40px;
+}
+
+.pp-split-divider:focus-visible wa-icon.divider-vert {
+    background-color: var(--primary-color);
+    color: var(--background-color);
+}
+
+.nav-panel,
+.content-panel {
     min-width: 0;
-    border-right: 1px solid var(--hrcolor);
-    overflow: hidden;
-    width: 100%;
+    overflow-y: auto;
+    scroll-behavior: auto;
+    height: calc(100vh - var(--pp-header-height));
+    scrollbar-width: thin;
+    scrollbar-color: var(--secondary-color-lowalpha) var(--terminal-background);
 }
 
-pp-layout:not(:defined) > [slot="content"] {
-    display: block;
-    min-width: 0;
-    width: 100%;
-    padding: var(--global-padding-double) 40px;
-    overflow: hidden;
+pp-layout[embedded] .nav-panel,
+pp-layout[embedded] .content-panel {
+    height: 100vh;
+}
+
+.nav-panel::-webkit-scrollbar,
+.content-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.nav-panel::-webkit-scrollbar-track,
+.content-panel::-webkit-scrollbar-track {
+    background-color: var(--terminal-background);
+}
+
+.nav-panel::-webkit-scrollbar-thumb,
+.content-panel::-webkit-scrollbar-thumb {
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+    background: var(--secondary-color-lowalpha);
+}
+
+.nav-panel {
+    background: var(--background-color);
+}
+
+@media (max-width: 900px) {
+    .pp-doc-header .header-tools {
+        height: auto;
+        flex-wrap: wrap;
+        padding-right: 0;
+    }
+
+    .pp-doc-header .header-context {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .pp-doc-header .version-picker {
+        width: 100%;
+        margin-top: 0;
+    }
+
+    .pp-doc-header .version-picker sl-dropdown,
+    .pp-doc-header .version-picker sl-button::part(base) {
+        width: 100%;
+    }
+
+    .pp-doc-header .theme-controls {
+        width: 100%;
+        justify-content: flex-end;
+    }
 }
 
 :is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback {
@@ -690,9 +984,11 @@ html[theme="tektronix"] :is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-
     opacity: 0.5;
 }
 
-/* Content */
+/* Content. A theme may give main the full panel height; its padding counts
+   inside that height, so a page that fits the panel does not scroll. */
 main {
     padding: var(--global-padding) 40px;
+    box-sizing: border-box;
 }
 
 /* Page navigator — hidden on small screens */
@@ -712,77 +1008,51 @@ code {
 }
 
 
-/* Breadcrumb */
+/*
+ * Breadcrumb. Plain markup (api/partials/breadcrumb.html), so it is in place
+ * before any script runs. It keeps the measures the Shoelace breadcrumb had.
+ */
 .pp-breadcrumb {
-    display: block;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
     padding: var(--global-padding) 0;
     font-family: var(--font-stack), monospace;
     font-size: var(--smaller-font);
 }
 
-.pp-breadcrumb:not(:defined) {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0;
-    padding: var(--global-padding) 0;
-    font-family: var(--font-stack), monospace;
-    font-size: 0.9rem;
-    margin-top: 2px;
-}
-
-.pp-breadcrumb:not(:defined) wa-icon[slot="separator"] {
-    display: none;
-}
-
-.pp-breadcrumb:not(:defined) sl-breadcrumb-item:not(:defined) {
+.pp-breadcrumb-item {
     display: inline-flex;
     align-items: center;
-    color: var(--font-color-sub1);
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.8;
+    white-space: nowrap;
+}
+
+.pp-breadcrumb-label {
+    display: inline-block;
     font-family: var(--font-stack), monospace;
+    color: var(--font-color-sub1);
+    text-decoration: none;
 }
 
-.pp-breadcrumb:not(:defined) sl-breadcrumb-item:not(:defined):not(:last-of-type)::after {
-    content: "›";
+a.pp-breadcrumb-label:hover {
     color: var(--primary-color);
-    margin: 0 0.55rem;
+    text-decoration: none;
 }
 
-.pp-breadcrumb:not(:defined) sl-breadcrumb-item:not(:defined):last-of-type {
+.pp-breadcrumb-item:last-child .pp-breadcrumb-label {
     color: var(--font-color);
 }
 
-.pp-breadcrumb wa-icon[slot="separator"] {
+.pp-breadcrumb-separator {
+    display: inline-flex;
+    align-items: center;
+    margin: 0 0.5rem;
+    user-select: none;
     color: var(--primary-color);
     font-size: 0.7rem;
-}
-
-@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
-
-.pp-breadcrumb sl-breadcrumb-item::part(label) {
-    font-family: var(--font-stack), monospace;
-    color: var(--font-color-sub1);
-}
-
-
-}
-
-@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
-
-.pp-breadcrumb sl-breadcrumb-item::part(label):hover {
-    color: var(--primary-color);
-}
-
-
-}
-
-@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
-
-.pp-breadcrumb sl-breadcrumb-item:last-of-type::part(label) {
-    color: var(--font-color);
-}
-
-
 }
 
 /* Root / Hero */
@@ -1998,8 +2268,8 @@ span.pp-common-header-name {
     overflow-wrap: break-word;
 }
 
-/* Method badge (fallback for when JS hasn't loaded) */
-pp-http-method:not(:defined) {
+/* Method badge, before the script runs, where the server wrote only the element */
+pp-http-method:not(:defined, [data-pp-ssr]) {
     display: inline-block;
     font-size: 0.7em;
     text-align: center;
@@ -2012,11 +2282,11 @@ pp-http-method:not(:defined) {
     border: 1px solid var(--hrcolor);
 }
 
-pp-http-method:not(:defined)::before {
+pp-http-method:not(:defined, [data-pp-ssr])::before {
     content: attr(method);
 }
 
-pp-http-method[mode="nav-naked"]:not(:defined) {
+pp-http-method[mode="nav-naked"]:not(:defined, [data-pp-ssr]) {
     background: none;
     border: none;
     padding: 0;
@@ -2024,7 +2294,7 @@ pp-http-method[mode="nav-naked"]:not(:defined) {
     color: var(--font-color-sub1);
 }
 
-pp-render-operation-path:not(:defined) {
+pp-render-operation-path:not(:defined, [data-pp-ssr]) {
     display: inline-block;
     min-width: 0;
     line-height: 1;
@@ -2033,12 +2303,12 @@ pp-render-operation-path:not(:defined) {
     overflow-wrap: anywhere;
 }
 
-pp-render-operation-path:not(:defined)::before {
+pp-render-operation-path:not(:defined, [data-pp-ssr])::before {
     content: attr(path);
 }
 
-.title-section pp-icon-title:not(:defined),
-.pp-model-header > pp-icon-title:not(:defined) {
+.title-section pp-icon-title:not(:defined, [data-pp-ssr]),
+.pp-model-header > pp-icon-title:not(:defined, [data-pp-ssr]) {
     display: flex;
     align-items: flex-start;
     gap: var(--global-padding);
@@ -2046,8 +2316,8 @@ pp-render-operation-path:not(:defined)::before {
     min-width: 0;
 }
 
-.title-section pp-icon-title:not(:defined)::before,
-.pp-model-header > pp-icon-title:not(:defined)::before {
+.title-section pp-icon-title:not(:defined, [data-pp-ssr])::before,
+.pp-model-header > pp-icon-title:not(:defined, [data-pp-ssr])::before {
     content: "";
     width: 2rem;
     height: 2rem;
@@ -2057,8 +2327,8 @@ pp-render-operation-path:not(:defined)::before {
     flex-shrink: 0;
 }
 
-.title-section pp-icon-title:not(:defined)::after,
-.pp-model-header > pp-icon-title:not(:defined)::after {
+.title-section pp-icon-title:not(:defined, [data-pp-ssr])::after,
+.pp-model-header > pp-icon-title:not(:defined, [data-pp-ssr])::after {
     content: attr(heading);
     font-family: var(--font-stack-bold), monospace;
     font-weight: normal;
@@ -2068,14 +2338,14 @@ pp-render-operation-path:not(:defined)::before {
     word-spacing: var(--header-spacing);
 }
 
-.title-section pp-icon-title:not(:defined)::after {
+.title-section pp-icon-title:not(:defined, [data-pp-ssr])::after {
     font-size: 2rem;
     line-height: 1.1;
     margin-top: var(--global-padding-half);
     margin-bottom: var(--global-padding-half);
 }
 
-.pp-model-header > pp-icon-title:not(:defined)::after {
+.pp-model-header > pp-icon-title:not(:defined, [data-pp-ssr])::after {
     font-size: 2rem;
     line-height: 1.1;
     margin-top: var(--global-padding-half);
@@ -2234,7 +2504,7 @@ pp-mermaid[data-render-failed] > .pp-mermaid-fallback {
 
 @scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
 
-.pp-visualization-section sl-tab-group::part(tabs) {
+.pp-visualization-section wa-tab-group::part(tabs) {
     border-bottom: 1px dashed var(--hrcolor);
 }
 
@@ -2243,7 +2513,7 @@ pp-mermaid[data-render-failed] > .pp-mermaid-fallback {
 
 @scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
 
-.pp-visualization-section sl-tab::part(base) {
+.pp-visualization-section wa-tab::part(base) {
     font-family: var(--font-stack), monospace;
     text-transform: uppercase;
     font-size: 1rem;
@@ -2255,7 +2525,7 @@ pp-mermaid[data-render-failed] > .pp-mermaid-fallback {
 
 @scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
 
-.pp-visualization-section sl-tab[active]::part(base) {
+.pp-visualization-section wa-tab[active]::part(base) {
     color: var(--primary-color);
 }
 
@@ -2264,8 +2534,8 @@ pp-mermaid[data-render-failed] > .pp-mermaid-fallback {
 
 @scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
 
-.pp-visualization-section sl-tab-group::part(active-tab-indicator) {
-    --track-color: var(--primary-color);
+.pp-visualization-section wa-tab-group {
+    --indicator-color: var(--primary-color);
 }
 
 

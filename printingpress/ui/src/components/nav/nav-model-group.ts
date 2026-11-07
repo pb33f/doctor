@@ -38,6 +38,11 @@ export class PpNavModelGroup extends LightElement {
     @property() activeSlug = '';
     @state() private open = false;
 
+    // A server-written group waits for pp-nav to hand it its group.
+    protected canReplaceServerMarkup(): boolean {
+        return this.group.name !== '';
+    }
+
     willUpdate(changed: Map<string, unknown>) {
         if (changed.has('group') || changed.has('activeSlug')) {
             if (groupContainsSlug(this.group, this.activeSlug)) {

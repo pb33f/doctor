@@ -76,7 +76,7 @@ export class PpClassDiagram extends LightElement {
         this.resizeObserver?.disconnect();
         this.resizeObserver = null;
         if (this.tabShowHandler) {
-            this.closest('sl-tab-group')?.removeEventListener('sl-tab-show', this.tabShowHandler);
+            this.closest('wa-tab-group')?.removeEventListener('wa-tab-show', this.tabShowHandler);
             this.tabShowHandler = null;
         }
         this.expandedDialog?.remove();
@@ -84,14 +84,14 @@ export class PpClassDiagram extends LightElement {
     }
 
     private shouldLoadOnConnect(): boolean {
-        const group = this.closest('sl-tab-group');
+        const group = this.closest('wa-tab-group');
         if (!group) return true;
-        const panel = this.closest('sl-tab-panel');
+        const panel = this.closest('wa-tab-panel');
         return panel?.getAttribute('name') === 'class-diagram';
     }
 
     private setupTabHooks() {
-        const panel = this.closest('sl-tab-panel');
+        const panel = this.closest('wa-tab-panel');
         const panelName = panel?.getAttribute('name');
         if (!panelName || this.tabShowHandler) return;
         this.tabShowHandler = (event: Event) => {
@@ -99,7 +99,7 @@ export class PpClassDiagram extends LightElement {
             if (detail?.name !== panelName) return;
             void this.loadVisualizationData();
         };
-        this.closest('sl-tab-group')?.addEventListener('sl-tab-show', this.tabShowHandler);
+        this.closest('wa-tab-group')?.addEventListener('wa-tab-show', this.tabShowHandler);
     }
 
     private async loadVisualizationData() {

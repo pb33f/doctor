@@ -117,6 +117,14 @@ export class PpNav extends LightElement {
         return this.tags.length > 0 || this.pages.length > 0 || this.modelGroups.length > 0 || this.webhooks.length > 0;
     }
 
+    // The server wrote this page's navigation; it stays until the nav data
+    // arrives and the same markup can be rendered in its place.
+    protected canReplaceServerMarkup(): boolean {
+        // Lit asks before willUpdate parses the data, so this reads the
+        // attributes the cache script sets, not the parsed lists.
+        return this.hasHydratedNav();
+    }
+
     private archiveControlsEnabled(): boolean {
         return this.hostedArchiveControls || this.archiveExportUrl.trim() !== '';
     }

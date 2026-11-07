@@ -5,6 +5,8 @@
 // an overlay on either. Any button with data-pp-theme-toggle switches it, in
 // the layout header or in a theme's own header; no component is needed.
 
+import '@awesome.me/webawesome/dist/components/tooltip/tooltip.js';
+
 export type ThemeName = 'dark' | 'light' | 'tektronix';
 type BaseTheme = Exclude<ThemeName, 'tektronix'>;
 
@@ -74,9 +76,26 @@ export function toggleTektronix() {
   applyTheme(activeTheme() === 'tektronix' ? base : 'tektronix', base);
 }
 
+let tooltipCount = 0;
+
+/**
+ * labelButton names a palette button and shows the name in a tooltip next to
+ * it, so a theme's markup needs only the button.
+ */
 function labelButton(button: Element, label: string) {
-  button.setAttribute('title', label);
   button.setAttribute('aria-label', label);
+  button.removeAttribute('title');
+  if (!button.id) {
+    button.id = `pp-theme-toggle-${++tooltipCount}`;
+  }
+  let tooltip = button.parentElement?.querySelector(`wa-tooltip[for="${button.id}"]`);
+  if (!tooltip) {
+    tooltip = document.createElement('wa-tooltip');
+    tooltip.setAttribute('for', button.id);
+    tooltip.setAttribute('placement', 'bottom');
+    button.after(tooltip);
+  }
+  tooltip.textContent = label;
 }
 
 /** syncThemeButtons gives every palette button its icon, label and state. */

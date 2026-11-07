@@ -10,12 +10,12 @@
 				<pp-raw-viewer-btn id="pp-operation-raw" class="raw-button" title="{{operationRawTitle .}}"
 					{{- if not .SpecKind.IsAsyncAPI}} method="{{.Method}}" path="{{.Path}}"{{end}}
 					{{- if gt .SourceLine 0}} start-line="{{.SourceLine}}"{{end}}
-					{{- with .Location}} location="{{.}}"{{end}}></pp-raw-viewer-btn>
-			{{end}} <pp-icon-title icon="operation" heading="{{operationPageTitle .}}"></pp-icon-title>
+					{{- with .Location}} location="{{.}}"{{end}} data-pp-owner="page" data-pp-ssr>{{rawViewerButton "pp-operation-raw"}}</pp-raw-viewer-btn>
+			{{end}} {{iconTitle "operation" (operationPageTitle .)}}
 			{{if not .SpecKind.IsAsyncAPI}}
 				<div class="{{operationPathClass .}}">
-					<pp-http-method method="{{.Method}}"></pp-http-method>
-					<pp-render-operation-path path="{{.Path}}" nowrap></pp-render-operation-path>
+					{{httpMethod .Method}}
+					{{operationPath .Path true}}
 				</div>
 			{{end}}
 			{{if .OperationID}}
@@ -27,7 +27,7 @@
 		</div>
 	</div>
 	{{if or .Source .Location}}{{template "api/partials/source.html" (source .Source .Location .SourceLine $base)}}{{end}}
-	{{template "api/partials/violation-stats.html" (printf "%s %s" .Method .Path)}}
+	{{violationStats (printf "%s %s" .Method .Path) .Counts}}
 	{{if .DescHTML}}<div class="pp-description" id="section-description" data-nav-label="Description">{{raw .DescHTML}}</div>{{end}}
 	{{with .AsyncAPI}}{{if asyncAPIOperationSectionVisible .}}
 		<div class="pp-asyncapi-operation" id="section-asyncapi" data-nav-label="Channel">
@@ -117,7 +117,7 @@
 		<div class="pp-request-body" id="section-request-body" data-nav-label="{{$title}}">
 			<h3>{{$title}} {{if or .RawYAML .RawJSON}}<pp-raw-viewer-btn id="pp-request-body-raw" class="raw-button" title="{{$title}}"
 					{{- if gt .SourceLine 0}} start-line="{{.SourceLine}}"{{end}}
-					{{- with .Location}} location="{{.}}"{{end}}></pp-raw-viewer-btn>{{end}}
+					{{- with .Location}} location="{{.}}"{{end}} data-pp-owner="page" data-pp-ssr>{{rawViewerButton "pp-request-body-raw"}}</pp-raw-viewer-btn>{{end}}
 			</h3>
 			{{if .DescHTML}}<div class="pp-description">{{raw .DescHTML}}</div>{{end}}
 			{{with .ExtensionsJSON}}<pp-extensions extensions-json="{{.}}"></pp-extensions>{{end}}
@@ -150,12 +150,12 @@
 				{{if eq (len .CodeSamples) 1}}
 					{{template "api/partials/code-sample.html" (index .CodeSamples 0)}}
 				{{else}}
-					<sl-tab-group class="pp-code-samples-tabs">
-						{{range $i, $sample := .CodeSamples}}<sl-tab slot="nav" panel="code-sample-{{$i}}"{{if eq $i 0}} active{{end}}>{{codeSampleTabLabel $sample $i}}</sl-tab> {{end}}
+					<wa-tab-group class="pp-code-samples-tabs">
+						{{range $i, $sample := .CodeSamples}}<wa-tab slot="nav" panel="code-sample-{{$i}}"{{if eq $i 0}} active{{end}}>{{codeSampleTabLabel $sample $i}}</wa-tab> {{end}}
 						{{range $i, $sample := .CodeSamples}}
-							<sl-tab-panel name="code-sample-{{$i}}"{{if eq $i 0}} active{{end}}>{{template "api/partials/code-sample.html" $sample}}</sl-tab-panel>
+							<wa-tab-panel name="code-sample-{{$i}}"{{if eq $i 0}} active{{end}}>{{template "api/partials/code-sample.html" $sample}}</wa-tab-panel>
 						{{end}}
-					</sl-tab-group>
+					</wa-tab-group>
 				{{end}}
 			</div>
 		</wa-details>

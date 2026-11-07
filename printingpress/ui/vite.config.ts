@@ -136,7 +136,10 @@ function printingPressUiCss(): string {
   }
   // Each component's reset covers its insides, its nested components' hosts,
   // and the content it owns in their slots; the page's content stays out.
-  const resetRoots = tags;
+  // It starts when the component is defined, or at once when the server wrote
+  // the component's markup (data-pp-ssr). Until then, what the page wrote
+  // inside a component is page content, which page rules style.
+  const resetRoots = tags.map((tag) => `${tag}:is(:defined, [data-pp-ssr])`);
   const nestedHosts = [...tags, ...manifest.nested].join(', ');
   const els = resetElements.join(', ');
   const reset = `@layer pp-reset {\n  @scope (${resetRoots.join(', ')}) to (:scope pp-slot[data-pp-owner="page"] > *) {\n    :where(${els}),\n    :where(${els})::before,\n    :where(${els})::after,\n    :where(${els})::marker,\n    :where(${nestedHosts}) {\n      all: revert;\n    }\n  }\n}`;

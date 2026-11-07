@@ -8,9 +8,9 @@ import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
-import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
-import '@shoelace-style/shoelace/dist/components/tab/tab.js';
-import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
+import '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
+import '@awesome.me/webawesome/dist/components/tab/tab.js';
+import '@awesome.me/webawesome/dist/components/tab-panel/tab-panel.js';
 import '@pb33f/printing-press-components/paginator/paginator.js';
 import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
@@ -457,18 +457,18 @@ export class PpDiagnosticsList extends LightElement {
           ? html`<div class="stat orphan"><span>${this.payload.orphanCount}</span><small>${pluralLabel(this.payload.orphanCount, 'orphan')}</small></div>`
           : nothing}
       </div>
-      <sl-tab-group class="diagnostics-tabs" @sl-tab-show=${this.handleTabShow}>
-        <sl-tab slot="nav" panel="list-view">LIST VIEW</sl-tab>
-        <sl-tab slot="nav" panel="grouped-view">GROUPED VIEW</sl-tab>
-        <sl-tab-panel name="list-view">
+      <wa-tab-group class="diagnostics-tabs" @wa-tab-show=${this.handleTabShow}>
+        <wa-tab slot="nav" panel="list-view">LIST VIEW</wa-tab>
+        <wa-tab slot="nav" panel="grouped-view">GROUPED VIEW</wa-tab>
+        <wa-tab-panel name="list-view">
           ${this.activePanel === 'list-view'
             ? this.renderListView(this.memoizedSortProblems('list', problems, this.selectedSort))
             : nothing}
-        </sl-tab-panel>
-        <sl-tab-panel name="grouped-view">
+        </wa-tab-panel>
+        <wa-tab-panel name="grouped-view">
           ${this.activePanel === 'grouped-view' ? this.renderGroupedView(problems) : nothing}
-        </sl-tab-panel>
-      </sl-tab-group>
+        </wa-tab-panel>
+      </wa-tab-group>
     `;
   }
 }

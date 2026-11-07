@@ -5,6 +5,7 @@ import {attentionInlineIcons} from './utils/attention-icons.js';
 import {enhanceContentCodeBlocks} from './utils/content-code-copy.js';
 import {printingPressStaticAssetHref} from './utils/static-assets.js';
 import {applyTheme, bindThemeSwitches, type ThemeName} from './utils/theme.js';
+import {bindVersionMenus} from './utils/version-menu.js';
 
 // Import Shoelace components used by cowboy-components
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
@@ -14,8 +15,6 @@ import '@shoelace-style/shoelace/dist/components/split-panel/split-panel.js';
 import '@shoelace-style/shoelace/dist/components/drawer/drawer.js';
 import '@awesome.me/webawesome/dist/components/details/details.js';
 import '@shoelace-style/shoelace/dist/components/popup/popup.js';
-import '@shoelace-style/shoelace/dist/components/breadcrumb/breadcrumb.js';
-import '@shoelace-style/shoelace/dist/components/breadcrumb-item/breadcrumb-item.js';
 import '@awesome.me/webawesome/dist/components/spinner/spinner.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
@@ -124,9 +123,9 @@ export { PpRefList } from './components/shared/ref-list.js';
 export { PpDiagnosticsList } from './components/diagnostics/diagnostics-list.js';
 
 // Shoelace tab components for visualization section
-import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
-import '@shoelace-style/shoelace/dist/components/tab/tab.js';
-import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
+import '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
+import '@awesome.me/webawesome/dist/components/tab/tab.js';
+import '@awesome.me/webawesome/dist/components/tab-panel/tab-panel.js';
 
 // Visualization components (excluded in lite builds via VITE_BUNDLE_LITE=1)
 import './components/class-diagram/class-diagram.js';
@@ -160,6 +159,7 @@ window.addEventListener('message', (event) => {
 
 function bootPrintingPressPage() {
   bindThemeSwitches();
+  bindVersionMenus();
   enhanceContentCodeBlocks();
   void hydratePrintingPressPage();
 }

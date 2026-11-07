@@ -61,32 +61,41 @@ wa-icon {
     color: var(--primary-color);
 }
 
+/* A native button, drawn on the first paint, at the size the Shoelace button had. */
 .details-button {
     align-self: center;
-}
-
-.details-button::part(base) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
     height: var(--violation-stat-height);
-    line-height: 48px;
+    margin: 0;
+    padding: 0 16px;
     border: 1px solid var(--primary-color);
     border-radius: 0;
     background: transparent;
     color: var(--primary-color);
     font-family: var(--font-stack), monospace;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 48px;
+    white-space: nowrap;
+    cursor: pointer;
 }
 
-.details-button::part(base):hover {
+.details-button:hover {
     border-color: var(--primary-color);
     background: var(--primary-color);
     color: var(--background-color);
 }
 
-.details-button::part(base):active {
+.details-button:active {
     border-color: var(--warn-color);
     background: var(--warn-color);
     color: var(--background-color);
 }
 
-.details-button::part(prefix) {
-    color: inherit;
+.details-button:focus-visible {
+    outline: 1px solid var(--secondary-color);
+    outline-offset: 2px;
 }

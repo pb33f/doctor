@@ -14,8 +14,21 @@ export class PpViolationStats extends LightElement {
   @property({attribute: 'data-component-type'}) componentType = '';
   @state() private payload: PageDeveloperPayload | null = null;
 
-  async firstUpdated() {
-    this.payload = await getPageDeveloperPayload();
+  private loading = false;
+
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.loading) {
+      this.loading = true;
+      void getPageDeveloperPayload().then((payload) => {
+        this.payload = payload;
+      });
+    }
+  }
+
+  // The server writes the summary; it stays until the page's problems arrive.
+  protected canReplaceServerMarkup(): boolean {
+    return this.payload !== null;
   }
 
   private resolveDrawerContext() {
@@ -78,9 +91,7 @@ export class PpViolationStats extends LightElement {
         ${this.renderStat(counts.errors, 'err', 'exclamation-square', 'error')}
         ${this.renderStat(counts.warns, 'warn', 'exclamation-triangle', 'warning')}
         ${this.renderStat(counts.infos, 'info', 'info-square', 'info', 'infos')}
-        <sl-button class="details-button" size="medium" @click=${this.showDetails}>
-          OPEN PROBLEMS
-        </sl-button>
+        <button type="button" class="details-button" @click=${this.showDetails}>OPEN PROBLEMS</button>
       </div>
     `;
   }

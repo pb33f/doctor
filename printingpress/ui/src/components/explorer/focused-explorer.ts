@@ -2,6 +2,10 @@ import {html, nothing} from 'lit';
 import {customElement, property, state, query} from 'lit/decorators.js';
 import {ExplorerComponent} from '@pb33f/cowboy-components/components/visualizer/explorer.js';
 import {ExplorerNodeClicked} from '@pb33f/cowboy-components/events/doctor.js';
+// The cowboy explorer draws these two inside its nodes. They go when step 6d
+// moves the explorer to the library.
+import '@pb33f/cowboy-components/components/http-method/http-method.js';
+import '@pb33f/cowboy-components/components/render-operation-path/render-operation-path.js';
 import {createElkLayoutWorker} from '../../elk-layout-worker-inline.js';
 import {createGraphDependentWorker} from '../../graph-dependent-worker-inline.js';
 import {ensureModelGraphVisualization} from '../../utils/model-visualization.js';
@@ -70,7 +74,7 @@ export class PpFocusedExplorer extends LightElement {
                 }
             });
             this.embeddedDataObserver.observe(this, {childList: true});
-            if (!this.closest('sl-tab-group')) {
+            if (!this.closest('wa-tab-group')) {
                 void this.loadVisualizationData();
             }
         }, 0);
@@ -87,7 +91,7 @@ export class PpFocusedExplorer extends LightElement {
         this._visibilityResizeObserver?.disconnect();
         this._visibilityResizeObserver = null;
         if (this._tabShowHandler) {
-            this.closest('sl-tab-group')?.removeEventListener('sl-tab-show', this._tabShowHandler);
+            this.closest('wa-tab-group')?.removeEventListener('wa-tab-show', this._tabShowHandler);
             this._tabShowHandler = null;
         }
         this.expandedDialog?.remove();
@@ -113,7 +117,7 @@ export class PpFocusedExplorer extends LightElement {
         }
 
         if (!this._tabShowHandler) {
-            const panel = this.closest('sl-tab-panel');
+            const panel = this.closest('wa-tab-panel');
             const panelName = panel?.getAttribute('name');
             this._tabShowHandler = (event: Event) => {
                 const detail = (event as CustomEvent<{ name?: string }>).detail;
@@ -123,7 +127,7 @@ export class PpFocusedExplorer extends LightElement {
                     this._scheduleViewportRefresh();
                 });
             };
-            this.closest('sl-tab-group')?.addEventListener('sl-tab-show', this._tabShowHandler);
+            this.closest('wa-tab-group')?.addEventListener('wa-tab-show', this._tabShowHandler);
         }
     }
 

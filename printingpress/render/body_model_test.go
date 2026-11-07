@@ -64,7 +64,8 @@ func TestModelPageNamedTraitPreservesIdentityAndRendersProtocols(t *testing.T) {
 
 	html := renderBodyForTest(t, ModelBody(page, ""))
 	for _, expected := range []string{
-		`<pp-icon-title icon="operationTraits" heading="commandTransport">`,
+		`<pp-icon-title icon="operationTraits" heading="commandTransport" data-pp-owner="page" data-pp-ssr>`,
+		`<h1>commandTransport</h1>`,
 		`id="section-protocols" data-nav-label="Protocols"`,
 		`<pp-asyncapi-protocol protocol="kafka" size="medium">`,
 		`<pp-asyncapi-protocol protocol="amqp" size="medium">`,

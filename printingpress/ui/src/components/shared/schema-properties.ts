@@ -4,9 +4,9 @@ import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
-import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
-import '@shoelace-style/shoelace/dist/components/tab/tab.js';
-import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
+import '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
+import '@awesome.me/webawesome/dist/components/tab/tab.js';
+import '@awesome.me/webawesome/dist/components/tab-panel/tab-panel.js';
 import {deriveSchemaType, resolveRefLink} from '../../utils/schema.js';
 import {renderMarkdown} from '../../utils/markdown.js';
 import {renderConstraints, renderSchemaType} from '../../utils/render-helpers.js';
@@ -367,18 +367,18 @@ export class PpSchemaProperties extends LightElement {
                             </div>
                         `
                         : html`
-                            <sl-tab-group class="oneof-tabs" placement="start">
+                            <wa-tab-group class="oneof-tabs" placement="start">
                                 ${entries.map((e, i) => html`
-                                    <sl-tab slot="nav" panel="${selectionKey}-${i}" class="oneof-tab" ?active=${i === selectedIndex}>
+                                    <wa-tab slot="nav" panel="${selectionKey}-${i}" class="oneof-tab" ?active=${i === selectedIndex}>
                                         \u203A ${this.getPolymorphicOptionLabel(e, i)}
-                                    </sl-tab>
+                                    </wa-tab>
                                 `)}
                                 ${entries.map((e, i) => html`
-                                    <sl-tab-panel name="${selectionKey}-${i}" ?active=${i === selectedIndex}>
+                                    <wa-tab-panel name="${selectionKey}-${i}" ?active=${i === selectedIndex}>
                                         ${this.renderOneOfOption(e, `${path}[${i}]`)}
-                                    </sl-tab-panel>
+                                    </wa-tab-panel>
                                 `)}
-                            </sl-tab-group>
+                            </wa-tab-group>
                         `}
                         </div>
                     `}

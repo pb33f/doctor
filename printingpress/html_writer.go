@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
@@ -294,6 +295,13 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		SharedAssetBaseURL: site.SharedAssetBaseURL,
 		HasContentPages:    hasContentPagesForNav(site.ContentPages),
 		Theme:              themeStack,
+		Nav: render.NavMarkupParams{
+			Tags:        site.NavTags,
+			ModelGroups: site.NavModelGroups,
+			Webhooks:    site.NavWebhooks,
+			Pages:       contentPagesForNav(site.ContentPages),
+			Now:         time.Now(),
+		},
 	}
 
 	var jobs []htmlWriteJob
@@ -744,6 +752,8 @@ type pageParams struct {
 	HasContentPages    bool
 	Description        string
 	MarkdownHref       string
+	// Nav is the site's navigation; each page writes the part it shows.
+	Nav render.NavMarkupParams
 	// Theme draws the page.
 	Theme *theme.Stack
 }
@@ -791,6 +801,7 @@ func writeAPIPage(filePath, pageTitle, activeSlug string, p *pageParams, body re
 		HasContentPages:    p.HasContentPages,
 		Description:        p.Description,
 		MarkdownHref:       p.MarkdownHref,
+		Nav:                p.Nav,
 	}, content, stack.AssetDir())
 	if err != nil {
 		return err

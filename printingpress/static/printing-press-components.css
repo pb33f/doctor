@@ -96,11 +96,46 @@
     border-radius: inherit;
   }
 
+  /* Callout and model icons keep Web Awesome's canvas before the script defines them too, so the page does not move when it does. */
+  wa-icon:not(:defined):is([slot="icon"], .pp-model-icon__icon) {
+    display: inline-flex;
+    box-sizing: content-box;
+    width: 1.25em;
+    min-width: 1.25em;
+    height: 1em;
+    min-height: 1em;
+    vertical-align: -0.125em;
+  }
+
+  /* A tooltip shows nothing until the script defines it. */
+  wa-tooltip:not(:defined) {
+    display: none;
+  }
+
   /* The details chevron sits in a 1em box, as the icons beside it do, in the header text colour. */
   wa-details::part(icon) {
     width: 1em;
     justify-content: center;
     color: inherit;
+  }
+
+  /* Tabs keep Shoelace's measure: 1rem by 1.25rem tabs, 1rem between the tabs and
+     their panel, and a body that scrolls when its panel overflows. */
+  wa-tab::part(base) {
+    padding: 1rem 1.25rem;
+    border-radius: 0.25rem;
+  }
+
+  wa-tab-group::part(body) {
+    overflow: auto;
+  }
+
+  wa-tab-group > wa-tab-panel {
+    --padding: 1rem 0;
+  }
+
+  wa-tab-group:is([placement="start"], [placement="end"]) > wa-tab-panel {
+    --padding: 0 1rem;
   }
 
   /* Web Awesome's own controls take their colours from the --pp-* tokens. */
@@ -118,6 +153,35 @@ pp-slot {
 
 pp-http-method {
   display: inline-block;
+}
+
+/*
+ * The method tag is plain markup, so it is drawn on the first paint, before
+ * any script runs. It keeps the measures of the Web Awesome tag it replaced:
+ * a control height of 2.7em, the tag at 80% of it, and smaller text.
+ */
+pp-http-method .pp-http-method__tag {
+  --pp-http-method-control-height: round(calc(2 * 0.75em + 1em * 1.2), 1px);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  box-sizing: border-box;
+  height: calc(var(--pp-http-method-control-height) * 0.8);
+  padding: 0 0.75em;
+  border: 1px solid;
+  font-size: 1rem;
+  line-height: calc(var(--pp-http-method-control-height) - 2px);
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+pp-http-method .pp-http-method__tag.small {
+  font-size: round(calc(1rem / 1.125), 1px);
+}
+
+pp-http-method .pp-http-method__label {
+  font-size: round(calc(1em / 1.125), 1px);
 }
 
 pp-http-method .pp-http-method__tag {

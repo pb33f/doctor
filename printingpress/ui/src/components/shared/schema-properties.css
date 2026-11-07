@@ -315,11 +315,11 @@ a.ref-type-link:hover {
     min-width: 13rem;
 }
 
-.oneof-tabs sl-tab {
+.oneof-tabs wa-tab {
     width: 100%;
 }
 
-.oneof-tabs sl-tab::part(base) {
+.oneof-tabs wa-tab::part(base) {
     display: flex;
     width: 100%;
     font-family: var(--font-stack-bold), monospace;
@@ -331,14 +331,14 @@ a.ref-type-link:hover {
     margin-inline-end: -1px;
 }
 
-.oneof-tabs sl-tab[active]::part(base) {
+.oneof-tabs wa-tab[active]::part(base) {
     color: var(--background-color);
     background-color: var(--warn-color);
     border-radius: 0;
     margin-inline-end: -1px;
 }
 
-.oneof-tabs sl-tab-panel::part(base) {
+.oneof-tabs wa-tab-panel::part(base) {
     padding: 0 0 0 var(--global-padding);
 }
 

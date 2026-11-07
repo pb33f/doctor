@@ -1399,8 +1399,8 @@ func TestAggregateHTMLPromotionSurvivorHasFinalContractTopologyWithoutRewrite(t 
 		rendered := readAggregateFile(t, filepath.Join(httpOutput, filepath.FromSlash(relativePage)))
 		assert.Empty(t, aggregateBodyAttribute(t, rendered, "data-pp-contracts"), relativePage)
 		assert.Equal(t, "API OVERVIEW", aggregateBodyAttribute(t, rendered, "data-pp-overview-label"), relativePage)
-		assert.Contains(t, rendered, `<div class="pp-nav-fallback-home">API OVERVIEW</div>`, relativePage)
-		assert.NotContains(t, rendered, `class="pp-nav-fallback-contracts"`, relativePage)
+		assert.Contains(t, rendered, `<wa-icon name="chevron-right" class="nav-home-chevron"></wa-icon>API OVERVIEW</a>`, relativePage)
+		assert.NotContains(t, rendered, `class="contract-navigation"`, relativePage)
 	}
 }
 
@@ -5142,8 +5142,9 @@ Hidden direct page.
 	require.NoError(t, err)
 
 	rootHTML := readAggregateFile(t, filepath.Join(outputDir, "index.html"))
-	assert.Contains(t, rootHTML, `<pp-layout data-title="Platform Catalog">`)
-	assert.Contains(t, rootHTML, `<pp-nav id="pp-nav" slot="nav" data-active="catalog" data-pp-preview-hold="true">`)
+	assert.Contains(t, rootHTML, `<pp-layout><header class="pp-doc-header">`)
+	assert.Contains(t, rootHTML, `<a class="doc-logo-link" href="index.html">Platform Catalog</a>`)
+	assert.Contains(t, rootHTML, `<pp-nav id="pp-nav" data-active="catalog" data-pp-preview-hold="true">`)
 	assert.Contains(t, rootHTML, `class="pp-nav-preview"`)
 	rootNav := catalogNavSegment(rootHTML)
 	assert.Contains(t, rootNav, `class="nav-home active"`)
@@ -5159,15 +5160,15 @@ Hidden direct page.
 	assert.NotContains(t, rootNav, `Users Public API`)
 
 	guidesHTML := readAggregateFile(t, filepath.Join(outputDir, "guides.html"))
-	assert.Contains(t, guidesHTML, `<pp-nav id="pp-nav" slot="nav" data-active="guides" data-pp-preview-hold="true">`)
+	assert.Contains(t, guidesHTML, `<pp-nav id="pp-nav" data-active="guides" data-pp-preview-hold="true">`)
 	assert.Contains(t, guidesHTML, `href="about.html" class="pp-guide-card"`)
 	assert.Contains(t, guidesHTML, `href="guides/setup.html" class="pp-guide-card"`)
 	assert.NotContains(t, guidesHTML, `faq.html`)
 
 	aboutHTML := readAggregateFile(t, filepath.Join(outputDir, "about.html"))
-	assert.Contains(t, aboutHTML, `<sl-breadcrumb-item href="guides.html">GUIDES</sl-breadcrumb-item>`)
+	assert.Contains(t, aboutHTML, `<a class="pp-breadcrumb-label" href="guides.html">GUIDES</a>`)
 	aboutBody := aboutHTML[strings.Index(aboutHTML, "<body"):]
-	breadcrumbIndex := strings.Index(aboutBody, `<sl-breadcrumb class="pp-breadcrumb">`)
+	breadcrumbIndex := strings.Index(aboutBody, `<nav class="pp-breadcrumb" aria-label="Breadcrumb">`)
 	descriptionIndex := strings.Index(aboutBody, "Higher-level catalog context.")
 	require.NotEqual(t, -1, breadcrumbIndex)
 	require.NotEqual(t, -1, descriptionIndex)
@@ -5180,8 +5181,8 @@ Hidden direct page.
 	assert.FileExists(t, filepath.Join(outputDir, "assets", "docs", "about", "map.svg"))
 
 	setupHTML := readAggregateFile(t, filepath.Join(outputDir, "guides", "setup.html"))
-	assert.Contains(t, setupHTML, `<sl-breadcrumb-item href="../index.html">HOME</sl-breadcrumb-item>`)
-	assert.Contains(t, setupHTML, `<sl-breadcrumb-item href="../guides.html">GUIDES</sl-breadcrumb-item>`)
+	assert.Contains(t, setupHTML, `<a class="pp-breadcrumb-label" href="../index.html">HOME</a>`)
+	assert.Contains(t, setupHTML, `<a class="pp-breadcrumb-label" href="../guides.html">GUIDES</a>`)
 	assert.Contains(t, setupHTML, `href="../about.html"`)
 	assert.Contains(t, catalogNavSegment(setupHTML), `href="../index.html"`)
 	assert.Contains(t, catalogNavSegment(setupHTML), `class="nav-page-link active" href="setup.html"`)
@@ -5365,7 +5366,9 @@ func TestCatalogRootContent_DisableSkippedRenderingSuppressesWarningBox(t *testi
 	assert.Contains(t, rendered, `Users API`)
 }
 
-func TestCatalogShell_WithContentNavIncludesVersionSelectScript(t *testing.T) {
+// A catalog page with a navigation column draws the layout header as markup;
+// the engine script, not the page, makes its version menu work.
+func TestCatalogShell_WithContentNavDrawsTheLayoutHeader(t *testing.T) {
 	page := catalogPageData{
 		RelPath:        pppaths.FileIndexHTML,
 		HeaderTitle:    "Platform Catalog",
@@ -5384,7 +5387,9 @@ func TestCatalogShell_WithContentNavIncludesVersionSelectScript(t *testing.T) {
 	require.NoError(t, err)
 	html, err := stack.RenderString(view)
 	require.NoError(t, err)
-	assert.Contains(t, html, `sl-menu[data-catalog-version-menu]`)
+	assert.Contains(t, html, `<header class="pp-doc-header">`)
+	assert.Contains(t, html, `<div class="pp-split"><div class="nav-panel"><pp-nav id="pp-nav"`)
+	assert.NotContains(t, html, `sl-menu[data-catalog-version-menu]')`)
 }
 
 func TestCatalogVersionPrimaryHref_UsesVersionOverviewForCollisions(t *testing.T) {

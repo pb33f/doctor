@@ -52,6 +52,11 @@ export class PpNavTag extends LightElement {
     @property() activeSlug = '';
     @state() private open = false;
 
+    // A server-written tag waits for pp-nav to hand it its tag.
+    protected canReplaceServerMarkup(): boolean {
+        return this.tag.name !== '';
+    }
+
     willUpdate(changed: Map<string, unknown>) {
         if (changed.has('tag') || changed.has('activeSlug')) {
             if (tagContainsSlug(this.tag, this.activeSlug)) {

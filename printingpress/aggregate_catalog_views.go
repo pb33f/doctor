@@ -10,6 +10,7 @@ import (
 
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/doctor/printingpress/render"
+	"github.com/pb33f/doctor/printingpress/theme"
 )
 
 // The directory-build page templates.
@@ -72,19 +73,10 @@ type catalogContactView struct {
 	Email string
 }
 
-type catalogVersionPickerView struct {
-	WrapperClass string
-	SelectClass  string
-	ShowLabel    bool
-	Trigger      string
-	Options      []catalogVersionOptionView
-}
+// The catalog's version pickers use the theme's view, as the API header does.
+type catalogVersionPickerView = theme.VersionPickerView
 
-type catalogVersionOptionView struct {
-	Label   string
-	Href    string
-	Checked bool
-}
+type catalogVersionOptionView = theme.VersionOptionView
 
 type catalogDiagnosticsView struct {
 	Href   string

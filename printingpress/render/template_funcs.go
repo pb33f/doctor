@@ -28,6 +28,13 @@ func Funcs() template.FuncMap {
 		"css": func(style string) template.CSS { return template.CSS(style) },
 		"add": func(a, b int) int { return a + b },
 
+		// Components written with the markup they render (component_markup.go).
+		"iconTitle":       IconTitleMarkup,
+		"httpMethod":      HTTPMethodMarkup,
+		"operationPath":   OperationPathMarkup,
+		"rawViewerButton": RawViewerButtonMarkup,
+		"violationStats":  ViolationStatsMarkup,
+
 		"docHref":            DocHref,
 		"operationDocHref":   OperationDocHref,
 		"modelHTML":          pppaths.ModelHTML,

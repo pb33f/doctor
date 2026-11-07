@@ -337,7 +337,7 @@ describe('pp-schema-properties allOf', () => {
         el.setAttribute('constrained', '');
         await el.updateComplete;
 
-        const tabs = el.querySelector('sl-tab-group');
+        const tabs = el.querySelector('wa-tab-group');
         expect(tabs?.getAttribute('placement')).toBe('start');
         expect(el.querySelector('.polymorphic-dropdown')).toBeNull();
     });
@@ -353,7 +353,7 @@ describe('pp-schema-properties allOf', () => {
         el.setAttribute('popover-context', '');
         await el.updateComplete;
 
-        expect(el.querySelector('sl-tab-group')).toBeNull();
+        expect(el.querySelector('wa-tab-group')).toBeNull();
         const dropdown = el.querySelector('.polymorphic-dropdown');
         expect(dropdown).toBeTruthy();
         expect(dropdown?.querySelector('sl-button')?.textContent?.trim()).toBe('customer');
@@ -402,7 +402,7 @@ describe('pp-schema-properties allOf', () => {
         el.requestUpdate();
         await el.updateComplete;
 
-        expect(el.querySelector('sl-tab-group')).toBeNull();
+        expect(el.querySelector('wa-tab-group')).toBeNull();
         const dropdown = el.querySelector('.polymorphic-dropdown');
         expect(dropdown).toBeTruthy();
         const trigger = dropdown?.querySelector('sl-button');
@@ -423,7 +423,7 @@ describe('pp-schema-properties allOf', () => {
         el.setAttribute('constrained', '');
         await el.updateComplete;
 
-        expect(el.querySelector('sl-tab-group')).toBeNull();
+        expect(el.querySelector('wa-tab-group')).toBeNull();
         expect(el.querySelector('.polymorphic-dropdown')).toBeNull();
         expect(el.querySelector('.oneof-single-panel')).toBeTruthy();
 
@@ -447,7 +447,7 @@ describe('pp-schema-properties allOf', () => {
         el.setAttribute('constrained', '');
         await el.updateComplete;
 
-        expect(el.querySelector('sl-tab-group')).toBeNull();
+        expect(el.querySelector('wa-tab-group')).toBeNull();
         expect(el.querySelector('.polymorphic-dropdown')).toBeNull();
         expect(el.querySelector('.oneof-single-value .ref-type-link')?.textContent?.trim()).toContain('WideOption');
         expect(el.querySelector('.oneof-single-panel .ref-type-link')).toBeNull();
@@ -508,7 +508,7 @@ describe('pp-schema-properties allOf', () => {
         el.requestUpdate();
         await el.updateComplete;
 
-        expect(el.querySelector('sl-tab-group')).toBeNull();
+        expect(el.querySelector('wa-tab-group')).toBeNull();
         const trigger = el.querySelector('.polymorphic-dropdown sl-button');
         expect(trigger?.textContent?.trim()).toBe('account_business_profile');
     });
@@ -539,7 +539,7 @@ describe('pp-schema-properties allOf', () => {
         el.requestUpdate();
         await el.updateComplete;
 
-        const tabs = el.querySelector('sl-tab-group');
+        const tabs = el.querySelector('wa-tab-group');
         expect(tabs?.getAttribute('placement')).toBe('start');
         expect(el.querySelector('.polymorphic-dropdown')).toBeNull();
     });

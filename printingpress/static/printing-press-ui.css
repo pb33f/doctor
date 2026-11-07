@@ -3,7 +3,7 @@
 @layer pp-base, pp-host, page, pp-reset, pp-host-nested;
 
 @layer pp-host {
-  @scope (pp-asyncapi-action) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-asyncapi-action) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: inline-flex;
     justify-self: end;
@@ -23,7 +23,7 @@
 }
   }
 
-  @scope (pp-asyncapi-protocol) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-asyncapi-protocol) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: inline-flex;
     min-width: 0;
@@ -31,7 +31,7 @@
 }
   }
 
-  @scope (pp-class-diagram) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-class-diagram) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
@@ -51,7 +51,7 @@
 /* Chroma syntax highlighting tokens (swapped primary/secondary for mermaid source) */
   }
 
-  @scope (pp-code-viewer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-code-viewer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
@@ -83,7 +83,7 @@
 /* ── Location bar ── */
   }
 
-  @scope (pp-cross-refs) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-cross-refs) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin-top: var(--global-padding);
@@ -92,21 +92,21 @@
 }
   }
 
-  @scope (pp-curl-command) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-curl-command) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     min-height: 156px;
 }
   }
 
-  @scope (pp-diagnostics-list) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-diagnostics-list) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin-top: var(--global-padding-double);
 }
   }
 
-  @scope (pp-example-drawer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-example-drawer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
@@ -114,7 +114,7 @@
 /* Direct sl-tooltip styling (used by pp-raw-viewer-btn etc.) */
   }
 
-  @scope (pp-example-selector) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-example-selector) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: inline-block;
     margin: var(--example-margin, var(--global-padding) 0 var(--global-padding) 0);
@@ -126,13 +126,13 @@
 /* Direct sl-tooltip styling (used by pp-raw-viewer-btn etc.) */
   }
 
-  @scope (pp-extensions) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-extensions) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
   }
 
-  @scope (pp-focused-explorer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-focused-explorer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
@@ -140,7 +140,7 @@
 /* Toolbar — same styles as class-diagram */
   }
 
-  @scope (pp-icon-title) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-icon-title) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: flex;
     align-items: flex-start;
@@ -148,7 +148,7 @@
 }
   }
 
-  @scope (pp-inline-code) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-inline-code) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin-top: var(--global-padding-double);
@@ -157,22 +157,7 @@
 /* Direct sl-tooltip styling (used by pp-raw-viewer-btn etc.) */
   }
 
-  @scope (pp-layout) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
-:where(:scope:not(pp-slot)) {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    background: var(--background-color);
-}
-
-:where(:scope:not(pp-slot)) {
-    display: block;
-    font-family: var(--font-stack, BerkeleyMono-Regular, Roboto Mono, Monaco, Menlo, monospace);
-    color: var(--font-color, #e8e9ed);
-}
-  }
-
-  @scope (pp-media-type-selector) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-media-type-selector) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     font-family: var(--font-stack, BerkeleyMono-Regular, Roboto Mono, Monaco, Menlo, monospace);
@@ -186,7 +171,7 @@
 /* Split panel (wide layout) */
   }
 
-  @scope (pp-mermaid) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-mermaid) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
@@ -206,13 +191,13 @@
 /* Chroma syntax highlighting tokens (swapped primary/secondary for mermaid source) */
   }
 
-  @scope (pp-model-card) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-model-card) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
   }
 
-  @scope (pp-model-page) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-model-page) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     font-family: var(--font-stack, BerkeleyMono-Regular, Roboto Mono, Monaco, Menlo, monospace);
@@ -233,7 +218,7 @@
 /* Right pane: flush example, primary accent colors */
   }
 
-  @scope (pp-nav) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-nav) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     padding: var(--global-padding);
@@ -243,7 +228,7 @@
 /* Direct sl-tooltip styling (used by pp-raw-viewer-btn etc.) */
   }
 
-  @scope (pp-nav-model-group) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-nav-model-group) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin: 0;
@@ -252,13 +237,13 @@
 /* The badge holds only its count, so the empty start and end boxes go: the first would set the badge baseline. */
   }
 
-  @scope (pp-nav-operation) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-nav-operation) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
   }
 
-  @scope (pp-nav-tag) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-nav-tag) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin: 0;
@@ -270,7 +255,7 @@
        so replicate the monochrome override here via :host-context */
   }
 
-  @scope (pp-operation-callbacks) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-operation-callbacks) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     font-family: var(--font-stack, BerkeleyMono-Regular, Roboto Mono, Monaco, Menlo, monospace);
@@ -282,7 +267,7 @@
 }
   }
 
-  @scope (pp-operation-parameters) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-operation-parameters) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     font-family: var(--font-stack, BerkeleyMono-Regular, Roboto Mono, Monaco, Menlo, monospace);
@@ -297,7 +282,7 @@
 }
   }
 
-  @scope (pp-operation-responses) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-operation-responses) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     font-family: var(--font-stack, BerkeleyMono-Regular, Roboto Mono, Monaco, Menlo, monospace);
@@ -320,7 +305,7 @@
 /* ── Common errors ── */
   }
 
-  @scope (pp-page-nav) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-page-nav) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     position: fixed;
@@ -335,21 +320,25 @@
 }
   }
 
-  @scope (pp-problems-drawer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-problems-drawer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
   }
 
-  @scope (pp-raw-viewer-btn) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-raw-viewer-btn) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: inline-block;
 }
 
+/* The box the Shoelace button host drew, which sets where the button sits in a heading. */
+
+/* A native button, drawn on the first paint, at the size the Shoelace text button had. */
+
 /* Direct sl-tooltip styling (used by pp-raw-viewer-btn etc.) */
   }
 
-  @scope (pp-ref-list) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-ref-list) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin-bottom: var(--global-padding);
@@ -357,7 +346,7 @@
 }
   }
 
-  @scope (pp-ref-popover) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-ref-popover) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: inline;
     position: relative;
@@ -368,7 +357,7 @@
 }
   }
 
-  @scope (pp-schema-properties) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-schema-properties) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin-top: var(--global-padding);
@@ -381,7 +370,7 @@
 }
   }
 
-  @scope (pp-security-scheme) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-security-scheme) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     font-family: var(--font-stack, BerkeleyMono-Regular, Roboto Mono, Monaco, Menlo, monospace);
@@ -398,29 +387,31 @@
 /* Scopes — reuse the same .property grid for alignment */
   }
 
-  @scope (pp-violation-stats) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-violation-stats) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin: var(--global-padding) 0 var(--global-padding-double);
     --violation-stat-height: 50px;
 }
+
+/* A native button, drawn on the first paint, at the size the Shoelace button had. */
   }
 }
 
 @layer pp-reset {
-  @scope (pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) to (:scope pp-slot[data-pp-owner="page"] > *) {
+  @scope (pp-asyncapi-action:is(:defined, [data-pp-ssr]), pp-asyncapi-protocol:is(:defined, [data-pp-ssr]), pp-class-diagram:is(:defined, [data-pp-ssr]), pp-code-viewer:is(:defined, [data-pp-ssr]), pp-cross-refs:is(:defined, [data-pp-ssr]), pp-curl-command:is(:defined, [data-pp-ssr]), pp-diagnostics-list:is(:defined, [data-pp-ssr]), pp-example-drawer:is(:defined, [data-pp-ssr]), pp-example-selector:is(:defined, [data-pp-ssr]), pp-extensions:is(:defined, [data-pp-ssr]), pp-focused-explorer:is(:defined, [data-pp-ssr]), pp-icon-title:is(:defined, [data-pp-ssr]), pp-inline-code:is(:defined, [data-pp-ssr]), pp-media-type-selector:is(:defined, [data-pp-ssr]), pp-mermaid:is(:defined, [data-pp-ssr]), pp-model-card:is(:defined, [data-pp-ssr]), pp-model-page:is(:defined, [data-pp-ssr]), pp-nav:is(:defined, [data-pp-ssr]), pp-nav-model-group:is(:defined, [data-pp-ssr]), pp-nav-operation:is(:defined, [data-pp-ssr]), pp-nav-tag:is(:defined, [data-pp-ssr]), pp-operation-callbacks:is(:defined, [data-pp-ssr]), pp-operation-parameters:is(:defined, [data-pp-ssr]), pp-operation-responses:is(:defined, [data-pp-ssr]), pp-page-nav:is(:defined, [data-pp-ssr]), pp-problems-drawer:is(:defined, [data-pp-ssr]), pp-raw-viewer-btn:is(:defined, [data-pp-ssr]), pp-ref-list:is(:defined, [data-pp-ssr]), pp-ref-popover:is(:defined, [data-pp-ssr]), pp-schema-properties:is(:defined, [data-pp-ssr]), pp-security-scheme:is(:defined, [data-pp-ssr]), pp-violation-stats:is(:defined, [data-pp-ssr])) to (:scope pp-slot[data-pp-owner="page"] > *) {
     :where(a, abbr, address, article, aside, b, blockquote, br, button, caption, code, dd, del, details, dfn, div, dl, dt, em, fieldset, figcaption, figure, footer, form, h1, h2, h3, h4, h5, h6, header, hr, i, img, input, ins, kbd, label, legend, li, main, mark, nav, ol, p, pre, q, s, samp, section, select, small, span, strong, sub, summary, sup, table, tbody, td, textarea, tfoot, th, thead, time, tr, u, ul, var),
     :where(a, abbr, address, article, aside, b, blockquote, br, button, caption, code, dd, del, details, dfn, div, dl, dt, em, fieldset, figcaption, figure, footer, form, h1, h2, h3, h4, h5, h6, header, hr, i, img, input, ins, kbd, label, legend, li, main, mark, nav, ol, p, pre, q, s, samp, section, select, small, span, strong, sub, summary, sup, table, tbody, td, textarea, tfoot, th, thead, time, tr, u, ul, var)::before,
     :where(a, abbr, address, article, aside, b, blockquote, br, button, caption, code, dd, del, details, dfn, div, dl, dt, em, fieldset, figcaption, figure, footer, form, h1, h2, h3, h4, h5, h6, header, hr, i, img, input, ins, kbd, label, legend, li, main, mark, nav, ol, p, pre, q, s, samp, section, select, small, span, strong, sub, summary, sup, table, tbody, td, textarea, tfoot, th, thead, time, tr, u, ul, var)::after,
     :where(a, abbr, address, article, aside, b, blockquote, br, button, caption, code, dd, del, details, dfn, div, dl, dt, em, fieldset, figcaption, figure, footer, form, h1, h2, h3, h4, h5, h6, header, hr, i, img, input, ins, kbd, label, legend, li, main, mark, nav, ol, p, pre, q, s, samp, section, select, small, span, strong, sub, summary, sup, table, tbody, td, textarea, tfoot, th, thead, time, tr, u, ul, var)::marker,
-    :where(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats, pp-attention-box, pp-http-method, pp-model-icon, pp-paginated-list, pp-paginator, pp-render-operation-path, pp-terminal-example) {
+    :where(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats, pp-attention-box, pp-http-method, pp-model-icon, pp-paginated-list, pp-paginator, pp-render-operation-path, pp-terminal-example) {
       all: revert;
     }
   }
 }
 
 @layer pp-host-nested {
-  @scope (pp-asyncapi-action[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-asyncapi-action[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: inline-flex;
     justify-self: end;
@@ -440,7 +431,7 @@
 }
   }
 
-  @scope (pp-asyncapi-protocol[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-asyncapi-protocol[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: inline-flex;
     min-width: 0;
@@ -448,7 +439,7 @@
 }
   }
 
-  @scope (pp-class-diagram[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-class-diagram[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
@@ -468,7 +459,7 @@
 /* Chroma syntax highlighting tokens (swapped primary/secondary for mermaid source) */
   }
 
-  @scope (pp-code-viewer[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-code-viewer[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
@@ -500,7 +491,7 @@
 /* ── Location bar ── */
   }
 
-  @scope (pp-cross-refs[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-cross-refs[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin-top: var(--global-padding);
@@ -509,21 +500,21 @@
 }
   }
 
-  @scope (pp-curl-command[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-curl-command[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     min-height: 156px;
 }
   }
 
-  @scope (pp-diagnostics-list[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-diagnostics-list[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin-top: var(--global-padding-double);
 }
   }
 
-  @scope (pp-example-drawer[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-example-drawer[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
@@ -531,7 +522,7 @@
 /* Direct sl-tooltip styling (used by pp-raw-viewer-btn etc.) */
   }
 
-  @scope (pp-example-selector[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-example-selector[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: inline-block;
     margin: var(--example-margin, var(--global-padding) 0 var(--global-padding) 0);
@@ -543,13 +534,13 @@
 /* Direct sl-tooltip styling (used by pp-raw-viewer-btn etc.) */
   }
 
-  @scope (pp-extensions[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-extensions[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
   }
 
-  @scope (pp-focused-explorer[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-focused-explorer[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
@@ -557,7 +548,7 @@
 /* Toolbar — same styles as class-diagram */
   }
 
-  @scope (pp-icon-title[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-icon-title[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: flex;
     align-items: flex-start;
@@ -565,7 +556,7 @@
 }
   }
 
-  @scope (pp-inline-code[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-inline-code[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin-top: var(--global-padding-double);
@@ -574,22 +565,7 @@
 /* Direct sl-tooltip styling (used by pp-raw-viewer-btn etc.) */
   }
 
-  @scope (pp-layout[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
-:where(:scope:not(pp-slot)) {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    background: var(--background-color);
-}
-
-:where(:scope:not(pp-slot)) {
-    display: block;
-    font-family: var(--font-stack, BerkeleyMono-Regular, Roboto Mono, Monaco, Menlo, monospace);
-    color: var(--font-color, #e8e9ed);
-}
-  }
-
-  @scope (pp-media-type-selector[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-media-type-selector[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     font-family: var(--font-stack, BerkeleyMono-Regular, Roboto Mono, Monaco, Menlo, monospace);
@@ -603,7 +579,7 @@
 /* Split panel (wide layout) */
   }
 
-  @scope (pp-mermaid[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-mermaid[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
@@ -623,13 +599,13 @@
 /* Chroma syntax highlighting tokens (swapped primary/secondary for mermaid source) */
   }
 
-  @scope (pp-model-card[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-model-card[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
   }
 
-  @scope (pp-model-page[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-model-page[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     font-family: var(--font-stack, BerkeleyMono-Regular, Roboto Mono, Monaco, Menlo, monospace);
@@ -650,7 +626,7 @@
 /* Right pane: flush example, primary accent colors */
   }
 
-  @scope (pp-nav[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-nav[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     padding: var(--global-padding);
@@ -660,7 +636,7 @@
 /* Direct sl-tooltip styling (used by pp-raw-viewer-btn etc.) */
   }
 
-  @scope (pp-nav-model-group[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-nav-model-group[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin: 0;
@@ -669,13 +645,13 @@
 /* The badge holds only its count, so the empty start and end boxes go: the first would set the badge baseline. */
   }
 
-  @scope (pp-nav-operation[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-nav-operation[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
   }
 
-  @scope (pp-nav-tag[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-nav-tag[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin: 0;
@@ -687,7 +663,7 @@
        so replicate the monochrome override here via :host-context */
   }
 
-  @scope (pp-operation-callbacks[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-operation-callbacks[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     font-family: var(--font-stack, BerkeleyMono-Regular, Roboto Mono, Monaco, Menlo, monospace);
@@ -699,7 +675,7 @@
 }
   }
 
-  @scope (pp-operation-parameters[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-operation-parameters[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     font-family: var(--font-stack, BerkeleyMono-Regular, Roboto Mono, Monaco, Menlo, monospace);
@@ -714,7 +690,7 @@
 }
   }
 
-  @scope (pp-operation-responses[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-operation-responses[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     font-family: var(--font-stack, BerkeleyMono-Regular, Roboto Mono, Monaco, Menlo, monospace);
@@ -737,7 +713,7 @@
 /* ── Common errors ── */
   }
 
-  @scope (pp-page-nav[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-page-nav[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     position: fixed;
@@ -752,21 +728,25 @@
 }
   }
 
-  @scope (pp-problems-drawer[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-problems-drawer[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
 }
   }
 
-  @scope (pp-raw-viewer-btn[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-raw-viewer-btn[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: inline-block;
 }
 
+/* The box the Shoelace button host drew, which sets where the button sits in a heading. */
+
+/* A native button, drawn on the first paint, at the size the Shoelace text button had. */
+
 /* Direct sl-tooltip styling (used by pp-raw-viewer-btn etc.) */
   }
 
-  @scope (pp-ref-list[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-ref-list[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin-bottom: var(--global-padding);
@@ -774,7 +754,7 @@
 }
   }
 
-  @scope (pp-ref-popover[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-ref-popover[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: inline;
     position: relative;
@@ -785,7 +765,7 @@
 }
   }
 
-  @scope (pp-schema-properties[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-schema-properties[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin-top: var(--global-padding);
@@ -798,7 +778,7 @@
 }
   }
 
-  @scope (pp-security-scheme[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-security-scheme[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     font-family: var(--font-stack, BerkeleyMono-Regular, Roboto Mono, Monaco, Menlo, monospace);
@@ -815,12 +795,14 @@
 /* Scopes — reuse the same .property grid for alignment */
   }
 
-  @scope (pp-violation-stats[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
+  @scope (pp-violation-stats[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
 :where(:scope:not(pp-slot)) {
     display: block;
     margin: var(--global-padding) 0 var(--global-padding-double);
     --violation-stat-height: 50px;
 }
+
+/* A native button, drawn on the first paint, at the size the Shoelace button had. */
   }
 }
 
@@ -855,7 +837,7 @@
     }
 }
 
-@scope (pp-asyncapi-action) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-asyncapi-action"])), :scope pp-slot:not([data-pp-owner="pp-asyncapi-action"]) > *) {
+@scope (pp-asyncapi-action) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-asyncapi-action"])), :scope pp-slot:not([data-pp-owner="pp-asyncapi-action"]) > *) {
 .action {
     display: inline-flex;
     align-items: center;
@@ -878,7 +860,7 @@ wa-icon {
 }
 }
 
-@scope (pp-asyncapi-protocol) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-asyncapi-protocol"])), :scope pp-slot:not([data-pp-owner="pp-asyncapi-protocol"]) > *) {
+@scope (pp-asyncapi-protocol) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-asyncapi-protocol"])), :scope pp-slot:not([data-pp-owner="pp-asyncapi-protocol"]) > *) {
 .protocol,
   h1 {
     display: inline-flex;
@@ -1037,7 +1019,7 @@ h1 {
 }
 }
 
-@scope (pp-class-diagram) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-class-diagram"])), :scope pp-slot:not([data-pp-owner="pp-class-diagram"]) > *) {
+@scope (pp-class-diagram) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-class-diagram"])), :scope pp-slot:not([data-pp-owner="pp-class-diagram"]) > *) {
 .diagram-wrapper {
     border-radius: 0;
     overflow: hidden;
@@ -1486,7 +1468,7 @@ pre {
 }
 }
 
-@scope (pp-code-viewer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-code-viewer"])), :scope pp-slot:not([data-pp-owner="pp-code-viewer"]) > *) {
+@scope (pp-code-viewer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-code-viewer"])), :scope pp-slot:not([data-pp-owner="pp-code-viewer"]) > *) {
 /* ── Plain mode (no line numbers) ── */
 
 pre {
@@ -1763,7 +1745,7 @@ pre.language-mermaid .token.text,
 }
 }
 
-@scope (pp-curl-command) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-curl-command"])), :scope pp-slot:not([data-pp-owner="pp-curl-command"]) > *) {
+@scope (pp-curl-command) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-curl-command"])), :scope pp-slot:not([data-pp-owner="pp-curl-command"]) > *) {
 sl-button::part(base) {
     border: 1px solid var(--primary-color);
     border-radius: 0;
@@ -1853,7 +1835,7 @@ sl-dropdown {
 }
 }
 
-@scope (pp-diagnostics-list) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-diagnostics-list"])), :scope pp-slot:not([data-pp-owner="pp-diagnostics-list"]) > *) {
+@scope (pp-diagnostics-list) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-diagnostics-list"])), :scope pp-slot:not([data-pp-owner="pp-diagnostics-list"]) > *) {
 .pp-markdown,
     .pp-markdown-inline {
     color: var(--font-color-sub1);
@@ -1950,22 +1932,18 @@ sl-dropdown {
     border-bottom: 1px dashed var(--hrcolor);
 }
 
-.diagnostics-tabs::part(active-tab-indicator) {
-    --track-color: var(--primary-color);
-}
-
-.diagnostics-tabs sl-tab::part(base) {
+.diagnostics-tabs wa-tab::part(base) {
     font-family: var(--font-stack), monospace;
     text-transform: uppercase;
     font-size: 1rem;
     color: var(--font-color-sub1);
 }
 
-.diagnostics-tabs sl-tab[active]::part(base) {
+.diagnostics-tabs wa-tab[active]::part(base) {
     color: var(--primary-color);
 }
 
-.diagnostics-tabs sl-tab-panel::part(base) {
+.diagnostics-tabs wa-tab-panel::part(base) {
     padding: var(--global-padding-double) 0 0;
 }
 
@@ -2261,7 +2239,7 @@ pp-paginator {
 }
 }
 
-@scope (pp-example-drawer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-example-drawer"])), :scope pp-slot:not([data-pp-owner="pp-example-drawer"]) > *) {
+@scope (pp-example-drawer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-example-drawer"])), :scope pp-slot:not([data-pp-owner="pp-example-drawer"]) > *) {
 .code-container {
     position: relative;
 }
@@ -2455,7 +2433,7 @@ sl-tooltip::part(base__arrow) {
 }
 }
 
-@scope (pp-example-selector) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-example-selector"])), :scope pp-slot:not([data-pp-owner="pp-example-selector"]) > *) {
+@scope (pp-example-selector) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-example-selector"])), :scope pp-slot:not([data-pp-owner="pp-example-selector"]) > *) {
 sl-button::part(base) {
     border: 1px solid var(--primary-color);
     border-radius: 0;
@@ -2717,7 +2695,7 @@ sl-tooltip::part(base__arrow) {
 }
 }
 
-@scope (pp-extensions) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-extensions"])), :scope pp-slot:not([data-pp-owner="pp-extensions"]) > *) {
+@scope (pp-extensions) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-extensions"])), :scope pp-slot:not([data-pp-owner="pp-extensions"]) > *) {
 .ext-grid {
     display: grid;
     grid-template-columns: auto 1fr;
@@ -2751,7 +2729,7 @@ sl-tooltip::part(base__arrow) {
 }
 }
 
-@scope (pp-focused-explorer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-focused-explorer"])), :scope pp-slot:not([data-pp-owner="pp-focused-explorer"]) > *) {
+@scope (pp-focused-explorer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-focused-explorer"])), :scope pp-slot:not([data-pp-owner="pp-focused-explorer"]) > *) {
 .explorer-wrapper {
     border-radius: 0;
     overflow: hidden;
@@ -2820,7 +2798,7 @@ h2 {
 }
 }
 
-@scope (pp-icon-title) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-icon-title"])), :scope pp-slot:not([data-pp-owner="pp-icon-title"]) > *) {
+@scope (pp-icon-title) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-icon-title"])), :scope pp-slot:not([data-pp-owner="pp-icon-title"]) > *) {
 pp-model-icon {
     flex-shrink: 0;
     margin-top: var(--icon-title-icon-offset, 0.2em);
@@ -2836,7 +2814,7 @@ h1, h2, h3, h4 {
 }
 }
 
-@scope (pp-inline-code) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-inline-code"])), :scope pp-slot:not([data-pp-owner="pp-inline-code"]) > *) {
+@scope (pp-inline-code) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-inline-code"])), :scope pp-slot:not([data-pp-owner="pp-inline-code"]) > *) {
 .code-container {
     position: relative;
 }
@@ -2975,345 +2953,7 @@ sl-tooltip::part(base__arrow) {
 }
 }
 
-@scope (pp-layout) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-layout"])), :scope pp-slot:not([data-pp-owner="pp-layout"]) > *) {
-sl-button::part(base) {
-    border: 1px solid var(--primary-color);
-    border-radius: 0;
-    font-family: var(--font-stack), monospace;
-    background-color: var(--background-color);
-    color: var(--primary-color);
-    min-height: 20px;
-    max-height: 40px;
-    min-width: 150px;
-    max-width: 300px;
-}
-
-sl-button::part(label) {
-    overflow-x: hidden;
-    text-transform: uppercase;
-    letter-spacing: var(--label-spacing);
-}
-
-sl-menu {
-    border: 1px solid var(--primary-color);
-    border-radius: 0;
-}
-
-sl-dropdown {
-    margin-top: var(--global-padding-double);
-}
-
-sl-menu-item::part(base) {
-    color: var(--primary-color);
-    font-family: var(--font-stack);
-    --sl-color-neutral-100: var(--secondary-color-lowalpha);
-    text-transform: uppercase;
-    letter-spacing: var(--label-spacing);
-}
-
-.pp-doc-header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    display: flex;
-    height: 57px;
-    flex-direction: row;
-    background-color: var(--background-color);
-}
-
-.pp-doc-header > .logo {
-    width: auto;
-    min-width: 0;
-    max-width: calc(100% - 5rem);
-    flex: 1 1 auto;
-    white-space: nowrap;
-    overflow: hidden;
-    padding: 9px 0 10px 10px;
-    border-bottom: 1px dashed var(--secondary-color);
-    height: 36px;
-}
-
-.pp-doc-header > .logo .caret {
-    font-size: 1.6em;
-    color: var(--secondary-color);
-}
-
-.pp-doc-header > .logo .name {
-    display: inline-flex;
-    max-width: calc(100% - 1.2em);
-    min-width: 0;
-    font-size: 1.7em;
-    font-family: var(--font-stack-bold), sans-serif;
-    color: var(--primary-color);
-    text-shadow: 0 0 10px var(--primary-color-text-shadow), 0 0 10px var(--primary-color-text-shadow);
-    vertical-align: bottom;
-}
-
-:is(html[theme="light"]) :scope .pp-doc-header > .logo .name {
-    text-shadow: none;
-}
-
-.pp-doc-header > .logo .name > a {
-    display: inline-block;
-    max-width: 100%;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: inherit;
-    text-decoration: none;
-}
-
-.pp-doc-header > .logo .name > a:hover {
-    text-decoration: underline;
-}
-
-.pp-doc-header > .logo .name > a:active {
-    text-decoration: underline;
-    color: var(--secondary-color);
-    text-shadow: 0 0 5px var(--secondary-color-text-shadow), 0 0 10px var(--secondary-color-text-shadow-outer);
-}
-
-:is(html[theme="light"]) :scope .pp-doc-header > .logo .name > a:active {
-    text-shadow: none;
-}
-
-.pp-doc-header > .logo .name::after {
-    content: "";
-    animation: layout-cursor .8s infinite;
-    background: var(--primary-color);
-    border-radius: 0;
-    display: inline-block;
-    height: 0.9em;
-    margin-left: 0.2em;
-    width: 3px;
-    bottom: -2px;
-    position: relative;
-}
-
-.pp-doc-header .header-space {
-    height: 55px;
-    flex: 0 0 auto;
-    min-width: max-content;
-    border-bottom: 1px dashed var(--secondary-color);
-}
-
-.header-tools {
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-end;
-    gap: 12px;
-    width: 100%;
-    height: 55px;
-    box-sizing: border-box;
-    padding: 0 8px 0 0;
-}
-
-.header-context {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-    flex: 0 0 auto;
-}
-
-.version-picker {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    margin-left: 0;
-    margin-top: 8px;
-}
-
-.version-picker sl-dropdown {
-    margin-top: 0;
-}
-
-.version-picker sl-button::part(base) {
-    min-width: 120px;
-    max-width: 220px;
-}
-
-.theme-controls {
-    flex: 0 0 auto;
-    margin-top: var(--global-padding-half);
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 0;
-    min-width: 4.5rem;
-    min-height: 2.25rem;
-}
-
-.theme-icon-button {
-    width: 2.25rem;
-    height: 2.25rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0;
-    padding: 0;
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    color: var(--secondary-color);
-    cursor: pointer;
-}
-
-.theme-icon-button wa-icon {
-    width: 1.4rem;
-    height: 1.4rem;
-    font-size: 1.4rem;
-}
-
-.theme-icon-button:hover,
-    .theme-icon-button:focus-visible {
-    color: var(--primary-color);
-}
-
-.theme-icon-button:focus-visible {
-    outline: 1px solid var(--secondary-color);
-    outline-offset: 2px;
-}
-
-.theme-icon-button.tek-active {
-    color: #33ff33;
-    text-shadow: 0 0 8px rgba(51, 255, 51, 0.6);
-}
-
-sl-split-panel {
-    flex: 1;
-    --divider-width: 10px;
-    --min: 200px;
-    --max: 40%;
-}
-
-:scope:not(pp-slot):is([embedded]) sl-split-panel {
-    height: 100vh;
-}
-
-sl-split-panel::part(divider) {
-    cursor: col-resize;
-    touch-action: none;
-    background: linear-gradient(
-            to right,
-            transparent 0,
-            transparent 4px,
-            var(--secondary-color) 4px,
-            var(--secondary-color) 6px,
-            transparent 6px,
-            transparent 100%
-        );
-}
-
-wa-icon.divider-vert {
-    position: absolute;
-    left: 0;
-    border-radius: 0;
-    background: var(--secondary-color);
-    color: var(--background-color);
-    cursor: col-resize;
-    padding: 0;
-    width: 10px;
-    height: 40px;
-}
-
-sl-split-panel::part(divider):focus-visible {
-    background-color: var(--primary-color);
-}
-
-sl-split-panel:focus-within wa-icon {
-    background-color: var(--primary-color);
-    color: var(--background-color);
-}
-
-.nav-panel,
-    .content-panel {
-    overflow-y: auto;
-    scroll-behavior: auto;
-    height: calc(100vh - var(--pp-header-height, 57px));
-    scrollbar-width: thin;
-    scrollbar-color: var(--secondary-color-lowalpha) var(--terminal-background);
-}
-
-:scope:not(pp-slot):is([embedded]) .nav-panel,:scope:not(pp-slot):is([embedded]) .content-panel {
-    height: 100vh;
-}
-
-.nav-panel::-webkit-scrollbar,
-    .content-panel::-webkit-scrollbar {
-    width: 8px;
-}
-
-.nav-panel::-webkit-scrollbar-track,
-    .content-panel::-webkit-scrollbar-track {
-    background-color: var(--terminal-background);
-}
-
-.nav-panel::-webkit-scrollbar-thumb,
-    .content-panel::-webkit-scrollbar-thumb {
-    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
-    background: var(--secondary-color-lowalpha);
-}
-
-.nav-panel {
-    background: var(--background-color);
-}
-
-.content-panel {}
-
-@media (max-width: 900px) {
-    .header-tools {
-        height: auto;
-        flex-wrap: wrap;
-        padding-right: 0;
-    }
-
-    .header-context {
-        width: 100%;
-        flex-wrap: wrap;
-    }
-
-    .version-picker {
-        width: 100%;
-        margin-top: 0;
-    }
-
-    .version-picker sl-dropdown,
-        .version-picker sl-button::part(base) {
-        width: 100%;
-    }
-
-    .theme-controls {
-        width: 100%;
-        justify-content: flex-end;
-    }
-}
-
-.sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-}
-
-a {
-    color: var(--primary-color, rgba(98, 196, 255, 1.0));
-    text-decoration: none;
-}
-
-a:hover {
-    text-decoration: underline;
-    color: var(--primary-color);
-}
-}
-
-@scope (pp-media-type-selector) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-media-type-selector"])), :scope pp-slot:not([data-pp-owner="pp-media-type-selector"]) > *) {
+@scope (pp-media-type-selector) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-media-type-selector"])), :scope pp-slot:not([data-pp-owner="pp-media-type-selector"]) > *) {
 .sr-only {
     position: absolute;
     width: 1px;
@@ -3535,7 +3175,7 @@ sl-menu-item::part(base) {
 }
 }
 
-@scope (pp-mermaid) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-mermaid"])), :scope pp-slot:not([data-pp-owner="pp-mermaid"]) > *) {
+@scope (pp-mermaid) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-mermaid"])), :scope pp-slot:not([data-pp-owner="pp-mermaid"]) > *) {
 .diagram-wrapper {
     border-radius: 0;
     overflow: hidden;
@@ -3984,7 +3624,7 @@ pre {
 }
 }
 
-@scope (pp-model-card) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-model-card"])), :scope pp-slot:not([data-pp-owner="pp-model-card"]) > *) {
+@scope (pp-model-card) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-model-card"])), :scope pp-slot:not([data-pp-owner="pp-model-card"]) > *) {
 .pp-markdown,
     .pp-markdown-inline {
     color: var(--font-color-sub1);
@@ -4101,7 +3741,7 @@ p {
 }
 }
 
-@scope (pp-model-page) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-model-page"])), :scope pp-slot:not([data-pp-owner="pp-model-page"]) > *) {
+@scope (pp-model-page) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-model-page"])), :scope pp-slot:not([data-pp-owner="pp-model-page"]) > *) {
 .sr-only {
     position: absolute;
     width: 1px;
@@ -4518,7 +4158,7 @@ a.ref-type-link:hover {
 }
 }
 
-@scope (pp-nav) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-nav"])), :scope pp-slot:not([data-pp-owner="pp-nav"]) > *) {
+@scope (pp-nav) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-nav"])), :scope pp-slot:not([data-pp-owner="pp-nav"]) > *) {
 .nav-home {
     display: flex;
     align-items: center;
@@ -5008,7 +4648,7 @@ sl-tooltip::part(base__arrow) {
 }
 }
 
-@scope (pp-nav-model-group) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-nav-model-group"])), :scope pp-slot:not([data-pp-owner="pp-nav-model-group"]) > *) {
+@scope (pp-nav-model-group) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-nav-model-group"])), :scope pp-slot:not([data-pp-owner="pp-nav-model-group"]) > *) {
 .group-header {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
@@ -5184,7 +4824,7 @@ li a.active .model-name {
 }
 }
 
-@scope (pp-nav-operation) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-nav-operation"])), :scope pp-slot:not([data-pp-owner="pp-nav-operation"]) > *) {
+@scope (pp-nav-operation) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-nav-operation"])), :scope pp-slot:not([data-pp-owner="pp-nav-operation"]) > *) {
 a {
     display: flex;
     align-items: center;
@@ -5212,7 +4852,7 @@ a:hover {
 }
 }
 
-@scope (pp-nav-tag) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-nav-tag"])), :scope pp-slot:not([data-pp-owner="pp-nav-tag"]) > *) {
+@scope (pp-nav-tag) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-nav-tag"])), :scope pp-slot:not([data-pp-owner="pp-nav-tag"]) > *) {
 .tag-header {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
@@ -5431,7 +5071,7 @@ li a.active .op-title {
 }
 }
 
-@scope (pp-operation-callbacks) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-operation-callbacks"])), :scope pp-slot:not([data-pp-owner="pp-operation-callbacks"]) > *) {
+@scope (pp-operation-callbacks) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-operation-callbacks"])), :scope pp-slot:not([data-pp-owner="pp-operation-callbacks"]) > *) {
 .sr-only {
     position: absolute;
     width: 1px;
@@ -5660,7 +5300,7 @@ a.ref-link:hover {
 }
 }
 
-@scope (pp-operation-parameters) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-operation-parameters"])), :scope pp-slot:not([data-pp-owner="pp-operation-parameters"]) > *) {
+@scope (pp-operation-parameters) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-operation-parameters"])), :scope pp-slot:not([data-pp-owner="pp-operation-parameters"]) > *) {
 .sr-only {
     position: absolute;
     width: 1px;
@@ -5980,7 +5620,7 @@ a.ref-link.param-name {
 }
 }
 
-@scope (pp-operation-responses) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-operation-responses"])), :scope pp-slot:not([data-pp-owner="pp-operation-responses"]) > *) {
+@scope (pp-operation-responses) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-operation-responses"])), :scope pp-slot:not([data-pp-owner="pp-operation-responses"]) > *) {
 .sr-only {
     position: absolute;
     width: 1px;
@@ -6517,7 +6157,7 @@ wa-details.pp-details::part(content) {
 }
 }
 
-@scope (pp-page-nav) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-page-nav"])), :scope pp-slot:not([data-pp-owner="pp-page-nav"]) > *) {
+@scope (pp-page-nav) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-page-nav"])), :scope pp-slot:not([data-pp-owner="pp-page-nav"]) > *) {
 .nav-container {
     display: flex;
     flex-direction: row;
@@ -6661,7 +6301,7 @@ a.status-5xx, a.status-5xx:hover {
 }
 }
 
-@scope (pp-problems-drawer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-problems-drawer"])), :scope pp-slot:not([data-pp-owner="pp-problems-drawer"]) > *) {
+@scope (pp-problems-drawer) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-problems-drawer"])), :scope pp-slot:not([data-pp-owner="pp-problems-drawer"]) > *) {
 .pp-markdown,
     .pp-markdown-inline {
     color: var(--font-color-sub1);
@@ -6951,13 +6591,38 @@ pp-code-viewer {
 }
 }
 
-@scope (pp-raw-viewer-btn) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-raw-viewer-btn"])), :scope pp-slot:not([data-pp-owner="pp-raw-viewer-btn"]) > *) {
-sl-button::part(base) {
-    font-family: var(--font-stack), monospace;
-    padding: 0;
+@scope (pp-raw-viewer-btn) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-raw-viewer-btn"])), :scope pp-slot:not([data-pp-owner="pp-raw-viewer-btn"]) > *) {
+/* The box the Shoelace button host drew, which sets where the button sits in a heading. */
+.raw-viewer-box {
+    display: inline-block;
+    position: relative;
+}
+
+/* A native button, drawn on the first paint, at the size the Shoelace text button had. */
+.raw-viewer-button {
+    display: inline-flex;
+    vertical-align: middle;
+    align-items: center;
+    box-sizing: border-box;
+    height: 30px;
+    margin: 0;
+    padding: 0 8px 0 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--primary-color);
     font-size: 1.5rem;
-    text-transform: uppercase;
-    letter-spacing: var(--label-spacing);
+    line-height: 28px;
+    cursor: pointer;
+}
+
+.raw-viewer-button:hover {
+    color: var(--font-color);
+}
+
+.raw-viewer-button:focus-visible {
+    outline: 1px solid var(--secondary-color);
+    outline-offset: 1px;
 }
 
 /* Direct sl-tooltip styling (used by pp-raw-viewer-btn etc.) */
@@ -6985,7 +6650,7 @@ sl-tooltip::part(base__arrow) {
 }
 }
 
-@scope (pp-ref-list) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-ref-list"])), :scope pp-slot:not([data-pp-owner="pp-ref-list"]) > *) {
+@scope (pp-ref-list) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-ref-list"])), :scope pp-slot:not([data-pp-owner="pp-ref-list"]) > *) {
 h2 {
     margin-top: var(--global-padding);
     margin-bottom: var(--global-padding);
@@ -7067,7 +6732,7 @@ sl-input::part(input) {
 }
 }
 
-@scope (pp-ref-popover) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-ref-popover"])), :scope pp-slot:not([data-pp-owner="pp-ref-popover"]) > *) {
+@scope (pp-ref-popover) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-ref-popover"])), :scope pp-slot:not([data-pp-owner="pp-ref-popover"]) > *) {
 .trigger {
     display: inline;
 }
@@ -7126,7 +6791,7 @@ sl-popup::part(popup) {
 }
 }
 
-@scope (pp-schema-properties) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-schema-properties"])), :scope pp-slot:not([data-pp-owner="pp-schema-properties"]) > *) {
+@scope (pp-schema-properties) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-schema-properties"])), :scope pp-slot:not([data-pp-owner="pp-schema-properties"]) > *) {
 .constraints {
     display: grid;
     grid-template-columns: auto 1fr;
@@ -7580,11 +7245,11 @@ a.ref-type-link:hover {
     min-width: 13rem;
 }
 
-.oneof-tabs sl-tab {
+.oneof-tabs wa-tab {
     width: 100%;
 }
 
-.oneof-tabs sl-tab::part(base) {
+.oneof-tabs wa-tab::part(base) {
     display: flex;
     width: 100%;
     font-family: var(--font-stack-bold), monospace;
@@ -7596,14 +7261,14 @@ a.ref-type-link:hover {
     margin-inline-end: -1px;
 }
 
-.oneof-tabs sl-tab[active]::part(base) {
+.oneof-tabs wa-tab[active]::part(base) {
     color: var(--background-color);
     background-color: var(--warn-color);
     border-radius: 0;
     margin-inline-end: -1px;
 }
 
-.oneof-tabs sl-tab-panel::part(base) {
+.oneof-tabs wa-tab-panel::part(base) {
     padding: 0 0 0 var(--global-padding);
 }
 
@@ -7747,7 +7412,7 @@ a.ref-type-link:hover {
 }
 }
 
-@scope (pp-security-scheme) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-security-scheme"])), :scope pp-slot:not([data-pp-owner="pp-security-scheme"]) > *) {
+@scope (pp-security-scheme) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-security-scheme"])), :scope pp-slot:not([data-pp-owner="pp-security-scheme"]) > *) {
 .sr-only {
     position: absolute;
     width: 1px;
@@ -7864,7 +7529,7 @@ a:hover {
 }
 }
 
-@scope (pp-violation-stats) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-violation-stats"])), :scope pp-slot:not([data-pp-owner="pp-violation-stats"]) > *) {
+@scope (pp-violation-stats) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *:not(:has(pp-slot[data-pp-owner="pp-violation-stats"])), :scope pp-slot:not([data-pp-owner="pp-violation-stats"]) > *) {
 .stats {
     display: flex;
     flex-wrap: wrap;
@@ -7914,33 +7579,42 @@ wa-icon {
     color: var(--primary-color);
 }
 
+/* A native button, drawn on the first paint, at the size the Shoelace button had. */
 .details-button {
     align-self: center;
-}
-
-.details-button::part(base) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
     height: var(--violation-stat-height);
-    line-height: 48px;
+    margin: 0;
+    padding: 0 16px;
     border: 1px solid var(--primary-color);
     border-radius: 0;
     background: transparent;
     color: var(--primary-color);
     font-family: var(--font-stack), monospace;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 48px;
+    white-space: nowrap;
+    cursor: pointer;
 }
 
-.details-button::part(base):hover {
+.details-button:hover {
     border-color: var(--primary-color);
     background: var(--primary-color);
     color: var(--background-color);
 }
 
-.details-button::part(base):active {
+.details-button:active {
     border-color: var(--warn-color);
     background: var(--warn-color);
     color: var(--background-color);
 }
 
-.details-button::part(prefix) {
-    color: inherit;
+.details-button:focus-visible {
+    outline: 1px solid var(--secondary-color);
+    outline-offset: 2px;
 }
 }

@@ -1,7 +1,11 @@
 import {html, nothing} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
 import type {ShowExampleDetail} from './example-drawer.js';
+import '@awesome.me/webawesome/dist/components/icon/icon.js';
+import '@awesome.me/webawesome/dist/components/tooltip/tooltip.js';
 import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+
+let rawViewerCount = 0;
 
 @customElement('pp-raw-viewer-btn')
 export class PpRawViewerBtn extends LightElement {
@@ -37,13 +41,21 @@ export class PpRawViewerBtn extends LightElement {
         this.dispatchEvent(event);
     }
 
+    // The server writes the button; it stays until the raw object arrives.
+    protected canReplaceServerMarkup(): boolean {
+        return Boolean(this.rawJson || this.rawYaml);
+    }
+
+    private buttonID(): string {
+        if (!this.id) {
+            this.id = `pp-raw-viewer-${++rawViewerCount}`;
+        }
+        return `${this.id}-button`;
+    }
+
     render() {
         if (!this.rawJson && !this.rawYaml) return nothing;
-        return html`
-            <sl-tooltip content="VIEW RAW OBJECT">
-                <sl-button variant="text" size="small" @click=${this.showRaw}>
-                    <wa-icon slot="prefix" name="braces" label="VIEW RAW OBJECT" ></wa-icon>
-                </sl-button>
-            </sl-tooltip>`;
+        const id = this.buttonID();
+        return html`<span class="raw-viewer-box"><button type="button" id=${id} class="raw-viewer-button" aria-label="VIEW RAW OBJECT" @click=${this.showRaw}><wa-icon name="braces" aria-hidden="true"></wa-icon></button></span><wa-tooltip for=${id}>VIEW RAW OBJECT</wa-tooltip>`;
     }
 }

@@ -1,10 +1,1 @@
-{{/* breadcrumb.html draws a page's breadcrumb. Data: render.BreadcrumbArgs. */}}
-<sl-breadcrumb class="pp-breadcrumb">
-	<wa-icon name="chevron-right" slot="separator"></wa-icon> {{range .Items}}
-		{{if .Href}}
-			<sl-breadcrumb-item href="{{docHref $.Base .Href}}">{{.Label}}</sl-breadcrumb-item>
-		{{else}}
-			<sl-breadcrumb-item>{{.Label}}</sl-breadcrumb-item>
-		{{end}}
-	{{end}}
-</sl-breadcrumb>
+{{/* breadcrumb.html draws a page's breadcrumb: plain markup, so it is in place before any script runs. Data: render.BreadcrumbArgs. */}}<nav class="pp-breadcrumb" aria-label="Breadcrumb">{{$last := len .Items | add -1}}{{range $i, $item := .Items}}<span class="pp-breadcrumb-item">{{if $item.Href}}<a class="pp-breadcrumb-label" href="{{docHref $.Base $item.Href}}"{{if eq $i $last}} aria-current="page"{{end}}>{{$item.Label}}</a>{{else}}<span class="pp-breadcrumb-label"{{if eq $i $last}} aria-current="page"{{end}}>{{$item.Label}}</span>{{end}}{{if lt $i $last}}<span class="pp-breadcrumb-separator" aria-hidden="true"><wa-icon name="chevron-right"></wa-icon></span>{{end}}</span>{{end}}</nav>

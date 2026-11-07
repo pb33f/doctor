@@ -28,22 +28,18 @@
     border-bottom: 1px dashed var(--hrcolor);
 }
 
-.diagnostics-tabs::part(active-tab-indicator) {
-    --track-color: var(--primary-color);
-}
-
-.diagnostics-tabs sl-tab::part(base) {
+.diagnostics-tabs wa-tab::part(base) {
     font-family: var(--font-stack), monospace;
     text-transform: uppercase;
     font-size: 1rem;
     color: var(--font-color-sub1);
 }
 
-.diagnostics-tabs sl-tab[active]::part(base) {
+.diagnostics-tabs wa-tab[active]::part(base) {
     color: var(--primary-color);
 }
 
-.diagnostics-tabs sl-tab-panel::part(base) {
+.diagnostics-tabs wa-tab-panel::part(base) {
     padding: var(--global-padding-double) 0 0;
 }
 

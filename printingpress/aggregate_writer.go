@@ -1616,18 +1616,6 @@ func catalogAssetHref(assetBase, href string) string {
 	return assetBase + href
 }
 
-func catalogVersionSelectScriptHTML() string {
-	return `<script>
-			document.addEventListener('sl-select', function(event) {
-				const menu = event.target && event.target.closest ? event.target.closest('sl-menu[data-catalog-version-menu]') : null;
-				if (!menu) return;
-				const item = event.detail && event.detail.item;
-				const value = item && item.value;
-				if (value) window.location.href = value;
-			});
-		</script>`
-}
-
 func writeCatalogOptionalAttr(w io.Writer, key, value string) error {
 	if strings.TrimSpace(value) == "" {
 		return nil

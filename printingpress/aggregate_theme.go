@@ -117,9 +117,9 @@ func (ap *AggregatePrintingPress) catalogPageView(page catalogPageData, stack *t
 		view.Site.Brand = catalog.Brand
 		view.Site.Nav = siteNavView(catalog, page.RelPath)
 	}
-	view.Engine.AfterBody = template.HTML(catalogVersionSelectScriptHTML())
 	if catalogPageHasNav(page) {
 		view.Shape = theme.ShapeSiteNav
+		view.Header.TitleHref = view.Page.HomeHref
 		var attrs strings.Builder
 		if strings.TrimSpace(page.AssetBase) != "" {
 			if err := writeCatalogOptionalAttr(&attrs, "data-pp-base-url", page.AssetBase); err != nil {
@@ -127,7 +127,7 @@ func (ap *AggregatePrintingPress) catalogPageView(page catalogPageData, stack *t
 			}
 		}
 		view.Engine.BodyAttrs = template.HTMLAttr(attrs.String())
-		view.Engine.Nav = template.HTML(`<pp-nav id="pp-nav" slot="nav" data-active="` + htmlstd.EscapeString(page.ActiveNavSlug) + `" data-pp-preview-hold="true">` + catalogNavHTML(page) + `</pp-nav>`)
+		view.Engine.Nav = template.HTML(`<pp-nav id="pp-nav" data-active="` + htmlstd.EscapeString(page.ActiveNavSlug) + `" data-pp-preview-hold="true">` + catalogNavHTML(page) + `</pp-nav>`)
 		return view, nil
 	}
 	if picker := catalogHeaderVersionPicker(fromDir, page.RelPath, page.Service); picker != nil {

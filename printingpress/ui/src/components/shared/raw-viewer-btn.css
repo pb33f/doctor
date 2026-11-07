@@ -10,10 +10,35 @@
     display: inline-block;
 }
 
-sl-button::part(base) {
-    font-family: var(--font-stack), monospace;
-    padding: 0;
+/* The box the Shoelace button host drew, which sets where the button sits in a heading. */
+.raw-viewer-box {
+    display: inline-block;
+    position: relative;
+}
+
+/* A native button, drawn on the first paint, at the size the Shoelace text button had. */
+.raw-viewer-button {
+    display: inline-flex;
+    vertical-align: middle;
+    align-items: center;
+    box-sizing: border-box;
+    height: 30px;
+    margin: 0;
+    padding: 0 8px 0 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--primary-color);
     font-size: 1.5rem;
-    text-transform: uppercase;
-    letter-spacing: var(--label-spacing);
+    line-height: 28px;
+    cursor: pointer;
+}
+
+.raw-viewer-button:hover {
+    color: var(--font-color);
+}
+
+.raw-viewer-button:focus-visible {
+    outline: 1px solid var(--secondary-color);
+    outline-offset: 1px;
 }

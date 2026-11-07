@@ -8,10 +8,10 @@
 		{{with asyncAPIModelProtocol .}}
 			<pp-asyncapi-protocol protocol="{{.}}" size="large" heading></pp-asyncapi-protocol>
 		{{else}}
-			<pp-icon-title icon="{{.ComponentType}}" heading="{{.Name}}"></pp-icon-title>
+			{{iconTitle .ComponentType .Name}}
 		{{end}} {{if or .RawYAML .SchemaJSON}}
 			<pp-raw-viewer-btn id="pp-model-raw" title="{{.Name}}" component-type="{{.ComponentType}}"
-				{{- with .Origin}}{{if gt .Line 0}} start-line="{{.Line}}"{{end}}{{with .OriginalFile}} location="{{.}}"{{end}}{{end}}></pp-raw-viewer-btn>
+				{{- with .Origin}}{{if gt .Line 0}} start-line="{{.Line}}"{{end}}{{with .OriginalFile}} location="{{.}}"{{end}}{{end}} data-pp-owner="page" data-pp-ssr>{{rawViewerButton "pp-model-raw"}}</pp-raw-viewer-btn>
 		{{end}}
 	</div>
 	{{with .Origin}}
@@ -20,7 +20,7 @@
 	{{else}}
 		{{if .Source}}{{template "api/partials/source.html" (source .Source "" 0 $base)}}{{end}}
 	{{end}}
-	{{template "api/partials/violation-stats.html" .Name}}
+	{{violationStats .Name .Counts}}
 	{{if .DescHTML}}<div class="pp-description">{{raw .DescHTML}}</div>{{end}}
 	{{if shouldRenderAsyncAPITraitProtocols .}}
 		<div class="pp-asyncapi-operation" id="section-protocols" data-nav-label="Protocols">
@@ -56,12 +56,12 @@
 	{{if or .MermaidDiagram .GraphJSON}}
 		<div class="pp-visualization-section">
 			{{if and .MermaidDiagram .GraphJSON}}
-				<sl-tab-group>
-					<sl-tab slot="nav" panel="class-diagram">CLASS DIAGRAM</sl-tab>
-					<sl-tab slot="nav" panel="focused-view">DEPENDENCY EXPLORER</sl-tab>
-					<sl-tab-panel name="class-diagram"><pp-class-diagram id="pp-model-diagram" name="{{.Name}}"></pp-class-diagram></sl-tab-panel>
-					<sl-tab-panel name="focused-view"><pp-focused-explorer id="pp-model-explorer" node-id="{{.GraphNodeID}}" name="{{.Name}}"></pp-focused-explorer></sl-tab-panel>
-				</sl-tab-group>
+				<wa-tab-group>
+					<wa-tab slot="nav" panel="class-diagram">CLASS DIAGRAM</wa-tab>
+					<wa-tab slot="nav" panel="focused-view">DEPENDENCY EXPLORER</wa-tab>
+					<wa-tab-panel name="class-diagram"><pp-class-diagram id="pp-model-diagram" name="{{.Name}}"></pp-class-diagram></wa-tab-panel>
+					<wa-tab-panel name="focused-view"><pp-focused-explorer id="pp-model-explorer" node-id="{{.GraphNodeID}}" name="{{.Name}}"></pp-focused-explorer></wa-tab-panel>
+				</wa-tab-group>
 			{{else if .MermaidDiagram}}
 				<pp-class-diagram id="pp-model-diagram" name="{{.Name}}"></pp-class-diagram>
 			{{else}}

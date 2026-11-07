@@ -19,6 +19,27 @@ describe('pp-nav', () => {
     window.history.replaceState({}, '', '/');
   });
 
+  it('keeps the nav the server wrote until the nav data arrives, then draws the same rows', async () => {
+    document.body.innerHTML = `<pp-nav id="pp-nav" data-active="create-burger" data-pp-owner="page" data-pp-ssr><a class="nav-home" href="index.html"><wa-icon name="chevron-right" class="nav-home-chevron"></wa-icon>API OVERVIEW</a><div class="nav-section nav-operations-section"><h4>Operations</h4><pp-nav-tag data-pp-owner="pp-nav" data-pp-ssr><div class="tag-header active"><wa-icon name="chevron-down" class="chevron"></wa-icon><span class="tag-name"><span>Burgers</span></span></div><div class="tag-body"><ul><li><a href="operations/create-burger.html" class="active"><span class="op-title">Create a new burger</span><pp-http-method mode="nav-naked" method="POST" data-pp-owner="pp-nav-tag" data-pp-ssr><span class="pp-http-method__naked post">POST</span></pp-http-method></a></li></ul></div></pp-nav-tag></div></pp-nav>`;
+    const el = document.querySelector('pp-nav') as HTMLElement & {updateComplete: Promise<unknown>};
+    await el.updateComplete;
+    const written = el.querySelector('pp-nav-tag');
+    expect(el.querySelector('.tag-header .tag-name')?.textContent).toBe('Burgers');
+    expect(el.querySelector('.pp-nav-fallback')).toBeNull();
+
+    el.setAttribute('data-nav', JSON.stringify([{
+      name: 'burgers', summary: 'Burgers', children: null, isNavOnly: false,
+      operations: [{method: 'POST', path: '/burgers', operationId: 'createBurger', summary: 'Create a new burger', slug: 'create-burger', deprecated: false}],
+    }]));
+    await el.updateComplete;
+    const tag = el.querySelector('pp-nav-tag') as HTMLElement & {updateComplete: Promise<unknown>};
+    await tag.updateComplete;
+    expect(tag).not.toBe(written);
+    expect(el.querySelectorAll('pp-nav-tag')).toHaveLength(1);
+    expect(tag.querySelector('.tag-header')?.classList.contains('active')).toBe(true);
+    expect(tag.querySelector('a.active .op-title')?.textContent).toBe('Create a new burger');
+  });
+
   it('should render with nav data', async () => {
     const navData = [
       {

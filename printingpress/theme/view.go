@@ -34,9 +34,39 @@ type PageView struct {
 	Head     HeadView
 	Hero     HeroView
 	Footer   FooterView
+	Header   HeaderView
 	Engine   EngineView
 	// Content is the page body, already rendered.
 	Content template.HTML
+}
+
+// HeaderView is what the header of a page with a navigation column shows
+// beside the site title.
+type HeaderView struct {
+	// TitleHref is where the site title links: the catalog when the API is
+	// part of one, else the API overview. It is relative to the page.
+	TitleHref string
+	// Versions switches between the versions of the API. It is nil when there
+	// is one version, or when the navigation column switches contracts.
+	Versions *VersionPickerView
+}
+
+// VersionPickerView is a menu of versions; each option opens that version.
+type VersionPickerView struct {
+	WrapperClass string
+	SelectClass  string
+	// ShowLabel puts a "Version" label before the menu.
+	ShowLabel bool
+	// Trigger is the text on the menu button.
+	Trigger string
+	Options []VersionOptionView
+}
+
+// VersionOptionView is one version in a VersionPickerView.
+type VersionOptionView struct {
+	Label   string
+	Href    string
+	Checked bool
 }
 
 // IsAPI reports whether the page is an API reference page.

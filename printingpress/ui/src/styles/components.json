@@ -58,11 +58,6 @@
       "components/shared/inline-code.css",
       "styles/tooltip.css"
     ],
-    "pp-layout": [
-      "styles/dropdown.css",
-      "components/layout/layout.css",
-      "styles/shared.css"
-    ],
     "pp-media-type-selector": [
       "styles/shared.css",
       "styles/ref-link.css",

@@ -7,11 +7,6 @@
   const log = window.__PP_LOG || function () {};
   const schemeHrefRE = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 
-  if (store.stopAtPreview) {
-    log('bootstrap-hydration:skipped', { reason: 'preview-hold' });
-    return;
-  }
-
   log('bootstrap-hydration:start', { assetMode, sharedBase, pageBase });
 
   function runtimeAssetHref(assetBase, extension) {
