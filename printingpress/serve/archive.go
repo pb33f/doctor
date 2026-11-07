@@ -37,12 +37,12 @@ func NewStaticExportHandler(opts Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodOptions:
-			w.Header().Set("Allow", "GET, HEAD, OPTIONS")
+			w.Header().Set("Allow", "GET, HEAD, POST, OPTIONS")
 			w.WriteHeader(http.StatusNoContent)
 			return
-		case http.MethodGet, http.MethodHead:
+		case http.MethodGet, http.MethodHead, http.MethodPost:
 		default:
-			w.Header().Set("Allow", "GET, HEAD, OPTIONS")
+			w.Header().Set("Allow", "GET, HEAD, POST, OPTIONS")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
