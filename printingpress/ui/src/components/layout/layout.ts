@@ -2,6 +2,7 @@ import {html} from 'lit';
 import {customElement, state} from 'lit/decorators.js';
 import {docHref, headerTitleHref} from '../../utils/doc-links.js';
 import {multiContractGroups} from '../../utils/contract-navigation.js';
+import {bindThemeSwitches, syncThemeButtons} from '../../utils/theme.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
@@ -12,39 +13,13 @@ import {LightElement} from '@pb33f/printing-press-components/base/light-element.
 const SPLIT_POS_KEY = 'pp-split-position';
 const DEFAULT_POS = 20;
 const MIN_PERSISTED_SPLIT_POS = 1;
-const PB33F_THEME = 'pb33f-theme';
-const PB33F_BASE_THEME = 'pb33f-base-theme';
-const PB33F_THEME_CHANGE = 'pb33f-theme-change';
 
-type HostThemeName = 'dark' | 'light' | 'tektronix';
 
 type HeaderVersionLink = {
   label: string;
   href: string;
   active?: boolean;
 };
-
-function readStorage(key: string) {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function writeStorage(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // Theme changes should still apply when storage is blocked.
-  }
-}
-
-function labelThemeButton(button: HTMLElement, label: string) {
-  button.setAttribute('label', label);
-  button.setAttribute('title', label);
-  button.setAttribute('aria-label', label);
-}
 
 function readSplitPosition() {
   try {
@@ -108,6 +83,7 @@ export class PpLayout extends LightElement {
       document.body?.dataset.ppEmbeddedDocs === 'true';
     this.toggleAttribute('embedded', this.embedded);
     this.splitPos = readSplitPosition();
+    bindThemeSwitches();
   }
 
   disconnectedCallback() {
@@ -124,7 +100,7 @@ export class PpLayout extends LightElement {
 
   updated() {
     this.syncHeader();
-    this.syncThemeControls();
+    syncThemeButtons(this);
     this.syncSplitPanel();
   }
 
@@ -134,75 +110,6 @@ export class PpLayout extends LightElement {
       return;
     }
     logoLink.href = headerTitleHref();
-  }
-
-  private activeTheme(): HostThemeName {
-    const storedTheme = readStorage(PB33F_THEME);
-    if (storedTheme === 'light' || storedTheme === 'tektronix') {
-      return storedTheme;
-    }
-    const documentTheme = document.documentElement.getAttribute('theme');
-    if (documentTheme === 'light' || documentTheme === 'tektronix') {
-      return documentTheme;
-    }
-    return 'dark';
-  }
-
-  private baseTheme(): Exclude<HostThemeName, 'tektronix'> {
-    const storedBase = readStorage(PB33F_BASE_THEME);
-    if (storedBase === 'light') {
-      return 'light';
-    }
-    if (storedBase === 'dark') {
-      return 'dark';
-    }
-    return this.activeTheme() === 'light' ? 'light' : 'dark';
-  }
-
-  private applyTheme(theme: HostThemeName, baseTheme: Exclude<HostThemeName, 'tektronix'> = this.baseTheme()) {
-    const nextBaseTheme = theme === 'tektronix' ? baseTheme : theme;
-    writeStorage(PB33F_THEME, theme);
-    writeStorage(PB33F_BASE_THEME, nextBaseTheme);
-    document.documentElement.setAttribute('theme', theme);
-    if (theme === 'light') {
-      document.documentElement.classList.remove('sl-theme-dark');
-    } else {
-      document.documentElement.classList.add('sl-theme-dark');
-    }
-    window.dispatchEvent(new CustomEvent(PB33F_THEME_CHANGE, {detail: {theme}}));
-    this.syncThemeControls();
-  }
-
-  private toggleBaseTheme() {
-    const nextBaseTheme = this.baseTheme() === 'dark' ? 'light' : 'dark';
-    this.applyTheme(nextBaseTheme, nextBaseTheme);
-  }
-
-  private toggleTektronix() {
-    const baseTheme = this.baseTheme();
-    this.applyTheme(this.activeTheme() === 'tektronix' ? baseTheme : 'tektronix', baseTheme);
-  }
-
-  private syncThemeControls() {
-    const modeButton = this.renderRoot?.querySelector('.theme-mode-toggle') as HTMLElement | null;
-    const tektronixButton = this.renderRoot?.querySelector('.theme-tektronix-toggle') as HTMLElement | null;
-    const baseTheme = this.baseTheme();
-    const activeTheme = this.activeTheme();
-
-    if (modeButton) {
-      const modeLabel = baseTheme === 'dark' ? 'Switch to Roger Mode (light)' : 'Switch to PB33F Mode (dark)';
-      const modeIcon = modeButton.querySelector('sl-icon');
-      modeIcon?.setAttribute('name', baseTheme === 'dark' ? 'sun' : 'moon');
-      labelThemeButton(modeButton, modeLabel);
-      modeButton.onclick = () => this.toggleBaseTheme();
-    }
-
-    if (tektronixButton) {
-      const tektronixLabel = activeTheme === 'tektronix' ? 'Disable Tektronix 4010 Mode' : 'Enable Tektronix 4010 Mode';
-      labelThemeButton(tektronixButton, tektronixLabel);
-      tektronixButton.classList.toggle('tek-active', activeTheme === 'tektronix');
-      tektronixButton.onclick = () => this.toggleTektronix();
-    }
   }
 
   private syncSplitPanel() {
@@ -453,10 +360,10 @@ export class PpLayout extends LightElement {
                   `
                 : null}
               <div class="theme-controls">
-                <button type="button" class="theme-icon-button theme-mode-toggle" aria-label="Toggle dark/light" title="Toggle dark/light">
+                <button type="button" class="theme-icon-button theme-mode-toggle" data-pp-theme-toggle="base" aria-label="Toggle dark/light" title="Toggle dark/light">
                   <sl-icon name="sun" aria-hidden="true"></sl-icon>
                 </button>
-                <button type="button" class="theme-icon-button theme-tektronix-toggle" aria-label="Toggle Tektronix" title="Toggle Tektronix">
+                <button type="button" class="theme-icon-button theme-tektronix-toggle" data-pp-theme-toggle="tektronix" aria-label="Toggle Tektronix" title="Toggle Tektronix">
                   <sl-icon name="display" aria-hidden="true"></sl-icon>
                 </button>
               </div>

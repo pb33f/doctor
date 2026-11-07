@@ -6,37 +6,10 @@ import postcss, { type Root } from 'postcss';
 
 const require = createRequire(import.meta.url);
 const cowboyCssPath = require.resolve('@pb33f/cowboy-components/cowboy-components.css');
-const cowboyThemePath = require.resolve('@pb33f/cowboy-components/pb33f-theme.css');
 const cowboyRoot = path.resolve(path.dirname(cowboyCssPath), '..');
 const elkBundlePath = require.resolve('elkjs/lib/elk.bundled.js', {
   paths: [cowboyRoot, __dirname],
 });
-
-// Copy exported cowboy static CSS assets into ../static/ during build so they can
-// be go:embed'd. The theme file needs a font-path rewrite for the hosted docs
-// layout, but the source of truth remains cowboy-components.
-function addWarningColorAlias(themeCss: string): string {
-  return themeCss.replace(
-    /(^\s*--warn-color:\s*[^;]+;\s*$)(?!\n\s*--warning-color:)/gm,
-    '$1\n    --warning-color: var(--warn-color);'
-  );
-}
-
-function copyCowboyStaticAssets() {
-  return {
-    name: 'copy-cowboy-static-assets',
-    closeBundle() {
-      const cowboyCssDest = path.resolve(__dirname, '../static/cowboy-components.css');
-      copyFileSync(cowboyCssPath, cowboyCssDest);
-
-      const themeDest = path.resolve(__dirname, '../static/pb33f-theme.css');
-      const themeCss = addWarningColorAlias(readFileSync(cowboyThemePath, 'utf8'))
-        .replaceAll("url('../fonts/", "url('fonts/")
-        .replaceAll('url("../fonts/', 'url("fonts/');
-      writeFileSync(themeDest, themeCss);
-    },
-  };
-}
 
 // The Web Awesome theme and the Printing Press component styles, written to
 // ../static/ as single files for the page head. Only the theme tokens are
@@ -260,7 +233,7 @@ export default defineConfig({
   server: {
     fs: { allow: [searchForWorkspaceRoot(process.cwd()), ppComponentsRoot] },
   },
-  plugins: [copyCowboyStaticAssets(), writeComponentStyles(), stubVisualizationsInLite(), stubWorkerInline()],
+  plugins: [writeComponentStyles(), stubVisualizationsInLite(), stubWorkerInline()],
   build: {
     lib: {
       entry: 'src/index.ts',

@@ -59,8 +59,6 @@ const (
 	// build wrote, so the next build removes those it no longer has.
 	FileCatalogAgentContentStateJSON = ".printingpress-catalog-agent-content.json"
 
-	FilePB33FThemeCSS             = "pb33f-theme.css"
-	FileCowboyComponentsCSS       = "cowboy-components.css"
 	FileShoelaceDarkCSS           = "shoelace-dark.css"
 	FilePrintingPressCSS          = "printing-press.css"
 	FileChromaCSS                 = "chroma.css"

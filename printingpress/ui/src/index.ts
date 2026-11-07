@@ -4,6 +4,7 @@ import {hydratePrintingPressPage} from './utils/hydration.js';
 import {attentionInlineIcons} from './utils/attention-icons.js';
 import {enhanceContentCodeBlocks} from './utils/content-code-copy.js';
 import {printingPressStaticAssetHref} from './utils/static-assets.js';
+import {applyTheme, bindThemeSwitches, type ThemeName} from './utils/theme.js';
 
 // Import Shoelace components used by cowboy-components
 import '@shoelace-style/shoelace/dist/components/tag/tag.js';
@@ -91,10 +92,6 @@ useBootstrapIcons(printingPressStaticAssetHref('shoelace/assets/icons'), inlineI
 
 // Printing Press components: light DOM, on Web Awesome.
 import '@pb33f/printing-press-components';
-// Import cowboy-components
-import '@pb33f/cowboy-components/components/header/header.js';
-import '@pb33f/cowboy-components/components/theme-switcher/theme-switcher.js';
-import '@pb33f/cowboy-components/components/footer/footer.js';
 
 export { PpLayout } from './components/layout/layout.js';
 export { PpNav } from './components/nav/nav.js';
@@ -137,12 +134,7 @@ import './components/class-diagram/class-diagram.js';
 import './components/mermaid/mermaid.js';
 import './components/explorer/focused-explorer.js';
 
-type HostThemeName = 'dark' | 'light' | 'tektronix';
-
-const PB33F_THEME = 'pb33f-theme';
-const PB33F_BASE_THEME = 'pb33f-base-theme';
-const PB33F_THEME_CHANGE = 'pb33f-theme-change';
-const hostThemes = new Set<HostThemeName>(['dark', 'light', 'tektronix']);
+const hostThemes = new Set<ThemeName>(['dark', 'light', 'tektronix']);
 
 function expectedHostOrigin() {
   try {
@@ -152,26 +144,8 @@ function expectedHostOrigin() {
   }
 }
 
-function isHostThemeName(value: unknown): value is HostThemeName {
-  return typeof value === 'string' && hostThemes.has(value as HostThemeName);
-}
-
-function applyHostTheme(theme: HostThemeName) {
-  try {
-    localStorage.setItem(PB33F_THEME, theme);
-    if (theme !== 'tektronix') {
-      localStorage.setItem(PB33F_BASE_THEME, theme);
-    }
-  } catch {
-    // storage failures should not prevent the embedded page from matching its host.
-  }
-  document.documentElement.setAttribute('theme', theme);
-  if (theme === 'light') {
-    document.documentElement.classList.remove('sl-theme-dark', 'wa-dark');
-  } else {
-    document.documentElement.classList.add('sl-theme-dark', 'wa-dark');
-  }
-  window.dispatchEvent(new CustomEvent(PB33F_THEME_CHANGE, {detail: {theme}}));
+function isHostThemeName(value: unknown): value is ThemeName {
+  return typeof value === 'string' && hostThemes.has(value as ThemeName);
 }
 
 window.addEventListener('message', (event) => {
@@ -182,10 +156,11 @@ window.addEventListener('message', (event) => {
   if (!data || typeof data !== 'object' || data.type !== 'doctor:theme' || !isHostThemeName(data.theme)) {
     return;
   }
-  applyHostTheme(data.theme);
+  applyTheme(data.theme);
 });
 
 function bootPrintingPressPage() {
+  bindThemeSwitches();
   enhanceContentCodeBlocks();
   void hydratePrintingPressPage();
 }

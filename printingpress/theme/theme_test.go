@@ -54,9 +54,9 @@ func TestPb33fThemeHoldsThePb33fLook(t *testing.T) {
 	html, err := pb33f.RenderString(siteView())
 	require.NoError(t, err)
 	assert.Contains(t, html, "pb33f-theme")
-	assert.Contains(t, html, "<pb33f-header")
-	assert.Contains(t, html, `pp-layout-fallback-caret">$</span>`)
-	assert.Contains(t, html, "<pb33f-footer")
+	assert.Contains(t, html, `class="pb33f-header"`)
+	assert.Contains(t, html, `<span class="caret">$</span>`)
+	assert.Contains(t, html, `class="pb33f-footer`)
 
 	simple, err := render.LoadTheme("simple", "")
 	require.NoError(t, err)
@@ -101,8 +101,8 @@ func TestSiteLayoutsOverrideThemePartials(t *testing.T) {
 	html, err := stack.RenderString(siteView())
 	require.NoError(t, err)
 	assert.Contains(t, html, "MINE", "the site's partial wins")
-	assert.NotContains(t, html, "<pb33f-footer")
-	assert.Contains(t, html, "<pb33f-header", "everything else still comes from the theme")
+	assert.NotContains(t, html, `class="pb33f-footer`)
+	assert.Contains(t, html, `class="pb33f-header"`, "everything else still comes from the theme")
 }
 
 func TestThemeErrorsNameTheProblem(t *testing.T) {
