@@ -326,7 +326,9 @@ export class PpNav extends LitElement {
         const url = this.archiveExportURL(directExportURL);
         const identity = url.toString();
         if (this.directArchiveAttempt?.url !== identity) {
-            this.directArchiveAttempt = {url: identity, key: crypto.randomUUID()};
+            // getRandomValues also works on HTTP preview origins, unlike randomUUID.
+            const key = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
+            this.directArchiveAttempt = {url: identity, key};
         }
         const attempt = this.directArchiveAttempt;
         const response = await fetch(identity, {
