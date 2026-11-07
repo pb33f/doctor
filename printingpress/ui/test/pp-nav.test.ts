@@ -523,6 +523,28 @@ describe('pp-nav', () => {
     expect(el.shadowRoot.querySelector('[role="alert"]')).toBeNull();
   });
 
+  it('exports from an HTTP preview where crypto.randomUUID is unavailable', async () => {
+    const getRandomValues = crypto.getRandomValues.bind(crypto);
+    vi.stubGlobal('crypto', {getRandomValues});
+    try {
+      const el = document.createElement('pp-nav') as any;
+      el.archiveExportUrl = '/_printing-press/export';
+      document.body.appendChild(el);
+      await el.updateComplete;
+      const download = vi.spyOn(el, 'downloadArchiveBlob').mockImplementation(() => {});
+      const request = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('archive'));
+      await el.requestArchiveExport();
+      await el.updateComplete;
+      expect(request).toHaveBeenCalledOnce();
+      const key = (request.mock.calls[0][1]?.headers as Record<string,string>)['Idempotency-Key'];
+      expect(key).toMatch(/^[0-9a-f]{32}$/);
+      expect(download).toHaveBeenCalledOnce();
+      expect(el.shadowRoot.querySelector('[role="alert"]')).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('retains the direct export key after a lost response or active result and clears it after a confirmed outcome', async () => {
     const el = document.createElement('pp-nav') as any;
     document.body.appendChild(el);
