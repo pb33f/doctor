@@ -21,7 +21,7 @@
 			{{if .OperationID}}
 				<div class="pp-operation-id">
 					<span class="pp-label">{{if .SpecKind.IsAsyncAPI}}Operation:{{else}}Operation ID:{{end}}</span>
-					<code>{{.OperationID}}</code> {{if .Deprecated}}<span class="pp-deprecated"><sl-icon name="exclamation-triangle"></sl-icon> Deprecated</span>{{end}}
+					<code>{{.OperationID}}</code> {{if .Deprecated}}<span class="pp-deprecated"><wa-icon name="exclamation-triangle"></wa-icon> Deprecated</span>{{end}}
 				</div>
 			{{end}}
 		</div>
@@ -107,7 +107,7 @@
 			<h3>SERVERS</h3>
 			{{range .Servers}}
 				<div class="pp-server-entry">
-					<span class="pp-server-name">{{if .Description}}{{.Description}} {{end}}<sl-icon name="hdd-network" class="pp-server-icon"></sl-icon></span>
+					<span class="pp-server-name">{{if .Description}}{{.Description}} {{end}}<wa-icon name="hdd-network" class="pp-server-icon"></wa-icon></span>
 					<a class="pp-server-url" href="{{specURL (serverURL .)}}" target="_blank" rel="noopener">{{.URL}}</a>
 				</div>
 			{{end}}
@@ -133,19 +133,19 @@
 	{{end}}
 	{{if .ResponsesJSON}}<pp-operation-responses id="section-responses" data-nav-label="Responses"></pp-operation-responses>{{end}}
 	{{if .ParametersJSON}}
-		<sl-details class="pp-details" id="section-parameters" data-nav-label="Parameters" style="display:block;min-height:64px;">
+		<wa-details class="pp-details" id="section-parameters" data-nav-label="Parameters" style="display:block;min-height:64px;">
 			<span slot="summary" class="pp-details-summary"><h3>Parameters</h3></span>
 			<pp-operation-parameters id="pp-operation-parameters"></pp-operation-parameters>
-		</sl-details>
+		</wa-details>
 	{{end}}
 	{{if .CurlJSON}}
-		<sl-details class="pp-details" id="section-curl" data-nav-label="cURL" style="display:block;min-height:64px;">
+		<wa-details class="pp-details" id="section-curl" data-nav-label="cURL" style="display:block;min-height:64px;">
 			<span slot="summary" class="pp-details-summary"><h3>cURL</h3></span>
 			<pp-curl-command id="pp-operation-curl" style="display:block;min-height:156px;"></pp-curl-command>
-		</sl-details>
+		</wa-details>
 	{{end}}
 	{{if .CodeSamples}}
-		<sl-details class="pp-details" id="section-code-samples" data-nav-label="Code Samples" style="display:block;min-height:64px;">
+		<wa-details class="pp-details" id="section-code-samples" data-nav-label="Code Samples" style="display:block;min-height:64px;">
 			<span slot="summary" class="pp-details-summary"><h3>Code Samples</h3></span><div class="pp-code-samples">
 				{{if eq (len .CodeSamples) 1}}
 					{{template "api/partials/code-sample.html" (index .CodeSamples 0)}}
@@ -158,31 +158,31 @@
 					</sl-tab-group>
 				{{end}}
 			</div>
-		</sl-details>
+		</wa-details>
 	{{end}}
 	{{with .ExtensionsJSON}}
-		<sl-details class="pp-details" id="section-extensions" data-nav-label="Extensions" style="display:block;min-height:64px;">
+		<wa-details class="pp-details" id="section-extensions" data-nav-label="Extensions" style="display:block;min-height:64px;">
 			<span slot="summary" class="pp-details-summary"><h3>Operation Extensions</h3></span>
 			<pp-extensions extensions-json="{{.}}"></pp-extensions>
-		</sl-details>
+		</wa-details>
 	{{end}}
 	{{with .PathExtensionsJSON}}
-		<sl-details class="pp-details" id="section-path-extensions" data-nav-label="Path Extensions" style="display:block;min-height:64px;">
+		<wa-details class="pp-details" id="section-path-extensions" data-nav-label="Path Extensions" style="display:block;min-height:64px;">
 			<span slot="summary" class="pp-details-summary"><h3>Path Extensions</h3></span>
 			<pp-extensions extensions-json="{{.}}"></pp-extensions>
-		</sl-details>
+		</wa-details>
 	{{end}}
 	{{if .CallbacksJSON}}
-		<sl-details class="pp-details" id="section-callbacks" data-nav-label="Callbacks" style="display:block;min-height:64px;">
+		<wa-details class="pp-details" id="section-callbacks" data-nav-label="Callbacks" style="display:block;min-height:64px;">
 			<span slot="summary" class="pp-details-summary"><h3>Callbacks</h3></span>
 			<pp-operation-callbacks id="pp-operation-callbacks"></pp-operation-callbacks>
-		</sl-details>
+		</wa-details>
 	{{end}}
 	{{with .ExternalDoc}}
 		<div class="pp-external-docs pp-dotted-section" id="section-external-docs" data-nav-label="External Docs">
 			<h3>EXTERNAL DOCS</h3>
 			<div class="pp-external-doc-entry">
-				<span class="pp-external-doc-name">{{if .Description}}{{.Description}}{{else}}Documentation{{end}} <sl-icon name="box-arrow-up-right" class="pp-external-doc-icon"></sl-icon></span>
+				<span class="pp-external-doc-name">{{if .Description}}{{.Description}}{{else}}Documentation{{end}} <wa-icon name="box-arrow-up-right" class="pp-external-doc-icon"></wa-icon></span>
 				<a class="pp-external-doc-url" href="{{specURL .URL}}" target="_blank" rel="noopener">{{.URL}}</a>
 			</div>
 		</div>

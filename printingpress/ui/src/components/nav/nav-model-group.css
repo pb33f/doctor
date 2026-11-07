@@ -27,7 +27,7 @@
     grid-template-columns: max-content minmax(0, 1fr) max-content;
 }
 
-.group-header sl-icon {
+.group-header wa-icon {
     padding-left: var(--global-padding);
 }
 
@@ -128,10 +128,12 @@ li a.active {
 
 .violation-badge {
     justify-self: end;
+    vertical-align: baseline;
     font-variant-numeric: tabular-nums;
-}
-
-.violation-badge::part(base) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
     min-width: 1.35rem;
     height: 1.35rem;
     padding: 0 0.35rem;
@@ -140,19 +142,29 @@ li a.active {
     border-radius: 0;
     background: transparent;
     font-family: var(--font-stack-bold), monospace;
+    font-size: max(12px, 0.75em);
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
 }
 
-.violation-badge.error::part(base) {
+/* The badge holds only its count, so the empty start and end boxes go: the first would set the badge baseline. */
+.violation-badge::part(start),
+.violation-badge::part(end) {
+    display: none;
+}
+
+.violation-badge.error {
     border-color: var(--error-color, #ff5572);
     color: var(--error-color, #ff5572);
 }
 
-.violation-badge.warn::part(base) {
+.violation-badge.warn {
     border-color: var(--warn-color, #ffca5f);
     color: var(--warn-color, #ffca5f);
 }
 
-.violation-badge.info::part(base) {
+.violation-badge.info {
     border-color: var(--primary-color);
     color: var(--primary-color);
 }

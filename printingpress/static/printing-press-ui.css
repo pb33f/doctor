@@ -1,6 +1,6 @@
 /* Printing Press component styles. Built from ui/src by vite.config.ts; edit the sources. */
 
-@layer pp-host, page, pp-reset, pp-host-nested;
+@layer pp-base, pp-host, page, pp-reset, pp-host-nested;
 
 @layer pp-host {
   @scope (pp-asyncapi-action) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
@@ -248,6 +248,8 @@
     display: block;
     margin: 0;
 }
+
+/* The badge holds only its count, so the empty start and end boxes go: the first would set the badge baseline. */
   }
 
   @scope (pp-nav-operation) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
@@ -261,6 +263,8 @@
     display: block;
     margin: 0;
 }
+
+/* The badge holds only its count, so the empty start and end boxes go: the first would set the badge baseline. */
 
 /* global html[theme] override in printing-press.css cannot reach into shadow DOM,
        so replicate the monochrome override here via :host-context */
@@ -661,6 +665,8 @@
     display: block;
     margin: 0;
 }
+
+/* The badge holds only its count, so the empty start and end boxes go: the first would set the badge baseline. */
   }
 
   @scope (pp-nav-operation[data-pp-owner]:not([data-pp-owner="page"])) to (:scope :is(pp-asyncapi-action, pp-asyncapi-protocol, pp-class-diagram, pp-code-viewer, pp-cross-refs, pp-curl-command, pp-diagnostics-list, pp-example-drawer, pp-example-selector, pp-extensions, pp-focused-explorer, pp-icon-title, pp-inline-code, pp-layout, pp-media-type-selector, pp-mermaid, pp-model-card, pp-model-page, pp-nav, pp-nav-model-group, pp-nav-operation, pp-nav-tag, pp-operation-callbacks, pp-operation-parameters, pp-operation-responses, pp-page-nav, pp-problems-drawer, pp-raw-viewer-btn, pp-ref-list, pp-ref-popover, pp-schema-properties, pp-security-scheme, pp-violation-stats) > *, :scope pp-slot > *) {
@@ -674,6 +680,8 @@
     display: block;
     margin: 0;
 }
+
+/* The badge holds only its count, so the empty start and end boxes go: the first would set the badge baseline. */
 
 /* global html[theme] override in printing-press.css cannot reach into shadow DOM,
        so replicate the monochrome override here via :host-context */
@@ -863,7 +871,7 @@
     color: var(--secondary-color);
 }
 
-sl-icon {
+wa-icon {
     width: 0.9em;
     height: 0.9em;
     font-size: 0.9em;
@@ -1127,7 +1135,7 @@ h2 {
     background-color: var(--secondary-color);
 }
 
-.diagram-split sl-icon[slot="divider"] {
+.diagram-split wa-icon[slot="divider"] {
     position: absolute;
     left: 2px;
     border-radius: 0;
@@ -2022,7 +2030,7 @@ sl-menu-item::part(base) {
     font-family: var(--font-stack), monospace;
 }
 
-.stat sl-icon {
+.stat wa-icon {
     width: 1rem;
     height: 1rem;
 }
@@ -2041,17 +2049,17 @@ sl-menu-item::part(base) {
     font-size: var(--smallest-font);
 }
 
-.stat.err sl-icon,
+.stat.err wa-icon,
     .stat.err span {
     color: var(--error-color, #ff5572);
 }
 
-.stat.warn sl-icon,
+.stat.warn wa-icon,
     .stat.warn span {
     color: var(--warn-color, #ffca5f);
 }
 
-.stat.info sl-icon,
+.stat.info wa-icon,
     .stat.info span {
     color: var(--primary-color);
 }
@@ -3152,7 +3160,7 @@ sl-menu-item::part(base) {
     cursor: pointer;
 }
 
-.theme-icon-button sl-icon {
+.theme-icon-button wa-icon {
     width: 1.4rem;
     height: 1.4rem;
     font-size: 1.4rem;
@@ -3198,7 +3206,7 @@ sl-split-panel::part(divider) {
         );
 }
 
-sl-icon.divider-vert {
+wa-icon.divider-vert {
     position: absolute;
     left: 0;
     border-radius: 0;
@@ -3214,7 +3222,7 @@ sl-split-panel::part(divider):focus-visible {
     background-color: var(--primary-color);
 }
 
-sl-split-panel:focus-within sl-icon {
+sl-split-panel:focus-within wa-icon {
     background-color: var(--primary-color);
     color: var(--background-color);
 }
@@ -3435,7 +3443,7 @@ sl-menu-item::part(base) {
     background-color: var(--secondary-color);
 }
 
-.schema-split sl-icon[slot="divider"] {
+.schema-split wa-icon[slot="divider"] {
     position: absolute;
     left: 2px;
     border-radius: 0;
@@ -3625,7 +3633,7 @@ h2 {
     background-color: var(--secondary-color);
 }
 
-.diagram-split sl-icon[slot="divider"] {
+.diagram-split wa-icon[slot="divider"] {
     position: absolute;
     left: 2px;
     border-radius: 0;
@@ -4353,7 +4361,7 @@ a.ref-type-link:hover {
     background-color: var(--secondary-color);
 }
 
-.schema-split sl-icon[slot="divider"] {
+.schema-split wa-icon[slot="divider"] {
     position: absolute;
     left: 2px;
     border-radius: 0;
@@ -4659,13 +4667,13 @@ a.ref-type-link:hover {
     color: var(--background-color);
 }
 
-.host-archive-controls .archive-download-button sl-spinner {
+.host-archive-controls .archive-download-button wa-spinner {
     font-size: 0.75rem;
     --indicator-color: var(--warn-color);
     --track-color: transparent;
 }
 
-.host-archive-controls .archive-download-button:hover sl-spinner {
+.host-archive-controls .archive-download-button:hover wa-spinner {
     --indicator-color: var(--background-color);
 }
 
@@ -5017,7 +5025,7 @@ sl-tooltip::part(base__arrow) {
     grid-template-columns: max-content minmax(0, 1fr) max-content;
 }
 
-.group-header sl-icon {
+.group-header wa-icon {
     padding-left: var(--global-padding);
 }
 
@@ -5118,10 +5126,12 @@ li a.active {
 
 .violation-badge {
     justify-self: end;
+    vertical-align: baseline;
     font-variant-numeric: tabular-nums;
-}
-
-.violation-badge::part(base) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
     min-width: 1.35rem;
     height: 1.35rem;
     padding: 0 0.35rem;
@@ -5130,19 +5140,29 @@ li a.active {
     border-radius: 0;
     background: transparent;
     font-family: var(--font-stack-bold), monospace;
+    font-size: max(12px, 0.75em);
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
 }
 
-.violation-badge.error::part(base) {
+/* The badge holds only its count, so the empty start and end boxes go: the first would set the badge baseline. */
+.violation-badge::part(start),
+.violation-badge::part(end) {
+    display: none;
+}
+
+.violation-badge.error {
     border-color: var(--error-color, #ff5572);
     color: var(--error-color, #ff5572);
 }
 
-.violation-badge.warn::part(base) {
+.violation-badge.warn {
     border-color: var(--warn-color, #ffca5f);
     color: var(--warn-color, #ffca5f);
 }
 
-.violation-badge.info::part(base) {
+.violation-badge.info {
     border-color: var(--primary-color);
     color: var(--primary-color);
 }
@@ -5209,7 +5229,7 @@ a:hover {
     grid-template-columns: max-content minmax(0, 1fr) max-content;
 }
 
-.tag-header sl-icon {
+.tag-header wa-icon {
     padding-left: var(--global-padding);
 }
 
@@ -5322,10 +5342,12 @@ pp-http-method,
 
 .violation-badge {
     justify-self: end;
+    vertical-align: baseline;
     font-variant-numeric: tabular-nums;
-}
-
-.violation-badge::part(base) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
     min-width: 1.35rem;
     height: 1.35rem;
     padding: 0 0.35rem;
@@ -5334,23 +5356,33 @@ pp-http-method,
     border-radius: 0;
     background: transparent;
     font-family: var(--font-stack-bold), monospace;
+    font-size: max(12px, 0.75em);
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
 }
 
 li a .violation-badge {
     margin-left: 0;
 }
 
-.violation-badge.error::part(base) {
+/* The badge holds only its count, so the empty start and end boxes go: the first would set the badge baseline. */
+.violation-badge::part(start),
+.violation-badge::part(end) {
+    display: none;
+}
+
+.violation-badge.error {
     border-color: var(--error-color, #ff5572);
     color: var(--error-color, #ff5572);
 }
 
-.violation-badge.warn::part(base) {
+.violation-badge.warn {
     border-color: var(--warn-color, #ffca5f);
     color: var(--warn-color, #ffca5f);
 }
 
-.violation-badge.info::part(base) {
+.violation-badge.info {
     border-color: var(--primary-color);
     color: var(--primary-color);
 }
@@ -6432,41 +6464,41 @@ pp-raw-viewer-btn {
     margin-bottom: var(--global-padding);
 }
 
-sl-details.pp-details {
+wa-details.pp-details {
     display: block;
     min-height: 64px;
     margin-top: 40px;
     position: relative;
 }
 
-sl-details.pp-details:not(:defined) {
+wa-details.pp-details:not(:defined) {
     display: block;
     min-height: 64px;
 }
 
-sl-details.pp-details:not(:defined) > :not([slot="summary"]) {
+wa-details.pp-details:not(:defined) > :not([slot="summary"]) {
     display: none !important;
 }
 
-sl-details.pp-details:not(:defined) > [slot="summary"] {
+wa-details.pp-details:not(:defined) > [slot="summary"] {
     display: block;
 }
 
-sl-details.pp-details::part(base) {
+wa-details.pp-details::part(base) {
     background: transparent;
     border: 1px dashed var(--secondary-color-dimmer);
     border-radius: 0;
 }
 
-sl-details.pp-details::part(header) {
+wa-details.pp-details::part(header) {
     padding: var(--global-padding);
 }
 
-sl-details.pp-details::part(summary-icon) {
+wa-details.pp-details::part(icon) {
     color: var(--secondary-color);
 }
 
-sl-details.pp-details::part(content) {
+wa-details.pp-details::part(content) {
     padding: var(--global-padding);
 }
 
@@ -6535,7 +6567,7 @@ nav {
     outline-offset: -2px;
 }
 
-.collapse-tab sl-icon {
+.collapse-tab wa-icon {
     color: var(--background-color);
     font-size: 0.7em;
 }
@@ -6556,7 +6588,7 @@ nav {
     word-break: break-all;
 }
 
-.nav-header sl-icon {
+.nav-header wa-icon {
     flex-shrink: 0;
     color: var(--secondary-color);
 }
@@ -6606,7 +6638,7 @@ nav {
     padding: 0.1rem 0;
 }
 
-.nav-children sl-icon {
+.nav-children wa-icon {
     font-size: 0.6em;
     color: var(--secondary-color);
     flex-shrink: 0;
@@ -6806,7 +6838,7 @@ h3 {
     background-color: var(--secondary-color);
 }
 
-.split sl-icon[slot="divider"] {
+.split wa-icon[slot="divider"] {
     position: absolute;
     left: 2px;
     border-radius: 0;
@@ -6821,7 +6853,7 @@ h3 {
     background-color: var(--primary-color);
 }
 
-.split:focus-within sl-icon[slot="divider"] {
+.split:focus-within wa-icon[slot="divider"] {
     background-color: var(--primary-color);
     color: var(--background-color);
 }
@@ -7863,21 +7895,21 @@ a:hover {
     letter-spacing: var(--label-spacing);
 }
 
-sl-icon {
+wa-icon {
     font-size: 2rem;
 }
 
-.err sl-icon,
+.err wa-icon,
     .err span {
     color: var(--error-color);
 }
 
-.warn sl-icon,
+.warn wa-icon,
     .warn span {
     color: var(--warn-color);
 }
 
-.info sl-icon,
+.info wa-icon,
     .info span {
     color: var(--primary-color);
 }

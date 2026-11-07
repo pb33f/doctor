@@ -108,7 +108,7 @@ export class PpOperationParameters extends LightElement {
               ${renderConstraints(schema, {labelSuffix: ':'})}
             </div>
             <div class="param-in-col">
-              <sl-icon class="param-in-icon" name="${this.inIcon(p.in)}"></sl-icon>
+              <wa-icon class="param-in-icon" name="${this.inIcon(p.in)}"></wa-icon>
               <span class="param-in">${p.in}</span>
             </div>
             <div class="param-desc-col ${!p.ref && (p.rawJson || p.rawYaml) ? 'has-actions' : ''}">

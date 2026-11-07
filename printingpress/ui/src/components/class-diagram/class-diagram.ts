@@ -305,7 +305,7 @@ export class PpClassDiagram extends LightElement {
                         <div class="collapse-tab" @click=${this.toggleSource}
                             role="button" tabindex="0"
                             @keydown=${(e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') this.toggleSource(); }}>
-                            <sl-icon name="chevron-left"></sl-icon>
+                            <wa-icon name="chevron-left"></wa-icon>
                         </div>
                     </div>
                 </div>
@@ -323,7 +323,7 @@ export class PpClassDiagram extends LightElement {
                             fit-width>
                         </pb33f-mermaid-renderer>
                     </div>
-                    <sl-icon slot="divider" name="grip-vertical"></sl-icon>
+                    <wa-icon slot="divider" name="grip-vertical"></wa-icon>
                     <div slot="end" class="code-view">
                         <div class="code-header">
                             MERMAID SOURCE
@@ -359,9 +359,9 @@ export class PpClassDiagram extends LightElement {
                     </pb33f-mermaid-renderer>
                 </div>
                 ${this.renderToolbar()}
-                <sl-details class="code-section" summary="Mermaid Source">
+                <wa-details class="code-section" summary="Mermaid Source">
                     ${this.renderCode()}
-                </sl-details>
+                </wa-details>
             </div>
         `;
     }

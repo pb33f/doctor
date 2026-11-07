@@ -71,7 +71,7 @@ export class PpNavModelGroup extends LightElement {
         const dev = this.developerMode();
         return html`
             <div class="group-header ${containsActive ? 'active' : ''} ${dev ? 'developer' : ''}" @click=${this.toggle}>
-                <sl-icon name=${open ? 'chevron-down' : 'chevron-right'} class="chevron"></sl-icon>
+                <wa-icon name=${open ? 'chevron-down' : 'chevron-right'} class="chevron"></wa-icon>
                 <span>${group.name}</span>
                 ${dev ? renderViolationBadges(group.counts) : nothing}
             </div>

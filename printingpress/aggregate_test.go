@@ -5270,9 +5270,9 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogDiagnosticsCounts(t *tes
 	assert.Equal(t, 1, strings.Count(rootRendered, `class="pp-catalog-diagnostics"`))
 	assert.Contains(t, rootRendered, `href="services/users/versions/v1/specs/users-api/diagnostics.html"`)
 	assert.Contains(t, rootRendered, `aria-label="Diagnostics: 1 error, 1 warning, 1 info"`)
-	assert.Contains(t, rootRendered, `<sl-icon name="exclamation-square" aria-hidden="true"></sl-icon><span class="pp-catalog-diagnostic-number">1</span>`)
-	assert.Contains(t, rootRendered, `<sl-icon name="exclamation-triangle" aria-hidden="true"></sl-icon><span class="pp-catalog-diagnostic-number">1</span>`)
-	assert.Contains(t, rootRendered, `<sl-icon name="info-square" aria-hidden="true"></sl-icon><span class="pp-catalog-diagnostic-number">1</span>`)
+	assert.Contains(t, rootRendered, `<wa-icon name="exclamation-square" aria-hidden="true"></wa-icon><span class="pp-catalog-diagnostic-number">1</span>`)
+	assert.Contains(t, rootRendered, `<wa-icon name="exclamation-triangle" aria-hidden="true"></wa-icon><span class="pp-catalog-diagnostic-number">1</span>`)
+	assert.Contains(t, rootRendered, `<wa-icon name="info-square" aria-hidden="true"></wa-icon><span class="pp-catalog-diagnostic-number">1</span>`)
 }
 
 func TestAggregateEntrySharedAssetBaseURL(t *testing.T) {

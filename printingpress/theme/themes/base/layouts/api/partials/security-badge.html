@@ -3,31 +3,31 @@
 	{{if eq .SchemeType "apiKey"}}
 		{{if eq .In "cookie"}}
 			<span class="pp-security-type-label">Cookie</span>
-			<sl-icon name="cookie" class="pp-security-icon"></sl-icon>
+			<wa-icon name="cookie" class="pp-security-icon"></wa-icon>
 		{{else if eq .In "header"}}
 			<span class="pp-security-type-label">API Key</span>
-			<sl-icon name="envelope" class="pp-security-icon"></sl-icon>
+			<wa-icon name="envelope" class="pp-security-icon"></wa-icon>
 		{{else if eq .In "query"}}
 			<span class="pp-security-type-label">API Key</span>
-			<sl-icon name="signpost" class="pp-security-icon"></sl-icon>
+			<wa-icon name="signpost" class="pp-security-icon"></wa-icon>
 		{{end}}
 	{{else if eq .SchemeType "http"}}
 		{{if eq .Scheme "bearer"}}
 			<span class="pp-security-type-label">Bearer</span>
-			<sl-icon name="shield-lock" class="pp-security-icon"></sl-icon>
+			<wa-icon name="shield-lock" class="pp-security-icon"></wa-icon>
 		{{else if eq .Scheme "basic"}}
 			<span class="pp-security-type-label">Basic Auth</span>
-			<sl-icon name="person-lock" class="pp-security-icon"></sl-icon>
+			<wa-icon name="person-lock" class="pp-security-icon"></wa-icon>
 		{{else}}
 			<span class="pp-security-type-label">HTTP {{.Scheme}}</span>
-			<sl-icon name="lock" class="pp-security-icon"></sl-icon>
+			<wa-icon name="lock" class="pp-security-icon"></wa-icon>
 		{{end}}
 	{{else if eq .SchemeType "oauth2"}}
 		<span class="pp-security-type-label">OAuth 2.0</span>
-		<sl-icon name="key" class="pp-security-icon"></sl-icon>
+		<wa-icon name="key" class="pp-security-icon"></wa-icon>
 	{{else if eq .SchemeType "openIdConnect"}}
 		<span class="pp-security-type-label">OpenID Connect</span>
-		<sl-icon name="fingerprint" class="pp-security-icon"></sl-icon>
+		<wa-icon name="fingerprint" class="pp-security-icon"></wa-icon>
 	{{else}}
 		<span class="pp-security-type-label">{{.SchemeType}}</span>
 	{{end}}

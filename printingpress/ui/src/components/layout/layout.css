@@ -162,7 +162,7 @@
     cursor: pointer;
 }
 
-.theme-icon-button sl-icon {
+.theme-icon-button wa-icon {
     width: 1.4rem;
     height: 1.4rem;
     font-size: 1.4rem;
@@ -208,7 +208,7 @@ sl-split-panel::part(divider) {
         );
 }
 
-sl-icon.divider-vert {
+wa-icon.divider-vert {
     position: absolute;
     left: 0;
     border-radius: 0;
@@ -224,7 +224,7 @@ sl-split-panel::part(divider):focus-visible {
     background-color: var(--primary-color);
 }
 
-sl-split-panel:focus-within sl-icon {
+sl-split-panel:focus-within wa-icon {
     background-color: var(--primary-color);
     color: var(--background-color);
 }

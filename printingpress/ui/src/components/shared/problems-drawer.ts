@@ -157,16 +157,16 @@ export class PpProblemsDrawer extends LightElement {
                 @click=${() => this.selectProblem(problem)}
               >
                 <span class="line">${problem.startLineNumber || '-'}</span>
-                <sl-icon
+                <wa-icon
                   class="severity-icon"
                   name=${problemSeverityIcon(problem.severity)}
                   label=${problemSeverityLabel(problem.severity)}
-                ></sl-icon>
+                ></wa-icon>
                 ${renderMarkdown(problem.message, {className: 'message pp-markdown-inline', inline: true})}
               </button>
             `)}
           </div>
-          <sl-icon slot="divider" name="grip-vertical"></sl-icon>
+          <wa-icon slot="divider" name="grip-vertical"></wa-icon>
           <div slot="end" class="slice-panel">
             ${slice && selected
               ? html`

@@ -7,21 +7,20 @@ import {printingPressStaticAssetHref} from './utils/static-assets.js';
 import {applyTheme, bindThemeSwitches, type ThemeName} from './utils/theme.js';
 
 // Import Shoelace components used by cowboy-components
-import '@shoelace-style/shoelace/dist/components/tag/tag.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/split-panel/split-panel.js';
 import '@shoelace-style/shoelace/dist/components/drawer/drawer.js';
-import '@shoelace-style/shoelace/dist/components/details/details.js';
+import '@awesome.me/webawesome/dist/components/details/details.js';
 import '@shoelace-style/shoelace/dist/components/popup/popup.js';
 import '@shoelace-style/shoelace/dist/components/breadcrumb/breadcrumb.js';
 import '@shoelace-style/shoelace/dist/components/breadcrumb-item/breadcrumb-item.js';
-import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
+import '@awesome.me/webawesome/dist/components/spinner/spinner.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
 import '@shoelace-style/shoelace/dist/components/alert/alert.js';
-import '@shoelace-style/shoelace/dist/components/badge/badge.js';
+import '@awesome.me/webawesome/dist/components/badge/badge.js';
 import '@shoelace-style/shoelace/dist/components/format-number/format-number.js';
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.js';
 import { registerIconLibrary } from '@shoelace-style/shoelace/dist/utilities/icon-library.js';

@@ -173,9 +173,9 @@ export class PpPageNav extends LightElement {
         const el = this.findElement(id);
         if (!el) return;
 
-        const details = el.closest('sl-details') as any;
+        const details = el.closest('wa-details') as any;
         if (details && !details.open) {
-            details.addEventListener('sl-after-show', () => {
+            details.addEventListener('wa-after-show', () => {
                 el.scrollIntoView({behavior: 'auto', block: 'center'});
             }, {once: true});
             details.open = true;
@@ -230,7 +230,7 @@ export class PpPageNav extends LightElement {
                     <div class="nav-header" @click=${this.toggleCollapsed}
                          aria-expanded=${!this.collapsed}>
                         <span class="nav-title">${this.pageTitle}</span>
-                        <sl-icon name=${this.collapsed ? 'chevron-right' : 'chevron-down'}></sl-icon>
+                        <wa-icon name=${this.collapsed ? 'chevron-right' : 'chevron-down'}></wa-icon>
                     </div>
                     ${this.collapsed ? nothing : html`
                         <ul class="nav-sections">
@@ -246,7 +246,7 @@ export class PpPageNav extends LightElement {
                                         <ul class="nav-children">
                                             ${s.children.map(c => html`
                                                 <li>
-                                                    <sl-icon name="chevron-right"></sl-icon>
+                                                    <wa-icon name="chevron-right"></wa-icon>
                                                     <a href="#${c.id}"
                                                        class="${c.id === this.activeId ? 'active' : ''} ${this.statusColorClass(c.label)}"
                                                        @click=${(e: Event) => { e.preventDefault(); this.navigateTo(c.id); }}>
@@ -267,7 +267,7 @@ export class PpPageNav extends LightElement {
                      aria-label=${this.navHidden ? 'Expand navigation' : 'Collapse navigation'}
                      @click=${this.toggleNavHidden}
                      @keydown=${this.handleTabKeydown}>
-                    <sl-icon name=${this.navHidden ? 'chevron-left' : 'chevron-right'}></sl-icon>
+                    <wa-icon name=${this.navHidden ? 'chevron-left' : 'chevron-right'}></wa-icon>
                 </div>
             </div>
         `;

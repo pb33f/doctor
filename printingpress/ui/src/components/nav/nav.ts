@@ -5,8 +5,8 @@ import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/checkbox/checkbox.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
-import '@shoelace-style/shoelace/dist/components/icon/icon.js';
-import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
+import '@awesome.me/webawesome/dist/components/icon/icon.js';
+import '@awesome.me/webawesome/dist/components/spinner/spinner.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import {docHref, overviewHref} from '../../utils/doc-links.js';
 import type {ViolationCounts} from '../../utils/violations.js';
@@ -207,7 +207,7 @@ export class PpNav extends LightElement {
                     </sl-tooltip>
                     <sl-dropdown class="archive-format-dropdown" skidding="0" distance="4" hoist>
                         <sl-button slot="trigger" class="archive-format-trigger" size="small" caret>
-                            <sl-icon slot="prefix" name="download"></sl-icon>
+                            <wa-icon slot="prefix" name="download"></wa-icon>
                             ${this.archiveFormat}
                         </sl-button>
                         <sl-menu @sl-select=${this.handleArchiveFormatSelect}>
@@ -225,7 +225,7 @@ export class PpNav extends LightElement {
                         aria-busy=${this.archiveExporting ? 'true' : 'false'}
                         @click=${this.requestArchiveExport}
                         aria-label=${this.archiveExporting ? 'Exporting documentation archive' : 'Download documentation archive'}>
-                        ${this.archiveExporting ? html`<sl-spinner></sl-spinner>` : 'export'}
+                        ${this.archiveExporting ? html`<wa-spinner></wa-spinner>` : 'export'}
                     </sl-button>
                 </div>
             </div>
@@ -609,14 +609,14 @@ export class PpNav extends LightElement {
     private renderLocalNavigation() {
         return html`
             <a class="nav-home ${!this.activeSlug ? 'active' : ''}" href=${overviewHref()}>
-                <sl-icon name="chevron-right" class="nav-home-chevron"></sl-icon>
+                <wa-icon name="chevron-right" class="nav-home-chevron"></wa-icon>
                 ${this.overviewLabel()}
             </a>
             ${this.developerMode()
                 ? html`
                     <a class="nav-home diagnostics ${this.activeSlug === 'diagnostics' ? 'active' : ''}"
                        href=${docHref('diagnostics.html')}>
-                        <sl-icon name="chevron-right" class="nav-home-chevron"></sl-icon>
+                        <wa-icon name="chevron-right" class="nav-home-chevron"></wa-icon>
                         DIAGNOSTICS
                     </a>
                 `
@@ -631,7 +631,7 @@ export class PpNav extends LightElement {
                                 return html`
                                     <li>
                                         <a class="nav-page-link ${active ? 'active' : ''}" href=${docHref(page.href || '')}>
-                                            <sl-icon name="chevron-right" class="nav-page-chevron"></sl-icon>
+                                            <wa-icon name="chevron-right" class="nav-page-chevron"></wa-icon>
                                             <span>${page.label || page.title || page.slug}</span>
                                         </a>
                                     </li>

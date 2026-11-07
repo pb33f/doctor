@@ -3,9 +3,9 @@ import {customElement, property, query, state} from 'lit/decorators.js';
 import '@pb33f/cowboy-components/components/mermaid/mermaid-renderer.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
-import '@shoelace-style/shoelace/dist/components/icon/icon.js';
+import '@awesome.me/webawesome/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/split-panel/split-panel.js';
-import '@shoelace-style/shoelace/dist/components/details/details.js';
+import '@awesome.me/webawesome/dist/components/details/details.js';
 import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
 import type {MermaidRenderer} from '@pb33f/cowboy-components/components/mermaid/mermaid-renderer.js';
 import '../shared/code-viewer.js';
@@ -341,7 +341,7 @@ export class PpMermaid extends LightElement {
                         <div class="collapse-tab" @click=${this.toggleSource}
                             role="button" tabindex="0"
                             @keydown=${(event: KeyboardEvent) => { if (event.key === 'Enter' || event.key === ' ') this.toggleSource(); }}>
-                            <sl-icon name="chevron-left"></sl-icon>
+                            <wa-icon name="chevron-left"></wa-icon>
                         </div>
                     </div>
                 </div>
@@ -356,7 +356,7 @@ export class PpMermaid extends LightElement {
                     <div slot="start" class="diagram-view">
                         <pb33f-mermaid-renderer .diagram=${this.rendererDiagram} fit-width></pb33f-mermaid-renderer>
                     </div>
-                    <sl-icon slot="divider" name="grip-vertical"></sl-icon>
+                    <wa-icon slot="divider" name="grip-vertical"></wa-icon>
                     <div slot="end" class="code-view">
                         <div class="code-header">
                             MERMAID SOURCE
@@ -386,9 +386,9 @@ export class PpMermaid extends LightElement {
                 </div>
                 ${this.renderToolbar()}
                 ${this.sourceCollapsed ? nothing : html`
-                    <sl-details class="code-section" summary="Mermaid Source">
+                    <wa-details class="code-section" summary="Mermaid Source">
                         ${this.renderCode()}
-                    </sl-details>
+                    </wa-details>
                 `}
             </div>
         `;

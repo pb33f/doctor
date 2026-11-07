@@ -274,7 +274,7 @@ export class PpDiagnosticsList extends LightElement {
     if (value <= 0) return nothing;
     return html`
       <div class="stat ${severity}">
-        <sl-icon name=${icon} aria-hidden="true"></sl-icon>
+        <wa-icon name=${icon} aria-hidden="true"></wa-icon>
         <span>${value}</span>
         <small>${pluralLabel(value, singular, plural)}</small>
       </div>
@@ -353,11 +353,11 @@ export class PpDiagnosticsList extends LightElement {
     return html`
       <div class="row ${problemSeverityClass(problem.severity)}">
         <span class="severity">
-          <sl-icon
+          <wa-icon
             class="severity-icon"
             name=${problemSeverityIcon(problem.severity)}
             label=${problemSeverityLabel(problem.severity)}
-          ></sl-icon>
+          ></wa-icon>
         </span>
         <span class="location">${this.location(problem)}</span>
         ${this.renderProblemMessage(problem)}

@@ -643,7 +643,7 @@ func TestCreatePrintingPress_PrintHTMLAndJSONFromAsyncAPIStreetlights(t *testing
 	assert.NotContains(t, receiveRendered, `<div class="pp-operation-path pp-operation-path-asyncapi">`)
 	assert.Contains(t, receiveRendered, `<div class="pp-asyncapi-channel-main">`)
 	assert.Contains(t, receiveRendered, `<pp-asyncapi-action action="receive" size="large">`)
-	assert.Contains(t, receiveRendered, `<sl-icon name="arrow-left">`)
+	assert.Contains(t, receiveRendered, `<wa-icon name="arrow-left">`)
 	assert.Contains(t, receiveRendered, `<span>RCV</span>`)
 	assert.Contains(t, receiveRendered, `<pp-render-operation-path path="smartylighting.streetlights.1.0.event.{streetlightId}.lighting.measured">`)
 	assert.NotContains(t, receiveRendered, `<pp-render-operation-path path="smartylighting.streetlights.1.0.event.{streetlightId}.lighting.measured" nowrap>`)

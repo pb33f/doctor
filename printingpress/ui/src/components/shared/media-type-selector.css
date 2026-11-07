@@ -68,7 +68,7 @@
     background-color: var(--secondary-color);
 }
 
-.schema-split sl-icon[slot="divider"] {
+.schema-split wa-icon[slot="divider"] {
     position: absolute;
     left: 2px;
     border-radius: 0;

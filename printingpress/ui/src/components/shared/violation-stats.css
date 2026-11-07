@@ -42,21 +42,21 @@
     letter-spacing: var(--label-spacing);
 }
 
-sl-icon {
+wa-icon {
     font-size: 2rem;
 }
 
-.err sl-icon,
+.err wa-icon,
     .err span {
     color: var(--error-color);
 }
 
-.warn sl-icon,
+.warn wa-icon,
     .warn span {
     color: var(--warn-color);
 }
 
-.info sl-icon,
+.info wa-icon,
     .info span {
     color: var(--primary-color);
 }

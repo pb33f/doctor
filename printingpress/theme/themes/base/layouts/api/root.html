@@ -13,7 +13,7 @@
 			<h2>SERVERS</h2>
 			{{range .Servers}}
 				<div class="pp-server-entry">
-					<span class="pp-server-name">{{if .Description}}{{.Description}} {{end}}<sl-icon name="hdd-network" class="pp-server-icon"></sl-icon></span>
+					<span class="pp-server-name">{{if .Description}}{{.Description}} {{end}}<wa-icon name="hdd-network" class="pp-server-icon"></wa-icon></span>
 					<a class="pp-server-url" href="{{specURL (serverURL .)}}" target="_blank" rel="noopener">{{.URL}}</a>
 				</div>
 			{{end}}

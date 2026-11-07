@@ -334,7 +334,7 @@ export class PpMediaTypeSelector extends LightElement {
                 <div slot="start" class="split-pane schema-props-pane">
                     <pp-schema-properties schema-json=${schemaJson || ''} compact constrained></pp-schema-properties>
                 </div>
-                <sl-icon slot="divider" name="grip-vertical"></sl-icon>
+                <wa-icon slot="divider" name="grip-vertical"></wa-icon>
                 <div slot="end" class="split-pane schema-example-pane">
                     ${this.exampleHidden ? this.renderExampleRestore() : html`
                         <pp-example-selector mode="inline" code-language=${language}

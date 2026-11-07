@@ -61,7 +61,7 @@ export class PpViolationStats extends LightElement {
     if (value <= 0) return nothing;
     return html`
       <div class="stat ${severity}">
-        <sl-icon name=${icon} aria-hidden="true"></sl-icon>
+        <wa-icon name=${icon} aria-hidden="true"></wa-icon>
         <span class="label">${value}</span>
         <span class="violation">${pluralLabel(value, singular, plural)}</span>
       </div>

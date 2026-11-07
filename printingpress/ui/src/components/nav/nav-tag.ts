@@ -74,7 +74,7 @@ export class PpNavTag extends LightElement {
         const dev = this.developerMode();
         return html`
             <div class="tag-header ${containsActive ? 'active' : ''} ${dev ? 'developer' : ''}" @click=${this.toggle}>
-                <sl-icon name=${open ? 'chevron-down' : 'chevron-right'} class="chevron"></sl-icon>
+                <wa-icon name=${open ? 'chevron-down' : 'chevron-right'} class="chevron"></wa-icon>
                 <span class="tag-name">
                     ${tag.protocol
                         ? html`<pp-asyncapi-protocol protocol=${tag.protocol} size="nav"></pp-asyncapi-protocol>`

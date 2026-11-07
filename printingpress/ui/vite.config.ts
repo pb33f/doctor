@@ -33,6 +33,7 @@ function inlineCssImports(file: string, seen = new Set<string>()): string {
 // in cascade order. The build places them so the cascade matches the shadow
 // roots they came from:
 //
+//   pp-base         library defaults any rule may change.
 //   pp-host         a component's rules about itself. Page rules, and the
 //                   rules of a component that renders it, beat these, as
 //                   outer rules beat :host.
@@ -50,7 +51,7 @@ function inlineCssImports(file: string, seen = new Set<string>()): string {
 // another component's slot (a pp-slot it owns) stays in its scope, as slotted
 // content stayed in its shadow root; content the page wrote stays out.
 const uiSource = path.resolve(__dirname, 'src');
-export const LAYER_ORDER = '@layer pp-host, page, pp-reset, pp-host-nested;';
+export const LAYER_ORDER = '@layer pp-base, pp-host, page, pp-reset, pp-host-nested;';
 
 interface ComponentStyles {
   nested: string[];

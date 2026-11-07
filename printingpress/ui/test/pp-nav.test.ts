@@ -387,7 +387,7 @@ describe('pp-nav', () => {
     expect(button?.hasAttribute('disabled')).toBe(true);
     expect(button?.getAttribute('aria-busy')).toBe('true');
     expect(button?.textContent).not.toContain('export');
-    expect(button?.querySelector('sl-spinner')).not.toBeNull();
+    expect(button?.querySelector('wa-spinner')).not.toBeNull();
 
     button?.click();
     expect(postMessage).toHaveBeenCalledTimes(1);
@@ -402,7 +402,7 @@ describe('pp-nav', () => {
     expect(button?.hasAttribute('disabled')).toBe(false);
     expect(button?.getAttribute('aria-busy')).toBe('false');
     expect(button?.textContent).toContain('export');
-    expect(button?.querySelector('sl-spinner')).toBeNull();
+    expect(button?.querySelector('wa-spinner')).toBeNull();
   });
 
   it('keeps direct archive exports loading until the fetch-backed download finishes', async () => {
@@ -423,7 +423,7 @@ describe('pp-nav', () => {
 
     expect(directExport).toHaveBeenCalledWith('/_printing-press/export');
     expect(button?.hasAttribute('disabled')).toBe(true);
-    expect(button?.querySelector('sl-spinner')).not.toBeNull();
+    expect(button?.querySelector('wa-spinner')).not.toBeNull();
 
     button?.click();
     expect(directExport).toHaveBeenCalledTimes(1);
@@ -433,7 +433,7 @@ describe('pp-nav', () => {
     await el.updateComplete;
 
     expect(button?.hasAttribute('disabled')).toBe(false);
-    expect(button?.querySelector('sl-spinner')).toBeNull();
+    expect(button?.querySelector('wa-spinner')).toBeNull();
   });
 
   it('downloads direct archive exports with fetch so loading can track the response', async () => {

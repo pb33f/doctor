@@ -160,13 +160,13 @@
     color: var(--background-color);
 }
 
-.host-archive-controls .archive-download-button sl-spinner {
+.host-archive-controls .archive-download-button wa-spinner {
     font-size: 0.75rem;
     --indicator-color: var(--warn-color);
     --track-color: transparent;
 }
 
-.host-archive-controls .archive-download-button:hover sl-spinner {
+.host-archive-controls .archive-download-button:hover wa-spinner {
     --indicator-color: var(--background-color);
 }
 

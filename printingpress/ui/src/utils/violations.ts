@@ -65,9 +65,9 @@ export function renderViolationBadge(counts?: ViolationCounts | null): TemplateR
   if (!severity || count <= 0) return nothing;
   const label = badgeLabel(counts);
   const display = count > 99 ? '99+' : String(count);
-  return html`<sl-badge class=${`violation-badge ${severity}`}>
+  return html`<wa-badge class=${`violation-badge ${severity}`}>
     ${display}<span class="sr-only"> ${label}</span>
-  </sl-badge>`;
+  </wa-badge>`;
 }
 
 export function renderViolationBadges(counts?: ViolationCounts | null): TemplateResult | typeof nothing {
@@ -83,9 +83,9 @@ export function renderViolationBadges(counts?: ViolationCounts | null): Template
         if (count <= 0) return nothing;
         const display = count > 99 ? '99+' : String(count);
         const label = `${count} ${noun}${count === 1 ? '' : 's'}`;
-        return html`<sl-badge class=${`violation-badge ${severity}`}>
+        return html`<wa-badge class=${`violation-badge ${severity}`}>
           ${display}<span class="sr-only"> ${label}</span>
-        </sl-badge>`;
+        </wa-badge>`;
       })}
     </span>
   `;

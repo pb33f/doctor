@@ -42,7 +42,7 @@ export class PpRawViewerBtn extends LightElement {
         return html`
             <sl-tooltip content="VIEW RAW OBJECT">
                 <sl-button variant="text" size="small" @click=${this.showRaw}>
-                    <sl-icon slot="prefix" name="braces" label="VIEW RAW OBJECT" ></sl-icon>
+                    <wa-icon slot="prefix" name="braces" label="VIEW RAW OBJECT" ></wa-icon>
                 </sl-button>
             </sl-tooltip>`;
     }

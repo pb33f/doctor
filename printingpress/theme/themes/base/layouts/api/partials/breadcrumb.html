@@ -1,6 +1,6 @@
 {{/* breadcrumb.html draws a page's breadcrumb. Data: render.BreadcrumbArgs. */}}
 <sl-breadcrumb class="pp-breadcrumb">
-	<sl-icon name="chevron-right" slot="separator"></sl-icon> {{range .Items}}
+	<wa-icon name="chevron-right" slot="separator"></wa-icon> {{range .Items}}
 		{{if .Href}}
 			<sl-breadcrumb-item href="{{docHref $.Base .Href}}">{{.Label}}</sl-breadcrumb-item>
 		{{else}}

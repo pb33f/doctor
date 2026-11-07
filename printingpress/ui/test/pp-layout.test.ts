@@ -71,9 +71,9 @@ describe('pp-layout', () => {
 
     expect(switcher).toBeNull();
     expect(buttons).toHaveLength(2);
-    expect(modeButton?.querySelector('sl-icon')?.getAttribute('name')).toBe('sun');
+    expect(modeButton?.querySelector('wa-icon')?.getAttribute('name')).toBe('sun');
     expect(modeButton?.getAttribute('aria-label')).toBe('Switch to Roger Mode (light)');
-    expect(tektronixButton?.querySelector('sl-icon')?.getAttribute('name')).toBe('display');
+    expect(tektronixButton?.querySelector('wa-icon')?.getAttribute('name')).toBe('display');
     expect(tektronixButton?.getAttribute('aria-label')).toBe('Enable Tektronix 4010 Mode');
 
     modeButton?.click();

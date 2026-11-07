@@ -68,7 +68,7 @@ nav {
     outline-offset: -2px;
 }
 
-.collapse-tab sl-icon {
+.collapse-tab wa-icon {
     color: var(--background-color);
     font-size: 0.7em;
 }
@@ -89,7 +89,7 @@ nav {
     word-break: break-all;
 }
 
-.nav-header sl-icon {
+.nav-header wa-icon {
     flex-shrink: 0;
     color: var(--secondary-color);
 }
@@ -139,7 +139,7 @@ nav {
     padding: 0.1rem 0;
 }
 
-.nav-children sl-icon {
+.nav-children wa-icon {
     font-size: 0.6em;
     color: var(--secondary-color);
     flex-shrink: 0;

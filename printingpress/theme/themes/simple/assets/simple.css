@@ -176,7 +176,7 @@ body.simple {
 
 /* Engine page bodies inside the simple layout */
 .simple .pp-breadcrumb { display: none; }
-.simple sl-icon { display: none; }
+.simple wa-icon { display: none; }
 .simple .pp-content-page-header h1 { margin-bottom: 6px; }
 .simple .pp-content-page-description { color: var(--simple-text-soft); margin: 0 0 24px; font-size: var(--simple-size-h3); }
 .simple .pp-content-page-header + .pp-content-page-body > h1:first-child { display: none; }

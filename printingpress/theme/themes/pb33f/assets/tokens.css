@@ -30,6 +30,31 @@
   --pp-padding: var(--global-padding);
 }
 
+/*
+ * Web Awesome panels in the pb33f look: the surface, border and corners its
+ * Shoelace theme gave them. That theme set them in dark mode only, so in light mode a
+ * panel has no fill and a border in the text colour.
+ */
+:root {
+  --wa-color-surface-default: hsl(240 5.9% 11%);
+  --wa-color-surface-border: hsl(240 4.6% 22%);
+  --wa-panel-border-radius: 0.25rem;
+}
+
+:root[theme="light"] {
+  --wa-color-surface-default: transparent;
+  --wa-color-surface-border: currentColor;
+}
+
+/*
+ * Web Awesome's icon sets --primary-color and --secondary-color on itself for
+ * duotone icons. Those are pb33f palette names, so they are passed through.
+ */
+wa-icon {
+  --primary-color: inherit;
+  --secondary-color: inherit;
+}
+
 :root[theme="light"] {
   --pp-glow: 0;
   --pp-http-background: #f0f0f0;

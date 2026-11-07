@@ -60,7 +60,7 @@ export class PpSecurityScheme extends LightElement {
             <div class="property">
                 <div class="prop-name-col"><span class="prop-name">type</span></div>
                 <div class="prop-type-col">
-                    <sl-icon name=${iconName} class="type-icon"></sl-icon>
+                    <wa-icon name=${iconName} class="type-icon"></wa-icon>
                     <span class="prop-type">${type.toUpperCase()}</span>
                 </div>
             </div>

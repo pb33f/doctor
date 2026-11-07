@@ -51,7 +51,7 @@ export class PpAsyncAPIAction extends LightElement {
     const normalized = normalizeAction(this.action);
     return html`
       <span class="action ${this.size} ${normalized}" aria-label=${actionLabel(this.action)}>
-        <sl-icon name=${actionIcon(this.action)}></sl-icon>
+        <wa-icon name=${actionIcon(this.action)}></wa-icon>
         <span>${actionCode(this.action)}</span>
       </span>
     `;

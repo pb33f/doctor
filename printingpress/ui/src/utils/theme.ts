@@ -89,7 +89,7 @@ export function syncThemeButtons(root: ParentNode = document) {
       button.classList.toggle('tek-active', active === 'tektronix');
     } else {
       labelButton(button, base === 'dark' ? 'Switch to Roger Mode (light)' : 'Switch to PB33F Mode (dark)');
-      button.querySelector('sl-icon, wa-icon')?.setAttribute('name', base === 'dark' ? 'sun' : 'moon');
+      button.querySelector('wa-icon')?.setAttribute('name', base === 'dark' ? 'sun' : 'moon');
     }
   }
 }

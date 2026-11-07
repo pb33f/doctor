@@ -6,41 +6,41 @@
  * style it, as it could a shadow host.
  */
 
-sl-details.pp-details {
+wa-details.pp-details {
     display: block;
     min-height: 64px;
     margin-top: 40px;
     position: relative;
 }
 
-sl-details.pp-details:not(:defined) {
+wa-details.pp-details:not(:defined) {
     display: block;
     min-height: 64px;
 }
 
-sl-details.pp-details:not(:defined) > :not([slot="summary"]) {
+wa-details.pp-details:not(:defined) > :not([slot="summary"]) {
     display: none !important;
 }
 
-sl-details.pp-details:not(:defined) > [slot="summary"] {
+wa-details.pp-details:not(:defined) > [slot="summary"] {
     display: block;
 }
 
-sl-details.pp-details::part(base) {
+wa-details.pp-details::part(base) {
     background: transparent;
     border: 1px dashed var(--secondary-color-dimmer);
     border-radius: 0;
 }
 
-sl-details.pp-details::part(header) {
+wa-details.pp-details::part(header) {
     padding: var(--global-padding);
 }
 
-sl-details.pp-details::part(summary-icon) {
+wa-details.pp-details::part(icon) {
     color: var(--secondary-color);
 }
 
-sl-details.pp-details::part(content) {
+wa-details.pp-details::part(content) {
     padding: var(--global-padding);
 }
 

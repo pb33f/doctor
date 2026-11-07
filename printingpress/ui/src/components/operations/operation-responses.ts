@@ -107,8 +107,8 @@ export class PpOperationResponses extends LightElement {
     private scrollToHeader(name: string) {
         const el = this.querySelector(`#${CSS.escape('header-' + name)}`);
         if (!el) return;
-        // Expand the parent <sl-details> if collapsed
-        const details = el.closest('sl-details') as (HTMLElement & {open: boolean; updateComplete: Promise<void>}) | null;
+        // Expand the parent <wa-details> if collapsed
+        const details = el.closest('wa-details') as (HTMLElement & {open: boolean; updateComplete: Promise<void>}) | null;
         if (details && !details.open) {
             details.open = true;
             details.updateComplete?.then(() => {
@@ -380,27 +380,27 @@ export class PpOperationResponses extends LightElement {
             <h2>Responses</h2>
             ${this.successResponses.map(r => this.renderResponse(r, commonNames))}
             ${this.redirectResponses.length ? html`
-                <sl-details class="pp-details">
+                <wa-details class="pp-details">
                     <span slot="summary" class="pp-details-summary"><h3>Redirect Responses</h3></span>
                     ${this.redirectResponses.map(r => this.renderResponse(r, commonNames))}
-                </sl-details>
+                </wa-details>
             ` : nothing}
             ${this.commonResponseHeaders.length ? html`
-                <sl-details class="pp-details">
+                <wa-details class="pp-details">
                     <span slot="summary" class="pp-details-summary"><h3>Common Response Headers</h3></span>
                     <div class="property-box">
                         ${this.commonResponseHeaders.map(h => html`
                             <div id="header-${h.name}">${this.renderHeaderEntry(h)}</div>
                         `)}
                     </div>
-                </sl-details>
+                </wa-details>
             ` : nothing}
             ${this.errorResponses.length || commonResponses.size ? html`
-                <sl-details class="pp-details">
+                <wa-details class="pp-details">
                     <div slot="summary" class="pp-details-summary"><h3>Error Responses</h3></div>
                     ${this.renderCommonErrors(commonResponses, commonNames)}
                     ${this.errorResponses.map(r => this.renderResponse(r, commonNames, commonKeys))}
-                </sl-details>
+                </wa-details>
             ` : nothing}
         `;
     }

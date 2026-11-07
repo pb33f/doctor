@@ -107,7 +107,7 @@ h2 {
     background-color: var(--secondary-color);
 }
 
-.diagram-split sl-icon[slot="divider"] {
+.diagram-split wa-icon[slot="divider"] {
     position: absolute;
     left: 2px;
     border-radius: 0;

@@ -45,10 +45,10 @@
 			{{- with .Origin}}{{if gt .Line 0}} start-line="{{.Line}}"{{end}}{{with .OriginalFile}} location="{{.}}"{{end}}{{end}}></pp-model-page>
 	{{end}}
 	{{if .ExtensionsJSON}}
-		<sl-details class="pp-details" style="display:block;min-height:64px;">
+		<wa-details class="pp-details" style="display:block;min-height:64px;">
 			<span slot="summary" class="pp-details-summary"><h2>{{modelExtensionsSummary .}}</h2></span>
 			<pp-extensions extensions-json="{{.ExtensionsJSON}}"></pp-extensions>
-		</sl-details>
+		</wa-details>
 	{{end}}
 	{{if .CrossRefsJSON}}
 		<pp-cross-refs refs-json="{{.CrossRefsJSON}}" style="display:block;min-height:{{if gt .EstimatedCrossRefsHeight 0}}{{.EstimatedCrossRefsHeight}}{{else}}240{{end}}px;"></pp-cross-refs>

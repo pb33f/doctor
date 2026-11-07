@@ -440,7 +440,7 @@ export class PpModelPage extends LightElement {
           <h2>${heading}</h2>
           <pp-schema-properties schema-json=${this.modelJson} compact></pp-schema-properties>
         </div>
-        <sl-icon slot="divider" name="grip-vertical"></sl-icon>
+        <wa-icon slot="divider" name="grip-vertical"></wa-icon>
         <div slot="end" class="split-pane schema-example-pane">
           ${this.exampleHidden ? this.renderExampleRestore() : html`
             <pp-example-selector mode="inline" mock-json=${this.exampleJson} hide-label show-expand

@@ -7,7 +7,7 @@ import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
-import '@shoelace-style/shoelace/dist/components/icon/icon.js';
+import '@awesome.me/webawesome/dist/components/icon/icon.js';
 import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 const SPLIT_POS_KEY = 'pp-split-position';
@@ -148,7 +148,7 @@ export class PpLayout extends LightElement {
   }
 
   private syncSplitHandle() {
-    const handle = this.renderRoot?.querySelector('sl-icon.divider-vert') as HTMLElement | null;
+    const handle = this.renderRoot?.querySelector('wa-icon.divider-vert') as HTMLElement | null;
     if (!handle || this.splitHandle === handle) {
       return;
     }
@@ -361,10 +361,10 @@ export class PpLayout extends LightElement {
                 : null}
               <div class="theme-controls">
                 <button type="button" class="theme-icon-button theme-mode-toggle" data-pp-theme-toggle="base" aria-label="Toggle dark/light" title="Toggle dark/light">
-                  <sl-icon name="sun" aria-hidden="true"></sl-icon>
+                  <wa-icon name="sun" aria-hidden="true"></wa-icon>
                 </button>
                 <button type="button" class="theme-icon-button theme-tektronix-toggle" data-pp-theme-toggle="tektronix" aria-label="Toggle Tektronix" title="Toggle Tektronix">
-                  <sl-icon name="display" aria-hidden="true"></sl-icon>
+                  <wa-icon name="display" aria-hidden="true"></wa-icon>
                 </button>
               </div>
             </div>
@@ -372,7 +372,7 @@ export class PpLayout extends LightElement {
         </header>
       `}
       <sl-split-panel position="20">
-        <sl-icon slot="divider" name="grip-vertical" class="divider-vert" aria-hidden="true"></sl-icon>
+        <wa-icon slot="divider" name="grip-vertical" class="divider-vert" aria-hidden="true"></wa-icon>
         <div slot="start" class="nav-panel">
           ${this.slotted('nav')}
         </div>

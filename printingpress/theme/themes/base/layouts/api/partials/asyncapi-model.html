@@ -113,7 +113,7 @@
 			</div>
 		{{end}}
 		{{if .Examples}}
-			<sl-details class="pp-details" style="display:block;min-height:64px;">
+			<wa-details class="pp-details" style="display:block;min-height:64px;">
 				<span slot="summary" class="pp-details-summary"><h2>Message Examples</h2></span>
 				{{range .Examples}}
 					<div class="pp-code-sample">
@@ -123,7 +123,7 @@
 						{{with .Payload}}<h5 class="pp-code-sample-part-label">Payload</h5><pre class="chroma pp-code-sample-code"><code>{{.}}</code></pre>{{end}}
 					</div>
 				{{end}}
-			</sl-details>
+			</wa-details>
 		{{end}}
 	{{end}}
 </div>
