@@ -1,12 +1,11 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import {getPageDeveloperPayload, type PageDeveloperPayload} from '../../utils/page-payload.js';
 import {pluralLabel, violationTotal} from '../../utils/violations.js';
-import violationStatsCss from './violation-stats.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 @customElement('pp-violation-stats')
-export class PpViolationStats extends LitElement {
-  static styles = violationStatsCss;
+export class PpViolationStats extends LightElement {
 
   @property({attribute: 'data-scope-label'}) scopeLabel = '';
   @property({attribute: 'data-title'}) drawerTitle = '';

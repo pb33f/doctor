@@ -1,4 +1,4 @@
-import {LitElement, html, nothing, PropertyValues} from 'lit';
+import {html, nothing, PropertyValues} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import {unsafeHTML} from 'lit/directives/unsafe-html.js';
 import Prism from 'prismjs';
@@ -7,7 +7,7 @@ import 'prismjs/components/prism-json.js';
 import 'prismjs/components/prism-yaml.js';
 import 'prismjs/components/prism-markup.js';
 import 'prismjs/components/prism-mermaid.js';
-import codeViewerCss from './code-viewer.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 if (Prism.languages.mermaid && !Prism.languages.mermaid['class-declaration']) {
     Prism.languages.insertBefore('mermaid', 'keyword', {
@@ -43,8 +43,7 @@ if (Prism.languages.mermaid && !Prism.languages.mermaid['class-declaration']) {
 }
 
 @customElement('pp-code-viewer')
-export class PpCodeViewer extends LitElement {
-    static styles = [codeViewerCss];
+export class PpCodeViewer extends LightElement {
 
     @property() code = '';
     @property() language: 'json' | 'yaml' | 'xml' | 'mermaid' = 'json';

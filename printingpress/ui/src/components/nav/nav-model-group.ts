@@ -1,9 +1,9 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import navModelGroupCss from './nav-model-group.css.js';
 import {modelHref} from '../../utils/doc-links.js';
 import {renderViolationBadges, type ViolationCounts} from '../../utils/violations.js';
 import '../shared/asyncapi-protocol.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 interface NavModelGroup {
     name: string;
@@ -27,8 +27,7 @@ function groupContainsSlug(group: NavModelGroup, slug: string): boolean {
 }
 
 @customElement('pp-nav-model-group')
-export class PpNavModelGroup extends LitElement {
-    static styles = navModelGroupCss;
+export class PpNavModelGroup extends LightElement {
 
     @property({type: Object}) group: NavModelGroup = {
         name: '',

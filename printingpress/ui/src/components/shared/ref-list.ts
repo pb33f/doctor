@@ -1,7 +1,5 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import refListCss from './ref-list.css.js';
-import ppComponentsCss from '../../styles/pp-components.css.js';
 import '@pb33f/printing-press-components/paginator/paginated-list.js';
 import {modelHref, operationHref} from '../../utils/doc-links.js';
 import './asyncapi-action.js';
@@ -10,6 +8,7 @@ import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 export interface OperationRef {
     method: string;
@@ -53,8 +52,7 @@ function isAsyncAPIAction(method: string): boolean {
 }
 
 @customElement('pp-ref-list')
-export class PpRefList extends LitElement {
-    static styles = [ppComponentsCss, refListCss];
+export class PpRefList extends LightElement {
 
     @property() type: 'operations' | 'components' = 'operations';
     @property() heading = '';

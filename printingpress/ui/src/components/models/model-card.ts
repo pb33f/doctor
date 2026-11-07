@@ -1,12 +1,10 @@
-import {LitElement, html} from 'lit';
+import {html} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
-import markdownCss from '../../styles/markdown.css.js';
 import {renderMarkdown} from '../../utils/markdown.js';
-import modelCardCss from './model-card.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 @customElement('pp-model-card')
-export class PpModelCard extends LitElement {
-  static styles = [markdownCss, modelCardCss];
+export class PpModelCard extends LightElement {
 
   @property() name = '';
   @property() href = '';

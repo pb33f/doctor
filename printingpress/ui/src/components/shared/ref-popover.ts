@@ -1,6 +1,5 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state, query} from 'lit/decorators.js';
-import refPopoverCss from './ref-popover.css.js';
 import {
     getSchemaEntry,
     getSchemaEntryByRef,
@@ -12,10 +11,10 @@ import {
 import './schema-properties.js';
 import './code-viewer.js';
 import './icon-title.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 @customElement('pp-ref-popover')
-export class PpRefPopover extends LitElement {
-    static styles = refPopoverCss;
+export class PpRefPopover extends LightElement {
     private static readonly showDelayMs = 300;
     private static readonly hideDelayMs = 400;
     private static readonly popoverWidthTolerancePx = 2;
@@ -35,7 +34,6 @@ export class PpRefPopover extends LitElement {
     private showRequestId = 0;
     private popoverMeasureAttempts = 0;
     @query('.trigger') private trigger!: HTMLElement;
-    @query('slot') private triggerSlot!: HTMLSlotElement;
     @query('.pp-ref-popover-content') private popoverContent?: HTMLElement;
     private triggerTargets = new Set<HTMLElement>();
     private pointerWithinTrigger = false;
@@ -54,10 +52,6 @@ export class PpRefPopover extends LitElement {
             return;
         }
         this.scheduleHide();
-    };
-
-    private readonly onSlotChange = () => {
-        this.syncTriggerTargets();
     };
 
     private readonly onPopupEnter = () => {
@@ -95,7 +89,6 @@ export class PpRefPopover extends LitElement {
 
     firstUpdated() {
         this.syncTriggerTargets();
-        this.triggerSlot?.addEventListener('slotchange', this.onSlotChange);
     }
 
     disconnectedCallback() {
@@ -104,7 +97,6 @@ export class PpRefPopover extends LitElement {
         clearTimeout(this.hideTimeout);
         this.showRequestId++;
         if (this.measureFrame) cancelAnimationFrame(this.measureFrame);
-        this.triggerSlot?.removeEventListener('slotchange', this.onSlotChange);
         this.clearTriggerTargets();
         this.pointerWithinTrigger = false;
         this.pointerWithinPopup = false;
@@ -151,7 +143,7 @@ export class PpRefPopover extends LitElement {
         if (this.trigger) {
             nextTargets.add(this.trigger);
         }
-        for (const element of this.triggerSlot?.assignedElements({flatten: true}) ?? []) {
+        for (const element of this.authored) {
             if (element instanceof HTMLElement) {
                 nextTargets.add(element);
             }
@@ -303,7 +295,7 @@ export class PpRefPopover extends LitElement {
         const popoverStyle = this.popoverWidth > 0 ? `--ref-popover-width: ${this.popoverWidth}px` : '';
         return html`
             <span class="trigger" @click=${() => { this.active = false; }}>
-                <slot></slot>
+                ${this.slotted()}
             </span>
             ${this.active && this.entry ? html`
                 <sl-popup

@@ -1,12 +1,10 @@
-import {LitElement, nothing} from 'lit';
+import {nothing} from 'lit';
 import {html, unsafeStatic} from 'lit/static-html.js';
 import {customElement, property} from 'lit/decorators.js';
-import iconTitleCss from './icon-title.css.js';
-import ppComponentsCss from '../../styles/pp-components.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 @customElement('pp-icon-title')
-export class PpIconTitle extends LitElement {
-    static styles = [ppComponentsCss, iconTitleCss];
+export class PpIconTitle extends LightElement {
 
     @property() icon = '';
     @property() heading = '';

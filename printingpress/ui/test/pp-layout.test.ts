@@ -19,7 +19,7 @@ describe('pp-layout', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const slots = el.shadowRoot?.querySelectorAll('slot');
+    const slots = el.querySelectorAll('pp-slot');
     expect(slots?.length).toBe(2);
 
     const slotNames = Array.from(slots || []).map((s) => s.getAttribute('name'));
@@ -33,8 +33,8 @@ describe('pp-layout', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const logoLink = el.shadowRoot?.querySelector('.doc-logo-link') as HTMLAnchorElement | null;
-    const headerTools = el.shadowRoot?.querySelector('.header-tools');
+    const logoLink = el.querySelector('.doc-logo-link') as HTMLAnchorElement | null;
+    const headerTools = el.querySelector('.header-tools');
 
     expect(logoLink?.textContent).toBe('API Catalog');
     expect(headerTools?.textContent?.replace(/\s+/g, ' ').trim()).toBe('');
@@ -47,7 +47,7 @@ describe('pp-layout', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const split = el.shadowRoot?.querySelector('sl-split-panel') as HTMLElement & {position?: number};
+    const split = el.querySelector('sl-split-panel') as HTMLElement & {position?: number};
     expect(split.getAttribute('position')).toBe('20');
     expect(split.outerHTML).not.toContain('@sl-reposition');
 
@@ -64,10 +64,10 @@ describe('pp-layout', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const switcher = el.shadowRoot?.querySelector('pb33f-theme-switcher');
-    const modeButton = el.shadowRoot?.querySelector('.theme-mode-toggle') as HTMLElement | null;
-    const tektronixButton = el.shadowRoot?.querySelector('.theme-tektronix-toggle') as HTMLElement | null;
-    const buttons = el.shadowRoot?.querySelectorAll('.theme-controls button');
+    const switcher = el.querySelector('pb33f-theme-switcher');
+    const modeButton = el.querySelector('.theme-mode-toggle') as HTMLElement | null;
+    const tektronixButton = el.querySelector('.theme-tektronix-toggle') as HTMLElement | null;
+    const buttons = el.querySelectorAll('.theme-controls button');
 
     expect(switcher).toBeNull();
     expect(buttons).toHaveLength(2);
@@ -106,12 +106,12 @@ describe('pp-layout', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const dropdown = el.shadowRoot?.querySelector('sl-dropdown');
-    const button = el.shadowRoot?.querySelector('sl-button');
-    const items = el.shadowRoot?.querySelectorAll('sl-menu-item');
-    const logoLink = el.shadowRoot?.querySelector('.doc-logo-link') as HTMLAnchorElement | null;
-    const backlink = el.shadowRoot?.querySelector('.catalog-backlink');
-    const headerContextChildren = Array.from(el.shadowRoot?.querySelector('.header-context')?.children ?? []);
+    const dropdown = el.querySelector('sl-dropdown');
+    const button = el.querySelector('sl-button');
+    const items = el.querySelectorAll('sl-menu-item');
+    const logoLink = el.querySelector('.doc-logo-link') as HTMLAnchorElement | null;
+    const backlink = el.querySelector('.catalog-backlink');
+    const headerContextChildren = Array.from(el.querySelector('.header-context')?.children ?? []);
 
     expect(dropdown).toBeTruthy();
     expect(backlink).toBeNull();
@@ -119,8 +119,8 @@ describe('pp-layout', () => {
     expect(button?.textContent).toContain('Version: v2');
     expect(items?.length).toBe(2);
     expect(logoLink?.href).toBe('http://localhost:3000/index.html');
-    expect(el.shadowRoot?.querySelector('.service-name')).toBeNull();
-    expect(el.shadowRoot?.querySelector('.versions-link')).toBeNull();
+    expect(el.querySelector('.service-name')).toBeNull();
+    expect(el.querySelector('.versions-link')).toBeNull();
   });
 
   it('moves version controls into multi-contract navigation and preserves malformed-data fallback', async () => {
@@ -137,14 +137,14 @@ describe('pp-layout', () => {
     const multi = document.createElement('pp-layout');
     document.body.appendChild(multi);
     await multi.updateComplete;
-    expect(multi.shadowRoot?.querySelector('.version-picker')).toBeNull();
+    expect(multi.querySelector('.version-picker')).toBeNull();
 
     multi.remove();
     document.body.dataset.ppContracts = '[';
     const malformed = document.createElement('pp-layout');
     document.body.appendChild(malformed);
     await malformed.updateComplete;
-    expect(malformed.shadowRoot?.querySelector('.version-picker')).toBeTruthy();
+    expect(malformed.querySelector('.version-picker')).toBeTruthy();
   });
 
   it('uses sanitized contract counts so the header and navigation consumers agree', async () => {
@@ -165,7 +165,7 @@ describe('pp-layout', () => {
     const sanitizedOne = document.createElement('pp-layout');
     document.body.appendChild(sanitizedOne);
     await sanitizedOne.updateComplete;
-    expect(sanitizedOne.shadowRoot?.querySelector('.version-picker')).toBeTruthy();
+    expect(sanitizedOne.querySelector('.version-picker')).toBeTruthy();
 
     sanitizedOne.remove();
     document.body.dataset.ppContracts = JSON.stringify([{
@@ -179,7 +179,7 @@ describe('pp-layout', () => {
     const sanitizedTwo = document.createElement('pp-layout');
     document.body.appendChild(sanitizedTwo);
     await sanitizedTwo.updateComplete;
-    expect(sanitizedTwo.shadowRoot?.querySelector('.version-picker')).toBeNull();
+    expect(sanitizedTwo.querySelector('.version-picker')).toBeNull();
   });
 
   it('keeps catalog href on the header title without rendering a header backlink', async () => {
@@ -189,9 +189,9 @@ describe('pp-layout', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const logoLink = el.shadowRoot?.querySelector('.doc-logo-link') as HTMLAnchorElement | null;
-    const backlink = el.shadowRoot?.querySelector('.catalog-backlink');
-    const dropdown = el.shadowRoot?.querySelector('sl-dropdown');
+    const logoLink = el.querySelector('.doc-logo-link') as HTMLAnchorElement | null;
+    const backlink = el.querySelector('.catalog-backlink');
+    const dropdown = el.querySelector('sl-dropdown');
 
     expect(logoLink?.href).toBe('http://localhost:3000/index.html');
     expect(backlink).toBeNull();

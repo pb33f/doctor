@@ -1,13 +1,6 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {unsafeHTML} from 'lit/directives/unsafe-html.js';
 import {customElement, property, state} from 'lit/decorators.js';
-import sharedCss from '../../styles/shared.css.js';
-import constraintsCss from '../../styles/constraints.css.js';
-import markdownCss from '../../styles/markdown.css.js';
-import refLinkCss from '../../styles/ref-link.css.js';
-import statusColorsCss from '../../styles/status-colors.css.js';
-import operationResponsesCss from './operation-responses.css.js';
-import detailsCss from '../../styles/details.css.js';
 import '../shared/code-viewer.js';
 import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';
@@ -19,6 +12,7 @@ import {modelHref, operationHref} from '../../utils/doc-links.js';
 import '../shared/extensions.js';
 import '../shared/example-selector.js';
 import '../shared/media-type-selector.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 interface HeaderData {
     name: string;
@@ -44,8 +38,7 @@ interface LinkData {
 }
 
 @customElement('pp-operation-responses')
-export class PpOperationResponses extends LitElement {
-    static styles = [sharedCss, constraintsCss, markdownCss, refLinkCss, statusColorsCss, operationResponsesCss, detailsCss];
+export class PpOperationResponses extends LightElement {
 
     @property({attribute: 'responses-json'}) responsesJson = '';
     @property({attribute: 'common-headers-json'}) commonHeadersJson = '';
@@ -112,7 +105,7 @@ export class PpOperationResponses extends LitElement {
     }
 
     private scrollToHeader(name: string) {
-        const el = this.shadowRoot?.getElementById('header-' + name);
+        const el = this.querySelector(`#${CSS.escape('header-' + name)}`);
         if (!el) return;
         // Expand the parent <sl-details> if collapsed
         const details = el.closest('sl-details') as (HTMLElement & {open: boolean; updateComplete: Promise<void>}) | null;
@@ -262,7 +255,7 @@ export class PpOperationResponses extends LitElement {
     }
 
     private scrollToCommonError(key: string) {
-        const el = this.shadowRoot?.getElementById('common-error-' + key);
+        const el = this.querySelector(`#${CSS.escape('common-error-' + key)}`);
         el?.scrollIntoView({behavior: 'auto', block: 'nearest'});
     }
 

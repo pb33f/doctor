@@ -20,12 +20,12 @@ describe('pp-code-viewer', () => {
         el.language = 'json';
         await el.updateComplete;
 
-        const pre = el.shadowRoot?.querySelector('pre');
+        const pre = el.querySelector('pre');
         expect(pre).toBeTruthy();
-        const tokens = el.shadowRoot?.querySelectorAll('.token');
+        const tokens = el.querySelectorAll('.token');
         expect(tokens?.length).toBeGreaterThan(0);
         // No gutter in plain mode
-        const lineNumbers = el.shadowRoot?.querySelectorAll('.line-number');
+        const lineNumbers = el.querySelectorAll('.line-number');
         expect(lineNumbers?.length).toBe(0);
     });
 
@@ -35,13 +35,13 @@ describe('pp-code-viewer', () => {
         el.language = 'mermaid';
         await el.updateComplete;
 
-        const pre = el.shadowRoot?.querySelector('pre.language-mermaid');
+        const pre = el.querySelector('pre.language-mermaid');
         expect(pre).toBeTruthy();
-        const tokens = el.shadowRoot?.querySelectorAll('.token');
+        const tokens = el.querySelectorAll('.token');
         expect(tokens?.length).toBeGreaterThan(0);
-        expect(el.shadowRoot?.querySelector('.token.class-name')?.textContent).toBe('Card');
-        expect(el.shadowRoot?.querySelector('.token.builtin')?.textContent).toBe('string');
-        expect(el.shadowRoot?.querySelector('.token.property')?.textContent).toBe('name');
+        expect(el.querySelector('.token.class-name')?.textContent).toBe('Card');
+        expect(el.querySelector('.token.builtin')?.textContent).toBe('string');
+        expect(el.querySelector('.token.property')?.textContent).toBe('name');
     });
 
     it('should render line numbers when line-numbers attribute is set', async () => {
@@ -51,7 +51,7 @@ describe('pp-code-viewer', () => {
         el.lineNumbers = true;
         await el.updateComplete;
 
-        const lineNums = el.shadowRoot?.querySelectorAll('.line-number');
+        const lineNums = el.querySelectorAll('.line-number');
         expect(lineNums?.length).toBe(2);
         expect(lineNums?.[0].textContent).toBe('1');
         expect(lineNums?.[1].textContent).toBe('2');
@@ -64,7 +64,7 @@ describe('pp-code-viewer', () => {
         el.lineNumbers = true;
         await el.updateComplete;
 
-        const lines = el.shadowRoot?.querySelectorAll('.line');
+        const lines = el.querySelectorAll('.line');
         expect(lines?.length).toBe(4);
     });
 
@@ -72,7 +72,7 @@ describe('pp-code-viewer', () => {
         const el = create();
         await el.updateComplete;
 
-        const tokens = el.shadowRoot?.querySelectorAll('.token');
+        const tokens = el.querySelectorAll('.token');
         expect(tokens?.length).toBe(0);
     });
 
@@ -84,11 +84,11 @@ describe('pp-code-viewer', () => {
         el.lineNumbers = true;
         await el.updateComplete;
 
-        const lineNums = el.shadowRoot?.querySelectorAll('.line-number');
+        const lineNums = el.querySelectorAll('.line-number');
         (lineNums?.[1] as HTMLElement)?.click();
         await el.updateComplete;
 
-        const lines = el.shadowRoot?.querySelectorAll('.line');
+        const lines = el.querySelectorAll('.line');
         expect(lines?.[1].classList.contains('highlighted')).toBe(true);
         expect(lines?.[0].classList.contains('highlighted')).toBe(false);
     });
@@ -100,17 +100,17 @@ describe('pp-code-viewer', () => {
         el.lineNumbers = true;
         await el.updateComplete;
 
-        const lineNums = el.shadowRoot?.querySelectorAll('.line-number');
+        const lineNums = el.querySelectorAll('.line-number');
         (lineNums?.[0] as HTMLElement)?.click();
         await el.updateComplete;
 
-        let lines = el.shadowRoot?.querySelectorAll('.line');
+        let lines = el.querySelectorAll('.line');
         expect(lines?.[0].classList.contains('highlighted')).toBe(true);
 
         (lineNums?.[0] as HTMLElement)?.click();
         await el.updateComplete;
 
-        lines = el.shadowRoot?.querySelectorAll('.line');
+        lines = el.querySelectorAll('.line');
         expect(lines?.[0].classList.contains('highlighted')).toBe(false);
     });
 
@@ -121,7 +121,7 @@ describe('pp-code-viewer', () => {
         el.lineNumbers = true;
         await el.updateComplete;
 
-        const lineNums = el.shadowRoot?.querySelectorAll('.line-number');
+        const lineNums = el.querySelectorAll('.line-number');
         (lineNums?.[1] as HTMLElement)?.click();
         await el.updateComplete;
 
@@ -130,7 +130,7 @@ describe('pp-code-viewer', () => {
         );
         await el.updateComplete;
 
-        const lines = el.shadowRoot?.querySelectorAll('.line');
+        const lines = el.querySelectorAll('.line');
         expect(lines?.[0].classList.contains('highlighted')).toBe(false);
         expect(lines?.[1].classList.contains('highlighted')).toBe(true);
         expect(lines?.[2].classList.contains('highlighted')).toBe(true);
@@ -147,7 +147,7 @@ describe('pp-code-viewer', () => {
         el.highlightLines = '2';
         await el.updateComplete;
 
-        const lines = el.shadowRoot?.querySelectorAll('.line');
+        const lines = el.querySelectorAll('.line');
         expect(lines?.[0].classList.contains('highlighted')).toBe(false);
         expect(lines?.[1].classList.contains('highlighted')).toBe(true);
         expect(lines?.[2].classList.contains('highlighted')).toBe(false);
@@ -162,11 +162,11 @@ describe('pp-code-viewer', () => {
         await el.updateComplete;
 
         // Click line 1 — should have no effect
-        const lineNums = el.shadowRoot?.querySelectorAll('.line-number');
+        const lineNums = el.querySelectorAll('.line-number');
         (lineNums?.[0] as HTMLElement)?.click();
         await el.updateComplete;
 
-        const lines = el.shadowRoot?.querySelectorAll('.line');
+        const lines = el.querySelectorAll('.line');
         expect(lines?.[0].classList.contains('highlighted')).toBe(false);
         expect(lines?.[1].classList.contains('highlighted')).toBe(true);
     });
@@ -179,7 +179,7 @@ describe('pp-code-viewer', () => {
         el.highlightLines = '1';
         await el.updateComplete;
 
-        const container = el.shadowRoot?.querySelector('.lined-code');
+        const container = el.querySelector('.lined-code');
         expect(container?.classList.contains('locked')).toBe(true);
     });
 
@@ -191,7 +191,7 @@ describe('pp-code-viewer', () => {
         el.highlightLines = '1,3-5,8';
         await el.updateComplete;
 
-        const lines = el.shadowRoot?.querySelectorAll('.line');
+        const lines = el.querySelectorAll('.line');
         expect(lines?.[0].classList.contains('highlighted')).toBe(true);  // 1
         expect(lines?.[1].classList.contains('highlighted')).toBe(false); // 2
         expect(lines?.[2].classList.contains('highlighted')).toBe(true);  // 3
@@ -210,18 +210,18 @@ describe('pp-code-viewer', () => {
         el.lineNumbers = true;
         await el.updateComplete;
 
-        const lineNums = el.shadowRoot?.querySelectorAll('.line-number');
+        const lineNums = el.querySelectorAll('.line-number');
         (lineNums?.[0] as HTMLElement)?.click();
         await el.updateComplete;
 
-        let lines = el.shadowRoot?.querySelectorAll('.line');
+        let lines = el.querySelectorAll('.line');
         expect(lines?.[0].classList.contains('highlighted')).toBe(true);
 
         // Change code — selection should reset
         el.code = 'x: 9\ny: 8';
         await el.updateComplete;
 
-        lines = el.shadowRoot?.querySelectorAll('.line');
+        lines = el.querySelectorAll('.line');
         expect(lines?.[0].classList.contains('highlighted')).toBe(false);
     });
 
@@ -232,17 +232,17 @@ describe('pp-code-viewer', () => {
         el.lineNumbers = true;
         await el.updateComplete;
 
-        const lineNums = el.shadowRoot?.querySelectorAll('.line-number');
+        const lineNums = el.querySelectorAll('.line-number');
         (lineNums?.[0] as HTMLElement)?.click();
         await el.updateComplete;
 
-        let lines = el.shadowRoot?.querySelectorAll('.line');
+        let lines = el.querySelectorAll('.line');
         expect(lines?.[0].classList.contains('highlighted')).toBe(true);
 
         el.language = 'yaml';
         await el.updateComplete;
 
-        lines = el.shadowRoot?.querySelectorAll('.line');
+        lines = el.querySelectorAll('.line');
         expect(lines?.[0].classList.contains('highlighted')).toBe(false);
     });
 
@@ -254,7 +254,7 @@ describe('pp-code-viewer', () => {
         el.lineNumbers = true;
         await el.updateComplete;
 
-        const lines = el.shadowRoot?.querySelectorAll('.line');
+        const lines = el.querySelectorAll('.line');
         expect(lines?.length).toBe(4);
         lines?.forEach(line => {
             const content = line.querySelector('.line-content')?.innerHTML || '';
@@ -316,7 +316,7 @@ describe('pp-code-viewer', () => {
         el.startLine = 42;
         await el.updateComplete;
 
-        const lineNums = el.shadowRoot?.querySelectorAll('.line-number');
+        const lineNums = el.querySelectorAll('.line-number');
         expect(lineNums?.length).toBe(3);
         expect(lineNums?.[0].textContent).toBe('42');
         expect(lineNums?.[1].textContent).toBe('43');
@@ -331,7 +331,7 @@ describe('pp-code-viewer', () => {
         el.startLine = 42;
         await el.updateComplete;
 
-        const row = el.shadowRoot?.querySelector('[data-line="43"]');
+        const row = el.querySelector('[data-line="43"]');
         expect(row?.textContent).toContain('43');
         expect(row?.textContent).toContain('b');
     });
@@ -343,7 +343,7 @@ describe('pp-code-viewer', () => {
         el.lineNumbers = true;
         await el.updateComplete;
 
-        const lineNums = el.shadowRoot?.querySelectorAll('.line-number');
+        const lineNums = el.querySelectorAll('.line-number');
         expect(lineNums?.[0].textContent).toBe('1');
     });
 
@@ -355,7 +355,7 @@ describe('pp-code-viewer', () => {
         el.location = '/path/to/file.yaml';
         await el.updateComplete;
 
-        const loc = el.shadowRoot?.querySelector('.location');
+        const loc = el.querySelector('.location');
         expect(loc).toBeTruthy();
         expect(loc?.textContent).toBe('/path/to/file.yaml');
     });
@@ -366,7 +366,7 @@ describe('pp-code-viewer', () => {
         el.language = 'yaml';
         await el.updateComplete;
 
-        const loc = el.shadowRoot?.querySelector('.location');
+        const loc = el.querySelector('.location');
         expect(loc).toBeNull();
     });
 });

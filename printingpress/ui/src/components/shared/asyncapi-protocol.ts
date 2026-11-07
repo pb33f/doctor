@@ -1,6 +1,6 @@
-import {LitElement, html} from 'lit';
+import {html} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
-import asyncAPIProtocolCss from './asyncapi-protocol.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 type ProtocolMark =
   | 'amqp'
@@ -73,8 +73,7 @@ export function asyncAPIProtocolPresentation(protocol: string): ProtocolPresenta
 }
 
 @customElement('pp-asyncapi-protocol')
-export class PpAsyncAPIProtocol extends LitElement {
-  static styles = asyncAPIProtocolCss;
+export class PpAsyncAPIProtocol extends LightElement {
 
   @property() protocol = '';
   @property() size: 'small' | 'medium' | 'large' | 'nav' = 'medium';

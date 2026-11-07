@@ -16,14 +16,14 @@ describe('pp-extensions', () => {
     it('should render nothing when extensions-json is empty', async () => {
         const el = create();
         await el.updateComplete;
-        expect(el.shadowRoot?.querySelectorAll('.ext-key').length).toBe(0);
+        expect(el.querySelectorAll('.ext-key').length).toBe(0);
     });
 
     it('should render nothing for invalid JSON', async () => {
         const el = create();
         el.extensionsJson = '{not valid';
         await el.updateComplete;
-        expect(el.shadowRoot?.querySelectorAll('.ext-key').length).toBe(0);
+        expect(el.querySelectorAll('.ext-key').length).toBe(0);
     });
 
     it('should render scalar values as text', async () => {
@@ -33,10 +33,10 @@ describe('pp-extensions', () => {
             { key: 'x-sunset', value: '2026-06-01' },
         ]);
         await el.updateComplete;
-        const keys = el.shadowRoot?.querySelectorAll('.ext-key');
+        const keys = el.querySelectorAll('.ext-key');
         expect(keys?.length).toBe(2);
         expect(keys?.[0].textContent).toBe('x-beta');
-        const values = el.shadowRoot?.querySelectorAll('.ext-value');
+        const values = el.querySelectorAll('.ext-value');
         expect(values?.[0].querySelector('.ext-scalar')?.textContent).toBe('true');
     });
 
@@ -46,7 +46,7 @@ describe('pp-extensions', () => {
             { key: 'x-rate-limit', value: { requests: 120 } },
         ]);
         await el.updateComplete;
-        const viewer = el.shadowRoot?.querySelector('pp-code-viewer');
+        const viewer = el.querySelector('pp-code-viewer');
         expect(viewer).toBeTruthy();
     });
 
@@ -54,9 +54,9 @@ describe('pp-extensions', () => {
         const el = create();
         el.extensionsJson = JSON.stringify([{ key: 'x-a', value: 1 }]);
         await el.updateComplete;
-        expect(el.shadowRoot?.querySelectorAll('.ext-key').length).toBe(1);
+        expect(el.querySelectorAll('.ext-key').length).toBe(1);
         el.extensionsJson = '';
         await el.updateComplete;
-        expect(el.shadowRoot?.querySelectorAll('.ext-key').length).toBe(0);
+        expect(el.querySelectorAll('.ext-key').length).toBe(0);
     });
 });

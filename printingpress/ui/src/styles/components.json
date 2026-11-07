@@ -1,0 +1,151 @@
+{
+  "nested": [
+    "pp-attention-box",
+    "pp-http-method",
+    "pp-model-icon",
+    "pp-paginated-list",
+    "pp-paginator",
+    "pp-render-operation-path",
+    "pp-terminal-example"
+  ],
+  "components": {
+    "pp-asyncapi-action": [
+      "components/shared/asyncapi-action.css"
+    ],
+    "pp-asyncapi-protocol": [
+      "components/shared/asyncapi-protocol.css"
+    ],
+    "pp-class-diagram": [
+      "components/class-diagram/class-diagram.css"
+    ],
+    "pp-code-viewer": [
+      "components/shared/code-viewer.css"
+    ],
+    "pp-cross-refs": [
+      "components/shared/cross-refs.css"
+    ],
+    "pp-curl-command": [
+      "styles/dropdown.css",
+      "components/operations/curl-command.css"
+    ],
+    "pp-diagnostics-list": [
+      "styles/markdown.css",
+      "components/diagnostics/diagnostics-list.css"
+    ],
+    "pp-example-drawer": [
+      "styles/code-actions.css",
+      "components/shared/example-drawer.css",
+      "styles/tooltip.css"
+    ],
+    "pp-example-selector": [
+      "styles/dropdown.css",
+      "styles/code-actions.css",
+      "components/shared/example-selector.css",
+      "styles/markdown.css",
+      "styles/tooltip.css"
+    ],
+    "pp-extensions": [
+      "components/shared/extensions.css"
+    ],
+    "pp-focused-explorer": [
+      "components/explorer/focused-explorer.css"
+    ],
+    "pp-icon-title": [
+      "components/shared/icon-title.css"
+    ],
+    "pp-inline-code": [
+      "styles/code-actions.css",
+      "components/shared/inline-code.css",
+      "styles/tooltip.css"
+    ],
+    "pp-layout": [
+      "styles/dropdown.css",
+      "components/layout/layout.css",
+      "styles/shared.css"
+    ],
+    "pp-media-type-selector": [
+      "styles/shared.css",
+      "styles/ref-link.css",
+      "styles/dropdown.css",
+      "components/shared/media-type-selector.css"
+    ],
+    "pp-mermaid": [
+      "components/class-diagram/class-diagram.css"
+    ],
+    "pp-model-card": [
+      "styles/markdown.css",
+      "components/models/model-card.css"
+    ],
+    "pp-model-page": [
+      "styles/shared.css",
+      "styles/constraints.css",
+      "components/models/model-page.css"
+    ],
+    "pp-nav": [
+      "components/nav/nav.css",
+      "styles/tooltip.css"
+    ],
+    "pp-nav-model-group": [
+      "components/nav/nav-model-group.css"
+    ],
+    "pp-nav-operation": [
+      "components/nav/nav-operation.css"
+    ],
+    "pp-nav-tag": [
+      "components/nav/nav-tag.css"
+    ],
+    "pp-operation-callbacks": [
+      "styles/shared.css",
+      "styles/markdown.css",
+      "styles/ref-link.css",
+      "styles/status-colors.css",
+      "components/operations/operation-callbacks.css"
+    ],
+    "pp-operation-parameters": [
+      "styles/shared.css",
+      "styles/constraints.css",
+      "styles/markdown.css",
+      "styles/ref-link.css",
+      "components/operations/operation-parameters.css"
+    ],
+    "pp-operation-responses": [
+      "styles/shared.css",
+      "styles/constraints.css",
+      "styles/markdown.css",
+      "styles/ref-link.css",
+      "styles/status-colors.css",
+      "components/operations/operation-responses.css",
+      "styles/details.css"
+    ],
+    "pp-page-nav": [
+      "components/shared/page-nav.css"
+    ],
+    "pp-problems-drawer": [
+      "styles/markdown.css",
+      "components/shared/problems-drawer.css"
+    ],
+    "pp-raw-viewer-btn": [
+      "components/shared/raw-viewer-btn.css",
+      "styles/tooltip.css"
+    ],
+    "pp-ref-list": [
+      "components/shared/ref-list.css"
+    ],
+    "pp-ref-popover": [
+      "components/shared/ref-popover.css"
+    ],
+    "pp-schema-properties": [
+      "styles/constraints.css",
+      "styles/markdown.css",
+      "styles/dropdown.css",
+      "components/shared/schema-properties.css"
+    ],
+    "pp-security-scheme": [
+      "styles/shared.css",
+      "components/shared/security-scheme.css"
+    ],
+    "pp-violation-stats": [
+      "components/shared/violation-stats.css"
+    ]
+  }
+}

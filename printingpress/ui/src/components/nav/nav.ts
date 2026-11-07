@@ -1,4 +1,4 @@
-import {LitElement, html, nothing, TemplateResult} from 'lit';
+import {html, nothing, TemplateResult} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
@@ -8,11 +8,10 @@ import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
-import navCss from './nav.css.js';
-import tooltipCss from '../../styles/tooltip.css.js';
 import {docHref, overviewHref} from '../../utils/doc-links.js';
 import type {ViolationCounts} from '../../utils/violations.js';
 import {multiContractGroups, type SiteContractGroup, type SiteContractLink} from '../../utils/contract-navigation.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 interface NavTag {
     name: string;
@@ -62,8 +61,7 @@ interface NavContentPage {
 let navInstanceID = 0;
 
 @customElement('pp-nav')
-export class PpNav extends LitElement {
-    static styles = [navCss, tooltipCss];
+export class PpNav extends LightElement {
 
     @property({attribute: 'data-nav'}) navJson = '';
     @property({attribute: 'data-pages'}) pagesJson = '';
@@ -518,11 +516,22 @@ export class PpNav extends LitElement {
             </nav>`;
     }
 
+    /** The server's nav preview, among the nodes written inside the element. */
+    private authoredPreview(): Element | null {
+        for (const node of this.authored) {
+            if (node instanceof Element) {
+                const preview = node.matches('.pp-nav-preview') ? node : node.querySelector('.pp-nav-preview');
+                if (preview) return preview;
+            }
+        }
+        return null;
+    }
+
     connectedCallback() {
         super.connectedCallback();
         window.addEventListener('message', this.hostMessageHandler);
         this.ensureExpiryTimer();
-        const preview = this.querySelector('.pp-nav-preview');
+        const preview = this.authoredPreview();
         this.logPerf('nav:connected', {
             activeSlug: this.activeSlug,
             cached: this.hasAttribute('data-pp-nav-cached'),
@@ -589,7 +598,7 @@ export class PpNav extends LitElement {
                 this.logPerf('nav-preview:hold-active', {source: 'shadow-nav'});
                 return;
             }
-            const preview = this.querySelector('.pp-nav-preview');
+            const preview = this.authoredPreview();
             if (preview) {
                 preview.remove();
                 this.logPerf('nav-preview:removed', {source: 'shadow-nav'});
@@ -673,8 +682,7 @@ export class PpNav extends LitElement {
 
     render() {
         if (this.previewHoldEnabled()) {
-            return html`
-                <slot></slot>`;
+            return this.slotted();
         }
         if (!this.hasNavContent() && !this.hasHydratedNav()) {
             return this.renderFallbackNav();

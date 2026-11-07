@@ -1,4 +1,4 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state, query} from 'lit/decorators.js';
 import {ExplorerComponent} from '@pb33f/cowboy-components/components/visualizer/explorer.js';
 import {ExplorerNodeClicked} from '@pb33f/cowboy-components/events/doctor.js';
@@ -6,15 +6,20 @@ import {createElkLayoutWorker} from '../../elk-layout-worker-inline.js';
 import {createGraphDependentWorker} from '../../graph-dependent-worker-inline.js';
 import {ensureModelGraphVisualization} from '../../utils/model-visualization.js';
 import {docHref} from '../../utils/doc-links.js';
-import styles from './focused-explorer.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+
+/** True when a mutation adds or removes a data script. */
+function touchesDataScript(record: MutationRecord): boolean {
+    return [...record.addedNodes, ...record.removedNodes].some((node) => node instanceof HTMLScriptElement && node.matches('script.pp-graph-data'));
+}
 
 // Set worker factories before any explorer element is created
 ExplorerComponent.elkWorkerFactory = createElkLayoutWorker;
 ExplorerComponent.graphDependentWorkerFactory = createGraphDependentWorker;
 
 @customElement('pp-focused-explorer')
-export class PpFocusedExplorer extends LitElement {
-    static styles = styles;
+export class PpFocusedExplorer extends LightElement {
+    protected static keepChildren = true;
 
     @property({attribute: 'node-id'}) nodeId = '';
     @property() name = '';
@@ -42,7 +47,7 @@ export class PpFocusedExplorer extends LitElement {
     };
 
     private hydrateEmbeddedData() {
-        const scriptEl = this.querySelector('script.pp-graph-data');
+        const scriptEl = this.querySelector(':scope > script.pp-graph-data');
         if (!scriptEl?.textContent) {
             this.graphData = null;
             return;
@@ -57,8 +62,12 @@ export class PpFocusedExplorer extends LitElement {
     connectedCallback() {
         super.connectedCallback();
         setTimeout(() => {
-            this.embeddedDataObserver = new MutationObserver(() => {
-                this.hydrateEmbeddedData();
+            // The component renders into itself, so only a change to its
+            // data script is a reason to read the data again.
+            this.embeddedDataObserver = new MutationObserver((records) => {
+                if (records.some(touchesDataScript)) {
+                    this.hydrateEmbeddedData();
+                }
             });
             this.embeddedDataObserver.observe(this, {childList: true});
             if (!this.closest('sl-tab-group')) {

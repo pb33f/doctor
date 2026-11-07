@@ -1,12 +1,10 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
 import type {ShowExampleDetail} from './example-drawer.js';
-import rawViewerBtnCss from './raw-viewer-btn.css.js';
-import tooltipCss from "../../styles/tooltip.css.js";
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 @customElement('pp-raw-viewer-btn')
-export class PpRawViewerBtn extends LitElement {
-    static styles = [rawViewerBtnCss, tooltipCss];
+export class PpRawViewerBtn extends LightElement {
 
     @property({attribute: 'title'}) btnTitle = '';
     @property({attribute: 'raw-json'}) rawJson = '';

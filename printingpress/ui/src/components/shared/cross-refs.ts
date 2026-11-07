@@ -1,8 +1,8 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import crossRefsCss from './cross-refs.css.js';
 import './ref-list.js';
 import type {OperationRef, ComponentRef} from './ref-list.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 interface CrossRefData {
     usedByOperations?: OperationRef[];
@@ -11,8 +11,7 @@ interface CrossRefData {
 }
 
 @customElement('pp-cross-refs')
-export class PpCrossRefs extends LitElement {
-    static styles = crossRefsCss;
+export class PpCrossRefs extends LightElement {
 
     @property({attribute: 'refs-json'}) refsJson = '';
     @state() private refs: CrossRefData = {};

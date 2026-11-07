@@ -4879,7 +4879,7 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogAndEntrySites(t *testing
 	assert.Contains(t, string(entryHTML), `data-pp-versions=`)
 	assert.Contains(t, string(entryHTML), `data-pp-catalog-href="../../../../../../index.html"`)
 	assert.Contains(t, string(entryHTML), `data-pp-overview-href="index.html"`)
-	assert.Contains(t, string(entryHTML), `href="../../../../../../static/printing-press.css"`)
+	assert.Contains(t, string(entryHTML), `url("../../../../../../static/printing-press.css")`)
 	assert.Contains(t, string(entryHTML), `src="../../../../../../static/printing-press.js"`)
 	assert.NoFileExists(t, filepath.Join(filepath.Dir(entryIndex), "static", "printing-press.js"))
 	assert.NotContains(t, string(entryHTML), `data-pp-versions-href=`)
@@ -4888,7 +4888,7 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogAndEntrySites(t *testing
 	require.NoError(t, err)
 	assert.Contains(t, string(entryOperationHTML), `<base href="../">`)
 	assert.Contains(t, string(entryOperationHTML), `data-pp-base-url="../"`)
-	assert.Contains(t, string(entryOperationHTML), `href="../../../../../../static/printing-press.css"`)
+	assert.Contains(t, string(entryOperationHTML), `url("../../../../../../static/printing-press.css")`)
 	assert.Contains(t, string(entryOperationHTML), `src="../../../../../../static/printing-press.js"`)
 }
 
@@ -4919,7 +4919,7 @@ func TestAggregatePrintingPress_ServedEntryNestedPagesUsePageAwareSharedAssets(t
 	rendered := string(operationHTML)
 	assert.NotContains(t, rendered, `<base href=`)
 	assert.Contains(t, rendered, `data-pp-base-url="../"`)
-	assert.Contains(t, rendered, `href="../../../../../../../static/printing-press.css"`)
+	assert.Contains(t, rendered, `url("../../../../../../../static/printing-press.css")`)
 	assert.Contains(t, rendered, `src="../../../../../../../static/printing-press.js"`)
 	assert.Contains(t, rendered, `data-pp-shared="data/nav"`)
 	require.FileExists(t, filepath.Join(entryDir, "data", "nav.json"))

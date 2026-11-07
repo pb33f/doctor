@@ -1,7 +1,5 @@
-import {LitElement, html} from 'lit';
+import {html} from 'lit';
 import {customElement, state} from 'lit/decorators.js';
-import layoutCss from './layout.css.js';
-import sharedCss from "../../styles/shared.css";
 import {docHref, headerTitleHref} from '../../utils/doc-links.js';
 import {multiContractGroups} from '../../utils/contract-navigation.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
@@ -9,6 +7,7 @@ import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 const SPLIT_POS_KEY = 'pp-split-position';
 const DEFAULT_POS = 20;
@@ -83,8 +82,7 @@ type SplitPanelElement = HTMLElement & { position?: number };
 type UpdatingSplitPanelElement = SplitPanelElement & { updateComplete?: Promise<unknown> };
 
 @customElement('pp-layout')
-export class PpLayout extends LitElement {
-  static styles = [layoutCss, sharedCss];
+export class PpLayout extends LightElement {
 
   @state() title = '';
   @state() private splitPos = DEFAULT_POS;
@@ -374,6 +372,10 @@ export class PpLayout extends LitElement {
   }
 
   private onReposition(e: CustomEvent) {
+    // A split panel inside the page sends sl-reposition through this one.
+    if (e.target !== this.splitPanel) {
+      return;
+    }
     const pos = clampSplitPosition((e.target as SplitPanelElement).position ?? DEFAULT_POS);
     if (typeof pos === 'number') {
       this.splitPos = pos;
@@ -465,10 +467,10 @@ export class PpLayout extends LitElement {
       <sl-split-panel position="20">
         <sl-icon slot="divider" name="grip-vertical" class="divider-vert" aria-hidden="true"></sl-icon>
         <div slot="start" class="nav-panel">
-          <slot name="nav"></slot>
+          ${this.slotted('nav')}
         </div>
         <div slot="end" class="content-panel">
-          <slot name="content"></slot>
+          ${this.slotted('content')}
         </div>
       </sl-split-panel>
     `;

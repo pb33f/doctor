@@ -112,6 +112,8 @@ pb33f-header {
     margin-top: 0;
 }
 
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
 .version-picker sl-button::part(base) {
     border: 1px solid var(--primary-color);
     border-radius: 0;
@@ -121,17 +123,23 @@ pb33f-header {
     min-height: 40px;
     width: 100%;
 }
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
 
 .version-picker sl-button::part(label) {
     overflow-x: hidden;
     text-transform: uppercase;
     letter-spacing: var(--label-spacing);
 }
+}
 
 .version-picker sl-menu {
     border: 1px solid var(--primary-color);
     border-radius: 0;
 }
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
 
 .version-picker sl-menu-item::part(base) {
     color: var(--primary-color);
@@ -140,9 +148,13 @@ pb33f-header {
     text-transform: uppercase;
     letter-spacing: var(--label-spacing);
 }
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
 
 .version-picker sl-menu-item::part(checked-icon) {
     color: var(--primary-color);
+}
 }
 
 .pp-catalog-shell {

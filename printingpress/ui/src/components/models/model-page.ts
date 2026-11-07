@@ -1,8 +1,5 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state, query} from 'lit/decorators.js';
-import sharedCss from '../../styles/shared.css.js';
-import constraintsCss from '../../styles/constraints.css.js';
-import modelPageCss from './model-page.css.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import '../shared/inline-code.js';
@@ -12,6 +9,7 @@ import '../shared/example-selector.js';
 import '../shared/media-type-selector.js';
 
 import {TYPE_SLUG_PATH_ITEMS, collectConstraints} from '../../utils/schema.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 const refSegmentToTypeSlug: Record<string, string> = {
   schemas: 'schemas',
@@ -27,8 +25,7 @@ const refSegmentToTypeSlug: Record<string, string> = {
 };
 
 @customElement('pp-model-page')
-export class PpModelPage extends LitElement {
-  static styles = [sharedCss, constraintsCss, modelPageCss];
+export class PpModelPage extends LightElement {
 
   @property({attribute: 'model-json'}) modelJson = '';
   @property() name = '';
@@ -438,7 +435,7 @@ export class PpModelPage extends LitElement {
     const splitClass = this.exampleHidden ? 'schema-split example-hidden' : 'schema-split';
     const position = this.exampleHidden ? '100' : '60';
     return html`
-      <sl-split-panel class=${splitClass} position=${position} style=${splitStyle} @sl-reposition=${this.handleSplitReposition}>
+      <sl-split-panel class=${splitClass} position=${position} style=${splitStyle} @sl-reposition=${(event: Event) => event.target === event.currentTarget && this.handleSplitReposition()}>
         <div slot="start" class="split-pane schema-props-pane">
           <h2>${heading}</h2>
           <pp-schema-properties schema-json=${this.modelJson} compact></pp-schema-properties>

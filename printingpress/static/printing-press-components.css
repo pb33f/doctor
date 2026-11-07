@@ -66,6 +66,11 @@
   --pp-http-background: var(--pp-color-background);
 }
 
+/* Where a component places the content written inside it. It draws no box. */
+pp-slot {
+  display: contents;
+}
+
 /* pp-http-method */
 
 pp-http-method {

@@ -1,7 +1,7 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import '../src/components/nav/nav-model-group.js';
 import '../src/components/nav/nav-tag.js';
-import '@pb33f/cowboy-components/components/http-method/http-method.js';
+import '@pb33f/printing-press-components/http-method/http-method.js';
 
 describe('nav violation badges', () => {
   beforeEach(() => {
@@ -20,7 +20,7 @@ describe('nav violation badges', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const badges = Array.from(el.shadowRoot?.querySelectorAll('.group-header .violation-badge') || []) as HTMLElement[];
+    const badges = Array.from(el.querySelectorAll('.group-header .violation-badge') || []) as HTMLElement[];
     expect(badges.map((badge) => badge.className)).toEqual([
       'violation-badge error',
       'violation-badge warn',
@@ -42,8 +42,8 @@ describe('nav violation badges', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const badgeGroup = el.shadowRoot?.querySelector('.tag-header .violation-badges');
-    const badges = Array.from(el.shadowRoot?.querySelectorAll('.tag-header .violation-badge') || []) as HTMLElement[];
+    const badgeGroup = el.querySelector('.tag-header .violation-badges');
+    const badges = Array.from(el.querySelectorAll('.tag-header .violation-badge') || []) as HTMLElement[];
     expect(badgeGroup).toBeTruthy();
     expect(badges.map((badge) => badge.className)).toEqual([
       'violation-badge warn',

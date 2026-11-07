@@ -1,4 +1,4 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state, query} from 'lit/decorators.js';
 import '@pb33f/cowboy-components/components/mermaid/mermaid-renderer.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
@@ -6,11 +6,16 @@ import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import type {MermaidRenderer} from '@pb33f/cowboy-components/components/mermaid/mermaid-renderer.js';
 import {ensureModelDiagramVisualization} from '../../utils/model-visualization.js';
 import '../shared/code-viewer.js';
-import styles from './class-diagram.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+
+/** True when a mutation adds or removes a data script. */
+function touchesDataScript(record: MutationRecord): boolean {
+    return [...record.addedNodes, ...record.removedNodes].some((node) => node instanceof HTMLScriptElement && node.matches('script.pp-mermaid-data'));
+}
 
 @customElement('pp-class-diagram')
-export class PpClassDiagram extends LitElement {
-    static styles = styles;
+export class PpClassDiagram extends LightElement {
+    protected static keepChildren = true;
 
     @property() name = '';
     @property({attribute: false}) diagram = '';
@@ -30,7 +35,7 @@ export class PpClassDiagram extends LitElement {
     private visualizationLoaded = false;
 
     private hydrateEmbeddedData() {
-        const scriptEl = this.querySelector('script.pp-mermaid-data');
+        const scriptEl = this.querySelector(':scope > script.pp-mermaid-data');
         this.diagram = scriptEl?.textContent?.trim() || '';
     }
 
@@ -40,8 +45,12 @@ export class PpClassDiagram extends LitElement {
             this.wide = this.offsetWidth >= 900;
             this.requestUpdate();
 
-            this.embeddedDataObserver = new MutationObserver(() => {
-                this.hydrateEmbeddedData();
+            // The component renders into itself, so only a change to its
+            // data script is a reason to read the data again.
+            this.embeddedDataObserver = new MutationObserver((records) => {
+                if (records.some(touchesDataScript)) {
+                    this.hydrateEmbeddedData();
+                }
             });
             this.embeddedDataObserver.observe(this, {childList: true});
 

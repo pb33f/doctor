@@ -261,11 +261,10 @@ func TestPrintingPressStylesheet_UsesSharedSectionHeadingSize(t *testing.T) {
 		)
 	}
 
-	for _, bundle := range []string{"printing-press.js", "printing-press-lite.js"} {
-		asset, readErr := os.ReadFile(filepath.Join("static", bundle))
-		require.NoError(t, readErr)
-		assert.Contains(t, string(asset), `--pp-section-heading-size`)
-	}
+	// The components' own styles are in printing-press-ui.css, not the bundles.
+	asset, readErr := os.ReadFile(filepath.Join("static", "printing-press-ui.css"))
+	require.NoError(t, readErr)
+	assert.Contains(t, string(asset), `--pp-section-heading-size`)
 }
 
 func TestPrintingPressBrowserBundles_IncludeContractNavigation(t *testing.T) {
@@ -294,7 +293,7 @@ func TestPrintingPressStylesheet_StylesContractNavigationPreview(t *testing.T) {
 		"contract-link",
 		"contract-local-navigation",
 	} {
-		assert.Contains(t, css, `pp-nav > .pp-nav-preview .`+className, className)
+		assert.Contains(t, css, `:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .`+className, className)
 	}
 }
 
@@ -461,8 +460,8 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(operationHTML), `<base href="../">`)
 	assert.Contains(t, string(operationHTML), `data-pp-base-url="../"`)
-	assert.Contains(t, string(operationHTML), `href="static/printing-press.css"`)
-	assert.Contains(t, string(operationHTML), `href="static/printing-press-operation.css"`)
+	assert.Contains(t, string(operationHTML), `url("static/printing-press.css")`)
+	assert.Contains(t, string(operationHTML), `url("static/printing-press-operation.css")`)
 	assert.Contains(t, string(operationHTML), `src="static/printing-press.js"`)
 	assert.Contains(t, string(operationHTML), `href="index.html"`)
 	assert.NotContains(t, string(operationHTML), `href="../index.html"`)
@@ -848,7 +847,7 @@ func TestPrintingPress_WriteHTMLSite_UsesConfigOutputDirAndBaseURL(t *testing.T)
 	require.NoError(t, err)
 	assert.NotContains(t, string(indexHTML), `<base href=`)
 	assert.Contains(t, string(indexHTML), `data-pp-base-url="/docs/"`)
-	assert.Contains(t, string(indexHTML), `href="/docs/static/printing-press.css"`)
+	assert.Contains(t, string(indexHTML), `url("/docs/static/printing-press.css")`)
 	assert.Contains(t, string(indexHTML), `src="/docs/static/printing-press.js"`)
 	assert.Contains(t, string(indexHTML), `data-pp-shared="/docs/data/nav"`)
 	assert.Contains(t, string(indexHTML), `const sharedBase = "/docs/data/nav";`)
@@ -858,8 +857,8 @@ func TestPrintingPress_WriteHTMLSite_UsesConfigOutputDirAndBaseURL(t *testing.T)
 	require.NoError(t, err)
 	assert.NotContains(t, string(operationHTML), `<base href=`)
 	assert.Contains(t, string(operationHTML), `data-pp-base-url="/docs/"`)
-	assert.Contains(t, string(operationHTML), `href="/docs/static/printing-press.css"`)
-	assert.Contains(t, string(operationHTML), `href="/docs/static/printing-press-operation.css"`)
+	assert.Contains(t, string(operationHTML), `url("/docs/static/printing-press.css")`)
+	assert.Contains(t, string(operationHTML), `url("/docs/static/printing-press-operation.css")`)
 	assert.Contains(t, string(operationHTML), `src="/docs/static/printing-press.js"`)
 	assert.Contains(t, string(operationHTML), `data-pp-shared="/docs/data/nav"`)
 	assert.Contains(t, string(operationHTML), `data-pp-page="/docs/data/pages/operations/`+opSlug+`"`)
@@ -899,10 +898,10 @@ func TestPrintingPress_WriteHTMLSite_ServedModeWritesJSONAssets(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(operationHTML), `<base href=`)
 	assert.Contains(t, string(operationHTML), `data-pp-base-url="../"`)
-	assert.Contains(t, string(operationHTML), `href="../static/printing-press.css"`)
-	assert.Contains(t, string(operationHTML), `href="../static/printing-press-operation.css"`)
+	assert.Contains(t, string(operationHTML), `url("../static/printing-press.css")`)
+	assert.Contains(t, string(operationHTML), `url("../static/printing-press-operation.css")`)
 	assert.Contains(t, string(operationHTML), `src="../static/printing-press.js"`)
-	assert.NotContains(t, string(operationHTML), `href="static/printing-press.css"`)
+	assert.NotContains(t, string(operationHTML), `url("static/printing-press.css")`)
 	assert.NotContains(t, string(operationHTML), `src="static/printing-press.js"`)
 	assert.FileExists(t, filepath.Join(outputDir, "data", "pages", "operations", site.Operations[0].Slug+".json"))
 	assert.NoFileExists(t, filepath.Join(outputDir, "data", "pages", "operations", site.Operations[0].Slug+".js"))
@@ -922,10 +921,10 @@ func TestPrintingPress_WriteHTMLSite_ServedModeWritesJSONAssets(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(modelHTML), `<base href=`)
 	assert.Contains(t, string(modelHTML), `data-pp-base-url="../../"`)
-	assert.Contains(t, string(modelHTML), `href="../../static/printing-press.css"`)
-	assert.Contains(t, string(modelHTML), `href="../../static/printing-press-model.css"`)
+	assert.Contains(t, string(modelHTML), `url("../../static/printing-press.css")`)
+	assert.Contains(t, string(modelHTML), `url("../../static/printing-press-model.css")`)
 	assert.Contains(t, string(modelHTML), `src="../../static/printing-press.js"`)
-	assert.NotContains(t, string(modelHTML), `href="static/printing-press.css"`)
+	assert.NotContains(t, string(modelHTML), `url("static/printing-press.css")`)
 	assert.NotContains(t, string(modelHTML), `src="static/printing-press.js"`)
 }
 

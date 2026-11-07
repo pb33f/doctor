@@ -1,13 +1,11 @@
-import {LitElement, html} from 'lit';
+import {html} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
-import navOperationCss from './nav-operation.css.js';
 import {operationHref} from '../../utils/doc-links.js';
 import '../shared/asyncapi-action.js';
-import ppComponentsCss from '../../styles/pp-components.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 @customElement('pp-nav-operation')
-export class PpNavOperation extends LitElement {
-  static styles = [ppComponentsCss, navOperationCss];
+export class PpNavOperation extends LightElement {
 
   @property() specKind = '';
   @property() method = '';

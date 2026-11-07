@@ -21,12 +21,12 @@ describe('pp-example-drawer', () => {
     document.dispatchEvent(new CustomEvent('pp-show-example', { detail }));
     await el.updateComplete;
 
-    const viewer = el.shadowRoot?.querySelector('pp-code-viewer') as PpCodeViewer | null;
+    const viewer = el.querySelector('pp-code-viewer') as PpCodeViewer | null;
     expect(viewer).toBeTruthy();
     await viewer!.updateComplete;
 
     // Prism should produce .token spans inside the viewer's shadow DOM
-    const tokens = viewer!.shadowRoot?.querySelectorAll('.token');
+    const tokens = viewer!.querySelectorAll('.token');
     expect(tokens?.length).toBeGreaterThan(0);
   });
 
@@ -35,11 +35,11 @@ describe('pp-example-drawer', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const viewer = el.shadowRoot?.querySelector('pp-code-viewer') as PpCodeViewer | null;
+    const viewer = el.querySelector('pp-code-viewer') as PpCodeViewer | null;
     expect(viewer).toBeTruthy();
     await viewer!.updateComplete;
 
-    const tokens = viewer!.shadowRoot?.querySelectorAll('.token');
+    const tokens = viewer!.querySelectorAll('.token');
     expect(tokens?.length).toBe(0);
   });
 
@@ -56,9 +56,9 @@ describe('pp-example-drawer', () => {
     document.dispatchEvent(new CustomEvent('pp-show-example', { detail }));
     await el.updateComplete;
 
-    const toggle = el.shadowRoot?.querySelector('.format-toggle');
+    const toggle = el.querySelector('.format-toggle');
     expect(toggle).toBeTruthy();
-    const buttons = el.shadowRoot?.querySelectorAll('.format-toggle button');
+    const buttons = el.querySelectorAll('.format-toggle button');
     expect(buttons?.length).toBe(2);
   });
 
@@ -74,7 +74,7 @@ describe('pp-example-drawer', () => {
     document.dispatchEvent(new CustomEvent('pp-show-example', { detail }));
     await el.updateComplete;
 
-    const toggle = el.shadowRoot?.querySelector('.format-toggle');
+    const toggle = el.querySelector('.format-toggle');
     expect(toggle).toBeNull();
   });
 
@@ -92,7 +92,7 @@ describe('pp-example-drawer', () => {
     document.dispatchEvent(new CustomEvent('pp-show-example', { detail }));
     await el.updateComplete;
 
-    const jsonBtn = el.shadowRoot?.querySelector('.format-toggle button:first-child');
+    const jsonBtn = el.querySelector('.format-toggle button:first-child');
     expect(jsonBtn?.classList.contains('active')).toBe(true);
     document.body.removeAttribute('data-spec-format');
   });
@@ -110,7 +110,7 @@ describe('pp-example-drawer', () => {
     document.dispatchEvent(new CustomEvent('pp-show-example', { detail }));
     await el.updateComplete;
 
-    const yamlBtn = el.shadowRoot?.querySelector('.format-toggle button:nth-child(2)');
+    const yamlBtn = el.querySelector('.format-toggle button:nth-child(2)');
     expect(yamlBtn?.classList.contains('active')).toBe(true);
   });
 
@@ -128,19 +128,19 @@ describe('pp-example-drawer', () => {
     await el.updateComplete;
 
     // Click YAML button
-    const yamlBtn = el.shadowRoot?.querySelector('.format-toggle button:nth-child(2)') as HTMLButtonElement;
+    const yamlBtn = el.querySelector('.format-toggle button:nth-child(2)') as HTMLButtonElement;
     yamlBtn?.click();
     await el.updateComplete;
 
-    let viewer = el.shadowRoot?.querySelector('pp-code-viewer') as PpCodeViewer | null;
+    let viewer = el.querySelector('pp-code-viewer') as PpCodeViewer | null;
     expect(viewer?.language).toBe('yaml');
 
     // Click JSON button
-    const jsonBtn = el.shadowRoot?.querySelector('.format-toggle button:first-child') as HTMLButtonElement;
+    const jsonBtn = el.querySelector('.format-toggle button:first-child') as HTMLButtonElement;
     jsonBtn?.click();
     await el.updateComplete;
 
-    viewer = el.shadowRoot?.querySelector('pp-code-viewer') as PpCodeViewer | null;
+    viewer = el.querySelector('pp-code-viewer') as PpCodeViewer | null;
     expect(viewer?.language).toBe('json');
   });
 
@@ -157,7 +157,7 @@ describe('pp-example-drawer', () => {
     document.dispatchEvent(new CustomEvent('pp-show-example', { detail }));
     await el.updateComplete;
 
-    const jsonBtn = el.shadowRoot?.querySelector('.format-toggle button:first-child') as HTMLButtonElement;
+    const jsonBtn = el.querySelector('.format-toggle button:first-child') as HTMLButtonElement;
     expect(jsonBtn?.disabled).toBe(true);
   });
 
@@ -175,7 +175,7 @@ describe('pp-example-drawer', () => {
     document.dispatchEvent(new CustomEvent('pp-show-example', { detail }));
     await el.updateComplete;
 
-    const viewer = el.shadowRoot?.querySelector('pp-code-viewer') as PpCodeViewer | null;
+    const viewer = el.querySelector('pp-code-viewer') as PpCodeViewer | null;
     expect(viewer?.lineNumbers).toBe(true);
   });
 
@@ -191,7 +191,7 @@ describe('pp-example-drawer', () => {
     document.dispatchEvent(new CustomEvent('pp-show-example', { detail }));
     await el.updateComplete;
 
-    const viewer = el.shadowRoot?.querySelector('pp-code-viewer') as PpCodeViewer | null;
+    const viewer = el.querySelector('pp-code-viewer') as PpCodeViewer | null;
     expect(viewer?.lineNumbers).toBe(false);
   });
 
@@ -209,7 +209,7 @@ describe('pp-example-drawer', () => {
     document.dispatchEvent(new CustomEvent('pp-show-example', { detail }));
     await el.updateComplete;
 
-    const viewer = el.shadowRoot?.querySelector('pp-code-viewer') as PpCodeViewer | null;
+    const viewer = el.querySelector('pp-code-viewer') as PpCodeViewer | null;
     expect(viewer?.highlightLines).toBe('1-2');
   });
 
@@ -225,7 +225,7 @@ describe('pp-example-drawer', () => {
     document.dispatchEvent(new CustomEvent('pp-show-example', { detail }));
     await el.updateComplete;
 
-    const viewer = el.shadowRoot?.querySelector('pp-code-viewer') as PpCodeViewer | null;
+    const viewer = el.querySelector('pp-code-viewer') as PpCodeViewer | null;
     expect(viewer?.pretty).toBe(true);
   });
 
@@ -242,7 +242,7 @@ describe('pp-example-drawer', () => {
     document.dispatchEvent(new CustomEvent('pp-show-example', { detail }));
     await el.updateComplete;
 
-    const viewer = el.shadowRoot?.querySelector('pp-code-viewer') as PpCodeViewer | null;
+    const viewer = el.querySelector('pp-code-viewer') as PpCodeViewer | null;
     expect(viewer?.pretty).toBe(true);
   });
 
@@ -260,7 +260,7 @@ describe('pp-example-drawer', () => {
     document.dispatchEvent(new CustomEvent('pp-show-example', { detail }));
     await el.updateComplete;
 
-    const viewer = el.shadowRoot?.querySelector('pp-code-viewer') as PpCodeViewer | null;
+    const viewer = el.querySelector('pp-code-viewer') as PpCodeViewer | null;
     expect(viewer?.startLine).toBe(42);
   });
 
@@ -278,7 +278,7 @@ describe('pp-example-drawer', () => {
     document.dispatchEvent(new CustomEvent('pp-show-example', { detail }));
     await el.updateComplete;
 
-    const viewer = el.shadowRoot?.querySelector('pp-code-viewer') as PpCodeViewer | null;
+    const viewer = el.querySelector('pp-code-viewer') as PpCodeViewer | null;
     expect(viewer?.location).toBe('/specs/models.yaml');
   });
 });

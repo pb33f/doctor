@@ -1,6 +1,6 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import pageNavCss from './page-nav.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 interface NavSection {
     label: string;
@@ -12,8 +12,7 @@ const COLLAPSED_KEY = 'pp-page-nav-collapsed';
 const HIDDEN_KEY = 'pp-page-nav-hidden';
 
 @customElement('pp-page-nav')
-export class PpPageNav extends LitElement {
-    static styles = [pageNavCss];
+export class PpPageNav extends LightElement {
 
     @property({attribute: 'page-title'}) pageTitle = '';
     @property({attribute: 'sections-json'}) sectionsJson = '';
@@ -93,7 +92,7 @@ export class PpPageNav extends LitElement {
     private setupScrollSpy() {
         this.scrollContainer?.removeEventListener('scroll', this.boundScrollHandler);
         const layout = document.querySelector('pp-layout');
-        this.scrollContainer = layout?.shadowRoot?.querySelector('.content-panel') || null;
+        this.scrollContainer = layout?.querySelector('.content-panel') || null;
         if (!this.scrollContainer) return;
         this.scrollContainer.addEventListener('scroll', this.boundScrollHandler, {passive: true});
     }
@@ -161,8 +160,8 @@ export class PpPageNav extends LitElement {
         const el = document.getElementById(id);
         if (el) return el;
         const respComp = document.getElementById('section-responses');
-        if (respComp?.shadowRoot) {
-            return respComp.shadowRoot.getElementById(id);
+        if (respComp) {
+            return respComp.querySelector(`#${CSS.escape(id)}`);
         }
         return null;
     }
@@ -191,12 +190,12 @@ export class PpPageNav extends LitElement {
     }
 
     private toggleNavHidden() {
-        const tab = this.shadowRoot?.querySelector('.collapse-tab') as HTMLElement;
+        const tab = this.querySelector('.collapse-tab') as HTMLElement;
         if (tab) {
             tab.addEventListener('animationend', () => tab.classList.remove('flashing'), {once: true});
             tab.classList.add('flashing');
         }
-        const container = this.shadowRoot?.querySelector('.nav-container') as HTMLElement;
+        const container = this.querySelector('.nav-container') as HTMLElement;
         if (!this.navHidden && container) {
             // capture current height before hiding so the tab keeps the same size
             container.style.height = container.offsetHeight + 'px';

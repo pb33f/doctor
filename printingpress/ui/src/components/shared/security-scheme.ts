@@ -1,7 +1,6 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import sharedCss from '../../styles/shared.css.ts';
-import styles from './security-scheme.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 const flowDisplayNames: Record<string, string> = {
     implicit: 'IMPLICIT',
@@ -32,8 +31,7 @@ function schemeIcon(type: string, inLocation?: string, scheme?: string): string 
 }
 
 @customElement('pp-security-scheme')
-export class PpSecurityScheme extends LitElement {
-    static styles = [sharedCss, styles];
+export class PpSecurityScheme extends LightElement {
 
     @property({attribute: 'scheme-json'}) schemeJson = '';
     @state() private scheme: any = null;

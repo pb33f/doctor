@@ -1,12 +1,10 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, query, state} from 'lit/decorators.js';
 import type {PageProblem, ProblemMetadata, YamlSliceData} from '../../utils/page-payload.js';
-import markdownCss from '../../styles/markdown.css.js';
 import {renderMarkdown} from '../../utils/markdown.js';
 import {problemSeverityClass, problemSeverityIcon, problemSeverityLabel} from '../../utils/violations.js';
-import problemsDrawerCss from './problems-drawer.css.js';
 import './code-viewer.js';
-import ppComponentsCss from '../../styles/pp-components.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 interface ShowProblemsDetail {
   scopeLabel?: string;
@@ -20,8 +18,7 @@ interface ShowProblemsDetail {
 }
 
 @customElement('pp-problems-drawer')
-export class PpProblemsDrawer extends LitElement {
-  static styles = [ppComponentsCss, markdownCss, problemsDrawerCss];
+export class PpProblemsDrawer extends LightElement {
 
   @query('sl-drawer') private drawer: any;
   @query('pp-code-viewer') private viewer?: {scrollToLine(line: number): void};
@@ -65,7 +62,7 @@ export class PpProblemsDrawer extends LitElement {
 
   private closeExampleDrawer() {
     const example = document.querySelector('pp-example-drawer') as HTMLElement | null;
-    const drawer = example?.shadowRoot?.querySelector('sl-drawer') as any;
+    const drawer = example?.querySelector('sl-drawer') as any;
     drawer?.hide?.();
   }
 

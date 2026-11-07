@@ -10,7 +10,7 @@ describe('pp-ref-list', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const list = el.shadowRoot?.querySelector('pp-paginated-list') as HTMLElement & {
+    const list = el.querySelector('pp-paginated-list') as HTMLElement & {
       updateComplete?: Promise<unknown>;
     };
     await list?.updateComplete;

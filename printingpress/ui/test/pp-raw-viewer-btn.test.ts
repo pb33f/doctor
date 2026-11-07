@@ -12,7 +12,7 @@ describe('pp-raw-viewer-btn', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const btn = el.shadowRoot?.querySelector('sl-button');
+    const btn = el.querySelector('sl-button');
     expect(btn).toBeTruthy();
   });
 
@@ -22,7 +22,7 @@ describe('pp-raw-viewer-btn', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const btn = el.shadowRoot?.querySelector('sl-button');
+    const btn = el.querySelector('sl-button');
     expect(btn).toBeTruthy();
   });
 
@@ -31,7 +31,7 @@ describe('pp-raw-viewer-btn', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const btn = el.shadowRoot?.querySelector('sl-button');
+    const btn = el.querySelector('sl-button');
     expect(btn).toBeNull();
   });
 
@@ -46,7 +46,7 @@ describe('pp-raw-viewer-btn', () => {
     const handler = vi.fn();
     document.addEventListener('pp-show-example', handler);
 
-    const btn = el.shadowRoot?.querySelector('sl-button') as HTMLElement;
+    const btn = el.querySelector('sl-button') as HTMLElement;
     btn?.click();
 
     expect(handler).toHaveBeenCalledOnce();
@@ -67,7 +67,7 @@ describe('pp-raw-viewer-btn', () => {
     const handler = vi.fn();
     document.addEventListener('pp-show-example', handler);
 
-    const btn = el.shadowRoot?.querySelector('sl-button') as HTMLElement;
+    const btn = el.querySelector('sl-button') as HTMLElement;
     btn?.click();
 
     expect(handler).toHaveBeenCalledOnce();
@@ -87,7 +87,7 @@ describe('pp-raw-viewer-btn', () => {
     const handler = vi.fn();
     document.addEventListener('pp-show-example', handler);
 
-    const btn = el.shadowRoot?.querySelector('sl-button') as HTMLElement;
+    const btn = el.querySelector('sl-button') as HTMLElement;
     btn?.click();
 
     expect(handler).toHaveBeenCalledOnce();
@@ -107,7 +107,7 @@ describe('pp-raw-viewer-btn', () => {
     const handler = vi.fn();
     document.addEventListener('pp-show-example', handler);
 
-    const btn = el.shadowRoot?.querySelector('sl-button') as HTMLElement;
+    const btn = el.querySelector('sl-button') as HTMLElement;
     btn?.click();
 
     expect(handler).toHaveBeenCalledOnce();
@@ -127,7 +127,7 @@ describe('pp-raw-viewer-btn', () => {
     const handler = vi.fn();
     document.addEventListener('pp-show-example', handler);
 
-    const btn = el.shadowRoot?.querySelector('sl-button') as HTMLElement;
+    const btn = el.querySelector('sl-button') as HTMLElement;
     btn?.click();
 
     expect(handler).toHaveBeenCalledOnce();

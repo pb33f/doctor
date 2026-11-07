@@ -18,7 +18,7 @@ describe('pp-curl-command', () => {
     const el = create('[]');
     await el.updateComplete;
 
-    expect(el.shadowRoot?.querySelector('pp-terminal-example')).toBeNull();
+    expect(el.querySelector('pp-terminal-example')).toBeNull();
   });
 
   it('renders a single command in the terminal example', async () => {
@@ -27,7 +27,7 @@ describe('pp-curl-command', () => {
     ]));
     await el.updateComplete;
 
-    const terminal = el.shadowRoot?.querySelector('pp-terminal-example') as HTMLElement & {command: string};
+    const terminal = el.querySelector('pp-terminal-example') as HTMLElement & {command: string};
     expect(terminal?.command).toContain("curl 'https://api.example.com/burgers'");
   });
 
@@ -35,7 +35,7 @@ describe('pp-curl-command', () => {
     const el = create('not-json');
     await el.updateComplete;
 
-    expect(el.shadowRoot?.querySelector('pp-terminal-example')).toBeNull();
+    expect(el.querySelector('pp-terminal-example')).toBeNull();
   });
 
   it('renders a dropdown for multiple variants', async () => {
@@ -45,9 +45,9 @@ describe('pp-curl-command', () => {
     ]));
     await el.updateComplete;
 
-    const menuItems = el.shadowRoot?.querySelectorAll('sl-menu-item');
+    const menuItems = el.querySelectorAll('sl-menu-item');
     expect(menuItems?.length).toBe(2);
-    expect(el.shadowRoot?.querySelector('sl-button')?.textContent).toContain('Production · No Auth');
+    expect(el.querySelector('sl-button')?.textContent).toContain('Production · No Auth');
   });
 
   it('changes displayed command when a different variant is selected', async () => {
@@ -57,7 +57,7 @@ describe('pp-curl-command', () => {
     ]));
     await el.updateComplete;
 
-    const menu = el.shadowRoot?.querySelector('sl-menu');
+    const menu = el.querySelector('sl-menu');
     menu?.dispatchEvent(new CustomEvent('sl-select', {
       detail: {
         item: {
@@ -67,8 +67,8 @@ describe('pp-curl-command', () => {
     }));
     await el.updateComplete;
 
-    const terminal = el.shadowRoot?.querySelector('pp-terminal-example') as HTMLElement & {command: string};
+    const terminal = el.querySelector('pp-terminal-example') as HTMLElement & {command: string};
     expect(terminal?.command).toContain('Authorization: Bearer YOUR_TOKEN');
-    expect(el.shadowRoot?.querySelector('sl-button')?.textContent).toContain('Production · Bearer Auth');
+    expect(el.querySelector('sl-button')?.textContent).toContain('Production · Bearer Auth');
   });
 });

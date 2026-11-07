@@ -1,12 +1,11 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import curlCommandCss from './curl-command.css.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@pb33f/printing-press-components/terminal-example/terminal-example.js';
-import ppComponentsCss from '../../styles/pp-components.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 interface CurlVariant {
   label: string;
@@ -17,8 +16,7 @@ interface CurlVariant {
 }
 
 @customElement('pp-curl-command')
-export class PpCurlCommand extends LitElement {
-  static styles = [ppComponentsCss, curlCommandCss];
+export class PpCurlCommand extends LightElement {
 
   @property({attribute: 'curl-json'}) curlJson = '';
   @state() private variants: CurlVariant[] = [];

@@ -1,12 +1,10 @@
-import {LitElement, html} from 'lit';
+import {html} from 'lit';
 import {customElement, state, query} from 'lit/decorators.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import './code-viewer.js';
 import type {PpCodeViewer} from './code-viewer.js';
-import exampleDrawerCss from './example-drawer.css.js';
-import tooltipCss from '../../styles/tooltip.css.js';
-import ppComponentsCss from '../../styles/pp-components.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 export interface ShowExampleDetail {
   title: string;
@@ -23,8 +21,7 @@ export interface ShowExampleDetail {
 }
 
 @customElement('pp-example-drawer')
-export class PpExampleDrawer extends LitElement {
-  static styles = [ppComponentsCss, exampleDrawerCss, tooltipCss];
+export class PpExampleDrawer extends LightElement {
 
   @state() private title = '';
   @state() private json = '';
@@ -52,7 +49,7 @@ export class PpExampleDrawer extends LitElement {
   private handleShowExample = (e: Event) => {
     const detail = (e as CustomEvent<ShowExampleDetail>).detail;
     const problems = document.querySelector('pp-problems-drawer') as HTMLElement | null;
-    const problemsDrawer = problems?.shadowRoot?.querySelector('sl-drawer') as any;
+    const problemsDrawer = problems?.querySelector('sl-drawer') as any;
     problemsDrawer?.hide?.();
     this.title = detail.title;
     this.json = detail.json;
@@ -89,7 +86,7 @@ export class PpExampleDrawer extends LitElement {
   };
 
   private get copyText(): string {
-    const viewer = this.shadowRoot?.querySelector('pp-code-viewer') as PpCodeViewer | null;
+    const viewer = this.querySelector('pp-code-viewer') as PpCodeViewer | null;
     if (viewer) return viewer.displayCode;
     if (this.format === 'yaml' && this.yaml) return this.yaml;
     return this.json;

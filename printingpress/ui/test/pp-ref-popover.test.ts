@@ -66,10 +66,10 @@ describe('pp-ref-popover', () => {
     await vi.advanceTimersByTimeAsync(300);
     await el.updateComplete;
 
-    expect(el.shadowRoot?.querySelector('sl-popup')).toBeTruthy();
-    expect(el.shadowRoot?.querySelector('.pp-ref-popover-content')).toBeTruthy();
-    expect(el.shadowRoot?.querySelector('pp-icon-title')?.getAttribute('heading')).toBe('Note');
-    const schemaProps = el.shadowRoot?.querySelector('pp-schema-properties');
+    expect(el.querySelector('sl-popup')).toBeTruthy();
+    expect(el.querySelector('.pp-ref-popover-content')).toBeTruthy();
+    expect(el.querySelector('pp-icon-title')?.getAttribute('heading')).toBe('Note');
+    const schemaProps = el.querySelector('pp-schema-properties');
     expect(schemaProps?.hasAttribute('compact')).toBe(true);
     expect(schemaProps?.hasAttribute('condensed')).toBe(true);
     expect(schemaProps?.hasAttribute('constrained')).toBe(true);
@@ -125,7 +125,7 @@ describe('pp-ref-popover', () => {
     await vi.advanceTimersByTimeAsync(300);
     await el.updateComplete;
 
-    const popupContent = el.shadowRoot?.querySelector('.pp-ref-popover-content') as HTMLElement | null;
+    const popupContent = el.querySelector('.pp-ref-popover-content') as HTMLElement | null;
     expect(popupContent).toBeTruthy();
 
     anchor.dispatchEvent(new MouseEvent('mouseleave', {bubbles: true, composed: true}));
@@ -135,8 +135,8 @@ describe('pp-ref-popover', () => {
     await vi.advanceTimersByTimeAsync(450);
     await el.updateComplete;
 
-    expect(el.shadowRoot?.querySelector('sl-popup')).toBeTruthy();
-    expect(el.shadowRoot?.querySelector('.pp-ref-popover-content')).toBeTruthy();
+    expect(el.querySelector('sl-popup')).toBeTruthy();
+    expect(el.querySelector('.pp-ref-popover-content')).toBeTruthy();
   });
 
   it('grows the popover shell to fit wide rendered schema content', async () => {
@@ -182,7 +182,7 @@ describe('pp-ref-popover', () => {
     await vi.advanceTimersByTimeAsync(300);
     await el.updateComplete;
 
-    const popupContent = el.shadowRoot?.querySelector('.pp-ref-popover-content') as HTMLElement | null;
+    const popupContent = el.querySelector('.pp-ref-popover-content') as HTMLElement | null;
     expect(popupContent).toBeTruthy();
 
     Object.defineProperty(window, 'innerWidth', {value: 1000, configurable: true});

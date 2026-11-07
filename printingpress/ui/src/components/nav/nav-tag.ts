@@ -1,11 +1,10 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import navTagCss from './nav-tag.css.js';
 import {operationHref} from '../../utils/doc-links.js';
 import {renderViolationBadges, type ViolationCounts} from '../../utils/violations.js';
 import '../shared/asyncapi-action.js';
 import '../shared/asyncapi-protocol.js';
-import ppComponentsCss from '../../styles/pp-components.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 interface NavTag {
     name: string;
@@ -40,8 +39,7 @@ function tagContainsSlug(tag: NavTag, slug: string): boolean {
 }
 
 @customElement('pp-nav-tag')
-export class PpNavTag extends LitElement {
-    static styles = [ppComponentsCss, navTagCss];
+export class PpNavTag extends LightElement {
 
     @property({type: Object}) tag: NavTag = {
         name: '',

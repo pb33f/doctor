@@ -1,4 +1,4 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
@@ -7,14 +7,12 @@ import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
 import '@shoelace-style/shoelace/dist/components/tab/tab.js';
 import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
-import constraintsCss from '../../styles/constraints.css.js';
-import markdownCss from '../../styles/markdown.css.js';
-import schemaPropertiesCss from './schema-properties.css.js';
 import {deriveSchemaType, resolveRefLink} from '../../utils/schema.js';
 import {renderMarkdown} from '../../utils/markdown.js';
 import {renderConstraints, renderSchemaType} from '../../utils/render-helpers.js';
 import {getCachedSchemaModelByRef, getSchemaEntryByRef, preloadSchemaReferences} from '../../utils/schema-registry.js';
 import './ref-popover.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 const DEFAULT_COMPACT_NAME_WIDTH_PX = 200;
 const MIN_COMPACT_NAME_WIDTH_PX = 180;
@@ -39,8 +37,7 @@ const POLYMORPHIC_CONDENSED_TAB_RAIL_WIDTH_FALLBACK_PX = 170;
 const POLYMORPHIC_COMPACT_TAB_RAIL_WIDTH_FALLBACK_PX = 208;
 
 @customElement('pp-schema-properties')
-export class PpSchemaProperties extends LitElement {
-    static styles = [constraintsCss, markdownCss, ...schemaPropertiesCss];
+export class PpSchemaProperties extends LightElement {
 
     @property({attribute: 'schema-json'}) schemaJson = '';
     @property({type: Boolean, reflect: true}) compact = false;

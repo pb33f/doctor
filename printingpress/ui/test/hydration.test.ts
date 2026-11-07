@@ -214,7 +214,7 @@ describe('printing-press hydration', () => {
     await hydrationPromise;
     await modelPage.updateComplete;
 
-    const schemaProps = modelPage.shadowRoot?.querySelector('pp-schema-properties') as HTMLElement & {
+    const schemaProps = modelPage.querySelector('pp-schema-properties') as HTMLElement & {
       updateComplete?: Promise<unknown>;
     };
     expect(schemaProps).toBeTruthy();
@@ -223,7 +223,7 @@ describe('printing-press hydration', () => {
     for (let i = 0; i < 5; i++) {
       await schemaProps.updateComplete;
       await flushPromises();
-      propertyNames = Array.from(schemaProps.shadowRoot?.querySelectorAll('.prop-name') ?? [])
+      propertyNames = Array.from(schemaProps.querySelectorAll('.prop-name') ?? [])
         .map((node) => node.textContent?.trim());
       if (propertyNames.includes('id')) {
         break;
@@ -312,14 +312,14 @@ describe('printing-press hydration', () => {
     for (let i = 0; i < 5; i++) {
       await requestBody.updateComplete;
       await flushPromises();
-      const schemaProps = requestBody.shadowRoot?.querySelector('pp-schema-properties') as HTMLElement & {
+      const schemaProps = requestBody.querySelector('pp-schema-properties') as HTMLElement & {
         updateComplete?: Promise<unknown>;
         shadowRoot?: ShadowRoot;
       } | null;
       if (schemaProps?.updateComplete) {
         await schemaProps.updateComplete;
       }
-      propertyNames = Array.from(schemaProps?.shadowRoot?.querySelectorAll('.prop-name') ?? [])
+      propertyNames = Array.from(schemaProps?.querySelectorAll('.prop-name') ?? [])
         .map((node) => node.textContent?.trim());
       if (propertyNames.includes('lantern_id')) {
         break;

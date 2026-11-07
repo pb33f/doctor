@@ -1,14 +1,12 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import inlineCodeCss from './inline-code.css.js';
-import tooltipCss from '../../styles/tooltip.css.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import './code-viewer.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 @customElement('pp-inline-code')
-export class PpInlineCode extends LitElement {
-  static styles = [inlineCodeCss, tooltipCss];
+export class PpInlineCode extends LightElement {
 
   @property({attribute: 'raw-json'}) rawJson = '';
   @property({attribute: 'raw-yaml'}) rawYaml = '';

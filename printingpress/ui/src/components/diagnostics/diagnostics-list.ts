@@ -1,11 +1,9 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, state} from 'lit/decorators.js';
 import {getPageDeveloperPayload, type PageDeveloperPayload, type PageProblem, type ProblemMetadata} from '../../utils/page-payload.js';
 import {docHref} from '../../utils/doc-links.js';
 import {pluralLabel, problemSeverityClass, problemSeverityIcon, problemSeverityLabel} from '../../utils/violations.js';
 import {renderMarkdown} from '../../utils/markdown.js';
-import markdownCss from '../../styles/markdown.css.js';
-import diagnosticsListCss from './diagnostics-list.css.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
@@ -14,7 +12,7 @@ import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
 import '@shoelace-style/shoelace/dist/components/tab/tab.js';
 import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
 import '@pb33f/printing-press-components/paginator/paginator.js';
-import ppComponentsCss from '../../styles/pp-components.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 enum ProblemSortView {
   LineNumber = 'Line Number',
@@ -62,8 +60,7 @@ const GROUP_ORDER: Record<string, number> = {
 };
 
 @customElement('pp-diagnostics-list')
-export class PpDiagnosticsList extends LitElement {
-  static styles = [ppComponentsCss, markdownCss, diagnosticsListCss];
+export class PpDiagnosticsList extends LightElement {
 
   @state() private payload: PageDeveloperPayload | null = null;
   @state() private selectedSort: ProblemSortView = ProblemSortView.Severity;

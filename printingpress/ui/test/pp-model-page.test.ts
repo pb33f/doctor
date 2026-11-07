@@ -21,14 +21,14 @@ describe('pp-model-page', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const schemaProps = el.shadowRoot?.querySelector('pp-schema-properties');
+    const schemaProps = el.querySelector('pp-schema-properties');
     expect(schemaProps).toBeTruthy();
     await (schemaProps as any)?.updateComplete;
 
-    const properties = schemaProps?.shadowRoot?.querySelectorAll('.property');
+    const properties = schemaProps?.querySelectorAll('.property');
     expect(properties?.length).toBe(2);
 
-    const requiredBadge = schemaProps?.shadowRoot?.querySelector('.required-badge');
+    const requiredBadge = schemaProps?.querySelector('.required-badge');
     expect(requiredBadge).toBeTruthy();
   });
 
@@ -38,7 +38,7 @@ describe('pp-model-page', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const content = el.shadowRoot?.textContent;
+    const content = el.textContent;
     expect(content).toContain('string');
   });
 
@@ -55,7 +55,7 @@ describe('pp-model-page', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const exampleSelector = el.shadowRoot?.querySelector('pp-example-selector');
+    const exampleSelector = el.querySelector('pp-example-selector');
     expect(exampleSelector).toBeTruthy();
     expect(JSON.parse(exampleSelector?.getAttribute('examples-json') || '{}')).toEqual({
       'Example 1': '"1"',
@@ -63,7 +63,7 @@ describe('pp-model-page', () => {
       'Example 3': '"100"',
     });
 
-    const content = el.shadowRoot?.textContent || '';
+    const content = el.textContent || '';
     expect(content).toContain('location');
     expect(content).toContain('$message.payload#/streetlightId');
     expect(content).toContain('default');
@@ -82,10 +82,10 @@ describe('pp-model-page', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const heading = el.shadowRoot?.querySelector('h2');
+    const heading = el.querySelector('h2');
     expect(heading?.textContent).toBe('Composition');
 
-    const schemaProps = el.shadowRoot?.querySelector('pp-schema-properties');
+    const schemaProps = el.querySelector('pp-schema-properties');
     expect(schemaProps).toBeTruthy();
   });
 
@@ -95,7 +95,7 @@ describe('pp-model-page', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const pre = el.shadowRoot?.querySelector('pre');
+    const pre = el.querySelector('pre');
     expect(pre).toBeNull();
   });
 
@@ -117,19 +117,19 @@ describe('pp-model-page', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const mediaTypeSelector = el.shadowRoot?.querySelector('pp-media-type-selector') as HTMLElement & {
+    const mediaTypeSelector = el.querySelector('pp-media-type-selector') as HTMLElement & {
       updateComplete?: Promise<unknown>;
     };
     expect(mediaTypeSelector).toBeTruthy();
     await mediaTypeSelector.updateComplete;
 
-    const schemaProps = mediaTypeSelector.shadowRoot?.querySelector('pp-schema-properties') as HTMLElement & {
+    const schemaProps = mediaTypeSelector.querySelector('pp-schema-properties') as HTMLElement & {
       updateComplete?: Promise<unknown>;
     };
     expect(schemaProps).toBeTruthy();
     await schemaProps.updateComplete;
 
-    const properties = schemaProps.shadowRoot?.querySelectorAll('.property');
+    const properties = schemaProps.querySelectorAll('.property');
     expect(properties?.length).toBe(1);
   });
 
@@ -152,22 +152,22 @@ describe('pp-model-page', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const mediaTypeSelector = el.shadowRoot?.querySelector('pp-media-type-selector') as HTMLElement & {
+    const mediaTypeSelector = el.querySelector('pp-media-type-selector') as HTMLElement & {
       updateComplete?: Promise<unknown>;
     };
     expect(mediaTypeSelector).toBeTruthy();
     await mediaTypeSelector.updateComplete;
 
-    const schemaProps = mediaTypeSelector.shadowRoot?.querySelector('pp-schema-properties') as HTMLElement & {
+    const schemaProps = mediaTypeSelector.querySelector('pp-schema-properties') as HTMLElement & {
       updateComplete?: Promise<unknown>;
     };
     expect(schemaProps).toBeTruthy();
     await schemaProps.updateComplete;
 
-    const properties = schemaProps.shadowRoot?.querySelectorAll('.property');
+    const properties = schemaProps.querySelectorAll('.property');
     expect(properties?.length).toBe(1);
 
-    const refLink = mediaTypeSelector.shadowRoot?.querySelector('.ref-link');
+    const refLink = mediaTypeSelector.querySelector('.ref-link');
     expect(refLink).toBeNull();
   });
 
@@ -183,7 +183,7 @@ describe('pp-model-page', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const exampleSelector = el.shadowRoot?.querySelector('pp-example-selector') as HTMLElement & {
+    const exampleSelector = el.querySelector('pp-example-selector') as HTMLElement & {
       updateComplete?: Promise<unknown>;
     };
     expect(exampleSelector).toBeTruthy();
@@ -209,22 +209,22 @@ describe('pp-model-page', () => {
     (el as any).wide = true;
     await el.updateComplete;
 
-    const exampleSelector = el.shadowRoot?.querySelector('pp-example-selector') as HTMLElement;
+    const exampleSelector = el.querySelector('pp-example-selector') as HTMLElement;
     expect(exampleSelector).toBeTruthy();
     expect(exampleSelector.hasAttribute('show-visibility-toggle')).toBe(true);
 
     exampleSelector.dispatchEvent(new CustomEvent('pp-hide-example'));
     await el.updateComplete;
 
-    let split = el.shadowRoot?.querySelector('.schema-split');
+    let split = el.querySelector('.schema-split');
     expect(split?.classList.contains('example-hidden')).toBe(true);
 
-    const restore = el.shadowRoot?.querySelector('.example-restore') as HTMLElement;
+    const restore = el.querySelector('.example-restore') as HTMLElement;
     expect(restore).toBeTruthy();
     restore.click();
     await el.updateComplete;
 
-    split = el.shadowRoot?.querySelector('.schema-split');
+    split = el.querySelector('.schema-split');
     expect(split?.classList.contains('example-hidden')).toBe(false);
   });
 });
