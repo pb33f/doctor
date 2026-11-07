@@ -1,11 +1,10 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, query, state} from 'lit/decorators.js';
 import type {PageProblem, ProblemMetadata, YamlSliceData} from '../../utils/page-payload.js';
-import markdownCss from '../../styles/markdown.css.js';
 import {renderMarkdown} from '../../utils/markdown.js';
 import {problemSeverityClass, problemSeverityIcon, problemSeverityLabel} from '../../utils/violations.js';
-import problemsDrawerCss from './problems-drawer.css.js';
 import './code-viewer.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 interface ShowProblemsDetail {
   scopeLabel?: string;
@@ -19,8 +18,7 @@ interface ShowProblemsDetail {
 }
 
 @customElement('pp-problems-drawer')
-export class PpProblemsDrawer extends LitElement {
-  static styles = [markdownCss, problemsDrawerCss];
+export class PpProblemsDrawer extends LightElement {
 
   @query('sl-drawer') private drawer: any;
   @query('pp-code-viewer') private viewer?: {scrollToLine(line: number): void};
@@ -64,7 +62,7 @@ export class PpProblemsDrawer extends LitElement {
 
   private closeExampleDrawer() {
     const example = document.querySelector('pp-example-drawer') as HTMLElement | null;
-    const drawer = example?.shadowRoot?.querySelector('sl-drawer') as any;
+    const drawer = example?.querySelector('sl-drawer') as any;
     drawer?.hide?.();
   }
 
@@ -120,15 +118,15 @@ export class PpProblemsDrawer extends LitElement {
     if (this.method && this.path) {
       return html`
         <div class="rich-header">
-          <pb33f-http-method method=${this.method}></pb33f-http-method>
-          <pb33f-render-operation-path path=${this.path} nowrap></pb33f-render-operation-path>
+          <pp-http-method method=${this.method}></pp-http-method>
+          <pp-render-operation-path path=${this.path} nowrap></pp-render-operation-path>
         </div>
       `;
     }
     if (this.componentType) {
       return html`
         <div class="component-header">
-          <pb33f-model-icon icon=${this.componentType} size="large"></pb33f-model-icon>
+          <pp-model-icon icon=${this.componentType} size="large"></pp-model-icon>
           <span class="drawer-component-title">${this.scopeLabel}</span>
         </div>
       `;
@@ -159,16 +157,16 @@ export class PpProblemsDrawer extends LitElement {
                 @click=${() => this.selectProblem(problem)}
               >
                 <span class="line">${problem.startLineNumber || '-'}</span>
-                <sl-icon
+                <wa-icon
                   class="severity-icon"
                   name=${problemSeverityIcon(problem.severity)}
                   label=${problemSeverityLabel(problem.severity)}
-                ></sl-icon>
+                ></wa-icon>
                 ${renderMarkdown(problem.message, {className: 'message pp-markdown-inline', inline: true})}
               </button>
             `)}
           </div>
-          <sl-icon slot="divider" name="grip-vertical"></sl-icon>
+          <wa-icon slot="divider" name="grip-vertical"></wa-icon>
           <div slot="end" class="slice-panel">
             ${slice && selected
               ? html`

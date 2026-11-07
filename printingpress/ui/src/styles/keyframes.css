@@ -1,0 +1,35 @@
+/*
+ * Animations used by the component sheets. They are global, so each name
+ * starts with its sheet's name.
+ */
+
+/* from components/layout/layout.css */
+@keyframes layout-cursor {
+    0% {
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
+/* from components/shared/page-nav.css */
+@keyframes page-nav-flash-warn {
+    0% { background: var(--warn-color); }
+    100% { background: var(--secondary-color); }
+}
+
+/* from components/nav/nav.css */
+@keyframes nav-blink-fade {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.3;
+    }
+}

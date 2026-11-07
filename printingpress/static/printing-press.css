@@ -7,6 +7,8 @@
     /* PP-specific layout tokens */
     --pp-nav-width: 300px;
     --pp-header-height: 57px;
+    /* The navigation column's width; the head script sets the stored one. */
+    --pp-split-position: 20%;
 
     /* Table header gradient (magenta fade) */
     --pp-table-header-bg: linear-gradient(90deg, rgba(248, 58, 255, 0.30) 0%, rgba(13, 17, 23, 0.80) 60%);
@@ -37,12 +39,39 @@
     --sl-tooltip-padding: 0.25rem 0.75rem;
     --sl-tooltip-arrow-size: 6px;
 
+    /* Web Awesome tooltips: the same look */
+    --wa-tooltip-background-color: var(--background-color);
+    --wa-tooltip-content-color: var(--font-color);
+    --wa-tooltip-border-color: var(--secondary-color);
+    --wa-tooltip-border-style: dashed;
+    --wa-tooltip-border-width: 1px;
+    --wa-tooltip-border-radius: 0;
+    --wa-tooltip-font-size: 0.9rem;
+    --wa-tooltip-line-height: 1.4;
+    --wa-tooltip-arrow-size: 6px;
+
 
 }
 
 /* Global tooltip styling */
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
 sl-tooltip::part(body) {
     border: 1px dashed var(--secondary-color);
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
+}
+
+
+}
+
+/* A tooltip floats above the page, so its look holds inside components too. */
+wa-tooltip {
+    --max-width: 20rem;
+}
+
+wa-tooltip::part(body) {
+    padding: 0.25rem 0.75rem;
+    font-family: var(--font-stack), monospace;
     text-transform: uppercase;
     letter-spacing: var(--label-spacing);
 }
@@ -54,90 +83,362 @@ html, body {
     scroll-behavior: auto;
 }
 
-pp-layout:not(:defined) {
-    display: grid;
-    width: 100%;
-    grid-template-columns: minmax(200px, var(--pp-split-position, 20%)) minmax(0, 1fr);
-    grid-template-rows: var(--pp-header-height) minmax(0, 1fr);
-    min-height: 100vh;
-    justify-items: stretch;
-    align-items: stretch;
-}
-
-html[data-pp-embedded-docs] pp-layout:not(:defined) {
-    grid-template-rows: minmax(0, 1fr);
-    min-height: 100vh;
-    height: 100vh;
-}
-
-html[data-pp-embedded-docs] pp-layout:not(:defined) > .pp-layout-fallback-header {
-    display: none !important;
-}
-
-pp-layout:not(:defined) > .pp-layout-fallback-header {
-    grid-column: 1 / -1;
+/*
+ * Layout. The header, the navigation column, the divider and the main area
+ * are page markup (engine-layout.html), so they look right before any script
+ * runs. The pp-layout component only adds the divider's resizing.
+ */
+pp-layout {
     display: flex;
-    align-items: center;
-    gap: 0.2em;
-    height: var(--pp-header-height);
-    box-sizing: border-box;
-    padding: 6px 0 10px 10px;
-    border-bottom: 1px dashed var(--secondary-color);
+    flex-direction: column;
+    min-height: 100vh;
     background: var(--background-color);
+}
+
+.pp-doc-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    height: var(--pp-header-height);
+    flex-direction: row;
+    background-color: var(--background-color);
+}
+
+.pp-doc-header > .logo {
+    width: auto;
+    min-width: 0;
+    max-width: calc(100% - 5rem);
+    flex: 1 1 auto;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    padding: 9px 0 10px 10px;
+    border-bottom: 1px dashed var(--secondary-color);
+    height: 36px;
 }
 
-pp-layout:not(:defined) > .pp-layout-fallback-header .pp-layout-fallback-caret {
+.pp-doc-header > .logo .caret {
     font-size: 1.6em;
-    display: inline-block;
-    margin-right: 3px;
     color: var(--secondary-color);
+}
+
+.pp-doc-header > .logo .name {
+    display: inline-flex;
+    max-width: calc(100% - 1.2em);
+    min-width: 0;
+    font-size: 1.7em;
+    font-family: var(--font-stack-bold), sans-serif;
+    color: var(--primary-color);
+    text-shadow: 0 0 10px var(--primary-color-text-shadow), 0 0 10px var(--primary-color-text-shadow);
+    vertical-align: bottom;
+}
+
+html[theme="light"] .pp-doc-header > .logo .name {
+    text-shadow: none;
+}
+
+.pp-doc-header > .logo .name > a {
+    display: inline-block;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: inherit;
+    text-decoration: none;
+}
+
+.pp-doc-header > .logo .name > a:hover {
+    text-decoration: underline;
+}
+
+.pp-doc-header > .logo .name > a:active {
+    text-decoration: underline;
+    color: var(--secondary-color);
+    text-shadow: 0 0 5px var(--secondary-color-text-shadow), 0 0 10px var(--secondary-color-text-shadow-outer);
+}
+
+html[theme="light"] .pp-doc-header > .logo .name > a:active {
+    text-shadow: none;
+}
+
+.pp-doc-header > .logo .name::after {
+    content: "";
+    animation: layout-cursor .8s infinite;
+    background: var(--primary-color);
+    border-radius: 0;
+    display: inline-block;
+    height: 0.9em;
+    margin-left: 0.2em;
+    width: 3px;
+    bottom: -2px;
+    position: relative;
+}
+
+.pp-doc-header .header-space {
+    height: 55px;
+    flex: 0 0 auto;
+    min-width: max-content;
+    border-bottom: 1px dashed var(--secondary-color);
+}
+
+.pp-doc-header .header-tools {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 12px;
+    width: 100%;
+    height: 55px;
+    box-sizing: border-box;
+    padding: 0 8px 0 0;
+}
+
+.pp-doc-header .header-context {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
     flex: 0 0 auto;
 }
 
-pp-layout:not(:defined) > .pp-layout-fallback-header .pp-layout-fallback-name {
-    font-family: var(--font-stack-bold), sans-serif;
-    font-size: 1.7em;
-    line-height: 1;
+.pp-doc-header .version-picker {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    margin-left: 0;
+    margin-top: 8px;
+}
+
+.pp-doc-header .version-picker sl-dropdown {
+    margin-top: 0;
+}
+
+.pp-doc-header .version-picker sl-button::part(base) {
+    border: 1px solid var(--primary-color);
+    border-radius: 0;
+    font-family: var(--font-stack), monospace;
+    background-color: var(--background-color);
     color: var(--primary-color);
-    text-shadow: 0 0 10px var(--primary-color-text-shadow), 0 0 10px var(--primary-color-text-shadow);
-    overflow: hidden;
-    text-overflow: ellipsis;
+    min-height: 20px;
+    max-height: 40px;
 }
 
-html[theme="light"] pp-layout:not(:defined) > .pp-layout-fallback-header {
-    text-shadow: none;
+.pp-doc-header .version-picker sl-button::part(label) {
+    overflow-x: hidden;
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
 }
 
-html[theme="light"] pp-layout:not(:defined) > .pp-layout-fallback-header .pp-layout-fallback-name {
-    text-shadow: none;
+.pp-doc-header .version-picker sl-menu {
+    border: 1px solid var(--primary-color);
+    border-radius: 0;
 }
 
-pp-layout:not(:defined) > [slot="nav"] {
-    display: block;
+.pp-doc-header .version-picker sl-menu-item::part(base) {
+    color: var(--primary-color);
+    font-family: var(--font-stack);
+    --sl-color-neutral-100: var(--secondary-color-lowalpha);
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
+}
+
+.pp-doc-header .version-picker sl-button::part(base) {
+    min-width: 120px;
+    max-width: 220px;
+}
+
+.pp-doc-header .theme-controls {
+    flex: 0 0 auto;
+    margin-top: var(--global-padding-half);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0;
+    min-width: 4.5rem;
+    min-height: 2.25rem;
+}
+
+.pp-doc-header .theme-icon-button {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--secondary-color);
+    cursor: pointer;
+}
+
+.pp-doc-header .theme-icon-button wa-icon {
+    width: 1.4rem;
+    height: 1.4rem;
+    font-size: 1.4rem;
+}
+
+.pp-doc-header .theme-icon-button:hover,
+.pp-doc-header .theme-icon-button:focus-visible {
+    color: var(--primary-color);
+}
+
+.pp-doc-header .theme-icon-button:focus-visible {
+    outline: 1px solid var(--secondary-color);
+    outline-offset: 2px;
+}
+
+.pp-doc-header .theme-icon-button.tek-active {
+    color: #33ff33;
+    text-shadow: 0 0 8px rgba(51, 255, 51, 0.6);
+}
+
+/*
+ * The navigation column, the divider and the main area. The navigation
+ * column's width is the stored split position, which the head script puts in
+ * --pp-split-position before the first paint; 200px to 40% of the width.
+ */
+.pp-split {
+    flex: 1;
+    display: grid;
+    grid-template-columns:
+        clamp(0%, clamp(200px, var(--pp-split-position) - 5px, 40%), calc(100% - 10px))
+        10px
+        auto;
+    min-height: 0;
+}
+
+pp-layout[embedded] .pp-split {
+    height: 100vh;
+}
+
+.pp-split-divider {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: col-resize;
+    touch-action: none;
+    background: linear-gradient(
+            to right,
+            transparent 0,
+            transparent 4px,
+            var(--secondary-color) 4px,
+            var(--secondary-color) 6px,
+            transparent 6px,
+            transparent 100%
+        );
+}
+
+/* A wider area to grab the divider by. */
+.pp-split-divider::after {
+    content: "";
+    position: absolute;
+    height: 100%;
+    left: -1px;
+    width: 12px;
+}
+
+.pp-split-divider:focus {
+    outline: none;
+}
+
+.pp-split-divider:focus-visible {
+    background-color: var(--primary-color);
+}
+
+.pp-split-divider wa-icon.divider-vert {
+    position: absolute;
+    left: 0;
+    border-radius: 0;
+    background: var(--secondary-color);
+    color: var(--background-color);
+    cursor: col-resize;
+    padding: 0;
+    width: 10px;
+    height: 40px;
+}
+
+.pp-split-divider:focus-visible wa-icon.divider-vert {
+    background-color: var(--primary-color);
+    color: var(--background-color);
+}
+
+.nav-panel,
+.content-panel {
     min-width: 0;
-    border-right: 1px solid var(--hrcolor);
-    overflow: hidden;
-    width: 100%;
+    overflow-y: auto;
+    scroll-behavior: auto;
+    height: calc(100vh - var(--pp-header-height));
+    scrollbar-width: thin;
+    scrollbar-color: var(--secondary-color-lowalpha) var(--terminal-background);
+    /* The scroll bar space is kept, so content that grows after the first
+       paint does not narrow the page. */
+    scrollbar-gutter: stable;
 }
 
-pp-layout:not(:defined) > [slot="content"] {
-    display: block;
-    min-width: 0;
-    width: 100%;
-    padding: var(--global-padding-double) 40px;
-    overflow: hidden;
+pp-layout[embedded] .nav-panel,
+pp-layout[embedded] .content-panel {
+    height: 100vh;
 }
 
-pp-nav > .pp-nav-fallback {
+.nav-panel::-webkit-scrollbar,
+.content-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.nav-panel::-webkit-scrollbar-track,
+.content-panel::-webkit-scrollbar-track {
+    background-color: var(--terminal-background);
+}
+
+.nav-panel::-webkit-scrollbar-thumb,
+.content-panel::-webkit-scrollbar-thumb {
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+    background: var(--secondary-color-lowalpha);
+}
+
+.nav-panel {
+    background: var(--background-color);
+}
+
+@media (max-width: 900px) {
+    .pp-doc-header .header-tools {
+        height: auto;
+        flex-wrap: wrap;
+        padding-right: 0;
+    }
+
+    .pp-doc-header .header-context {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .pp-doc-header .version-picker {
+        width: 100%;
+        margin-top: 0;
+    }
+
+    .pp-doc-header .version-picker sl-dropdown,
+    .pp-doc-header .version-picker sl-button::part(base) {
+        width: 100%;
+    }
+
+    .pp-doc-header .theme-controls {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
+
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback {
     display: block;
     padding: var(--global-padding);
     font-family: var(--font-stack), monospace;
 }
 
-pp-nav > .pp-nav-fallback .docs-expiry {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .docs-expiry {
     margin: 0 0 var(--global-padding) 0;
     padding: calc(var(--global-padding) * 0.75) var(--global-padding);
     border: 1px solid var(--primary-color);
@@ -152,7 +453,7 @@ pp-nav > .pp-nav-fallback .docs-expiry {
     white-space: nowrap;
 }
 
-pp-nav > .pp-nav-fallback .host-archive-controls {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .host-archive-controls {
     container-type: inline-size;
     box-sizing: border-box;
     width: 100%;
@@ -163,7 +464,7 @@ pp-nav > .pp-nav-fallback .host-archive-controls {
     background: var(--background-color);
 }
 
-pp-nav > .pp-nav-fallback .host-archive-controls-title {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .host-archive-controls-title {
     box-sizing: border-box;
     width: 100%;
     padding: var(--global-padding);
@@ -176,7 +477,7 @@ pp-nav > .pp-nav-fallback .host-archive-controls-title {
     letter-spacing: 0.05em;
 }
 
-pp-nav > .pp-nav-fallback .host-archive-control-row {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .host-archive-control-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--global-padding);
@@ -185,7 +486,7 @@ pp-nav > .pp-nav-fallback .host-archive-control-row {
     padding: var(--global-padding);
 }
 
-pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-option {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .pp-nav-fallback-archive-option {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -199,7 +500,7 @@ pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-option {
     letter-spacing: 0.05em;
 }
 
-pp-nav > .pp-nav-fallback .pp-nav-fallback-checkbox {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .pp-nav-fallback-checkbox {
     box-sizing: border-box;
     flex: 0 0 auto;
     width: var(--sl-toggle-size-medium, 1.125rem);
@@ -208,8 +509,8 @@ pp-nav > .pp-nav-fallback .pp-nav-fallback-checkbox {
     background: var(--background-color);
 }
 
-pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-select,
-pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-button {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .pp-nav-fallback-archive-select,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .pp-nav-fallback-archive-button {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -228,45 +529,45 @@ pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-button {
     letter-spacing: 0.05em;
 }
 
-pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-button {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .pp-nav-fallback-archive-button {
     border-color: var(--warn-color, var(--warning-color));
     color: var(--warn-color, var(--warning-color));
 }
 
 @container (min-width: 22rem) {
-    pp-nav > .pp-nav-fallback .host-archive-control-row {
+    :is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .host-archive-control-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         column-gap: var(--global-padding-double);
     }
 
-    pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-select,
-    pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-button {
+    :is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .pp-nav-fallback-archive-select,
+    :is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .pp-nav-fallback-archive-button {
         grid-column: 1 / -1;
     }
 }
 
 @container (min-width: 34rem) {
-    pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-select {
+    :is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .pp-nav-fallback-archive-select {
         grid-column: 1;
     }
 
-    pp-nav > .pp-nav-fallback .pp-nav-fallback-archive-button {
+    :is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .pp-nav-fallback-archive-button {
         grid-column: 2;
     }
 }
 
-pp-nav > .pp-nav-fallback .pp-nav-fallback-home {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .pp-nav-fallback-home {
     padding: var(--global-padding) 0;
     color: var(--font-color);
     letter-spacing: var(--label-spacing);
     font-size: 0.95rem;
 }
 
-pp-nav > .pp-nav-fallback .pp-nav-fallback-section {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .pp-nav-fallback-section {
     margin-top: var(--global-padding-double);
 }
 
-pp-nav > .pp-nav-fallback .pp-nav-fallback-section h4 {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .pp-nav-fallback-section h4 {
     margin: 0 0 var(--global-padding) 0;
     padding-bottom: var(--global-padding);
     border-bottom: 1px dashed var(--primary-color-lowalpha);
@@ -277,32 +578,32 @@ pp-nav > .pp-nav-fallback .pp-nav-fallback-section h4 {
     letter-spacing: var(--title-spacing);
 }
 
-pp-nav > .pp-nav-fallback .pp-nav-fallback-list {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .pp-nav-fallback-list {
     display: grid;
     gap: 0.75rem;
 }
 
-pp-nav > .pp-nav-fallback .pp-nav-fallback-row {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-fallback .pp-nav-fallback-row {
     height: 1rem;
     background: var(--card-background-color);
     border: 1px dotted var(--hrcolor);
 }
 
-pp-nav > .pp-nav-preview {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview {
     display: block;
     padding: var(--global-padding);
     font-family: var(--font-stack), monospace;
 }
 
-pp-nav:defined > .pp-nav-preview {
+:is(pp-nav:defined, pp-nav:defined > pp-slot) > .pp-nav-preview {
     padding: 0;
 }
 
-pp-nav > .pp-nav-preview .contract-navigation {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .contract-navigation {
     min-width: 0;
 }
 
-pp-nav > .pp-nav-preview .contract-service-name {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .contract-service-name {
     min-width: 0;
     margin-bottom: var(--global-padding-double);
     color: var(--font-color);
@@ -310,16 +611,16 @@ pp-nav > .pp-nav-preview .contract-service-name {
     overflow-wrap: anywhere;
 }
 
-pp-nav > .pp-nav-preview .contract-group {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .contract-group {
     min-width: 0;
     margin-bottom: var(--global-padding-double);
 }
 
-pp-nav > .pp-nav-preview .contract-role-heading {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .contract-role-heading {
     margin-bottom: 0;
 }
 
-pp-nav > .pp-nav-preview .contract-list {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .contract-list {
     display: grid;
     gap: 0;
     min-width: 0;
@@ -328,24 +629,24 @@ pp-nav > .pp-nav-preview .contract-list {
     list-style: none;
 }
 
-pp-nav > .pp-nav-preview .contract-item {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .contract-item {
     min-width: 0;
 }
 
-pp-nav > .pp-nav-preview .contract-row {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .contract-row {
     display: flex;
     align-items: stretch;
     min-width: 0;
     border-left: 2px solid var(--background-color);
 }
 
-pp-nav > .pp-nav-preview .contract-row:hover,
-pp-nav > .pp-nav-preview .contract-item.active > .contract-row {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .contract-row:hover,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .contract-item.active > .contract-row {
     border-left-color: var(--primary-color);
     background: var(--primary-color-verylowalpha);
 }
 
-pp-nav > .pp-nav-preview .contract-link {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .contract-link {
     display: block;
     flex: 1 1 auto;
     min-width: 0;
@@ -355,22 +656,22 @@ pp-nav > .pp-nav-preview .contract-link {
     overflow-wrap: anywhere;
 }
 
-pp-nav > .pp-nav-preview .contract-link:hover,
-pp-nav > .pp-nav-preview .contract-link:focus-visible,
-pp-nav > .pp-nav-preview .contract-link.active {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .contract-link:hover,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .contract-link:focus-visible,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .contract-link.active {
     color: var(--primary-color);
     text-decoration: none;
     outline-color: var(--primary-color);
 }
 
-pp-nav > .pp-nav-preview .contract-local-navigation {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .contract-local-navigation {
     min-width: 0;
     margin-left: var(--global-padding);
     border-left: 1px dashed var(--primary-color-lowalpha);
     padding-left: var(--global-padding);
 }
 
-pp-nav > .pp-nav-preview .nav-home {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-home {
     display: flex;
     align-items: center;
     padding: var(--global-padding) 0;
@@ -380,7 +681,7 @@ pp-nav > .pp-nav-preview .nav-home {
     cursor: pointer;
 }
 
-pp-nav > .pp-nav-preview .nav-home-chevron {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-home-chevron {
     position: relative;
     display: inline-block;
     flex: 0 0 auto;
@@ -392,8 +693,8 @@ pp-nav > .pp-nav-preview .nav-home-chevron {
     line-height: 1;
 }
 
-pp-nav > .pp-nav-preview .nav-home-chevron::before,
-pp-nav > .pp-nav-preview .pp-nav-preview-chevron::before {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-home-chevron::before,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-chevron::before {
     content: "";
     position: absolute;
     left: var(--global-padding);
@@ -406,28 +707,28 @@ pp-nav > .pp-nav-preview .pp-nav-preview-chevron::before {
     transform-origin: center;
 }
 
-pp-nav > .pp-nav-preview .nav-home:hover {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-home:hover {
     background: var(--primary-color-verylowalpha);
     color: var(--primary-color);
     text-decoration: none;
 }
 
-pp-nav > .pp-nav-preview .nav-home:hover .nav-home-chevron,
-pp-nav > .pp-nav-preview .nav-home.active .nav-home-chevron {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-home:hover .nav-home-chevron,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-home.active .nav-home-chevron {
     color: var(--primary-color);
 }
 
-pp-nav > .pp-nav-preview .nav-home.active {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-home.active {
     color: var(--primary-color);
     border-left: 2px solid var(--primary-color);
     background: var(--primary-color-verylowalpha);
 }
 
-pp-nav > .pp-nav-preview .nav-section {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-section {
     margin-bottom: var(--global-padding);
 }
 
-pp-nav > .pp-nav-preview h4 {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview h4 {
     text-transform: uppercase;
     letter-spacing: var(--title-spacing);
     font-size: 1rem;
@@ -438,15 +739,15 @@ pp-nav > .pp-nav-preview h4 {
     border-bottom: 1px dashed var(--primary-color-lowalpha);
 }
 
-pp-nav > .pp-nav-preview .nav-pages-section,
-pp-nav > .pp-nav-preview .nav-operations-section,
-pp-nav > .pp-nav-preview .nav-models-section,
-pp-nav > .pp-nav-preview .nav-webhooks-section {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-pages-section,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-operations-section,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-models-section,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-webhooks-section {
     margin-top: var(--global-padding-double);
 }
 
-pp-nav > .pp-nav-preview .tag-header,
-pp-nav > .pp-nav-preview .group-header {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .tag-header,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .group-header {
     display: flex;
     align-items: center;
     cursor: default;
@@ -455,20 +756,20 @@ pp-nav > .pp-nav-preview .group-header {
     color: var(--font-color);
 }
 
-pp-nav > .pp-nav-preview .tag-header:hover,
-pp-nav > .pp-nav-preview .group-header:hover {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .tag-header:hover,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .group-header:hover {
     background: var(--primary-color-verylowalpha);
     color: var(--primary-color);
 }
 
-pp-nav > .pp-nav-preview .tag-header.active,
-pp-nav > .pp-nav-preview .group-header.active {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .tag-header.active,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .group-header.active {
     color: var(--primary-color);
     border-left: 2px solid var(--primary-color);
     background: var(--primary-color-verylowalpha);
 }
 
-pp-nav > .pp-nav-preview .pp-nav-preview-chevron {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-chevron {
     position: relative;
     display: inline-block;
     flex: 0 0 auto;
@@ -480,26 +781,26 @@ pp-nav > .pp-nav-preview .pp-nav-preview-chevron {
     line-height: 1;
 }
 
-pp-nav > .pp-nav-preview .pp-nav-preview-chevron-down::before {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-chevron-down::before {
     transform: translateY(-65%) rotate(45deg);
 }
 
-pp-nav > .pp-nav-preview .tag-header:hover .pp-nav-preview-chevron,
-pp-nav > .pp-nav-preview .group-header:hover .pp-nav-preview-chevron,
-pp-nav > .pp-nav-preview .tag-header.active .pp-nav-preview-chevron,
-pp-nav > .pp-nav-preview .group-header.active .pp-nav-preview-chevron {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .tag-header:hover .pp-nav-preview-chevron,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .group-header:hover .pp-nav-preview-chevron,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .tag-header.active .pp-nav-preview-chevron,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .group-header.active .pp-nav-preview-chevron {
     color: var(--primary-color);
 }
 
-pp-nav > .pp-nav-preview .tag-body {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .tag-body {
     padding: var(--global-padding) 0 0 0;
 }
 
-pp-nav > .pp-nav-preview .group-body {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .group-body {
     padding: 0 0 var(--global-padding) 0;
 }
 
-pp-nav > .pp-nav-preview ul {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview ul {
     list-style: none;
     margin: 0 0 0 calc(var(--global-padding) + 8px);
     padding: 0 0 var(--global-padding) var(--global-padding);
@@ -507,7 +808,7 @@ pp-nav > .pp-nav-preview ul {
     border-bottom: 1px dotted var(--secondary-color-dimmer);
 }
 
-pp-nav > .pp-nav-preview li {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview li {
     margin: 0;
     padding: 0;
     list-style: none;
@@ -515,22 +816,22 @@ pp-nav > .pp-nav-preview li {
     font-family: var(--font-stack), monospace;
 }
 
-pp-nav > .pp-nav-preview ul > li::before,
-pp-nav > .pp-nav-preview ul > li:before,
-pp-nav > .pp-nav-preview ul > li::marker {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview ul > li::before,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview ul > li:before,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview ul > li::marker {
     content: "" !important;
     display: none !important;
     margin-right: 0 !important;
 }
 
-pp-nav > .pp-nav-preview .children {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .children {
     margin-left: 18px;
     margin-bottom: var(--global-padding);
     border-left: 1px dashed var(--secondary-color-dimmer);
     border-bottom: 1px dotted var(--secondary-color-dimmer);
 }
 
-pp-nav > .pp-nav-preview .nav-pages-list {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-pages-list {
     display: grid;
     gap: 0;
     margin: 0;
@@ -539,7 +840,7 @@ pp-nav > .pp-nav-preview .nav-pages-list {
     list-style: none;
 }
 
-pp-nav > .pp-nav-preview .nav-page-link {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-page-link {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
     column-gap: var(--global-padding);
@@ -553,20 +854,20 @@ pp-nav > .pp-nav-preview .nav-page-link {
     border-left: 2px solid var(--background-color);
 }
 
-pp-nav > .pp-nav-preview .nav-page-link:hover {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-page-link:hover {
     background: var(--primary-color-verylowalpha);
     color: var(--primary-color);
     text-decoration: none;
     border-left-color: var(--secondary-color);
 }
 
-pp-nav > .pp-nav-preview .nav-page-link.active {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-page-link.active {
     border-left-color: var(--primary-color);
     background: var(--primary-color-verylowalpha);
     color: var(--primary-color);
 }
 
-pp-nav > .pp-nav-preview .nav-page-chevron {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-page-chevron {
     position: relative;
     display: inline-block;
     width: 1rem;
@@ -575,7 +876,7 @@ pp-nav > .pp-nav-preview .nav-page-chevron {
     line-height: 1;
 }
 
-pp-nav > .pp-nav-preview .nav-page-chevron::before {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-page-chevron::before {
     content: "";
     position: absolute;
     left: 0;
@@ -588,13 +889,13 @@ pp-nav > .pp-nav-preview .nav-page-chevron::before {
     transform-origin: center;
 }
 
-pp-nav > .pp-nav-preview .nav-page-link:hover .nav-page-chevron,
-pp-nav > .pp-nav-preview .nav-page-link.active .nav-page-chevron {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-page-link:hover .nav-page-chevron,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .nav-page-link.active .nav-page-chevron {
     color: var(--primary-color);
 }
 
-pp-nav > .pp-nav-preview .pp-nav-preview-operation-link,
-pp-nav > .pp-nav-preview .pp-nav-preview-model-link {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-operation-link,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-model-link {
     display: flex;
     width: 100%;
     box-sizing: border-box;
@@ -605,33 +906,33 @@ pp-nav > .pp-nav-preview .pp-nav-preview-model-link {
     border-left: 2px solid var(--background-color);
 }
 
-pp-nav > .pp-nav-preview .pp-nav-preview-operation-link {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-operation-link {
     align-items: baseline;
     gap: var(--global-padding);
     font-size: 0.9rem;
 }
 
-pp-nav > .pp-nav-preview .pp-nav-preview-model-link {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-model-link {
     min-height: 22px;
     align-items: center;
     gap: 0 var(--global-padding) 0 var(--global-padding);
 }
 
-pp-nav > .pp-nav-preview .pp-nav-preview-operation-link:hover,
-pp-nav > .pp-nav-preview .pp-nav-preview-model-link:hover {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-operation-link:hover,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-model-link:hover {
     background: var(--primary-color-verylowalpha);
     text-decoration: none;
     border-left: 2px solid var(--secondary-color);
 }
 
-pp-nav > .pp-nav-preview .pp-nav-preview-operation-link.active,
-pp-nav > .pp-nav-preview .pp-nav-preview-model-link.active {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-operation-link.active,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-model-link.active {
     background: var(--primary-color-verylowalpha);
     border-left: 2px solid var(--primary-color);
     color: var(--primary-color);
 }
 
-pp-nav > .pp-nav-preview .pp-nav-preview-item-title {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-item-title {
     font-family: var(--font-stack), monospace;
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -639,22 +940,22 @@ pp-nav > .pp-nav-preview .pp-nav-preview-item-title {
     line-height: 1.25;
 }
 
-pp-nav > .pp-nav-preview .pp-nav-preview-operation-title {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-operation-title {
     flex: 1;
     min-width: 0;
 }
 
-pp-nav > .pp-nav-preview .pp-nav-preview-model-title {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-model-title {
     display: block;
     width: 100%;
 }
 
-pp-nav > .pp-nav-preview .pp-nav-preview-operation-link.active .pp-nav-preview-item-title,
-pp-nav > .pp-nav-preview .pp-nav-preview-model-link.active .pp-nav-preview-item-title {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-operation-link.active .pp-nav-preview-item-title,
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-model-link.active .pp-nav-preview-item-title {
     font-family: var(--font-stack-bold), monospace;
 }
 
-pp-nav > .pp-nav-preview .pp-nav-preview-method {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-method {
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
@@ -667,28 +968,30 @@ pp-nav > .pp-nav-preview .pp-nav-preview-method {
     white-space: nowrap;
 }
 
-pp-nav > .pp-nav-preview .pp-nav-preview-method-get { color: var(--pp-get); }
-pp-nav > .pp-nav-preview .pp-nav-preview-method-post { color: var(--pp-post); }
-pp-nav > .pp-nav-preview .pp-nav-preview-method-put { color: var(--pp-put); }
-pp-nav > .pp-nav-preview .pp-nav-preview-method-delete { color: var(--pp-delete); }
-pp-nav > .pp-nav-preview .pp-nav-preview-method-patch { color: var(--pp-patch); }
-pp-nav > .pp-nav-preview .pp-nav-preview-method-options { color: var(--pp-options); }
-pp-nav > .pp-nav-preview .pp-nav-preview-method-head { color: var(--pp-head); }
-pp-nav > .pp-nav-preview .pp-nav-preview-method-trace { color: var(--pp-trace); }
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-method-get { color: var(--pp-get); }
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-method-post { color: var(--pp-post); }
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-method-put { color: var(--pp-put); }
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-method-delete { color: var(--pp-delete); }
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-method-patch { color: var(--pp-patch); }
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-method-options { color: var(--pp-options); }
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-method-head { color: var(--pp-head); }
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-method-trace { color: var(--pp-trace); }
 
-html[theme="light"] pp-nav > .pp-nav-preview .pp-nav-preview-method,
-html[theme="tektronix"] pp-nav > .pp-nav-preview .pp-nav-preview-method {
+html[theme="light"] :is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-method,
+html[theme="tektronix"] :is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .pp-nav-preview-method {
     color: var(--font-color);
 }
 
-pp-nav > .pp-nav-preview .deprecated {
+:is(pp-nav, pp-nav > pp-slot) > .pp-nav-preview .deprecated {
     text-decoration: line-through;
     opacity: 0.5;
 }
 
-/* Content */
+/* Content. A theme may give main the full panel height; its padding counts
+   inside that height, so a page that fits the panel does not scroll. */
 main {
     padding: var(--global-padding) 40px;
+    box-sizing: border-box;
 }
 
 /* Page navigator — hidden on small screens */
@@ -708,62 +1011,51 @@ code {
 }
 
 
-/* Breadcrumb */
+/*
+ * Breadcrumb. Plain markup (api/partials/breadcrumb.html), so it is in place
+ * before any script runs. It keeps the measures the Shoelace breadcrumb had.
+ */
 .pp-breadcrumb {
-    display: block;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
     padding: var(--global-padding) 0;
     font-family: var(--font-stack), monospace;
     font-size: var(--smaller-font);
 }
 
-.pp-breadcrumb:not(:defined) {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0;
-    padding: var(--global-padding) 0;
-    font-family: var(--font-stack), monospace;
-    font-size: 0.9rem;
-    margin-top: 2px;
-}
-
-.pp-breadcrumb:not(:defined) sl-icon[slot="separator"] {
-    display: none;
-}
-
-.pp-breadcrumb:not(:defined) sl-breadcrumb-item:not(:defined) {
+.pp-breadcrumb-item {
     display: inline-flex;
     align-items: center;
-    color: var(--font-color-sub1);
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.8;
+    white-space: nowrap;
+}
+
+.pp-breadcrumb-label {
+    display: inline-block;
     font-family: var(--font-stack), monospace;
+    color: var(--font-color-sub1);
+    text-decoration: none;
 }
 
-.pp-breadcrumb:not(:defined) sl-breadcrumb-item:not(:defined):not(:last-of-type)::after {
-    content: "›";
+a.pp-breadcrumb-label:hover {
     color: var(--primary-color);
-    margin: 0 0.55rem;
+    text-decoration: none;
 }
 
-.pp-breadcrumb:not(:defined) sl-breadcrumb-item:not(:defined):last-of-type {
+.pp-breadcrumb-item:last-child .pp-breadcrumb-label {
     color: var(--font-color);
 }
 
-.pp-breadcrumb sl-icon[slot="separator"] {
+.pp-breadcrumb-separator {
+    display: inline-flex;
+    align-items: center;
+    margin: 0 0.5rem;
+    user-select: none;
     color: var(--primary-color);
     font-size: 0.7rem;
-}
-
-.pp-breadcrumb sl-breadcrumb-item::part(label) {
-    font-family: var(--font-stack), monospace;
-    color: var(--font-color-sub1);
-}
-
-.pp-breadcrumb sl-breadcrumb-item::part(label):hover {
-    color: var(--primary-color);
-}
-
-.pp-breadcrumb sl-breadcrumb-item:last-of-type::part(label) {
-    color: var(--font-color);
 }
 
 /* Root / Hero */
@@ -924,7 +1216,7 @@ code {
     cursor: pointer;
 }
 
-.pp-content-code-copy sl-icon {
+.pp-content-code-copy wa-icon {
     width: 1.2rem;
     height: 1.2rem;
     font-size: 1.2rem;
@@ -978,7 +1270,7 @@ code {
     align-items: start;
 }
 
-.pp-guide-card-title sl-icon {
+.pp-guide-card-title wa-icon {
     color: var(--secondary-color);
     margin-top: 0.1rem;
 }
@@ -1161,7 +1453,7 @@ code {
     flex: 1 1 0;
 }
 
-.pp-asyncapi-channel-target pb33f-render-operation-path {
+.pp-asyncapi-channel-target pp-render-operation-path {
     min-width: 0;
     max-width: 100%;
     white-space: normal;
@@ -1210,7 +1502,7 @@ code {
     min-width: 0;
 }
 
-.pp-asyncapi-meta-value pb33f-render-operation-path {
+.pp-asyncapi-meta-value pp-render-operation-path {
     min-width: 0;
     max-width: 100%;
 }
@@ -1371,43 +1663,68 @@ code {
 }
 
 /* Collapsible details sections */
-sl-details.pp-details {
+wa-details.pp-details {
     display: block;
     min-height: 64px;
     margin-top: 40px;
     position: relative;
 }
 
-sl-details.pp-details:not(:defined) {
+wa-details.pp-details:not(:defined) {
     display: block;
     min-height: 64px;
 }
 
-sl-details.pp-details:not(:defined) > :not([slot="summary"]) {
+wa-details.pp-details:not(:defined) > :not([slot="summary"]) {
     display: none !important;
 }
 
-sl-details.pp-details:not(:defined) > [slot="summary"] {
+/* Until Web Awesome defines it, the summary takes the border and padding of
+   the header part, so the heading does not move when it does. */
+wa-details.pp-details:not(:defined) > [slot="summary"] {
     display: block;
+    min-height: 30px;
+    padding: var(--global-padding);
+    border: 1px dashed var(--secondary-color-dimmer);
 }
 
-sl-details.pp-details::part(base) {
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
+wa-details.pp-details::part(base) {
     background: transparent;
     border: 1px dashed var(--secondary-color-dimmer);
     border-radius: 0;
 }
 
-sl-details.pp-details::part(header) {
+
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
+wa-details.pp-details::part(header) {
     padding: var(--global-padding);
     font-family: var(--font-stack-bold), monospace;
 }
 
-sl-details.pp-details::part(summary-icon) {
+
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
+wa-details.pp-details::part(icon) {
     color: var(--secondary-color);
 }
 
-sl-details.pp-details::part(content) {
+
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
+wa-details.pp-details::part(content) {
     padding: 0 var(--global-padding) var(--global-padding);
+}
+
+
 }
 
 .pp-details-summary h2,
@@ -1451,7 +1768,7 @@ pp-curl-command {
     overflow-wrap: anywhere;
 }
 
-.pp-operation-path pb33f-render-operation-path {
+.pp-operation-path pp-render-operation-path {
     min-width: 0;
     max-width: 100%;
     overflow-wrap: anywhere;
@@ -1468,7 +1785,7 @@ pp-curl-command {
     margin-top: 0.1em;
 }
 
-.pp-operation-path.pp-operation-path-asyncapi pb33f-render-operation-path {
+.pp-operation-path.pp-operation-path-asyncapi pp-render-operation-path {
     flex: 1 1 0;
     min-width: 0;
     white-space: normal;
@@ -1486,8 +1803,8 @@ pp-asyncapi-action {
     line-height: 1;
 }
 
-.pp-asyncapi-action sl-icon,
-pp-asyncapi-action sl-icon {
+.pp-asyncapi-action wa-icon,
+pp-asyncapi-action wa-icon {
     width: 0.9em;
     height: 0.9em;
     font-size: 0.9em;
@@ -1529,7 +1846,7 @@ pp-asyncapi-action[action="send"] {
     border: 1px solid var(--error-color-dimmed);
 }
 
-.pp-deprecated sl-icon {
+.pp-deprecated wa-icon {
     vertical-align: text-top;
 }
 
@@ -1550,17 +1867,17 @@ pp-asyncapi-action[action="send"] {
 }
 
 /* Force monochrome HTTP method badges in light/tektronix modes */
-html[theme="light"] pb33f-http-method,
-html[theme="tektronix"] pb33f-http-method {
-    --http-get-color: var(--font-color);
-    --http-post-color: var(--font-color);
-    --http-put-color: var(--font-color);
-    --http-delete-color: var(--font-color);
-    --http-patch-color: var(--font-color);
-    --http-options-color: var(--font-color);
-    --http-head-color: var(--font-color);
-    --http-trace-color: var(--font-color);
-    --http-query-color: var(--font-color);
+html[theme="light"] pp-http-method,
+html[theme="tektronix"] pp-http-method {
+    --pp-http-get: var(--font-color);
+    --pp-http-post: var(--font-color);
+    --pp-http-put: var(--font-color);
+    --pp-http-delete: var(--font-color);
+    --pp-http-patch: var(--font-color);
+    --pp-http-options: var(--font-color);
+    --pp-http-head: var(--font-color);
+    --pp-http-trace: var(--font-color);
+    --pp-http-query: var(--font-color);
 }
 
 /* Model pages */
@@ -1825,7 +2142,7 @@ ul.pp-operation-list > li:before {
     padding: 0;
 }
 
-.pp-operation-list pb33f-render-operation-path {
+.pp-operation-list pp-render-operation-path {
     font-size: 1.2rem;
     margin-left: var(--global-padding);
 }
@@ -1959,8 +2276,8 @@ span.pp-common-header-name {
     overflow-wrap: break-word;
 }
 
-/* Method badge (fallback for when JS hasn't loaded) */
-pb33f-http-method:not(:defined) {
+/* Method badge, before the script runs, where the server wrote only the element */
+pp-http-method:not(:defined, [data-pp-ssr]) {
     display: inline-block;
     font-size: 0.7em;
     text-align: center;
@@ -1973,11 +2290,11 @@ pb33f-http-method:not(:defined) {
     border: 1px solid var(--hrcolor);
 }
 
-pb33f-http-method:not(:defined)::before {
+pp-http-method:not(:defined, [data-pp-ssr])::before {
     content: attr(method);
 }
 
-pb33f-http-method[mode="nav-naked"]:not(:defined) {
+pp-http-method[mode="nav-naked"]:not(:defined, [data-pp-ssr]) {
     background: none;
     border: none;
     padding: 0;
@@ -1985,7 +2302,7 @@ pb33f-http-method[mode="nav-naked"]:not(:defined) {
     color: var(--font-color-sub1);
 }
 
-pb33f-render-operation-path:not(:defined) {
+pp-render-operation-path:not(:defined, [data-pp-ssr]) {
     display: inline-block;
     min-width: 0;
     line-height: 1;
@@ -1994,12 +2311,12 @@ pb33f-render-operation-path:not(:defined) {
     overflow-wrap: anywhere;
 }
 
-pb33f-render-operation-path:not(:defined)::before {
+pp-render-operation-path:not(:defined, [data-pp-ssr])::before {
     content: attr(path);
 }
 
-.title-section pp-icon-title:not(:defined),
-.pp-model-header > pp-icon-title:not(:defined) {
+.title-section pp-icon-title:not(:defined, [data-pp-ssr]),
+.pp-model-header > pp-icon-title:not(:defined, [data-pp-ssr]) {
     display: flex;
     align-items: flex-start;
     gap: var(--global-padding);
@@ -2007,8 +2324,8 @@ pb33f-render-operation-path:not(:defined)::before {
     min-width: 0;
 }
 
-.title-section pp-icon-title:not(:defined)::before,
-.pp-model-header > pp-icon-title:not(:defined)::before {
+.title-section pp-icon-title:not(:defined, [data-pp-ssr])::before,
+.pp-model-header > pp-icon-title:not(:defined, [data-pp-ssr])::before {
     content: "";
     width: 2rem;
     height: 2rem;
@@ -2018,8 +2335,8 @@ pb33f-render-operation-path:not(:defined)::before {
     flex-shrink: 0;
 }
 
-.title-section pp-icon-title:not(:defined)::after,
-.pp-model-header > pp-icon-title:not(:defined)::after {
+.title-section pp-icon-title:not(:defined, [data-pp-ssr])::after,
+.pp-model-header > pp-icon-title:not(:defined, [data-pp-ssr])::after {
     content: attr(heading);
     font-family: var(--font-stack-bold), monospace;
     font-weight: normal;
@@ -2029,14 +2346,14 @@ pb33f-render-operation-path:not(:defined)::before {
     word-spacing: var(--header-spacing);
 }
 
-.title-section pp-icon-title:not(:defined)::after {
+.title-section pp-icon-title:not(:defined, [data-pp-ssr])::after {
     font-size: 2rem;
     line-height: 1.1;
     margin-top: var(--global-padding-half);
     margin-bottom: var(--global-padding-half);
 }
 
-.pp-model-header > pp-icon-title:not(:defined)::after {
+.pp-model-header > pp-icon-title:not(:defined, [data-pp-ssr])::after {
     font-size: 2rem;
     line-height: 1.1;
     margin-top: var(--global-padding-half);
@@ -2057,6 +2374,8 @@ body.pp-dialog-open > pp-layout {
     z-index: 10000;
 }
 
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
 .pp-expanded-diagram-dialog::part(panel) {
     height: 90vh;
     max-height: 90vh;
@@ -2064,11 +2383,21 @@ body.pp-dialog-open > pp-layout {
     border: 1px dashed var(--secondary-color);
 }
 
+
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
 .pp-expanded-diagram-dialog::part(header) {
     background: var(--background-color);
     border-bottom: 1px dashed var(--hrcolor);
     padding: var(--global-padding);
 }
+
+
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
 
 .pp-expanded-diagram-dialog::part(title) {
     font-family: var(--font-stack-bold), monospace;
@@ -2077,15 +2406,28 @@ body.pp-dialog-open > pp-layout {
     letter-spacing: var(--title-spacing);
 }
 
+
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
 .pp-expanded-diagram-dialog::part(close-button__base) {
     color: var(--font-color-sub1);
 }
+
+
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
 
 .pp-expanded-diagram-dialog::part(body) {
     padding: 0;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+}
+
+
 }
 
 .pp-expanded-diagram-dialog .expanded-toolbar {
@@ -2097,12 +2439,22 @@ body.pp-dialog-open > pp-layout {
     border-bottom: 1px dashed var(--hrcolor);
 }
 
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
 .pp-expanded-diagram-dialog .expanded-toolbar sl-icon-button::part(base) {
     color: var(--font-color-sub1);
 }
 
+
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
 .pp-expanded-diagram-dialog .expanded-toolbar sl-icon-button::part(base):hover {
     color: var(--primary-color);
+}
+
+
 }
 
 .pp-expanded-diagram-dialog .expanded-toolbar sl-tooltip {
@@ -2115,10 +2467,15 @@ body.pp-dialog-open > pp-layout {
     --sl-tooltip-arrow-size: 6px;
 }
 
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
 .pp-expanded-diagram-dialog .expanded-toolbar sl-tooltip::part(body) {
     border: 1px dashed var(--secondary-color);
     text-transform: uppercase;
     letter-spacing: var(--label-spacing);
+}
+
+
 }
 
 .pp-expanded-diagram-dialog .expanded-diagram-area {
@@ -2153,21 +2510,50 @@ pp-mermaid[data-render-failed] > .pp-mermaid-fallback {
     padding-top: var(--global-padding);
 }
 
-.pp-visualization-section sl-tab-group::part(tabs) {
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
+.pp-visualization-section wa-tab-group::part(tabs) {
     border-bottom: 1px dashed var(--hrcolor);
 }
 
-.pp-visualization-section sl-tab::part(base) {
+
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
+.pp-visualization-section wa-tab::part(base) {
     font-family: var(--font-stack), monospace;
     text-transform: uppercase;
     font-size: 1rem;
     color: var(--font-color-sub1);
 }
 
-.pp-visualization-section sl-tab[active]::part(base) {
+
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
+.pp-visualization-section wa-tab[active]::part(base) {
     color: var(--primary-color);
 }
 
-.pp-visualization-section sl-tab-group::part(active-tab-indicator) {
-    --track-color: var(--primary-color);
+
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
+.pp-visualization-section wa-tab-group {
+    --indicator-color: var(--primary-color);
+}
+
+
+}
+
+/* The dashed line under the tabs part, until Web Awesome defines the group. */
+.pp-visualization-section wa-tab-group:not(:defined) > wa-tab {
+    border-bottom: 1px dashed var(--hrcolor);
+    font-family: var(--font-stack), monospace;
+    text-transform: uppercase;
+    font-size: 1rem;
+    color: var(--font-color-sub1);
 }

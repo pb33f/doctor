@@ -1,4 +1,4 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
@@ -7,11 +7,10 @@ import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import type {ShowExampleDetail} from './example-drawer.js';
-import exampleSelectorCss from './example-selector.css.js';
-import markdownCss from '../../styles/markdown.css.js';
-import tooltipCss from '../../styles/tooltip.css.js';
 import {renderMarkdown} from '../../utils/markdown.js';
 import '../shared/code-viewer.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+import {bindExampleActions} from '../../utils/content-behaviour.js';
 
 interface ExamplesData {
   mockJson?: string;
@@ -19,8 +18,7 @@ interface ExamplesData {
 }
 
 @customElement('pp-example-selector')
-export class PpExampleSelector extends LitElement {
-  static styles = [...exampleSelectorCss, markdownCss, tooltipCss];
+export class PpExampleSelector extends LightElement {
 
   // Accepts a JSON object with { mockJson, examples }
   @property({attribute: 'examples-data'}) examplesData = '';
@@ -38,6 +36,18 @@ export class PpExampleSelector extends LitElement {
   @state() private entries: Array<{key: string; json: string}> = [];
   @state() private descriptions: Record<string, string> = {};
   @state() private selectedIndex = 0;
+
+  // Server-written examples are never drawn again; the drawer draws its own.
+  protected canReplaceServerMarkup(): boolean {
+    return false;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    if (this.serverRendered) {
+      bindExampleActions(this, () => this.exampleTitle, () => this.codeLanguage);
+    }
+  }
 
   willUpdate(changed: Map<string, unknown>) {
     if (changed.has('examplesData') || changed.has('mockJson') || changed.has('examplesJson') || changed.has('descriptionsJson')) {

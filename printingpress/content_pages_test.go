@@ -18,7 +18,7 @@ import (
 	"github.com/pb33f/testify/require"
 )
 
-func TestContentPages_DiscoverRenderWriteAndStayOutOfLLM(t *testing.T) {
+func TestContentPages_DiscoverRenderWriteAndReachLLM(t *testing.T) {
 	restoreLogger := silenceDefaultLogger()
 	defer restoreLogger()
 
@@ -193,8 +193,8 @@ Hidden FAQ content.
 
 	aboutHTML := readFile(t, filepath.Join(outputDir, "about.html"))
 	assert.Contains(t, aboutHTML, `data-active="content/about"`)
-	assert.Contains(t, aboutHTML, `<sl-breadcrumb class="pp-breadcrumb">`)
-	assert.Contains(t, aboutHTML, `<sl-breadcrumb-item href="guides.html">GUIDES</sl-breadcrumb-item>`)
+	assert.Contains(t, aboutHTML, `<nav class="pp-breadcrumb" aria-label="Breadcrumb">`)
+	assert.Contains(t, aboutHTML, `<a class="pp-breadcrumb-label" href="guides.html">GUIDES</a>`)
 	assert.Contains(t, aboutHTML, `<div class="pp-content-page-markdown pp-content-page-body">`)
 	assert.NotContains(t, aboutHTML, `pp-description pp-content-page-body`)
 	assert.Contains(t, aboutHTML, `href="guides/setup.html#install"`)
@@ -208,7 +208,7 @@ Hidden FAQ content.
 	assert.Contains(t, firstAPIHTML, `href="../service-development.html"`)
 	guidesHTML := readFile(t, filepath.Join(outputDir, "guides.html"))
 	assert.Contains(t, guidesHTML, `<h1>Guides</h1>`)
-	assert.Contains(t, guidesHTML, `<sl-breadcrumb-item>GUIDES</sl-breadcrumb-item>`)
+	assert.Contains(t, guidesHTML, `<span class="pp-breadcrumb-label" aria-current="page">GUIDES</span>`)
 	assert.Contains(t, guidesHTML, `href="about.html"`)
 	assert.Contains(t, guidesHTML, `href="guides/setup.html"`)
 	assert.Contains(t, guidesHTML, `href="guides/writing-your-first-api.html"`)
@@ -219,9 +219,12 @@ Hidden FAQ content.
 
 	_, err = pp.PrintLLM()
 	require.NoError(t, err)
+	// Guides are agent content too (docs-sites D14): each has a page.md and
+	// llms-full.txt carries them.
 	llmFull := readFile(t, filepath.Join(outputDir, "llms-full.txt"))
-	assert.NotContains(t, llmFull, "Root content unique to custom docs.")
-	assert.NotContains(t, llmFull, "Webhooks guide content.")
+	assert.Contains(t, llmFull, "Root content unique to custom docs.")
+	assert.Contains(t, llmFull, "Webhooks guide content.")
+	assert.FileExists(t, filepath.Join(outputDir, "webhooks-guide.md"))
 }
 
 func TestContentPages_RequireExplicitEnable(t *testing.T) {

@@ -1,4 +1,4 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state, query} from 'lit/decorators.js';
 import '@pb33f/cowboy-components/components/mermaid/mermaid-renderer.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
@@ -6,11 +6,16 @@ import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import type {MermaidRenderer} from '@pb33f/cowboy-components/components/mermaid/mermaid-renderer.js';
 import {ensureModelDiagramVisualization} from '../../utils/model-visualization.js';
 import '../shared/code-viewer.js';
-import styles from './class-diagram.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+
+/** True when a mutation adds or removes a data script. */
+function touchesDataScript(record: MutationRecord): boolean {
+    return [...record.addedNodes, ...record.removedNodes].some((node) => node instanceof HTMLScriptElement && node.matches('script.pp-mermaid-data'));
+}
 
 @customElement('pp-class-diagram')
-export class PpClassDiagram extends LitElement {
-    static styles = styles;
+export class PpClassDiagram extends LightElement {
+    protected static keepChildren = true;
 
     @property() name = '';
     @property({attribute: false}) diagram = '';
@@ -30,7 +35,7 @@ export class PpClassDiagram extends LitElement {
     private visualizationLoaded = false;
 
     private hydrateEmbeddedData() {
-        const scriptEl = this.querySelector('script.pp-mermaid-data');
+        const scriptEl = this.querySelector(':scope > script.pp-mermaid-data');
         this.diagram = scriptEl?.textContent?.trim() || '';
     }
 
@@ -40,8 +45,12 @@ export class PpClassDiagram extends LitElement {
             this.wide = this.offsetWidth >= 900;
             this.requestUpdate();
 
-            this.embeddedDataObserver = new MutationObserver(() => {
-                this.hydrateEmbeddedData();
+            // The component renders into itself, so only a change to its
+            // data script is a reason to read the data again.
+            this.embeddedDataObserver = new MutationObserver((records) => {
+                if (records.some(touchesDataScript)) {
+                    this.hydrateEmbeddedData();
+                }
             });
             this.embeddedDataObserver.observe(this, {childList: true});
 
@@ -67,7 +76,7 @@ export class PpClassDiagram extends LitElement {
         this.resizeObserver?.disconnect();
         this.resizeObserver = null;
         if (this.tabShowHandler) {
-            this.closest('sl-tab-group')?.removeEventListener('sl-tab-show', this.tabShowHandler);
+            this.closest('wa-tab-group')?.removeEventListener('wa-tab-show', this.tabShowHandler);
             this.tabShowHandler = null;
         }
         this.expandedDialog?.remove();
@@ -75,14 +84,14 @@ export class PpClassDiagram extends LitElement {
     }
 
     private shouldLoadOnConnect(): boolean {
-        const group = this.closest('sl-tab-group');
+        const group = this.closest('wa-tab-group');
         if (!group) return true;
-        const panel = this.closest('sl-tab-panel');
+        const panel = this.closest('wa-tab-panel');
         return panel?.getAttribute('name') === 'class-diagram';
     }
 
     private setupTabHooks() {
-        const panel = this.closest('sl-tab-panel');
+        const panel = this.closest('wa-tab-panel');
         const panelName = panel?.getAttribute('name');
         if (!panelName || this.tabShowHandler) return;
         this.tabShowHandler = (event: Event) => {
@@ -90,7 +99,7 @@ export class PpClassDiagram extends LitElement {
             if (detail?.name !== panelName) return;
             void this.loadVisualizationData();
         };
-        this.closest('sl-tab-group')?.addEventListener('sl-tab-show', this.tabShowHandler);
+        this.closest('wa-tab-group')?.addEventListener('wa-tab-show', this.tabShowHandler);
     }
 
     private async loadVisualizationData() {
@@ -296,7 +305,7 @@ export class PpClassDiagram extends LitElement {
                         <div class="collapse-tab" @click=${this.toggleSource}
                             role="button" tabindex="0"
                             @keydown=${(e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') this.toggleSource(); }}>
-                            <sl-icon name="chevron-left"></sl-icon>
+                            <wa-icon name="chevron-left"></wa-icon>
                         </div>
                     </div>
                 </div>
@@ -314,7 +323,7 @@ export class PpClassDiagram extends LitElement {
                             fit-width>
                         </pb33f-mermaid-renderer>
                     </div>
-                    <sl-icon slot="divider" name="grip-vertical"></sl-icon>
+                    <wa-icon slot="divider" name="grip-vertical"></wa-icon>
                     <div slot="end" class="code-view">
                         <div class="code-header">
                             MERMAID SOURCE
@@ -350,9 +359,9 @@ export class PpClassDiagram extends LitElement {
                     </pb33f-mermaid-renderer>
                 </div>
                 ${this.renderToolbar()}
-                <sl-details class="code-section" summary="Mermaid Source">
+                <wa-details class="code-section" summary="Mermaid Source">
                     ${this.renderCode()}
-                </sl-details>
+                </wa-details>
             </div>
         `;
     }

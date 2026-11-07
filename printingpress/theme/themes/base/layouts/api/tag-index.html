@@ -1,0 +1,14 @@
+{{/* tag-index.html is one tag's page. Data: render.PageData of *model.NavTag. */}}
+{{$base := .Base}}
+<div class="pp-root">
+	{{template "api/partials/breadcrumb.html" .Crumbs}}
+	{{with .Page}}
+		{{iconTitle "operation" .DisplayName}} {{if .DescHTML}}<div class="pp-description">{{raw .DescHTML}}</div>{{end}}
+		{{if .Operations}}
+			<ul class="pp-operation-list">
+				{{range .Operations}}{{template "api/partials/operation-item.html" (opItem . $base)}}{{end}}
+			</ul>
+		{{end}}
+		{{range .Children}}{{template "api/partials/tag-section.html" (tagSection . 0 $base)}}{{end}}
+	{{end}}
+</div>

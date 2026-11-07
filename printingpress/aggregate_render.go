@@ -160,6 +160,15 @@ func (ap *AggregatePrintingPress) PrintSelectedOutputs(options AggregateRenderOp
 			return nil, err
 		}
 		written = append(written, staticFiles...)
+		stack, err := ap.themeStack()
+		if err != nil {
+			return nil, err
+		}
+		themeFiles, err := stack.CopyAssets(ap.config.OutputDir)
+		if err != nil {
+			return nil, err
+		}
+		written = append(written, themeFiles...)
 	}
 
 	specFiles, poolsUsed, err := ap.renderSelectedOutputsUntilStable(plan, selection, options.ProgressReporter)

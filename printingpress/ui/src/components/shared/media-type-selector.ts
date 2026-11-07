@@ -1,4 +1,4 @@
-import {LitElement, html, nothing, PropertyValues} from 'lit';
+import {html, nothing, PropertyValues} from 'lit';
 import {customElement, property, state, query} from 'lit/decorators.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
@@ -6,9 +6,6 @@ import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
-import sharedCss from '../../styles/shared.css.js';
-import refLinkCss from '../../styles/ref-link.css.js';
-import mediaTypeSelectorCss from './media-type-selector.css.js';
 import {MediaTypeData} from '../../utils/schema.js';
 import {renderComponentRefLink} from '../../utils/render-helpers.js';
 import '../shared/schema-properties.js';
@@ -17,10 +14,11 @@ import '../shared/extensions.js';
 import '../shared/example-selector.js';
 import '../class-diagram/class-diagram.js';
 import '../shared/code-viewer.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+import {bindMediaTypeChoice, bindSplits} from '../../utils/content-behaviour.js';
 
 @customElement('pp-media-type-selector')
-export class PpMediaTypeSelector extends LitElement {
-    static styles = [sharedCss, refLinkCss, mediaTypeSelectorCss];
+export class PpMediaTypeSelector extends LightElement {
 
     @property({attribute: 'content-json'}) contentJson = '';
     @property({attribute: 'hide-ref-links', type: Boolean}) hideRefLinks = false;
@@ -45,8 +43,18 @@ export class PpMediaTypeSelector extends LitElement {
     private observedPropsContent: Element | null = null;
     private observedExampleContent: Element | null = null;
 
+    // Server-written content is never drawn again.
+    protected canReplaceServerMarkup(): boolean {
+        return false;
+    }
+
     connectedCallback() {
         super.connectedCallback();
+        if (this.serverRendered) {
+            bindMediaTypeChoice(this);
+            bindSplits(this);
+            return;
+        }
         setTimeout(() => {
             this.wide = this.offsetWidth >= 900;
             if (typeof ResizeObserver === 'undefined') return;
@@ -333,11 +341,11 @@ export class PpMediaTypeSelector extends LitElement {
         const splitClass = this.exampleHidden ? 'schema-split example-hidden' : 'schema-split';
         const position = this.exampleHidden ? '100' : '60';
         return html`
-            <sl-split-panel class=${splitClass} position=${position} @sl-reposition=${this.handleSplitReposition}>
+            <sl-split-panel class=${splitClass} position=${position} @sl-reposition=${(event: Event) => event.target === event.currentTarget && this.handleSplitReposition()}>
                 <div slot="start" class="split-pane schema-props-pane">
                     <pp-schema-properties schema-json=${schemaJson || ''} compact constrained></pp-schema-properties>
                 </div>
-                <sl-icon slot="divider" name="grip-vertical"></sl-icon>
+                <wa-icon slot="divider" name="grip-vertical"></wa-icon>
                 <div slot="end" class="split-pane schema-example-pane">
                     ${this.exampleHidden ? this.renderExampleRestore() : html`
                         <pp-example-selector mode="inline" code-language=${language}

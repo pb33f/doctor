@@ -1,0 +1,10 @@
+{{/* docs/page.html is one page of a docs site: the page, the pages of its section when it lands a section, then the previous and next pages. Data: the engine's docs page view. */}}
+{{template "content/page.html" .Page}}
+{{template "content/partials/guide-cards.html" .SectionCards}}
+{{with .Neighbours}}
+	<nav class="pp-root pp-content-index pp-content-neighbours" aria-label="Previous and next pages">
+		<div class="pp-guide-cards">
+			{{range .}}{{template "content/partials/guide-card.html" .}}{{end}}
+		</div>
+	</nav>
+{{end}}

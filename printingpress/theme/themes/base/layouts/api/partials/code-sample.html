@@ -1,0 +1,7 @@
+{{/* code-sample.html is one highlighted code sample. Data: *model.CodeSample. */}}
+{{if .}}
+	<div class="pp-code-sample">
+		{{if and .Label (ne .Label .Lang)}}<h4 class="pp-code-sample-label">{{.Label}}</h4>{{end}}
+		<pre class="chroma pp-code-sample-code"><code>{{codeSampleHTML .}}</code></pre>
+	</div>
+{{end}}

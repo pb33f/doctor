@@ -1,0 +1,126 @@
+/*
+ * schema-split.css. The build wraps this sheet in an @scope block for each
+ * component that lists it in styles/components.json.
+ */
+
+/*
+ * Side by side (the server writes it): properties, divider, example. The
+ * grid is as tall as its content, at least the estimated height and at most
+ * three quarters of the viewport. The divider keeps the limits the split
+ * panel had. Below 900px a container query stacks it, example first.
+ */
+:where(:scope:not(pp-slot)) {
+    container: pp-split / inline-size;
+}
+
+.schema-split {
+    --schema-split-position: 60%;
+    --schema-split-min: min(44rem, 58%);
+    --schema-split-max: calc(100% - min(28rem, 40%));
+    display: grid;
+    grid-template-columns:
+        clamp(0%, clamp(var(--schema-split-min), calc(var(--schema-split-position) - 1px), var(--schema-split-max)), calc(100% - 2px))
+        2px
+        minmax(0, 1fr);
+    /* A flexible row, so max-height caps the row and the panes scroll. */
+    grid-template-rows: minmax(0, 1fr);
+    min-height: var(--schema-split-min-height);
+    max-height: 75vh;
+    margin-top: var(--global-padding-double);
+    overflow: hidden;
+    border-top: 1px solid var(--secondary-color-lowalpha);
+    border-bottom: 1px solid var(--secondary-color-lowalpha);
+    padding-top: var(--global-padding);
+    padding-bottom: var(--global-padding);
+}
+
+.schema-split[data-example-hidden] {
+    --schema-split-position: 100%;
+    --schema-split-max: calc(100% - 2.75rem);
+}
+
+.schema-split-divider {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    background-color: var(--secondary-color);
+    cursor: col-resize;
+    touch-action: none;
+}
+
+.schema-split-divider::after {
+    content: "";
+    position: absolute;
+    left: -5px;
+    width: 12px;
+    height: 100%;
+}
+
+.schema-split-divider:focus {
+    outline: none;
+}
+
+.schema-split-divider:focus-visible {
+    background-color: var(--primary-color);
+}
+
+.schema-split-divider wa-icon {
+    position: absolute;
+    left: 2px;
+    border-radius: 0;
+    background: var(--secondary-color);
+    color: var(--background-color);
+    padding: 0;
+    width: var(--global-padding);
+    height: calc(var(--global-padding) * 4);
+}
+
+.schema-split[data-example-hidden] pp-example-selector {
+    display: none;
+}
+
+.example-restore {
+    margin: 0;
+    padding: var(--global-padding-half);
+    border: 0;
+    background: none;
+    color: var(--font-color-sub1);
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.example-restore:hover {
+    color: var(--primary-color);
+}
+
+@container pp-split (max-width: 899px) {
+    .schema-split {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        max-height: none;
+        border: 0;
+        padding: 0;
+    }
+
+    .schema-split-divider {
+        display: none;
+    }
+
+    .schema-split .schema-example-pane {
+        order: -1;
+        padding: 0;
+        overflow: visible;
+    }
+
+    .schema-split .schema-props-pane {
+        padding: 0;
+        overflow: visible;
+    }
+}
+
+/* Hidden until the example is hidden. */
+.example-restore[hidden] {
+    display: none;
+}

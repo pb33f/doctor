@@ -1,0 +1,34 @@
+{{/* security-badge.html names a security scheme's type. Data: *model.SecurityRequirement. */}}
+<span class="pp-security-badge">
+	{{if eq .SchemeType "apiKey"}}
+		{{if eq .In "cookie"}}
+			<span class="pp-security-type-label">Cookie</span>
+			<wa-icon name="cookie" class="pp-security-icon"></wa-icon>
+		{{else if eq .In "header"}}
+			<span class="pp-security-type-label">API Key</span>
+			<wa-icon name="envelope" class="pp-security-icon"></wa-icon>
+		{{else if eq .In "query"}}
+			<span class="pp-security-type-label">API Key</span>
+			<wa-icon name="signpost" class="pp-security-icon"></wa-icon>
+		{{end}}
+	{{else if eq .SchemeType "http"}}
+		{{if eq .Scheme "bearer"}}
+			<span class="pp-security-type-label">Bearer</span>
+			<wa-icon name="shield-lock" class="pp-security-icon"></wa-icon>
+		{{else if eq .Scheme "basic"}}
+			<span class="pp-security-type-label">Basic Auth</span>
+			<wa-icon name="person-lock" class="pp-security-icon"></wa-icon>
+		{{else}}
+			<span class="pp-security-type-label">HTTP {{.Scheme}}</span>
+			<wa-icon name="lock" class="pp-security-icon"></wa-icon>
+		{{end}}
+	{{else if eq .SchemeType "oauth2"}}
+		<span class="pp-security-type-label">OAuth 2.0</span>
+		<wa-icon name="key" class="pp-security-icon"></wa-icon>
+	{{else if eq .SchemeType "openIdConnect"}}
+		<span class="pp-security-type-label">OpenID Connect</span>
+		<wa-icon name="fingerprint" class="pp-security-icon"></wa-icon>
+	{{else}}
+		<span class="pp-security-type-label">{{.SchemeType}}</span>
+	{{end}}
+</span>

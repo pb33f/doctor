@@ -51,6 +51,37 @@ grouping:
 	}, cfg.Grouping.ContractRoles)
 }
 
+func TestLoadSiteBlockAndBrandFields(t *testing.T) {
+	projectDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "printing-press.yaml"), []byte(`
+title: Example Docs
+logo: brand/logo.svg
+favicon: brand/favicon.png
+headerLinks:
+  - label: Status
+    href: https://status.example.com
+site:
+  mode: docs
+  nav: docs/nav.yaml
+`), 0o644))
+
+	cfg, err := Load(filepath.Join(projectDir, "printing-press.yaml"), "")
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	assert.Equal(t, "Example Docs", cfg.Title)
+	assert.Equal(t, "brand/logo.svg", cfg.Logo)
+	assert.Equal(t, "brand/favicon.png", cfg.Favicon)
+	assert.Equal(t, []HeaderLinkConfig{{Label: "Status", Href: "https://status.example.com"}}, cfg.HeaderLinks)
+	assert.Equal(t, SiteConfig{Mode: "docs", Nav: filepath.Join(projectDir, "docs", "nav.yaml")}, cfg.Site, "site.nav is relative to the config file")
+
+	brand := cfg.SiteBrand()
+	require.NotNil(t, brand)
+	assert.Equal(t, "brand/logo.svg", brand.Logo)
+	require.Len(t, brand.HeaderLinks, 1)
+	assert.Equal(t, "Status", brand.HeaderLinks[0].Label)
+	assert.Nil(t, (&File{}).SiteBrand(), "no brand content means no brand")
+}
+
 func TestLoadDiscoversAndResolvesRelativePaths(t *testing.T) {
 	projectDir := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(projectDir, "apis"), 0o755))

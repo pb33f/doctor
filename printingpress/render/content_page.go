@@ -4,48 +4,67 @@
 
 package render
 
-import (
-	"context"
-	"io"
+import ppmodel "github.com/pb33f/doctor/printingpress/model"
 
-	"github.com/a-h/templ"
-	ppmodel "github.com/pb33f/doctor/printingpress/model"
+// The content page templates.
+const (
+	TemplateContentPage  = "content/page.html"
+	TemplateContentIndex = "content/index.html"
 )
 
-// ContentPageTempl renders a convention-discovered Markdown page inside the
-// shared Printing Press page shell.
-func ContentPageTempl(page *ppmodel.ContentPage, baseURL string) templ.Component {
-	return ContentPageTemplWithBreadcrumb(page, baseURL, contentPageBreadcrumb(page))
+// ContentPageBody is one Markdown page with its default breadcrumb.
+func ContentPageBody(page *ppmodel.ContentPage, base string) Body {
+	return ContentPageBodyWithBreadcrumb(page, base, contentPageBreadcrumb(page))
 }
 
-// ContentPageTemplWithBreadcrumb renders a convention-discovered Markdown page
-// with caller-provided breadcrumb items.
-func ContentPageTemplWithBreadcrumb(page *ppmodel.ContentPage, baseURL string, breadcrumb []BreadcrumbItem) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		if page == nil {
-			return nil
+// ContentPageBodyWithBreadcrumb is one Markdown page with its own breadcrumb.
+func ContentPageBodyWithBreadcrumb(page *ppmodel.ContentPage, base string, breadcrumb []BreadcrumbItem) Body {
+	return body(TemplateContentPage, page, breadcrumb, base)
+}
+
+// GuideCard is one card in a list of pages, as content/partials/guide-card.html
+// draws it. Href is ready to place; Description is already shortened.
+type GuideCard struct {
+	Href        string
+	Title       string
+	Description string
+	// Rel is the link relation, such as prev or next.
+	Rel string
+	// Chevron puts the chevron icon before the title.
+	Chevron bool
+}
+
+// guideCardDescriptionLength is how much of a description a card shows.
+const guideCardDescriptionLength = 140
+
+// NewGuideCard is a card with the chevron and a shortened description.
+func NewGuideCard(href, title, description string) GuideCard {
+	return GuideCard{Href: href, Title: title, Description: truncateDesc(description, guideCardDescriptionLength), Chevron: true}
+}
+
+// ContentIndexBody is the guides index. Hidden pages are left out.
+func ContentIndexBody(pages []*ppmodel.ContentPage, breadcrumb []BreadcrumbItem, base string) Body {
+	cards := make([]GuideCard, 0, len(pages))
+	for _, page := range pages {
+		if page != nil && !page.Hidden {
+			cards = append(cards, NewGuideCard(DocHref(base, page.Href), contentPageIndexLabel(page), page.Description))
 		}
-		if _, err := io.WriteString(w, `<section class="pp-content-page">`); err != nil {
-			return err
-		}
-		if err := Breadcrumb(baseURL, breadcrumb).Render(ctx, w); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(w, `<header class="pp-content-page-header"><h1>`+templ.EscapeString(page.Title)+`</h1>`); err != nil {
-			return err
-		}
-		if page.Description != "" {
-			if _, err := io.WriteString(w, `<p class="pp-content-page-description">`+templ.EscapeString(page.Description)+`</p>`); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(w, `</header><div class="pp-content-page-markdown pp-content-page-body">`); err != nil {
-			return err
-		}
-		if err := templ.Raw(page.BodyHTML).Render(ctx, w); err != nil {
-			return err
-		}
-		_, err := io.WriteString(w, `</div></section>`)
-		return err
-	})
+	}
+	return body(TemplateContentIndex, cards, breadcrumb, base)
+}
+
+func contentPageIndexLabel(page *ppmodel.ContentPage) string {
+	if page == nil {
+		return "Untitled"
+	}
+	if page.Label != "" {
+		return page.Label
+	}
+	if page.Title != "" {
+		return page.Title
+	}
+	if page.Slug != "" {
+		return slugToTitle(pathBaseSlug(page.Slug))
+	}
+	return "Untitled"
 }

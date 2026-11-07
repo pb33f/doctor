@@ -1,15 +1,20 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, query, state} from 'lit/decorators.js';
 import '@pb33f/cowboy-components/components/mermaid/mermaid-renderer.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
-import '@shoelace-style/shoelace/dist/components/icon/icon.js';
+import '@awesome.me/webawesome/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/split-panel/split-panel.js';
-import '@shoelace-style/shoelace/dist/components/details/details.js';
+import '@awesome.me/webawesome/dist/components/details/details.js';
 import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
 import type {MermaidRenderer} from '@pb33f/cowboy-components/components/mermaid/mermaid-renderer.js';
 import '../shared/code-viewer.js';
-import styles from '../class-diagram/class-diagram.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+
+/** True when a mutation adds or removes a data script. */
+function touchesDataScript(record: MutationRecord): boolean {
+    return [...record.addedNodes, ...record.removedNodes].some((node) => node instanceof HTMLScriptElement && node.matches('script.pp-mermaid-data'));
+}
 
 const sourceCollapsedKey = 'pp-inline-mermaid-source-collapsed';
 const diagramHiddenKey = 'pp-inline-mermaid-hidden';
@@ -20,8 +25,8 @@ type DialogElement = HTMLElement & {
 };
 
 @customElement('pp-mermaid')
-export class PpMermaid extends LitElement {
-    static styles = styles;
+export class PpMermaid extends LightElement {
+    protected static keepChildren = true;
 
     @property({attribute: false}) diagram = '';
     @state() private rendererDiagram = '';
@@ -40,7 +45,7 @@ export class PpMermaid extends LitElement {
     private renderScheduleHandle = 0;
 
     private hydrateEmbeddedData() {
-        const scriptEl = this.querySelector<HTMLScriptElement>('script.pp-mermaid-data');
+        const scriptEl = this.querySelector<HTMLScriptElement>(':scope > script.pp-mermaid-data');
         const diagram = this.readEmbeddedDiagram(scriptEl);
         if (diagram === this.diagram) return;
         this.diagram = diagram;
@@ -69,8 +74,12 @@ export class PpMermaid extends LitElement {
             this.hydrateEmbeddedData();
             this.wide = this.offsetWidth >= 900;
 
-            this.embeddedDataObserver = new MutationObserver(() => {
-                this.hydrateEmbeddedData();
+            // The component renders into itself, so only a change to its
+            // data script is a reason to read the data again.
+            this.embeddedDataObserver = new MutationObserver((records) => {
+                if (records.some(touchesDataScript)) {
+                    this.hydrateEmbeddedData();
+                }
             });
             this.embeddedDataObserver.observe(this, {childList: true});
 
@@ -332,7 +341,7 @@ export class PpMermaid extends LitElement {
                         <div class="collapse-tab" @click=${this.toggleSource}
                             role="button" tabindex="0"
                             @keydown=${(event: KeyboardEvent) => { if (event.key === 'Enter' || event.key === ' ') this.toggleSource(); }}>
-                            <sl-icon name="chevron-left"></sl-icon>
+                            <wa-icon name="chevron-left"></wa-icon>
                         </div>
                     </div>
                 </div>
@@ -347,7 +356,7 @@ export class PpMermaid extends LitElement {
                     <div slot="start" class="diagram-view">
                         <pb33f-mermaid-renderer .diagram=${this.rendererDiagram} fit-width></pb33f-mermaid-renderer>
                     </div>
-                    <sl-icon slot="divider" name="grip-vertical"></sl-icon>
+                    <wa-icon slot="divider" name="grip-vertical"></wa-icon>
                     <div slot="end" class="code-view">
                         <div class="code-header">
                             MERMAID SOURCE
@@ -377,9 +386,9 @@ export class PpMermaid extends LitElement {
                 </div>
                 ${this.renderToolbar()}
                 ${this.sourceCollapsed ? nothing : html`
-                    <sl-details class="code-section" summary="Mermaid Source">
+                    <wa-details class="code-section" summary="Mermaid Source">
                         ${this.renderCode()}
-                    </sl-details>
+                    </wa-details>
                 `}
             </div>
         `;

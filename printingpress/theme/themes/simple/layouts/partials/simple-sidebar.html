@@ -1,0 +1,6 @@
+{{with .Site.Nav}}{{with .Current}}<aside class="simple-sidebar" aria-label="Pages">
+{{range .Sections}}<section class="simple-nav-section">
+<h2>{{if .Href}}<a href="{{.Href}}"{{if .Active}} class="active" aria-current="page"{{end}}>{{.Title}}</a>{{else}}{{.Title}}{{end}}</h2>
+{{template "partials/simple-nav-items.html" .Items}}
+</section>{{end}}
+</aside>{{end}}{{end}}

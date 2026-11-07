@@ -1,0 +1,8 @@
+{{/* guide-cards.html is a grid of guide cards. Data: []render.GuideCard. */}}
+{{if .}}
+	<div class="pp-root pp-content-index">
+		<div class="pp-guide-cards">
+			{{range .}}{{template "content/partials/guide-card.html" .}}{{end}}
+		</div>
+	</div>
+{{end}}

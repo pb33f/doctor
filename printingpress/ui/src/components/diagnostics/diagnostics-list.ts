@@ -1,19 +1,18 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, state} from 'lit/decorators.js';
 import {getPageDeveloperPayload, type PageDeveloperPayload, type PageProblem, type ProblemMetadata} from '../../utils/page-payload.js';
 import {docHref} from '../../utils/doc-links.js';
 import {pluralLabel, problemSeverityClass, problemSeverityIcon, problemSeverityLabel} from '../../utils/violations.js';
 import {renderMarkdown} from '../../utils/markdown.js';
-import markdownCss from '../../styles/markdown.css.js';
-import diagnosticsListCss from './diagnostics-list.css.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
-import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
-import '@shoelace-style/shoelace/dist/components/tab/tab.js';
-import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
-import '@pb33f/cowboy-components/components/paginator/paginator-navigator.js';
+import '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
+import '@awesome.me/webawesome/dist/components/tab/tab.js';
+import '@awesome.me/webawesome/dist/components/tab-panel/tab-panel.js';
+import '@pb33f/printing-press-components/paginator/paginator.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 enum ProblemSortView {
   LineNumber = 'Line Number',
@@ -61,8 +60,7 @@ const GROUP_ORDER: Record<string, number> = {
 };
 
 @customElement('pp-diagnostics-list')
-export class PpDiagnosticsList extends LitElement {
-  static styles = [markdownCss, diagnosticsListCss];
+export class PpDiagnosticsList extends LightElement {
 
   @state() private payload: PageDeveloperPayload | null = null;
   @state() private selectedSort: ProblemSortView = ProblemSortView.Severity;
@@ -246,15 +244,15 @@ export class PpDiagnosticsList extends LitElement {
         <a class="page page-operation" href=${docHref(href)}>
           ${operationId
             ? html`<span class="operation-label">${operationId}</span>`
-            : html`<pb33f-render-operation-path path=${path} nowrap></pb33f-render-operation-path>`}
-          <pb33f-http-method mode="nav-naked" method=${method}></pb33f-http-method>
+            : html`<pp-render-operation-path path=${path} nowrap></pp-render-operation-path>`}
+          <pp-http-method mode="nav-naked" method=${method}></pp-http-method>
         </a>
       `;
     }
     if (kind === 'model' && component) {
       return html`
         <a class="page page-model" href=${docHref(href)}>
-          <pb33f-model-icon icon=${component} size="small"></pb33f-model-icon>
+          <pp-model-icon icon=${component} size="small"></pp-model-icon>
           <span>${label}</span>
         </a>
       `;
@@ -276,7 +274,7 @@ export class PpDiagnosticsList extends LitElement {
     if (value <= 0) return nothing;
     return html`
       <div class="stat ${severity}">
-        <sl-icon name=${icon} aria-hidden="true"></sl-icon>
+        <wa-icon name=${icon} aria-hidden="true"></wa-icon>
         <span>${value}</span>
         <small>${pluralLabel(value, singular, plural)}</small>
       </div>
@@ -355,11 +353,11 @@ export class PpDiagnosticsList extends LitElement {
     return html`
       <div class="row ${problemSeverityClass(problem.severity)}">
         <span class="severity">
-          <sl-icon
+          <wa-icon
             class="severity-icon"
             name=${problemSeverityIcon(problem.severity)}
             label=${problemSeverityLabel(problem.severity)}
-          ></sl-icon>
+          ></wa-icon>
         </span>
         <span class="location">${this.location(problem)}</span>
         ${this.renderProblemMessage(problem)}
@@ -380,7 +378,7 @@ export class PpDiagnosticsList extends LitElement {
       <div class="list">
         ${problems.length
           ? html`
-            <pb33f-paginator
+            <pp-paginator
               .currentPage=${currentPage}
               .totalPages=${totalPages}
               .totalItems=${problems.length}
@@ -390,7 +388,7 @@ export class PpDiagnosticsList extends LitElement {
               @paginatorPreviousPage=${this.handlePreviousPage}
               @paginatorNextPage=${this.handleNextPage}
               @paginatorLastPage=${this.handleLastPage}
-            ></pb33f-paginator>
+            ></pp-paginator>
             ${pageProblems.map((problem) => this.renderProblemRow(problem))}
           `
           : html`<div class="empty">No diagnostics found</div>`}
@@ -420,7 +418,7 @@ export class PpDiagnosticsList extends LitElement {
       <section class="problem-group">
         <div class="group-header">
           <div class="group-title">
-            <pb33f-model-icon icon=${group.icon} size="medium"></pb33f-model-icon>
+            <pp-model-icon icon=${group.icon} size="medium"></pp-model-icon>
             <h2>${group.title}</h2>
           </div>
           <div class="group-actions">
@@ -429,7 +427,7 @@ export class PpDiagnosticsList extends LitElement {
           </div>
         </div>
         <div class="list group-problems">
-          <pb33f-paginator
+          <pp-paginator
             .currentPage=${currentPage}
             .totalPages=${totalPages}
             .totalItems=${group.problems.length}
@@ -439,7 +437,7 @@ export class PpDiagnosticsList extends LitElement {
             @paginatorPreviousPage=${(event: Event) => this.handleGroupPreviousPage(group, event)}
             @paginatorNextPage=${(event: Event) => this.handleGroupNextPage(group, event)}
             @paginatorLastPage=${(event: Event) => this.handleGroupLastPage(group, event)}
-          ></pb33f-paginator>
+          ></pp-paginator>
           ${pageProblems.map((problem) => this.renderProblemRow(problem))}
         </div>
       </section>
@@ -459,18 +457,18 @@ export class PpDiagnosticsList extends LitElement {
           ? html`<div class="stat orphan"><span>${this.payload.orphanCount}</span><small>${pluralLabel(this.payload.orphanCount, 'orphan')}</small></div>`
           : nothing}
       </div>
-      <sl-tab-group class="diagnostics-tabs" @sl-tab-show=${this.handleTabShow}>
-        <sl-tab slot="nav" panel="list-view">LIST VIEW</sl-tab>
-        <sl-tab slot="nav" panel="grouped-view">GROUPED VIEW</sl-tab>
-        <sl-tab-panel name="list-view">
+      <wa-tab-group class="diagnostics-tabs" @wa-tab-show=${this.handleTabShow}>
+        <wa-tab slot="nav" panel="list-view">LIST VIEW</wa-tab>
+        <wa-tab slot="nav" panel="grouped-view">GROUPED VIEW</wa-tab>
+        <wa-tab-panel name="list-view">
           ${this.activePanel === 'list-view'
             ? this.renderListView(this.memoizedSortProblems('list', problems, this.selectedSort))
             : nothing}
-        </sl-tab-panel>
-        <sl-tab-panel name="grouped-view">
+        </wa-tab-panel>
+        <wa-tab-panel name="grouped-view">
           ${this.activePanel === 'grouped-view' ? this.renderGroupedView(problems) : nothing}
-        </sl-tab-panel>
-      </sl-tab-group>
+        </wa-tab-panel>
+      </wa-tab-group>
     `;
   }
 }

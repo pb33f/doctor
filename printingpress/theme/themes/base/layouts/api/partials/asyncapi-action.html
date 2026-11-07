@@ -1,0 +1,7 @@
+{{/* asyncapi-action.html is the send or receive badge. Data: render.AsyncAPIActionView. */}}
+<pp-asyncapi-action action="{{.Name}}" size="{{.Size}}" data-pp-owner="page" data-pp-ssr>
+	<span class="{{.Class}}" aria-label="{{.Label}}">
+		<wa-icon name="{{.Icon}}"></wa-icon>
+		<span>{{.Code}}</span>
+	</span>
+</pp-asyncapi-action>

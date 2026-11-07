@@ -1,0 +1,96 @@
+/*
+ * code-actions.css. The build wraps this sheet in an @scope block for each
+ * component that lists it in styles/components.json, : :scope is the
+ * component, or a pp-slot holding content its template wrote. Rules about the
+ * component itself use :where(:scope:not(pp-slot)), so a parent can still
+ * style it, as it could a shadow host.
+ */
+
+.code-container {
+    position: relative;
+}
+
+.floating-actions {
+    position: absolute;
+    top: var(--global-padding-half);
+    right: 0px;
+    z-index: 1;
+    display: flex;
+    gap: var(--global-padding-half);
+    align-items: center;
+}
+
+.floating-copy {
+    position: absolute;
+    top: 0;
+    right: var(--global-padding);
+    z-index: 1;
+}
+
+.floating-actions .floating-copy {
+    position: static;
+    top: auto;
+    right: auto;
+}
+
+.floating-actions sl-icon-button::part(base),
+    .floating-copy sl-icon-button::part(base) {
+    color: var(--font-color-sub1);
+    font-size: 1rem;
+    padding: var(--global-padding-half);
+}
+
+.floating-actions sl-icon-button::part(base):hover,
+    .floating-copy sl-icon-button::part(base):hover,
+    .floating-expand::part(base):hover {
+    color: var(--primary-color);
+}
+
+.floating-expand::part(base) {
+    color: var(--font-color-sub1);
+}
+
+.floating-actions sl-tooltip,
+    .floating-copy {
+    --sl-color-primary-600: var(--primary-color);
+    --sl-tooltip-background-color: var(--background-color);
+    --sl-tooltip-color: var(--font-color);
+    --sl-tooltip-border-radius: 0;
+    --sl-tooltip-font-family: var(--font-stack), monospace;
+    --sl-tooltip-font-size: inherit;
+    --sl-tooltip-padding: var(--global-padding);
+    --sl-tooltip-arrow-size: 6px;
+}
+
+.floating-actions sl-tooltip::part(body),
+    .floating-copy::part(body) {
+    border: 1px dashed var(--secondary-color);
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
+}
+
+/* The floating actions the server writes: native buttons. */
+.floating-actions .floating-action {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: var(--global-padding-half);
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: var(--font-color-sub1);
+    font-size: 1rem;
+    text-transform: none;
+    letter-spacing: normal;
+    cursor: pointer;
+}
+
+.floating-actions .floating-action:hover {
+    border: 0;
+    color: var(--primary-color);
+}
+
+.floating-actions .floating-action:focus-visible {
+    outline: 1px solid var(--secondary-color);
+    outline-offset: 1px;
+}

@@ -1,16 +1,12 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import sharedCss from '../../styles/shared.css.js';
-import constraintsCss from '../../styles/constraints.css.js';
-import markdownCss from '../../styles/markdown.css.js';
-import refLinkCss from '../../styles/ref-link.css.js';
-import operationParametersCss from './operation-parameters.css.js';
 import {modelHref} from '../../utils/doc-links.js';
 import {ComponentLinkData, deriveSchemaType} from '../../utils/schema.js';
 import {renderMarkdown} from '../../utils/markdown.js';
 import {renderConstraints} from '../../utils/render-helpers.js';
 import '../shared/ref-popover.js';
 import '../shared/extensions.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 interface ParameterData {
   name: string;
@@ -30,11 +26,15 @@ interface ParameterData {
 }
 
 @customElement('pp-operation-parameters')
-export class PpOperationParameters extends LitElement {
-  static styles = [sharedCss, constraintsCss, markdownCss, refLinkCss, operationParametersCss];
+export class PpOperationParameters extends LightElement {
 
   @property({attribute: 'parameters-json'}) parametersJson = '';
   @state() private params: ParameterData[] = [];
+
+  // Server-written parameters are never drawn again.
+  protected canReplaceServerMarkup(): boolean {
+    return false;
+  }
 
   willUpdate(changed: Map<string, unknown>) {
     if (changed.has('parametersJson') && this.parametersJson) {
@@ -113,7 +113,7 @@ export class PpOperationParameters extends LitElement {
               ${renderConstraints(schema, {labelSuffix: ':'})}
             </div>
             <div class="param-in-col">
-              <sl-icon class="param-in-icon" name="${this.inIcon(p.in)}"></sl-icon>
+              <wa-icon class="param-in-icon" name="${this.inIcon(p.in)}"></wa-icon>
               <span class="param-in">${p.in}</span>
             </div>
             <div class="param-desc-col ${!p.ref && (p.rawJson || p.rawYaml) ? 'has-actions' : ''}">

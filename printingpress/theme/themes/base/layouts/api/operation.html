@@ -1,0 +1,191 @@
+{{/* operation.html is one operation or webhook page. Data: render.PageData of *model.OperationPage. */}}
+{{$base := .Base}}
+{{$crumbs := .Crumbs}}
+{{with .Page}}{{$content := .Content}}
+<div class="pp-operation">
+	{{template "api/partials/breadcrumb.html" $crumbs}}
+	<pp-page-nav page-title="{{operationPageTitle .}}" sections-json="{{operationNavSections .}}"></pp-page-nav><div class="title-section">
+		<div class="name-path-block">
+			{{if or .RawYAML .SchemaJSON}}
+				<pp-raw-viewer-btn id="pp-operation-raw" class="raw-button" title="{{operationRawTitle .}}"
+					{{- if not .SpecKind.IsAsyncAPI}} method="{{.Method}}" path="{{.Path}}"{{end}}
+					{{- if gt .SourceLine 0}} start-line="{{.SourceLine}}"{{end}}
+					{{- with .Location}} location="{{.}}"{{end}} data-pp-owner="page" data-pp-ssr>{{rawViewerButton "pp-operation-raw"}}</pp-raw-viewer-btn>
+			{{end}} {{iconTitle "operation" (operationPageTitle .)}}
+			{{if not .SpecKind.IsAsyncAPI}}
+				<div class="{{operationPathClass .}}">
+					{{httpMethod .Method}}
+					{{operationPath .Path true}}
+				</div>
+			{{end}}
+			{{if .OperationID}}
+				<div class="pp-operation-id">
+					<span class="pp-label">{{if .SpecKind.IsAsyncAPI}}Operation:{{else}}Operation ID:{{end}}</span>
+					<code>{{.OperationID}}</code> {{if .Deprecated}}<span class="pp-deprecated"><wa-icon name="exclamation-triangle"></wa-icon> Deprecated</span>{{end}}
+				</div>
+			{{end}}
+		</div>
+	</div>
+	{{if or .Source .Location}}{{template "api/partials/source.html" (source .Source .Location .SourceLine $base)}}{{end}}
+	{{violationStats (printf "%s %s" .Method .Path) .Counts}}
+	{{if .DescHTML}}<div class="pp-description" id="section-description" data-nav-label="Description">{{raw .DescHTML}}</div>{{end}}
+	{{with .AsyncAPI}}{{if asyncAPIOperationSectionVisible .}}
+		<div class="pp-asyncapi-operation" id="section-asyncapi" data-nav-label="Channel">
+			<h3>CHANNEL</h3>
+			{{with .Channel}}
+				<div class="pp-asyncapi-channel-main">
+					{{template "api/partials/asyncapi-action.html" (asyncAPIAction $.Page.AsyncAPI.Action "large")}}
+					<div class="pp-asyncapi-channel-target">
+						<div class="pp-asyncapi-channel-name">
+							{{if .Href}}
+								<a class="pp-ref-link pp-server-url" href="{{operationDocHref $base .Href}}">{{.Name}}</a>
+							{{else if .Name}}
+								<span class="pp-server-url">{{.Name}}</span>
+							{{end}}
+						</div>
+						{{with .Address}}{{operationPath . false}}{{end}}
+					</div>
+				</div>
+			{{end}}
+			{{with .Reply}}
+				<div class="pp-asyncapi-meta-row">
+					<span class="pp-asyncapi-meta-label">Reply</span><div class="pp-asyncapi-meta-value">
+						{{with .Address}}{{operationPath . false}}{{end}} {{with .Channel}}
+							{{if .Href}}
+								{{template "api/partials/component-ref.html" (componentRef "channels" (operationDocHref $base .Href) .Name)}}
+							{{else if .Name}}
+								{{template "api/partials/component-ref.html" (componentRef "channels" "" .Name)}}
+							{{end}}
+						{{end}}
+						{{if .Messages}}
+							<div class="pp-asyncapi-reply-messages">
+								{{range .Messages}}
+									{{if .Href}}
+										{{template "api/partials/component-ref.html" (componentRef "messages" (operationDocHref $base .Href) .Name)}}
+									{{else}}
+										{{template "api/partials/component-ref.html" (componentRef "messages" "" .Name)}}
+									{{end}}
+								{{end}}
+							</div>
+						{{end}}
+					</div>
+				</div>
+			{{end}}
+			{{if .Bindings}}
+				<div class="pp-asyncapi-meta-row pp-asyncapi-bindings-row">
+					<span class="pp-asyncapi-meta-label">Bindings</span><div class="pp-security-scopes" aria-label="Bindings">
+						{{range .Bindings}}{{asyncAPIProtocol . "small" false}}{{end}}
+					</div>
+				</div>
+			{{end}}
+		</div>
+	{{end}}{{end}}
+	{{if .Security}}
+		<div class="pp-security pp-dotted-section" id="section-security" data-nav-label="Security">
+			<h3>SECURITY</h3>
+			{{range .Security}}
+				<div class="pp-security-scheme">
+					{{if .Ref}}
+						<a class="pp-ref-link pp-security-name" href="{{operationDocHref $base (modelHTML .Ref.TypeSlug .Ref.Slug)}}">&#10140; {{.Name}}</a>
+					{{else}}
+						<span class="pp-security-name">{{.Name}}</span>
+					{{end}}
+					<div class="pp-security-details">
+						{{if .SchemeType}}{{template "api/partials/security-badge.html" .}}{{end}}
+						{{if .Scopes}}
+							<div class="pp-security-scopes" aria-label="Required OAuth scopes">
+								{{range .Scopes}}<span class="pp-security-scope">{{.}}</span>{{end}}
+							</div>
+						{{end}}
+					</div>
+				</div>
+			{{end}}
+		</div>
+	{{end}}
+	{{if .Servers}}
+		<div class="pp-servers" id="section-servers" data-nav-label="Servers">
+			<h3>SERVERS</h3>
+			{{range .Servers}}
+				<div class="pp-server-entry">
+					<span class="pp-server-name">{{if .Description}}{{.Description}} {{end}}<wa-icon name="hdd-network" class="pp-server-icon"></wa-icon></span>
+					<a class="pp-server-url" href="{{specURL (serverURL .)}}" target="_blank" rel="noopener">{{.URL}}</a>
+				</div>
+			{{end}}
+		</div>
+	{{end}}
+	{{with .RequestBody}}{{$title := operationContentSectionTitle $.Page}}
+		<div class="pp-request-body" id="section-request-body" data-nav-label="{{$title}}">
+			<h3>{{$title}} {{if or .RawYAML .RawJSON}}<pp-raw-viewer-btn id="pp-request-body-raw" class="raw-button" title="{{$title}}"
+					{{- if gt .SourceLine 0}} start-line="{{.SourceLine}}"{{end}}
+					{{- with .Location}} location="{{.}}"{{end}} data-pp-owner="page" data-pp-ssr>{{rawViewerButton "pp-request-body-raw"}}</pp-raw-viewer-btn>{{end}}
+			</h3>
+			{{if .DescHTML}}<div class="pp-description">{{raw .DescHTML}}</div>{{end}}
+			{{with $content}}{{raw .RequestBodyExtensions}}{{end}}
+			{{if .Refs}}
+				<p class="pp-request-body-refs">
+					{{range .Refs}}<a class="pp-ref-link" href="{{operationDocHref $base (componentLinkHref .)}}">&#10140; {{.Name}}</a>{{end}}
+				</p>
+			{{else if .Ref}}
+				<p><a class="pp-ref-link" href="{{operationDocHref $base (componentLinkHref .Ref)}}">&#10140; {{.Ref.Name}}</a></p>
+			{{end}}
+			{{with $content}}{{raw .RequestBody}}{{end}}
+		</div>
+	{{end}}
+	{{with $content}}{{raw .Responses}}{{end}}
+	{{if and $content $content.Parameters}}
+		<wa-details class="pp-details" id="section-parameters" data-nav-label="Parameters" style="display:block;min-height:64px;">
+			<span slot="summary" class="pp-details-summary"><h3>Parameters</h3></span>
+			{{raw $content.Parameters}}
+		</wa-details>
+	{{end}}
+	{{if and $content $content.Curl}}
+		<wa-details class="pp-details" id="section-curl" data-nav-label="cURL" style="display:block;min-height:64px;">
+			<span slot="summary" class="pp-details-summary"><h3>cURL</h3></span>
+			{{raw $content.Curl}}
+		</wa-details>
+	{{end}}
+	{{if .CodeSamples}}
+		<wa-details class="pp-details" id="section-code-samples" data-nav-label="Code Samples" style="display:block;min-height:64px;">
+			<span slot="summary" class="pp-details-summary"><h3>Code Samples</h3></span><div class="pp-code-samples">
+				{{if eq (len .CodeSamples) 1}}
+					{{template "api/partials/code-sample.html" (index .CodeSamples 0)}}
+				{{else}}
+					<wa-tab-group class="pp-code-samples-tabs">
+						{{range $i, $sample := .CodeSamples}}<wa-tab slot="nav" panel="code-sample-{{$i}}"{{if eq $i 0}} active{{end}}>{{codeSampleTabLabel $sample $i}}</wa-tab> {{end}}
+						{{range $i, $sample := .CodeSamples}}
+							<wa-tab-panel name="code-sample-{{$i}}"{{if eq $i 0}} active{{end}}>{{template "api/partials/code-sample.html" $sample}}</wa-tab-panel>
+						{{end}}
+					</wa-tab-group>
+				{{end}}
+			</div>
+		</wa-details>
+	{{end}}
+	{{if and $content $content.Extensions}}
+		<wa-details class="pp-details" id="section-extensions" data-nav-label="Extensions" style="display:block;min-height:64px;">
+			<span slot="summary" class="pp-details-summary"><h3>Operation Extensions</h3></span>
+			{{raw $content.Extensions}}
+		</wa-details>
+	{{end}}
+	{{if and $content $content.PathExtensions}}
+		<wa-details class="pp-details" id="section-path-extensions" data-nav-label="Path Extensions" style="display:block;min-height:64px;">
+			<span slot="summary" class="pp-details-summary"><h3>Path Extensions</h3></span>
+			{{raw $content.PathExtensions}}
+		</wa-details>
+	{{end}}
+	{{if and $content $content.Callbacks}}
+		<wa-details class="pp-details" id="section-callbacks" data-nav-label="Callbacks" style="display:block;min-height:64px;">
+			<span slot="summary" class="pp-details-summary"><h3>Callbacks</h3></span>
+			{{raw $content.Callbacks}}
+		</wa-details>
+	{{end}}
+	{{with .ExternalDoc}}
+		<div class="pp-external-docs pp-dotted-section" id="section-external-docs" data-nav-label="External Docs">
+			<h3>EXTERNAL DOCS</h3>
+			<div class="pp-external-doc-entry">
+				<span class="pp-external-doc-name">{{if .Description}}{{.Description}}{{else}}Documentation{{end}} <wa-icon name="box-arrow-up-right" class="pp-external-doc-icon"></wa-icon></span>
+				<a class="pp-external-doc-url" href="{{specURL .URL}}" target="_blank" rel="noopener">{{.URL}}</a>
+			</div>
+		</div>
+	{{end}}
+</div>
+{{end}}

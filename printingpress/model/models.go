@@ -49,6 +49,11 @@ type Site struct {
 	Source             *SourceRef                      `json:"source,omitempty"`
 	IncludedSpecs      []*IncludedSpecAsset            `json:"-"`
 	HeaderContext      *SiteHeaderContext              `json:"headerContext,omitempty"`
+	// Theme is the theme selection: a built-in theme name or a theme folder.
+	// Empty selects the default theme.
+	Theme string `json:"-"`
+	// SiteLayouts is the site's own layouts folder, which wins over the theme.
+	SiteLayouts string `json:"-"`
 }
 
 // IncludedSpecAsset is a source specification file emitted with HTML docs.
@@ -73,6 +78,46 @@ type ContentPage struct {
 	Order       int                 `json:"order,omitempty"`
 	Hidden      bool                `json:"hidden,omitempty"`
 	Assets      []*ContentPageAsset `json:"-"`
+	// Section is the folder the page sits in, relative to the docs folder.
+	// Empty for a top-level page.
+	Section string `json:"section,omitempty"`
+	// SectionIndex marks a folder's _index.md: the landing page of Section.
+	SectionIndex bool `json:"sectionIndex,omitempty"`
+	// Tab names the top-level tab a section joins (from _index.md).
+	Tab string `json:"tab,omitempty"`
+	// Icon is a short icon name a theme may draw.
+	Icon string `json:"icon,omitempty"`
+	// SourceRelPath is the source file relative to its content folder.
+	SourceRelPath string `json:"-"`
+	// Audience says who the page is for: everyone, agents only or humans only.
+	Audience ContentAudience `json:"audience,omitempty"`
+	// MarkdownHref is the page.md file agents read. Empty for a humans-only page.
+	MarkdownHref string `json:"markdownHref,omitempty"`
+	// Markdown is the page.md text: the page as clean Markdown for agents.
+	Markdown string `json:"-"`
+}
+
+// ContentAudience says who a content page or block is for. Audience controls
+// presentation, not secrecy: every output is public.
+type ContentAudience string
+
+const (
+	// ContentAudienceAll is the default: HTML for humans and page.md for agents.
+	ContentAudienceAll ContentAudience = ""
+	// ContentAudienceAgents writes only page.md and llms entries. No HTML.
+	ContentAudienceAgents ContentAudience = "agents"
+	// ContentAudienceHumans writes only HTML. No page.md.
+	ContentAudienceHumans ContentAudience = "humans"
+)
+
+// ForAgents reports whether agents read it.
+func (a ContentAudience) ForAgents() bool {
+	return a != ContentAudienceHumans
+}
+
+// ForHumans reports whether humans read it.
+func (a ContentAudience) ForHumans() bool {
+	return a != ContentAudienceAgents
 }
 
 // ContentPageAsset is a local or remote image copied into the generated docs.
@@ -316,7 +361,7 @@ type OperationPage struct {
 	Responses             []*ResponseInfo
 	ResponsesJSON         string `json:"-"` // pre-serialized for Lit component; excluded from JSON writer
 	CommonHeaders         []*HeaderInfo
-	CommonHeadersJSON     string `json:"-"` // pre-serialized for templ rendering
+	CommonHeadersJSON     string `json:"-"` // pre-serialized for the page template
 	Security              []*SecurityRequirement
 	SecurityGroups        []*SecurityRequirementGroup `json:"securityGroups,omitempty"`
 	HasSecurityOverride   bool                        `json:"-"`
@@ -331,7 +376,7 @@ type OperationPage struct {
 	Callbacks             []*CallbackInfo   `json:"callbacks,omitempty"`
 	CallbacksJSON         string            `json:"-"` // pre-serialized for Lit component
 	SchemaJSON            string            // full operation rendered as JSON for cowboy-components
-	SchemaHighlightedHTML string            `json:"-"` // chroma output, templ only
+	SchemaHighlightedHTML string            `json:"-"` // chroma output, for the page template
 	RawYAML               string            `json:"-"` // re-rendered YAML from Render(), for raw viewer
 	SourceLine            int               `json:"-"` // 1-based YAML line number of the operation
 	Location              string            `json:"-"` // source file path for multi-file specs
@@ -341,6 +386,20 @@ type OperationPage struct {
 	Problems              []*PageProblem
 	Slices                map[string]*YamlSlice
 	AsyncAPI              *AsyncAPIOperationInfo `json:"asyncapi,omitempty"`
+	Content               *OperationContent      `json:"-"` // server-written content sections, for the page template
+}
+
+// OperationContent is the markup the server writes for the content sections
+// of an operation page. An empty field means the section draws nothing.
+type OperationContent struct {
+	RequestBody           string
+	RequestBodyExtensions string
+	Responses             string
+	Parameters            string
+	Curl                  string
+	Callbacks             string
+	Extensions            string
+	PathExtensions        string
 }
 
 // OperationCrossRefs holds cross-reference information for an operation.
@@ -395,6 +454,7 @@ type AsyncAPIModelInfo struct {
 	Messages    []*AsyncAPIMessageRef     `json:"messages,omitempty"`
 	Channel     *AsyncAPIChannelRef       `json:"channel,omitempty"`
 	Content     []*MediaTypeInfo          `json:"content,omitempty"`
+	ContentHTML string                    `json:"-"` // the server-written pp-media-type-selector of a message
 	Schemas     []*AsyncAPISchemaSurface  `json:"schemas,omitempty"`
 	Bindings    []string                  `json:"bindings,omitempty"`
 	Examples    []*AsyncAPIMessageExample `json:"examples,omitempty"`
@@ -457,7 +517,7 @@ type RequestBodyInfo struct {
 type MediaTypeInfo struct {
 	MediaType             string            `json:"mediaType"`
 	SchemaJSON            string            `json:"schemaJson"`
-	SchemaHighlightedHTML string            `json:"-"` // chroma output, templ only
+	SchemaHighlightedHTML string            `json:"-"` // chroma output, for the page template
 	MermaidDiagram        string            `json:"mermaidDiagram,omitempty"`
 	SchemaFormat          string            `json:"schemaFormat,omitempty"`
 	RawSchemaJSON         string            `json:"rawSchemaJson,omitempty"`
@@ -544,7 +604,12 @@ type ModelPage struct {
 	Description              string
 	DescHTML                 string
 	SchemaJSON               string // JSON representation for cowboy-components rendering
-	SchemaHighlightedHTML    string `json:"-"` // chroma output, templ only
+	SchemaHighlightedHTML    string `json:"-"` // chroma output, for the page template
+	ContentHTML              string `json:"-"` // the server-written content of pp-model-page, when it writes this shape
+	ContentWritten           bool   `json:"-"` // the server wrote the content (it may draw nothing)
+	SecuritySchemeHTML       string `json:"-"` // the server-written pp-security-scheme, for a security scheme page
+	ExtensionsHTML           string `json:"-"` // the server-written pp-extensions of the model
+	CrossRefsHTML            string `json:"-"` // the server-written pp-cross-refs
 	RawYAML                  string `json:"-"` // re-rendered YAML from Render(), for raw viewer
 	SchemaRawYAML            string `json:"-"` // schema-only YAML for inline viewer (parameters, headers)
 	SchemaRawJSON            string `json:"-"` // schema-only JSON for inline viewer (parameters, headers)

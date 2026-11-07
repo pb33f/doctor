@@ -1,0 +1,12 @@
+{{/* content/page.html is one Markdown page. Data: render.PageData of *model.ContentPage. */}}
+{{$crumbs := .Crumbs}}
+{{with .Page}}
+<section class="pp-content-page">
+	{{template "api/partials/breadcrumb.html" $crumbs}}
+	<header class="pp-content-page-header">
+		<h1>{{.Title}}</h1>
+		{{with .Description}}<p class="pp-content-page-description">{{.}}</p>{{end}}
+	</header>
+	<div class="pp-content-page-markdown pp-content-page-body">{{raw .BodyHTML}}</div>
+</section>
+{{end}}

@@ -1,0 +1,474 @@
+/*
+ * Copyright 2026 Princess Beef Heavy Industries, LLC / Dave Shanley
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Styles for the Printing Press components. The components render in light
+ * DOM, so these are page styles. Every colour, font and size is a --pp-*
+ * token. The defaults below are neutral; a theme sets the tokens to give the
+ * components its look, and never needs to restyle them.
+ */
+
+:root {
+  --pp-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --pp-font-mono-bold: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --pp-color-text: #1f2328;
+  --pp-color-text-sub1: #424a53;
+  --pp-color-text-sub2: #656d76;
+  --pp-color-background: #ffffff;
+  --pp-color-surface: #f6f8fa;
+  --pp-color-border: #d0d7de;
+  --pp-color-primary: #0969da;
+  --pp-color-primary-soft: #0969da40;
+  --pp-color-secondary: #8250df;
+  --pp-color-secondary-soft: #8250df40;
+  --pp-color-tertiary: #656d76;
+  --pp-color-ok: #1a7f37;
+  --pp-color-ok-soft: #1a7f3740;
+  --pp-color-warn: #9a6700;
+  --pp-color-warn-soft: #9a670040;
+  --pp-color-error: #cf222e;
+  --pp-color-error-soft: #cf222e40;
+
+  /* The blur of the glow behind marked text. 0 draws no glow. */
+  --pp-glow: 0;
+  --pp-space: 1rem;
+  --pp-padding: 0.5rem;
+  --pp-op-path-decoration: none;
+
+  --pp-font-size-2xs: 0.6rem;
+  --pp-font-size-xs: 0.7rem;
+  --pp-font-size-sm: 0.8rem;
+  --pp-font-size-lg: 1.2rem;
+  --pp-font-size-xl: 1.5rem;
+
+  --pp-icon-size-tiny: 0.8rem;
+  --pp-icon-size-small: 1rem;
+  --pp-icon-size-smaller: 1.2rem;
+  --pp-icon-size-medium: 1.4rem;
+  --pp-icon-size-large: 1.8rem;
+  --pp-icon-size-huge: 2rem;
+
+  --pp-http-get: var(--pp-color-ok);
+  --pp-http-get-border: var(--pp-color-ok-soft);
+  --pp-http-post: var(--pp-color-primary);
+  --pp-http-post-border: var(--pp-color-primary-soft);
+  --pp-http-put: var(--pp-color-primary);
+  --pp-http-put-border: var(--pp-color-primary-soft);
+  --pp-http-delete: var(--pp-color-error);
+  --pp-http-delete-border: var(--pp-color-error-soft);
+  --pp-http-patch: var(--pp-color-warn);
+  --pp-http-patch-border: var(--pp-color-warn-soft);
+  --pp-http-query: var(--pp-color-primary);
+  --pp-http-query-border: var(--pp-color-primary-soft);
+  --pp-http-other: var(--pp-color-tertiary);
+  --pp-http-other-border: var(--pp-color-border);
+  --pp-http-background: var(--pp-color-background);
+}
+
+/*
+ * Defaults that every other rule may change. They sit in the lowest layer,
+ * pp-base, so page, theme and component rules win over them.
+ */
+@layer pp-base {
+  /* Icons draw in a 1em square: the Bootstrap icons the components name are square.
+     Callout and model icons keep the wider Web Awesome canvas, which their layouts expect. */
+  wa-icon:not([slot="icon"], .pp-model-icon__icon) {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    min-width: 0;
+    min-height: 0;
+    vertical-align: baseline;
+  }
+
+  /* As Shoelace did, the glyph fills the icon box, so an icon sized by its box draws at that size. */
+  wa-icon:not([slot="icon"], .pp-model-icon__icon)::part(svg) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* A details header puts no gap before its chevron, and takes its corners from the frame. */
+  wa-details::part(header) {
+    gap: 0;
+    border-radius: inherit;
+  }
+
+  /* Callout and model icons keep Web Awesome's canvas before the script defines them too, so the page does not move when it does. */
+  wa-icon:not(:defined):is([slot="icon"], .pp-model-icon__icon) {
+    display: inline-flex;
+    box-sizing: content-box;
+    width: 1.25em;
+    min-width: 1.25em;
+    height: 1em;
+    min-height: 1em;
+    vertical-align: -0.125em;
+  }
+
+  /* A tooltip shows nothing until the script defines it. */
+  wa-tooltip:not(:defined) {
+    display: none;
+  }
+
+  /* Until the script defines them, a tab group lays its tabs out in a row at
+     the size of the tab part, and shows only its active panel. */
+  wa-tab-group:not(:defined) {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  wa-tab-group:not(:defined) > wa-tab {
+    display: block;
+    padding: 1rem 1.25rem;
+  }
+
+  wa-tab-group:not(:defined) > wa-tab-panel {
+    display: none;
+    flex-basis: 100%;
+  }
+
+  wa-tab-group:not(:defined) > wa-tab-panel[active] {
+    display: block;
+    padding: 1rem 0;
+  }
+
+  /* The details chevron sits in a 1em box, as the icons beside it do, in the header text colour. */
+  wa-details::part(icon) {
+    width: 1em;
+    justify-content: center;
+    color: inherit;
+  }
+
+  /* Tabs keep Shoelace's measure: 1rem by 1.25rem tabs, 1rem between the tabs and
+     their panel, and a body that scrolls when its panel overflows. */
+  wa-tab::part(base) {
+    padding: 1rem 1.25rem;
+    border-radius: 0.25rem;
+  }
+
+  wa-tab-group::part(body) {
+    overflow: auto;
+  }
+
+  wa-tab-group > wa-tab-panel {
+    --padding: 1rem 0;
+  }
+
+  wa-tab-group:is([placement="start"], [placement="end"]) > wa-tab-panel {
+    --padding: 0 1rem;
+  }
+
+  /* Web Awesome's own controls take their colours from the --pp-* tokens. */
+  :root {
+    --wa-color-text-normal: var(--pp-color-text);
+  }
+}
+
+/* Where a component places the content written inside it. It draws no box. */
+pp-slot {
+  display: contents;
+}
+
+/* pp-http-method */
+
+pp-http-method {
+  display: inline-block;
+}
+
+/*
+ * The method tag is plain markup, so it is drawn on the first paint, before
+ * any script runs. It keeps the measures of the Web Awesome tag it replaced:
+ * a control height of 2.7em, the tag at 80% of it, and smaller text.
+ */
+pp-http-method .pp-http-method__tag {
+  --pp-http-method-control-height: round(calc(2 * 0.75em + 1em * 1.2), 1px);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  box-sizing: border-box;
+  height: calc(var(--pp-http-method-control-height) * 0.8);
+  padding: 0 0.75em;
+  border: 1px solid;
+  font-size: 1rem;
+  line-height: calc(var(--pp-http-method-control-height) - 2px);
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+pp-http-method .pp-http-method__tag.small {
+  font-size: round(calc(1rem / 1.125), 1px);
+}
+
+pp-http-method .pp-http-method__label {
+  font-size: round(calc(1em / 1.125), 1px);
+}
+
+pp-http-method .pp-http-method__tag {
+  width: 83px;
+  justify-content: center;
+  border-radius: 0;
+  background: var(--pp-http-background);
+  font-family: var(--pp-font-mono-bold);
+  color: var(--pp-http-other);
+  border-color: var(--pp-http-other-border);
+}
+
+pp-http-method .pp-http-method__tag.large {
+  width: 135px;
+  font-size: var(--pp-font-size-xl);
+}
+
+pp-http-method .pp-http-method__tag.small {
+  width: 67px;
+  height: 18px;
+}
+
+pp-http-method .pp-http-method__tag.micro {
+  width: 48px;
+  height: 16px;
+  padding: 0 2px;
+  font-size: var(--pp-font-size-2xs);
+}
+
+/* The method colours follow the tag and label rules, so they win. */
+pp-http-method .pp-http-method__naked {
+  font-family: var(--pp-font-mono-bold);
+  font-size: var(--pp-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  color: var(--pp-http-other);
+}
+
+pp-http-method .get { color: var(--pp-http-get); border-color: var(--pp-http-get-border); }
+pp-http-method .post { color: var(--pp-http-post); border-color: var(--pp-http-post-border); }
+pp-http-method .put { color: var(--pp-http-put); border-color: var(--pp-http-put-border); }
+pp-http-method .delete { color: var(--pp-http-delete); border-color: var(--pp-http-delete-border); }
+pp-http-method .patch { color: var(--pp-http-patch); border-color: var(--pp-http-patch-border); }
+pp-http-method .query { color: var(--pp-http-query); border-color: var(--pp-http-query-border); }
+
+/* pp-render-operation-path */
+
+pp-render-operation-path {
+  color: var(--pp-color-text);
+  font-family: var(--pp-font-mono);
+  font-weight: normal;
+  word-break: break-all;
+  text-decoration: var(--pp-op-path-decoration);
+}
+
+pp-render-operation-path .bracket {
+  color: var(--pp-color-secondary);
+  font-family: var(--pp-font-mono-bold);
+  text-shadow: 0 0 var(--pp-glow) var(--pp-color-secondary);
+}
+
+pp-render-operation-path .param {
+  color: var(--pp-color-primary);
+  font-family: var(--pp-font-mono-bold);
+  font-weight: normal;
+  text-shadow: 0 0 var(--pp-glow) var(--pp-color-primary);
+}
+
+pp-render-operation-path .slash {
+  color: var(--pp-color-text-sub2);
+}
+
+pp-render-operation-path .pp-render-operation-path__nowrap {
+  white-space: nowrap;
+}
+
+pp-render-operation-path .pp-render-operation-path__nowrap span {
+  display: inline-block;
+}
+
+/* pp-model-icon */
+
+pp-model-icon {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+pp-model-icon .pp-model-icon__icon { font-size: var(--pp-icon-size-medium); color: var(--pp-color-primary); }
+pp-model-icon .pp-model-icon__icon.tiny { font-size: var(--pp-icon-size-tiny); }
+pp-model-icon .pp-model-icon__icon.small { font-size: var(--pp-icon-size-small); }
+pp-model-icon .pp-model-icon__icon.smaller { font-size: var(--pp-icon-size-smaller); }
+pp-model-icon .pp-model-icon__icon.large { font-size: var(--pp-icon-size-large); }
+pp-model-icon .pp-model-icon__icon.huge { font-size: var(--pp-icon-size-huge); }
+pp-model-icon .pp-model-icon__icon.secondary { color: var(--pp-color-secondary); }
+pp-model-icon .pp-model-icon__icon.warning,
+pp-model-icon .pp-model-icon__icon.polymorphic { color: var(--pp-color-warn); }
+pp-model-icon .pp-model-icon__icon.error { color: var(--pp-color-error); }
+pp-model-icon .pp-model-icon__icon.inverse { color: var(--pp-color-background); }
+pp-model-icon .pp-model-icon__icon.filtered { color: var(--pp-color-text-sub2); }
+pp-model-icon .pp-model-icon__icon.font { color: var(--pp-color-text); }
+
+/* pp-attention-box */
+
+pp-attention-box {
+  display: block;
+}
+
+pp-attention-box .pp-attention-box__frame {
+  margin: var(--pp-space) 0;
+  border-left: 5px solid var(--pp-color-text-sub1);
+}
+
+pp-attention-box .pp-attention-box__frame.info { border-left-color: var(--pp-color-primary); }
+pp-attention-box .pp-attention-box__frame.success { border-left-color: var(--pp-color-ok); }
+pp-attention-box .pp-attention-box__frame.question { border-left-color: var(--pp-color-secondary); }
+pp-attention-box .pp-attention-box__frame.warning { border-left-color: var(--pp-color-warn); }
+pp-attention-box .pp-attention-box__frame.error { border-left-color: var(--pp-color-error); }
+
+pp-attention-box wa-callout {
+  padding: 0;
+  border: 1px dashed var(--pp-color-border);
+  border-radius: 0;
+  background-color: var(--pp-color-surface);
+  color: var(--pp-color-text);
+  font-family: var(--pp-font-mono);
+}
+
+pp-attention-box wa-callout.info { border-color: var(--pp-color-primary); }
+pp-attention-box wa-callout.success { border-color: var(--pp-color-ok); }
+pp-attention-box wa-callout.question { border-color: var(--pp-color-secondary); }
+pp-attention-box wa-callout.warning { border-color: var(--pp-color-warn); color: var(--pp-color-warn); }
+pp-attention-box wa-callout.error { border-color: var(--pp-color-error); color: var(--pp-color-error); }
+
+pp-attention-box wa-callout::part(icon) {
+  padding-left: calc(var(--pp-space) * 2);
+  font-size: var(--pp-font-size-xl);
+  color: var(--pp-color-text);
+}
+
+pp-attention-box wa-callout > wa-icon[slot="icon"] {
+  margin-inline-end: 0;
+}
+
+pp-attention-box wa-callout::part(message) {
+  padding: var(--pp-padding) calc(var(--pp-space) * 2);
+}
+
+pp-attention-box wa-callout.info::part(icon) { color: var(--pp-color-primary); }
+pp-attention-box wa-callout.success::part(icon) { color: var(--pp-color-ok); }
+pp-attention-box wa-callout.question::part(icon) { color: var(--pp-color-secondary); }
+pp-attention-box wa-callout.warning::part(icon) { color: var(--pp-color-warn); }
+pp-attention-box wa-callout.error::part(icon) { color: var(--pp-color-error); }
+
+pp-attention-box wa-callout > strong {
+  display: block;
+  margin-bottom: var(--pp-space);
+  font-family: var(--pp-font-mono-bold);
+  font-size: var(--pp-font-size-lg);
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* pp-terminal-example */
+
+pp-terminal-example {
+  position: relative;
+  display: flex;
+  column-gap: 10px;
+  margin: 0;
+  padding: 1rem 0;
+  overflow-x: auto;
+  border: 1px dashed var(--pp-color-border);
+  background-color: var(--pp-color-surface);
+  color: var(--pp-color-ok);
+  text-shadow: 0 0 var(--pp-glow) var(--pp-color-ok);
+}
+
+pp-terminal-example::before {
+  padding-left: 1rem;
+  content: ">";
+  font-family: var(--pp-font-mono-bold);
+  color: var(--pp-color-secondary);
+}
+
+pp-terminal-example pre {
+  margin: 0;
+  padding-left: 0;
+  overflow-x: auto;
+}
+
+pp-terminal-example .pp-terminal-example__copy {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+pp-terminal-example .pp-terminal-example__copy {
+  height: 2.375rem;
+  padding: 0 1rem;
+  border: 1px solid var(--pp-color-border);
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--pp-color-primary);
+  font-family: var(--pp-font-mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+pp-terminal-example .pp-terminal-example__copy:hover {
+  border-color: var(--pp-color-primary);
+}
+
+pp-terminal-example[hidden] {
+  display: none;
+}
+
+@media only screen and (max-width: 1000px) {
+  pp-terminal-example .pp-terminal-example__copy {
+    display: none;
+  }
+}
+
+/* pp-paginator and pp-paginated-list */
+
+pp-paginator {
+  display: block;
+}
+
+pp-paginator .pp-paginator__bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--pp-color-secondary);
+  border-bottom: 1px solid var(--pp-color-secondary);
+}
+
+pp-paginator .pp-paginator__bar.hide {
+  display: none;
+}
+
+pp-paginator .location,
+pp-paginator .result-range {
+  color: var(--pp-color-text-sub1);
+  font-size: var(--pp-font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+pp-paginator strong {
+  font-family: var(--pp-font-mono-bold);
+  font-weight: normal;
+}
+
+pp-paginator strong.current-page,
+pp-paginator strong.total {
+  color: var(--pp-color-primary);
+}
+
+pp-paginated-list {
+  display: block;
+}
+
+pp-paginated-list .pp-paginated-list__values {
+  overflow-y: auto;
+}

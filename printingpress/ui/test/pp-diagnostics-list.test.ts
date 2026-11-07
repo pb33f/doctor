@@ -80,8 +80,8 @@ describe('pp-diagnostics-list', () => {
       metadata: {},
     });
 
-    const messageLink = el.shadowRoot?.querySelector<HTMLAnchorElement>('.row .message-link');
-    const targetLink = el.shadowRoot?.querySelector<HTMLAnchorElement>('.row .page');
+    const messageLink = el.querySelector<HTMLAnchorElement>('.row .message-link');
+    const targetLink = el.querySelector<HTMLAnchorElement>('.row .page');
 
     expect(messageLink?.getAttribute('href')).toBe('http://localhost:3000/docs/models/schemas/pet.html');
     expect(messageLink?.textContent?.trim()).toBe('property pet_id is snake_case not camelCase');
@@ -104,8 +104,8 @@ describe('pp-diagnostics-list', () => {
       },
     });
 
-    const messageLink = el.shadowRoot?.querySelector<HTMLAnchorElement>('.row .message-link');
-    const targetLink = el.shadowRoot?.querySelector<HTMLAnchorElement>('.row .page');
+    const messageLink = el.querySelector<HTMLAnchorElement>('.row .message-link');
+    const targetLink = el.querySelector<HTMLAnchorElement>('.row .page');
 
     expect(messageLink?.getAttribute('href')).toBe('http://localhost:3000/docs/operations/get-pets.html');
     expect(messageLink?.getAttribute('href')).toBe(targetLink?.getAttribute('href'));
@@ -119,7 +119,7 @@ describe('pp-diagnostics-list', () => {
       metadata: {},
     });
 
-    expect(el.shadowRoot?.querySelector('.row .message-link')).toBeNull();
-    expect(el.shadowRoot?.querySelector('.row .message')).toBeTruthy();
+    expect(el.querySelector('.row .message-link')).toBeNull();
+    expect(el.querySelector('.row .message')).toBeTruthy();
   });
 });

@@ -1,0 +1,7 @@
+{{/* diagnostics.html counts a card's lint results; with an Href it links to them. Data: the engine's diagnostics view. */}}
+{{if .Href}}<a class="pp-catalog-diagnostics" href="{{.Href}}" aria-label="{{.Label}}">{{else}}<div class="pp-catalog-diagnostics" aria-label="{{.Label}}">{{end}}
+	<span class="pp-catalog-diagnostics-title">Diagnostics</span>
+	{{range .Counts}}
+		<span class="pp-catalog-diagnostic-count {{.Class}}"><wa-icon name="{{.Icon}}" aria-hidden="true"></wa-icon><span class="pp-catalog-diagnostic-number">{{.Count}}</span><span class="pp-catalog-sr-only"> {{.Noun}}</span></span>
+	{{end}}
+{{if .Href}}</a>{{else}}</div>{{end}}

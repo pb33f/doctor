@@ -56,7 +56,7 @@ describe('pp-mermaid', () => {
         (el as any).setRenderFailed(true);
         await el.updateComplete;
 
-        const fallback = el.shadowRoot?.querySelector('.pp-mermaid-fallback');
+        const fallback = el.querySelector('.pp-mermaid-fallback');
         expect(fallback?.textContent).toContain('graph TD');
         expect(fallback?.textContent).toContain('A-->');
     });

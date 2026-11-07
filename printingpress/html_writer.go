@@ -5,20 +5,22 @@
 package printingpress
 
 import (
-	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
-	"github.com/a-h/templ"
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/doctor/printingpress/render"
+	"github.com/pb33f/doctor/printingpress/theme"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -32,7 +34,7 @@ type htmlWriteJob struct {
 	pageTitle  string
 	activeSlug string
 	params     pageParams
-	content    templ.Component
+	content    render.Body
 }
 
 type htmlHydrationJob struct {
@@ -211,6 +213,11 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	}
 	progressTracker.advance("cleaning old html artifacts")
 
+	themeStack, err := render.LoadTheme(site.Theme, site.SiteLayouts)
+	if err != nil {
+		return nil, err
+	}
+
 	// only materialize the embedded static asset tree when the host has not
 	// taken responsibility for serving it. when SharedAssetBaseURL is set the
 	// renderer emits absolute references at that prefix and never writes the
@@ -244,6 +251,11 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			return nil, fmt.Errorf("copying static assets: %w", copyErr)
 		}
 		staticPaths = append(staticPaths, copied...)
+		themeAssets, copyErr := themeStack.CopyAssets(resolvedOutputDir)
+		if copyErr != nil {
+			return nil, fmt.Errorf("copying theme assets: %w", copyErr)
+		}
+		staticPaths = append(staticPaths, themeAssets...)
 		progressTracker.advance("copying static assets")
 	}
 	assetMode := resolveHTMLAssetMode(site)
@@ -282,6 +294,14 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		Footer:             site.Footer,
 		SharedAssetBaseURL: site.SharedAssetBaseURL,
 		HasContentPages:    hasContentPagesForNav(site.ContentPages),
+		Theme:              themeStack,
+		Nav: render.NavMarkupParams{
+			Tags:        site.NavTags,
+			ModelGroups: site.NavModelGroups,
+			Webhooks:    site.NavWebhooks,
+			Pages:       contentPagesForNav(site.ContentPages),
+			Now:         time.Now(),
+		},
 	}
 
 	var jobs []htmlWriteJob
@@ -300,7 +320,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 				payload:  buildRootHydrationPayload(site.Root, sourceCache),
 			}
 		}
-		rootContent := render.RootPageTempl(site.Root, templateDocBaseURL(p.AssetMode, p.BaseURL))
+		rootContent := render.RootBody(site.Root, templateDocBaseURL(p.AssetMode, p.BaseURL))
 		staticPaths, jobs, err = appendHydratedHTMLJob(resolvedOutputDir, staticPaths, jobs, assetMode, p, hydration, htmlWriteJob{
 			path:      filepath.Join(resolvedOutputDir, pppaths.FileIndexHTML),
 			pageTitle: title,
@@ -322,10 +342,17 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			return nil, err
 		}
 		staticPaths = append(staticPaths, assetPaths...)
+		if !page.Audience.ForHumans() {
+			continue
+		}
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, contentPageDepth(page.Href))
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
-		content := render.ContentPageTempl(page, templateDocBaseURL(p.AssetMode, p.BaseURL))
+		p.Description = page.Description
+		if page.MarkdownHref != "" {
+			p.MarkdownHref = path.Base(page.MarkdownHref)
+		}
+		content := render.ContentPageBody(page, templateDocBaseURL(p.AssetMode, p.BaseURL))
 		jobs = append(jobs, htmlWriteJob{
 			path:       filepath.Join(resolvedOutputDir, filepath.FromSlash(page.Href)),
 			pageTitle:  fmt.Sprintf("%s - %s", page.Title, title),
@@ -341,7 +368,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p := *params
 		p.BaseURL = resolvedBaseURL
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
-		content := render.ContentIndexTempl(site.ContentPages, render.GuidesIndexBreadcrumb(), templateDocBaseURL(p.AssetMode, p.BaseURL))
+		content := render.ContentIndexBody(contentPagesForNav(site.ContentPages), render.GuidesIndexBreadcrumb(), templateDocBaseURL(p.AssetMode, p.BaseURL))
 		jobs = append(jobs, htmlWriteJob{
 			path:       filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.GuidesIndexHTML())),
 			pageTitle:  "Guides - " + title,
@@ -352,13 +379,17 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		progressTracker.advance("preparing guides index")
 	}
 
+	contentRefs := contentRefIndex(site)
+
 	// Write operation pages (1 level deep: operations/)
 	for _, op := range site.Operations {
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressOperationCSS)}
 		highlightCodeSamplesForHTML(op)
-		opContent := render.OperationPageTempl(op, templateDocBaseURL(p.AssetMode, p.BaseURL))
+		opBase := templateDocBaseURL(p.AssetMode, p.BaseURL)
+		op.Content = (&contentRenderer{noMermaid: site.NoMermaid, base: opBase, refs: contentRefs}).operationContent(op)
+		opContent := render.OperationBody(op, opBase)
 		pageTitle := fmt.Sprintf("%s %s - %s", op.Method, op.Path, title)
 		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.OperationHTML(op.Slug)))
 		staticPaths, jobs, err = appendHydratedHTMLJob(resolvedOutputDir, staticPaths, jobs, assetMode, p, htmlHydrationJob{
@@ -409,7 +440,18 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 				}
 				staticPaths = append(staticPaths, graphAssetPaths...)
 			}
-			modelContent := render.ModelPageTempl(page, templateDocBaseURL(p.AssetMode, p.BaseURL))
+			linkBase := templateDocBaseURL(p.AssetMode, p.BaseURL)
+			content := &contentRenderer{noMermaid: site.NoMermaid, base: linkBase, refs: contentRefs}
+			page.ContentHTML, page.ContentWritten = content.modelPageContent(page)
+			if page.AsyncAPI != nil && len(page.AsyncAPI.Content) > 0 {
+				page.AsyncAPI.ContentHTML = content.mediaTypeSelector(page.AsyncAPI.Content, mediaTypeOptions{Owner: "page", ID: "pp-message-content"})
+			}
+			page.ExtensionsHTML = content.extensions(page.Extensions, "page")
+			page.CrossRefsHTML = content.crossRefs(page.CrossRefs, page.CrossRefsJSON, crossRefsMinHeight(page))
+			if page.ComponentType == "securitySchemes" && page.SchemaJSON != "" {
+				page.SecuritySchemeHTML = securityScheme(page.SchemaJSON)
+			}
+			modelContent := render.ModelBody(page, linkBase)
 			pageTitle := fmt.Sprintf("%s - %s", page.Name, title)
 			path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.ModelHTML(typeSlug, page.Slug)))
 			activeModelSlug := page.TypeSlug + "/" + page.Slug
@@ -435,7 +477,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
-		indexContent := render.ModelsIndexTempl(site.NavModelGroups, render.ModelsIndexBreadcrumb(), templateDocBaseURL(p.AssetMode, p.BaseURL))
+		indexContent := render.ModelsIndexBody(site.NavModelGroups, render.ModelsIndexBreadcrumb(), templateDocBaseURL(p.AssetMode, p.BaseURL))
 		jobs = append(jobs, htmlWriteJob{
 			path:      filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.ModelsIndexHTML())),
 			pageTitle: "Models - " + title,
@@ -451,7 +493,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p.BaseURL = resolveBase(resolvedBaseURL, 2)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
 		bc := render.ModelTypeIndexBreadcrumb(group.Name)
-		content := render.ModelTypeIndexTempl(group, bc, templateDocBaseURL(p.AssetMode, p.BaseURL))
+		content := render.ModelTypeIndexBody(group, bc, templateDocBaseURL(p.AssetMode, p.BaseURL))
 		pageTitle := fmt.Sprintf("%s - %s", group.Name, title)
 		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.ModelTypeIndexHTML(group.TypeSlug)))
 		jobs = append(jobs, htmlWriteJob{
@@ -476,7 +518,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			path:       filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.DiagnosticsHTMLPath())),
 			pageTitle:  "Diagnostics - " + title,
 			activeSlug: pppaths.DiagnosticsSlug,
-			content:    render.DiagnosticsPageTempl(site.Diagnostics),
+			content:    render.DiagnosticsBody(site.Diagnostics),
 		})
 		if err != nil {
 			return nil, err
@@ -508,7 +550,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 			p.BaseURL = resolveBase(resolvedBaseURL, 1)
 			p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)}
 			bc := render.TagIndexBreadcrumb(tag, tagParentMap)
-			content := render.TagIndexTempl(tag, bc, templateDocBaseURL(p.AssetMode, p.BaseURL))
+			content := render.TagIndexBody(tag, bc, templateDocBaseURL(p.AssetMode, p.BaseURL))
 			pageTitle := fmt.Sprintf("%s - %s", tag.DisplayName(), title)
 			path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.TagHTML(tag.Slug)))
 			jobs = append(jobs, htmlWriteJob{
@@ -529,7 +571,9 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressOperationCSS)}
 		highlightCodeSamplesForHTML(wh)
-		whContent := render.OperationPageTempl(wh, templateDocBaseURL(p.AssetMode, p.BaseURL))
+		whBase := templateDocBaseURL(p.AssetMode, p.BaseURL)
+		wh.Content = (&contentRenderer{noMermaid: site.NoMermaid, base: whBase, refs: contentRefs}).operationContent(wh)
+		whContent := render.OperationBody(wh, whBase)
 		pageTitle := fmt.Sprintf("Webhook: %s %s - %s", wh.Method, wh.Path, title)
 		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.OperationHTML(wh.Slug)))
 		staticPaths, jobs, err = appendHydratedHTMLJob(resolvedOutputDir, staticPaths, jobs, assetMode, p, htmlHydrationJob{
@@ -554,7 +598,7 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 	for _, job := range jobs {
 		job := job
 		g.Go(func() error {
-			if err := writeTemplPage(job.path, job.pageTitle, job.activeSlug, &job.params, job.content); err != nil {
+			if err := writeAPIPage(job.path, job.pageTitle, job.activeSlug, &job.params, job.content); err != nil {
 				return fmt.Errorf("writing %s: %w", job.path, err)
 			}
 			progressTracker.advance("writing html pages")
@@ -698,7 +742,7 @@ func validateExplicitBaseURL(baseURL string) error {
 	return fmt.Errorf("%w: %s", ErrInvalidBaseURL, explicitBaseURLRequirements)
 }
 
-// pageParams holds the shared parameters for writing a templ page.
+// pageParams holds the shared parameters for writing an API page.
 type pageParams struct {
 	SiteTitle          string
 	BaseURL            string
@@ -723,19 +767,28 @@ type pageParams struct {
 	Footer             *ppmodel.FooterConfig
 	SharedAssetBaseURL string
 	HasContentPages    bool
+	Description        string
+	MarkdownHref       string
+	// Nav is the site's navigation; each page writes the part it shows.
+	Nav render.NavMarkupParams
+	// Theme draws the page.
+	Theme *theme.Stack
 }
 
-func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content templ.Component) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
+// writeAPIPage draws one API page through the theme: its body, then the
+// layout around it. A theme template that fails is logged with the page, and
+// the page is skipped; the rest of the build goes on.
+func writeAPIPage(filePath, pageTitle, activeSlug string, p *pageParams, body render.Body) error {
+	stack := p.Theme
+	if stack == nil {
+		stack = render.MustLoadDefaultTheme()
 	}
-	f, err := os.Create(path)
+	content, err := stack.RenderTemplate(body.Template, body.Data)
 	if err != nil {
-		return err
+		slog.Default().Warn("printingpress: theme template failed; skipping page", "page", filePath, "theme", stack.Name(), "error", err)
+		return nil
 	}
-	defer f.Close()
-
-	layout := render.LayoutPage(render.LayoutPageParams{
+	view, err := render.APIPageView(render.LayoutPageParams{
 		PageTitle:          pageTitle,
 		SiteTitle:          p.SiteTitle,
 		BaseURL:            p.BaseURL,
@@ -763,8 +816,22 @@ func writeTemplPage(path, pageTitle, activeSlug string, p *pageParams, content t
 		Footer:             p.Footer,
 		SharedAssetBaseURL: p.SharedAssetBaseURL,
 		HasContentPages:    p.HasContentPages,
-	}, content)
-	return layout.Render(context.Background(), f)
+		Description:        p.Description,
+		MarkdownHref:       p.MarkdownHref,
+		Nav:                p.Nav,
+	}, content, stack.AssetDir())
+	if err != nil {
+		return err
+	}
+	html, err := stack.RenderString(view)
+	if err != nil {
+		slog.Default().Warn("printingpress: theme template failed; skipping page", "page", filePath, "theme", stack.Name(), "error", err)
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(filePath, []byte(html), 0o644)
 }
 
 func resolveHTMLAssetMode(site *ppmodel.Site) string {

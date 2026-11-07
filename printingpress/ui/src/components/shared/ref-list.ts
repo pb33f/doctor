@@ -1,13 +1,9 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import refListCss from './ref-list.css.js';
+import '@pb33f/printing-press-components/paginator/paginated-list.js';
 import {modelHref, operationHref} from '../../utils/doc-links.js';
 import './asyncapi-action.js';
-import '@shoelace-style/shoelace/dist/components/input/input.js';
-import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
-import '@shoelace-style/shoelace/dist/components/menu/menu.js';
-import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
-import '@shoelace-style/shoelace/dist/components/button/button.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 export interface OperationRef {
     method: string;
@@ -51,8 +47,7 @@ function isAsyncAPIAction(method: string): boolean {
 }
 
 @customElement('pp-ref-list')
-export class PpRefList extends LitElement {
-    static styles = refListCss;
+export class PpRefList extends LightElement {
 
     @property() type: 'operations' | 'components' = 'operations';
     @property() heading = '';
@@ -121,57 +116,34 @@ export class PpRefList extends LitElement {
         }, 150);
     }
 
-    private handleClear = () => {
-        clearTimeout(this.searchTimeout);
-        this.searchTerm = '';
-    };
-
-    private handleFilter(e: CustomEvent) {
-        const value = e.detail?.item?.value;
-        this.filterValue = value ?? '';
+    private handleFilter(e: Event) {
+        this.filterValue = (e.target as HTMLSelectElement).value;
     }
 
     private renderOperationMethod(method: string) {
         if (isAsyncAPIAction(method)) {
             return html`<pp-asyncapi-action action=${normalizeAsyncAction(method)} size="small"></pp-asyncapi-action>`;
         }
-        return html`<pb33f-http-method method=${method} tiny></pb33f-http-method>`;
+        return html`<pp-http-method method=${method} tiny></pp-http-method>`;
     }
 
+    // The toolbar is a native select and search input, so the server can
+    // write it as it renders (crossRefs in content_refs.go).
     private renderToolbar() {
-        const filterLabel = this.type === 'operations'
-            ? (this.filterValue || 'ALL METHODS')
-            : (TYPE_LABELS[this.filterValue]?.toUpperCase() || this.filterValue?.toUpperCase() || 'ALL TYPES');
-
+        const operations = this.type === 'operations';
         return html`
             <div class="toolbar">
-                <sl-dropdown>
-                    <sl-button slot="trigger" class="filter-btn" caret size="small">
-                        ${this.type === 'operations' && this.filterValue
-                            ? this.renderOperationMethod(this.filterValue)
-                            : filterLabel}
-                    </sl-button>
-                    <sl-menu @sl-select=${this.handleFilter}>
-                        <sl-menu-item value="">
-                            ${this.type === 'operations' ? 'ALL METHODS' : 'ALL TYPES'}
-                        </sl-menu-item>
-                        ${this.type === 'operations'
-                            ? this.filterOptions.map(m => html`
-                                <sl-menu-item value=${m}>${this.renderOperationMethod(m)}</sl-menu-item>`)
-                            : this.filterOptions.map(t => html`
-                                <sl-menu-item value=${t}>
-                                    ${TYPE_LABELS[t] || t}
-                                </sl-menu-item>`)}
-                    </sl-menu>
-                </sl-dropdown>
-                <sl-input
-                    size="small"
-                    placeholder=${this.type === 'operations' ? 'SEARCH OPERATIONS...' : 'SEARCH NAMES...'}
-                    aria-label=${this.type === 'operations' ? 'Filter by operation' : 'Search components'}
-                    clearable
-                    @sl-input=${this.handleSearch}
-                    @sl-clear=${this.handleClear}>
-                </sl-input>
+                <select class="pp-ref-filter" aria-label=${operations ? 'Filter by method' : 'Filter by type'} @change=${this.handleFilter}>
+                    <option value="">${operations ? 'ALL METHODS' : 'ALL TYPES'}</option>
+                    ${this.filterOptions.map((option) => html`
+                        <option value=${option} ?selected=${option === this.filterValue}>${operations ? option : TYPE_LABELS[option] || option}</option>`)}
+                </select>
+                <input
+                    class="pp-ref-search"
+                    type="search"
+                    placeholder=${operations ? 'SEARCH OPERATIONS...' : 'SEARCH NAMES...'}
+                    aria-label=${operations ? 'Filter by operation' : 'Search components'}
+                    @input=${this.handleSearch}>
             </div>
         `;
     }
@@ -183,7 +155,7 @@ export class PpRefList extends LitElement {
                 class="operation-ref-title"
                 style="display:block;color:var(--terminal-text);line-height:1;overflow-wrap:anywhere;word-break:break-word;">${operationID}</span>`;
         }
-        return html`<pb33f-render-operation-path path=${op.path}></pb33f-render-operation-path>`;
+        return html`<pp-render-operation-path path=${op.path}></pp-render-operation-path>`;
     }
 
     private renderOperationItem(op: OperationRef) {
@@ -212,7 +184,7 @@ export class PpRefList extends LitElement {
     private renderComponentItem(comp: ComponentRef) {
         return html`
             <div style="display:flex;align-items:center;gap:var(--global-padding);padding:0.2rem 0">
-                <pb33f-model-icon icon=${comp.componentType} size="medium"></pb33f-model-icon>
+                <pp-model-icon icon=${comp.componentType} size="medium"></pp-model-icon>
                 <a style="color:var(--terminal-text);text-decoration:none;font-family:var(--font-stack),monospace"
                    @mouseenter=${(e: Event) => (e.target as HTMLElement).style.textDecoration = 'underline'}
                    @mouseleave=${(e: Event) => (e.target as HTMLElement).style.textDecoration = 'none'}
@@ -234,11 +206,10 @@ export class PpRefList extends LitElement {
             <h2>${this.heading}</h2>
             ${showToolbar ? this.renderToolbar() : nothing}
             ${this.filteredItems.length
-                ? html`<pb33f-paginator-navigation
+                ? html`<pp-paginated-list
                             .values=${renderedItems as any}
-                            .label=${this.heading}
-                            hideSparks>
-                        </pb33f-paginator-navigation>`
+                            .label=${this.heading}>
+                        </pp-paginated-list>`
                 : html`<div class="empty-state">No matching references</div>`}
         `;
     }

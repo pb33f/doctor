@@ -38,7 +38,7 @@ describe('pp-asyncapi-protocol', () => {
     document.body.appendChild(el);
     await (el as HTMLElement & {updateComplete: Promise<unknown>}).updateComplete;
 
-    const heading = el.shadowRoot?.querySelector('h1');
+    const heading = el.querySelector('h1');
     expect(heading?.textContent?.trim()).toBe('KAFKA');
     const logo = heading?.querySelector('.mark.kafka svg[data-brand="apache-kafka"]');
     const path = logo?.querySelector('path')?.getAttribute('d') || '';
@@ -69,7 +69,7 @@ describe('pp-asyncapi-protocol', () => {
     document.body.appendChild(el);
     await (el as HTMLElement & {updateComplete: Promise<unknown>}).updateComplete;
 
-    const logo = el.shadowRoot?.querySelector(`svg[data-brand="${brand}"]`);
+    const logo = el.querySelector(`svg[data-brand="${brand}"]`);
     expect(logo).toBeTruthy();
     expect(logo?.querySelector('path')?.getAttribute('d')?.length).toBeGreaterThan(20);
     el.remove();

@@ -1,15 +1,11 @@
 package render
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	stdhtml "html"
-	"io"
 	"strings"
 	"testing"
 
-	"github.com/a-h/templ"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 )
 
@@ -79,7 +75,7 @@ func TestLayoutPageRelationshipAttributeEscaping(t *testing.T) {
 	}
 }
 
-func TestLayoutPageContractNavigationAttributesAndFallback(t *testing.T) {
+func TestLayoutPageContractNavigationAttributesAndMarkup(t *testing.T) {
 	header := &ppmodel.SiteHeaderContext{
 		OverviewLabel: "EVENT OVERVIEW",
 		ContractGroups: []*ppmodel.SiteContractGroup{{
@@ -103,8 +99,10 @@ func TestLayoutPageContractNavigationAttributesAndFallback(t *testing.T) {
 		`data-pp-overview-label="EVENT OVERVIEW"`,
 		`data-pp-contracts="[{&#34;role&#34;:&#34;published-events&#34;`,
 		`Orders &lt;Published&gt;`,
-		`class="pp-nav-fallback-contracts"`,
-		`EVENT OVERVIEW`,
+		`<nav class="contract-navigation" aria-label="Service contracts">`,
+		`<li class="contract-item active"><div class="contract-row"><a class="contract-link active"`,
+		`<div class="contract-local-navigation"><a class="nav-home active"`,
+		`EVENT OVERVIEW</a>`,
 	} {
 		if !strings.Contains(rendered, expected) {
 			t.Fatalf("expected contract navigation output to contain %q", expected)
@@ -138,12 +136,12 @@ func TestLayoutPageContractNavigationAttributesAndFallback(t *testing.T) {
 	if !strings.Contains(legacy, `data-pp-overview-label="API OVERVIEW"`) {
 		t.Fatalf("expected overview label for single-contract navigation")
 	}
-	if strings.Contains(legacy, `data-pp-contracts=`) || strings.Contains(legacy, `class="pp-nav-fallback-contracts"`) {
-		t.Fatalf("single-contract navigation must retain the compact fallback")
+	if strings.Contains(legacy, `data-pp-contracts=`) || strings.Contains(legacy, `contract-navigation`) {
+		t.Fatalf("single-contract navigation must not draw contract navigation")
 	}
 }
 
-func TestLayoutPageContractFallbackRequiresExactlyOneActiveContract(t *testing.T) {
+func TestLayoutPageContractNavigationRequiresExactlyOneActiveContract(t *testing.T) {
 	tests := []struct {
 		name         string
 		firstActive  bool
@@ -171,17 +169,12 @@ func TestLayoutPageContractFallbackRequiresExactlyOneActiveContract(t *testing.T
 				},
 			})
 
-			if strings.Contains(rendered, `class="pp-nav-fallback-contracts"`) {
-				t.Fatalf("ambiguous contract ownership must not wrap the local fallback")
+			if strings.Contains(rendered, `contract-navigation`) {
+				t.Fatalf("ambiguous contract ownership must not wrap the local navigation")
 			}
-			for _, expected := range []string{
-				`<div class="pp-nav-fallback-home">EVENT OVERVIEW</div>`,
-				`<div class="pp-nav-fallback-section"><h4>Operations</h4>`,
-				`<div class="pp-nav-fallback-section"><h4>Models</h4>`,
-			} {
-				if !strings.Contains(rendered, expected) {
-					t.Fatalf("ordinary local fallback missing %q", expected)
-				}
+			if !strings.Contains(rendered, `<pp-nav id="pp-nav" data-active="" data-pp-owner="page" data-pp-ssr><a class="nav-home active"`) ||
+				!strings.Contains(rendered, `EVENT OVERVIEW</a>`) {
+				t.Fatalf("expected the ordinary local navigation")
 			}
 		})
 	}
@@ -199,7 +192,7 @@ func assertInOrder(t *testing.T, value string, expected ...string) {
 	}
 }
 
-func TestLayoutPageDeveloperModeFallbackIncludesDiagnostics(t *testing.T) {
+func TestLayoutPageDeveloperModeNavIncludesDiagnostics(t *testing.T) {
 	html := renderLayoutPageForTest(t, LayoutPageParams{
 		PageTitle:     "Train Travel",
 		SiteTitle:     "Train Travel",
@@ -209,12 +202,12 @@ func TestLayoutPageDeveloperModeFallbackIncludesDiagnostics(t *testing.T) {
 	if !strings.Contains(html, `data-pp-developer-mode="true"`) {
 		t.Fatalf("expected developer mode body attribute in rendered layout")
 	}
-	if !strings.Contains(html, `<div class="pp-nav-fallback-home diagnostics">DIAGNOSTICS</div>`) {
-		t.Fatalf("expected diagnostics row in pre-hydration nav fallback")
+	if !strings.Contains(html, `<a class="nav-home diagnostics" href="diagnostics.html"><wa-icon name="chevron-right" class="nav-home-chevron"></wa-icon>DIAGNOSTICS</a>`) {
+		t.Fatalf("expected the diagnostics link in the server-written nav")
 	}
 }
 
-func TestLayoutPageDefaultFallbackOmitsDiagnostics(t *testing.T) {
+func TestLayoutPageDefaultNavOmitsDiagnostics(t *testing.T) {
 	html := renderLayoutPageForTest(t, LayoutPageParams{
 		PageTitle: "Train Travel",
 		SiteTitle: "Train Travel",
@@ -223,29 +216,29 @@ func TestLayoutPageDefaultFallbackOmitsDiagnostics(t *testing.T) {
 	if strings.Contains(html, `data-pp-developer-mode="true"`) {
 		t.Fatalf("did not expect developer mode body attribute in rendered layout")
 	}
-	if strings.Contains(html, `<div class="pp-nav-fallback-home diagnostics">DIAGNOSTICS</div>`) {
-		t.Fatalf("did not expect diagnostics row in default nav fallback")
-	}
-	if strings.Contains(html, `<div class="host-archive-controls pp-nav-fallback-archive">`) {
-		t.Fatalf("did not expect archive controls in default nav fallback")
-	}
-	if strings.Contains(html, `<div class="pp-nav-fallback-section pp-nav-fallback-guides"><h4>Guides</h4>`) {
-		t.Fatalf("did not expect guides placeholder without content pages")
+	for _, unexpected := range []string{`nav-home diagnostics`, `host-archive-controls`, `nav-pages-section`} {
+		if strings.Contains(html, unexpected) {
+			t.Fatalf("did not expect %q in the default nav", unexpected)
+		}
 	}
 }
 
-func TestLayoutPageContentFallbackIncludesGuides(t *testing.T) {
+func TestLayoutPageContentPagesInNav(t *testing.T) {
 	html := renderLayoutPageForTest(t, LayoutPageParams{
 		PageTitle:       "Train Travel",
 		SiteTitle:       "Train Travel",
 		HasContentPages: true,
+		ActiveSlug:      "content/welcome",
+		Nav: NavMarkupParams{Pages: []*ppmodel.ContentPage{
+			{Title: "Welcome", Slug: "welcome", Href: "content/welcome.html"},
+		}},
 	})
 
 	if !strings.Contains(html, `data-has-content-pages="true"`) {
 		t.Fatalf("expected content page hint on nav element")
 	}
-	if !strings.Contains(html, `<div class="pp-nav-fallback-section pp-nav-fallback-guides"><h4>Guides</h4>`) {
-		t.Fatalf("expected guides placeholder in content page fallback")
+	if !strings.Contains(html, `<div class="nav-section nav-pages-section"><h4>Guides</h4><ul class="nav-pages-list"><li><a class="nav-page-link active" href="content/welcome.html">`) {
+		t.Fatalf("expected the active guide in the server-written nav")
 	}
 }
 
@@ -261,29 +254,27 @@ func TestLayoutPageSharedAssetBaseURLAttribute(t *testing.T) {
 	}
 }
 
-func TestLayoutPageHeadParamsAdjustsRelativeSharedAssetBaseWithoutBaseHref(t *testing.T) {
+func TestLayoutPageSharedAssetBaseAdjustsRelativeSharedAssetBaseWithoutBaseHref(t *testing.T) {
 	params := LayoutPageParams{
 		BaseURL:            "../",
 		StaticAssetBaseURL: "../",
 		SharedAssetBaseURL: "../../../../../../static",
 	}
 
-	head := params.headParams()
-	if head.SharedAssetBaseURL != "../../../../../../../static" {
-		t.Fatalf("expected page-aware shared asset base, got %q", head.SharedAssetBaseURL)
+	if got := params.headSharedAssetBaseURL(); got != "../../../../../../../static" {
+		t.Fatalf("expected page-aware shared asset base, got %q", got)
 	}
 }
 
-func TestLayoutPageHeadParamsKeepsRelativeSharedAssetBaseWithBaseHref(t *testing.T) {
+func TestLayoutPageSharedAssetBaseKeepsRelativeSharedAssetBaseWithBaseHref(t *testing.T) {
 	params := LayoutPageParams{
 		BaseURL:            "../",
 		EmitBaseHref:       true,
 		SharedAssetBaseURL: "../../../../../../static",
 	}
 
-	head := params.headParams()
-	if head.SharedAssetBaseURL != "../../../../../../static" {
-		t.Fatalf("expected root-relative shared asset base when base href is active, got %q", head.SharedAssetBaseURL)
+	if got := params.headSharedAssetBaseURL(); got != "../../../../../../static" {
+		t.Fatalf("expected root-relative shared asset base when base href is active, got %q", got)
 	}
 }
 
@@ -298,92 +289,14 @@ func TestLayoutPageArchiveExportURLAttribute(t *testing.T) {
 		t.Fatalf("expected archive export URL on nav element")
 	}
 	for _, expected := range []string{
-		`<div class="host-archive-controls pp-nav-fallback-archive">`,
-		`EXPORT DOCUMENTATION`,
-		`DIAGNOSTICS?`,
-		`AI DOCS?`,
-		`<div class="pp-nav-fallback-archive-select">ZIP</div>`,
-		`<div class="pp-nav-fallback-archive-button">EXPORT</div>`,
+		`<div class="host-archive-controls" aria-label="Documentation archive export">`,
+		`export documentation`,
+		`<sl-checkbox>diagnostics?</sl-checkbox>`,
+		`<sl-checkbox>AI docs?</sl-checkbox>`,
+		`class="archive-download-button"`,
 	} {
 		if !strings.Contains(html, expected) {
-			t.Fatalf("expected archive controls fallback to contain %q", expected)
-		}
-	}
-}
-
-func TestSharedNavPreviewHonorsDeveloperMode(t *testing.T) {
-	if !strings.Contains(bootstrapSharedNavCacheSource, `function developerMode()`) {
-		t.Fatalf("expected shared nav preview bootstrap to detect developer mode")
-	}
-	if !strings.Contains(bootstrapSharedNavCacheSource, `DIAGNOSTICS`) {
-		t.Fatalf("expected shared nav preview bootstrap to render diagnostics row")
-	}
-}
-
-func TestSharedNavPreviewUsesConsistentChevrons(t *testing.T) {
-	if !strings.Contains(bootstrapSharedNavCacheSource, `function renderPreviewChevron`) {
-		t.Fatalf("expected shared nav preview bootstrap to centralize chevron rendering")
-	}
-	if !strings.Contains(bootstrapSharedNavCacheSource, `pp-nav-preview-chevron-`) ||
-		!strings.Contains(bootstrapSharedNavCacheSource, `(open ? 'down' : 'right')`) {
-		t.Fatalf("expected shared nav preview bootstrap to render chevrons by state class")
-	}
-	if strings.Contains(bootstrapSharedNavCacheSource, `<span class='nav-home-chevron'>`) {
-		t.Fatalf("did not expect shared nav preview bootstrap to use literal home chevron text")
-	}
-	for _, oldChevron := range []string{`'▾'`, `'▸'`} {
-		if strings.Contains(bootstrapSharedNavCacheSource, oldChevron) {
-			t.Fatalf("did not expect shared nav preview bootstrap to use literal chevron %s", oldChevron)
-		}
-	}
-}
-
-func TestSharedNavPreviewSupportsAsyncAPIComponents(t *testing.T) {
-	for _, expected := range []string{
-		`function renderProtocol(protocol)`,
-		`<pp-asyncapi-protocol protocol='`,
-		`op.specKind === 'asyncapi'`,
-		`<pp-asyncapi-action action='`,
-		`tag.protocols.map(renderProtocol)`,
-		`model.protocols.map(renderProtocol)`,
-	} {
-		if !strings.Contains(bootstrapSharedNavCacheSource, expected) {
-			t.Fatalf("expected shared nav preview bootstrap to contain %q", expected)
-		}
-	}
-}
-
-func TestSharedNavPreviewIncludesArchiveFallback(t *testing.T) {
-	if !strings.Contains(bootstrapSharedNavCacheSource, `function archiveExportURLForPreview`) {
-		t.Fatalf("expected shared nav preview bootstrap to resolve archive export URL")
-	}
-	if !strings.Contains(bootstrapSharedNavCacheSource, `navEl.getAttribute('data-archive-export-url')`) {
-		t.Fatalf("expected shared nav preview bootstrap to preserve live archive export URL")
-	}
-	if !strings.Contains(bootstrapSharedNavCacheSource, `function renderArchiveControlsPreview`) {
-		t.Fatalf("expected shared nav preview bootstrap to render archive controls fallback")
-	}
-	if !strings.Contains(bootstrapSharedNavCacheSource, `data-archive-export-url`) {
-		t.Fatalf("expected shared nav preview bootstrap to detect archive export URL")
-	}
-	if !strings.Contains(bootstrapSharedNavCacheSource, `pp-nav-fallback-archive`) {
-		t.Fatalf("expected shared nav preview bootstrap to include archive fallback markup")
-	}
-}
-
-func TestSharedNavPreviewDefersContractRenderingToServerAndComponent(t *testing.T) {
-	if !strings.Contains(bootstrapSharedNavCacheSource, `data.ppContracts`) {
-		t.Fatalf("expected shared nav preview bootstrap to detect contract-aware pages")
-	}
-	for _, obsolete := range []string{
-		`function normalizePreviewVersions`,
-		`function normalizePreviewContractGroups`,
-		`function contractGroupsForPreview`,
-		`function overviewLabelForPreview`,
-		`function renderContractNavigationPreview`,
-	} {
-		if strings.Contains(bootstrapSharedNavCacheSource, obsolete) {
-			t.Fatalf("contract-aware preview rendering must be deferred; found %q", obsolete)
+			t.Fatalf("expected archive controls to contain %q", expected)
 		}
 	}
 }
@@ -391,13 +304,27 @@ func TestSharedNavPreviewDefersContractRenderingToServerAndComponent(t *testing.
 func renderLayoutPageForTest(t *testing.T, params LayoutPageParams) string {
 	t.Helper()
 
-	var buf bytes.Buffer
-	err := LayoutPage(params, templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		_, err := io.WriteString(w, `<section>body</section>`)
-		return err
-	})).Render(context.Background(), &buf)
+	stack := MustLoadDefaultTheme()
+	view, err := APIPageView(params, `<section>body</section>`, stack.AssetDir())
+	if err != nil {
+		t.Fatalf("build page view: %v", err)
+	}
+	html, err := stack.RenderString(view)
 	if err != nil {
 		t.Fatalf("render layout page: %v", err)
 	}
-	return buf.String()
+	return html
+}
+
+// The server writes the nav, so the cache script only hands pp-nav its data:
+// it draws no preview of its own.
+func TestSharedNavCacheScriptOnlyPassesNavData(t *testing.T) {
+	if !strings.Contains(bootstrapSharedNavCacheSource, `navEl.setAttribute('data-pp-nav-cached', 'true')`) {
+		t.Fatalf("expected the cache script to pass the nav data to pp-nav")
+	}
+	for _, removed := range []string{`pp-nav-preview`, `renderNavPreview`, `pp-nav-fallback`} {
+		if strings.Contains(bootstrapSharedNavCacheSource, removed) {
+			t.Fatalf("the cache script must not draw a nav preview; found %q", removed)
+		}
+	}
 }

@@ -23,7 +23,7 @@ describe('content code copy enhancer', () => {
     expect(wrappers[0]?.querySelector('pre')?.textContent).toBe('go test ./printingpress/...');
     const copy = document.querySelector('.pp-content-code-copy') as HTMLButtonElement | null;
     expect(copy?.tagName).toBe('BUTTON');
-    expect(copy?.querySelector('sl-icon')?.getAttribute('name')).toBe('copy');
+    expect(copy?.querySelector('wa-icon')?.getAttribute('name')).toBe('copy');
     expect(document.querySelectorAll('body > pre[data-pp-copy-ready]')).toHaveLength(0);
   });
 

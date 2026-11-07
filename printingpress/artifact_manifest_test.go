@@ -115,7 +115,7 @@ func TestPrintingPress_WritesHostedArtifactManifestWhenEnabled(t *testing.T) {
 	assert.Contains(t, string(indexHTML), `type:"ppress:ready"`)
 	// generated HTML references shared assets at SharedAssetBaseURL, not under the artifact's static/ dir.
 	assert.Contains(t, string(indexHTML), `data-pp-shared-asset-base-url="/ppress/static/v1"`)
-	assert.Contains(t, string(indexHTML), `href="/ppress/static/v1/printing-press.css"`)
+	assert.Contains(t, string(indexHTML), `url("/ppress/static/v1/printing-press.css")`)
 	assert.Contains(t, string(indexHTML), `src="/ppress/static/v1/printing-press.js"`)
 	assert.NotContains(t, string(indexHTML), `frameToken`)
 	assert.NotContains(t, string(indexHTML), `ppframe`)

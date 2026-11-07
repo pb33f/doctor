@@ -73,6 +73,11 @@ type pressEngineConfig struct {
 	LLMGenerateMonoliths               string
 	// SyntheticTagFallback reuses untagged path grouping when operation tags are too coarse.
 	SyntheticTagFallback *SyntheticTagFallbackConfig
+	// mockSeed, when non-zero, seeds the mock generators (tests only).
+	mockSeed int64
+	// Theme and SiteLayouts select the theme that draws the pages.
+	Theme       string
+	SiteLayouts string
 }
 
 // SyntheticTagFallbackConfig controls when tagged operations should be treated as effectively untagged.
@@ -113,6 +118,8 @@ type PrintingPress struct {
 	resolvedOutputDir   string
 	activity            *activityManager
 	currentJob          *activityJob
+	// contentHome is the docs folder top-level _index.md, kept off the page list.
+	contentHome *ContentPage
 }
 
 func newPressEngine(config *pressEngineConfig) *PrintingPress {
@@ -161,6 +168,12 @@ func (pp *PrintingPress) initEngine(config *pressEngineConfig) {
 	mgXML.SetPretty()
 	mgXML.DisableRequiredCheck()
 
+	if config.mockSeed != 0 {
+		mg.SetSeed(config.mockSeed)
+		mgYAML.SetSeed(config.mockSeed)
+		mgXML.SetSeed(config.mockSeed)
+	}
+
 	pp.engineConfig = config
 	pp.slugs = slugpkg.NewSlugRegistry()
 	pp.mockGen = mg
@@ -181,6 +194,8 @@ func (pp *PrintingPress) initEngine(config *pressEngineConfig) {
 		DocsExpiresAt:      config.DocsExpiresAt,
 		ArchiveExportURL:   config.ArchiveExportURL,
 		IncludedSpecs:      append([]*IncludedSpecAsset(nil), config.IncludedSpecs...),
+		Theme:              config.Theme,
+		SiteLayouts:        config.SiteLayouts,
 	}
 	pp.devOperationPages = nil
 	pp.devModelPages = nil

@@ -1,0 +1,8 @@
+{{/* guide-card.html is one card in a list of pages. Data: render.GuideCard. */}}
+<a href="{{.Href}}" class="pp-guide-card"{{with .Rel}} rel="{{.}}"{{end}}>
+	<div class="pp-guide-card-title">
+		{{if .Chevron}}<wa-icon name="chevron-right" aria-hidden="true"></wa-icon>{{end}}
+		<strong>{{.Title}}</strong>
+	</div>
+	{{with .Description}}<p>{{.}}</p>{{end}}
+</a>

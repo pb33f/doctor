@@ -1,0 +1,50 @@
+package render
+
+import (
+	"strings"
+	"testing"
+
+	ppmodel "github.com/pb33f/doctor/printingpress/model"
+)
+
+func TestRootPageAsyncAPIOperationUsesSharedActionAndPathRenderers(t *testing.T) {
+	destination := "smartylighting.streetlights.1.0.event.{streetlightId}.lighting.measured"
+	tests := []struct {
+		action string
+		code   string
+	}{
+		{action: "receive", code: "RCV"},
+		{action: "send", code: "SND"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.action, func(t *testing.T) {
+			op := &ppmodel.NavOperation{
+				SpecKind: ppmodel.SpecKindValueAsyncAPI,
+				Method:   tt.action,
+				Path:     destination,
+				Slug:     tt.action + "-light-measurement",
+			}
+
+			html := renderTemplateForTest(t, "api/partials/operation-item.html", newOperationItemArgs(op, ""))
+			actionMarkup := `<pp-asyncapi-action action="` + tt.action + `" size="small" data-pp-owner="page" data-pp-ssr>`
+			pathMarkup := `<pp-render-operation-path path="` + destination + `" data-pp-owner="page" data-pp-ssr>`
+			actionIndex := strings.Index(html, actionMarkup)
+			pathIndex := strings.Index(html, pathMarkup)
+			if actionIndex < 0 || pathIndex < 0 || actionIndex >= pathIndex {
+				t.Fatalf("expected action before rendered destination, got:\n%s", html)
+			}
+			if !strings.Contains(html, `<span>`+tt.code+`</span>`) {
+				t.Fatalf("expected %s action code, got:\n%s", tt.code, html)
+			}
+			for _, unwanted := range []string{
+				`<pp-http-method`,
+				`<code>` + destination + `</code>`,
+			} {
+				if strings.Contains(html, unwanted) {
+					t.Fatalf("did not expect AsyncAPI root operation to contain %q: %s", unwanted, html)
+				}
+			}
+		})
+	}
+}

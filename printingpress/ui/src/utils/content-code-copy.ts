@@ -85,7 +85,7 @@ export function enhanceContentCodeBlocks(root: ParentNode = document) {
       void copyCodeBlock(pre, copy);
     });
 
-    const icon = document.createElement('sl-icon');
+    const icon = document.createElement('wa-icon');
     icon.setAttribute('name', 'copy');
     icon.setAttribute('aria-hidden', 'true');
     copy.appendChild(icon);

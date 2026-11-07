@@ -1,0 +1,161 @@
+/*
+ * media-type-selector.css. The build wraps this sheet in an @scope block for each
+ * component that lists it in styles/components.json, : :scope is the
+ * component, or a pp-slot holding content its template wrote. Rules about the
+ * component itself use :where(:scope:not(pp-slot)), so a parent can still
+ * style it, as it could a shadow host.
+ */
+
+:where(:scope:not(pp-slot)) {
+    display: block;
+}
+
+.media-type-ref {
+    display: flex;
+    align-items: center;
+    gap: var(--global-padding-double);
+    padding: var(--global-padding-double) 0 var(--global-padding);
+}
+
+.media-type-ref sl-dropdown {
+    margin-top: 0;
+}
+
+.media-type-label {
+    font-family: var(--font-stack-bold), monospace;
+    color: var(--primary-color);
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
+}
+
+.array-type {
+    font-family: var(--font-stack);
+    color: var(--font-color-sub1);
+}
+
+.media-type-extensions {
+    margin-top: var(--global-padding-double);
+    border-top: 1px dotted var(--hrcolor);
+    padding-top: var(--global-padding-double);
+}
+
+.media-type-extensions h4 {
+    font-family: var(--font-stack), monospace;
+    font-weight: normal;
+    color: var(--font-color-sub1);
+    text-transform: uppercase;
+    letter-spacing: var(--title-spacing);
+    margin: 0 0 var(--global-padding) 0;
+}
+
+/* Split panel (wide layout). A media type's split sits close under its
+   header, with no frame, and is as tall as its content, unlike the model
+   page's. */
+
+.schema-split {
+    max-height: none;
+    margin-top: var(--global-padding);
+    border: 0;
+    padding: 0;
+}
+
+.split-pane {
+    height: 100%;
+    min-width: 0;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--secondary-color-dimmer) transparent;
+}
+
+.split-pane::-webkit-scrollbar {
+    width: 6px;
+}
+
+.split-pane::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.split-pane::-webkit-scrollbar-thumb {
+    background: var(--secondary-color-dimmer);
+    border-radius: 0;
+}
+
+.schema-props-pane {
+    padding: 0 var(--global-padding-double) var(--global-padding-double) 0;
+}
+
+.schema-example-pane {
+    padding: 0 0 0 var(--global-padding-double);
+    --code-accent-color: var(--primary-color);
+    --code-border-color: var(--primary-color-lowalpha);
+    --example-margin: 0;
+    --code-viewer-margin-top: 0;
+}
+
+.example-hidden .schema-example-pane,
+.schema-split[data-example-hidden] .schema-example-pane {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    min-width: 2.5rem;
+    padding: 0;
+    overflow: hidden;
+}
+
+.example-restore-tooltip {
+    --sl-tooltip-background-color: var(--background-color);
+    --sl-tooltip-color: var(--font-color);
+    --sl-tooltip-border-radius: 0;
+    --sl-tooltip-font-family: var(--font-stack), monospace;
+    --sl-tooltip-font-size: inherit;
+    --sl-tooltip-padding: var(--global-padding);
+    --sl-tooltip-arrow-size: 6px;
+}
+
+.example-restore-tooltip::part(body) {
+    border: 1px dashed var(--secondary-color);
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
+}
+
+.example-restore::part(base) {
+    color: var(--font-color-sub1);
+    font-size: 1rem;
+    padding: var(--global-padding-half);
+}
+
+.example-restore::part(base):hover {
+    color: var(--primary-color);
+}
+
+.multi-format-schema {
+    margin-top: var(--global-padding);
+}
+
+.schema-format-label {
+    margin-bottom: var(--global-padding-half);
+    color: var(--secondary-color);
+    font-size: var(--font-size-small);
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+}
+
+/* The media-type choice the server writes: a native select in each block. */
+.pp-media-type-select {
+    min-width: 150px;
+    max-width: 300px;
+    height: 2.5rem; /* the height of the dropdown button it replaces */
+    padding: var(--global-padding-half) var(--global-padding);
+    border: 1px solid var(--primary-color);
+    border-radius: 0;
+    background-color: var(--background-color);
+    color: var(--primary-color);
+    font-family: var(--font-stack), monospace;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
+}
+
+.pp-media-type-block[hidden] {
+    display: none;
+}

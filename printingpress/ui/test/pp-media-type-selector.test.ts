@@ -60,13 +60,13 @@ describe('pp-media-type-selector', () => {
         const el = create(JSON.stringify([jsonMT]));
         await el.updateComplete;
 
-        const dropdown = el.shadowRoot?.querySelector('sl-dropdown');
+        const dropdown = el.querySelector('sl-dropdown');
         expect(dropdown).toBeNull();
 
-        const schemaProps = el.shadowRoot?.querySelector('pp-schema-properties');
+        const schemaProps = el.querySelector('pp-schema-properties');
         expect(schemaProps).toBeTruthy();
 
-        const refLink = el.shadowRoot?.querySelector('.ref-link');
+        const refLink = el.querySelector('.ref-link');
         expect(refLink?.textContent).toContain('Pet');
     });
 
@@ -78,7 +78,7 @@ describe('pp-media-type-selector', () => {
         }]));
         await el.updateComplete;
 
-        const diagram = el.shadowRoot?.querySelector('pp-class-diagram') as HTMLElement & {diagram?: string};
+        const diagram = el.querySelector('pp-class-diagram') as HTMLElement & {diagram?: string};
         expect(diagram).toBeTruthy();
         expect(diagram.diagram).toContain('Event *-- SentAt');
     });
@@ -93,11 +93,11 @@ describe('pp-media-type-selector', () => {
         }]));
         await el.updateComplete;
 
-        expect(el.shadowRoot?.querySelector('.schema-format-label')?.textContent).toContain('application/vnd.apache.avro');
-        const viewer = el.shadowRoot?.querySelector('pp-code-viewer') as HTMLElement & {code?: string};
+        expect(el.querySelector('.schema-format-label')?.textContent).toContain('application/vnd.apache.avro');
+        const viewer = el.querySelector('pp-code-viewer') as HTMLElement & {code?: string};
         expect(viewer?.code).toBe(raw);
-        expect(el.shadowRoot?.querySelector('pp-schema-properties')).toBeNull();
-        expect(el.shadowRoot?.querySelector('pp-class-diagram')).toBeNull();
+        expect(el.querySelector('pp-schema-properties')).toBeNull();
+        expect(el.querySelector('pp-class-diagram')).toBeNull();
     });
 
     it('should suppress inline schema ref links when hide-ref-links is set', async () => {
@@ -105,7 +105,7 @@ describe('pp-media-type-selector', () => {
         el.setAttribute('hide-ref-links', '');
         await el.updateComplete;
 
-        const refLink = el.shadowRoot?.querySelector('.ref-link');
+        const refLink = el.querySelector('.ref-link');
         expect(refLink).toBeNull();
     });
 
@@ -113,7 +113,7 @@ describe('pp-media-type-selector', () => {
         const el = create(JSON.stringify([jsonMT, xmlMT]));
         await el.updateComplete;
 
-        const dropdown = el.shadowRoot?.querySelector('sl-dropdown');
+        const dropdown = el.querySelector('sl-dropdown');
         expect(dropdown).toBeTruthy();
     });
 
@@ -123,7 +123,7 @@ describe('pp-media-type-selector', () => {
 
         // Both have same schemaRef slug "pet"
         // Schema should render once (only one pp-schema-properties)
-        const schemaProps = el.shadowRoot?.querySelectorAll('pp-schema-properties');
+        const schemaProps = el.querySelectorAll('pp-schema-properties');
         expect(schemaProps?.length).toBe(1);
     });
 
@@ -132,7 +132,7 @@ describe('pp-media-type-selector', () => {
         await el.updateComplete;
 
         // Different schemas — should still only render selected one
-        const schemaProps = el.shadowRoot?.querySelectorAll('pp-schema-properties');
+        const schemaProps = el.querySelectorAll('pp-schema-properties');
         expect(schemaProps?.length).toBe(1);
     });
 
@@ -141,7 +141,7 @@ describe('pp-media-type-selector', () => {
         await el.updateComplete;
 
         // Should select jsonMT (index 1) as default
-        const button = el.shadowRoot?.querySelector('sl-button');
+        const button = el.querySelector('sl-button');
         expect(button?.textContent?.trim()).toBe('application/json');
     });
 
@@ -150,8 +150,8 @@ describe('pp-media-type-selector', () => {
         await el.updateComplete;
 
         // No meaningful content (no schema-properties, no dropdown)
-        const schemaProps = el.shadowRoot?.querySelector('pp-schema-properties');
-        const dropdown = el.shadowRoot?.querySelector('sl-dropdown');
+        const schemaProps = el.querySelector('pp-schema-properties');
+        const dropdown = el.querySelector('sl-dropdown');
         expect(schemaProps).toBeNull();
         expect(dropdown).toBeNull();
     });
@@ -163,22 +163,22 @@ describe('pp-media-type-selector', () => {
         (el as any).wide = true;
         await el.updateComplete;
 
-        const exampleSelector = el.shadowRoot?.querySelector('pp-example-selector') as HTMLElement;
+        const exampleSelector = el.querySelector('pp-example-selector') as HTMLElement;
         expect(exampleSelector).toBeTruthy();
         expect(exampleSelector.hasAttribute('show-visibility-toggle')).toBe(true);
 
         exampleSelector.dispatchEvent(new CustomEvent('pp-hide-example'));
         await el.updateComplete;
 
-        let split = el.shadowRoot?.querySelector('.schema-split');
+        let split = el.querySelector('.schema-split');
         expect(split?.classList.contains('example-hidden')).toBe(true);
 
-        const restore = el.shadowRoot?.querySelector('.example-restore') as HTMLElement;
+        const restore = el.querySelector('.example-restore') as HTMLElement;
         expect(restore).toBeTruthy();
         restore.click();
         await el.updateComplete;
 
-        split = el.shadowRoot?.querySelector('.schema-split');
+        split = el.querySelector('.schema-split');
         expect(split?.classList.contains('example-hidden')).toBe(false);
     });
 
@@ -199,7 +199,7 @@ describe('pp-media-type-selector', () => {
         (el as any).wide = true;
         await el.updateComplete;
 
-        const schemaProps = el.shadowRoot?.querySelector('pp-schema-properties');
+        const schemaProps = el.querySelector('pp-schema-properties');
         expect(schemaProps?.hasAttribute('compact')).toBe(true);
         expect(schemaProps?.hasAttribute('constrained')).toBe(true);
     });

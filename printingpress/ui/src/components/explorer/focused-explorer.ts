@@ -1,20 +1,29 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state, query} from 'lit/decorators.js';
 import {ExplorerComponent} from '@pb33f/cowboy-components/components/visualizer/explorer.js';
 import {ExplorerNodeClicked} from '@pb33f/cowboy-components/events/doctor.js';
+// The cowboy explorer draws these two inside its nodes. They go when step 6d
+// moves the explorer to the library.
+import '@pb33f/cowboy-components/components/http-method/http-method.js';
+import '@pb33f/cowboy-components/components/render-operation-path/render-operation-path.js';
 import {createElkLayoutWorker} from '../../elk-layout-worker-inline.js';
 import {createGraphDependentWorker} from '../../graph-dependent-worker-inline.js';
 import {ensureModelGraphVisualization} from '../../utils/model-visualization.js';
 import {docHref} from '../../utils/doc-links.js';
-import styles from './focused-explorer.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+
+/** True when a mutation adds or removes a data script. */
+function touchesDataScript(record: MutationRecord): boolean {
+    return [...record.addedNodes, ...record.removedNodes].some((node) => node instanceof HTMLScriptElement && node.matches('script.pp-graph-data'));
+}
 
 // Set worker factories before any explorer element is created
 ExplorerComponent.elkWorkerFactory = createElkLayoutWorker;
 ExplorerComponent.graphDependentWorkerFactory = createGraphDependentWorker;
 
 @customElement('pp-focused-explorer')
-export class PpFocusedExplorer extends LitElement {
-    static styles = styles;
+export class PpFocusedExplorer extends LightElement {
+    protected static keepChildren = true;
 
     @property({attribute: 'node-id'}) nodeId = '';
     @property() name = '';
@@ -42,7 +51,7 @@ export class PpFocusedExplorer extends LitElement {
     };
 
     private hydrateEmbeddedData() {
-        const scriptEl = this.querySelector('script.pp-graph-data');
+        const scriptEl = this.querySelector(':scope > script.pp-graph-data');
         if (!scriptEl?.textContent) {
             this.graphData = null;
             return;
@@ -57,11 +66,15 @@ export class PpFocusedExplorer extends LitElement {
     connectedCallback() {
         super.connectedCallback();
         setTimeout(() => {
-            this.embeddedDataObserver = new MutationObserver(() => {
-                this.hydrateEmbeddedData();
+            // The component renders into itself, so only a change to its
+            // data script is a reason to read the data again.
+            this.embeddedDataObserver = new MutationObserver((records) => {
+                if (records.some(touchesDataScript)) {
+                    this.hydrateEmbeddedData();
+                }
             });
             this.embeddedDataObserver.observe(this, {childList: true});
-            if (!this.closest('sl-tab-group')) {
+            if (!this.closest('wa-tab-group')) {
                 void this.loadVisualizationData();
             }
         }, 0);
@@ -78,7 +91,7 @@ export class PpFocusedExplorer extends LitElement {
         this._visibilityResizeObserver?.disconnect();
         this._visibilityResizeObserver = null;
         if (this._tabShowHandler) {
-            this.closest('sl-tab-group')?.removeEventListener('sl-tab-show', this._tabShowHandler);
+            this.closest('wa-tab-group')?.removeEventListener('wa-tab-show', this._tabShowHandler);
             this._tabShowHandler = null;
         }
         this.expandedDialog?.remove();
@@ -104,7 +117,7 @@ export class PpFocusedExplorer extends LitElement {
         }
 
         if (!this._tabShowHandler) {
-            const panel = this.closest('sl-tab-panel');
+            const panel = this.closest('wa-tab-panel');
             const panelName = panel?.getAttribute('name');
             this._tabShowHandler = (event: Event) => {
                 const detail = (event as CustomEvent<{ name?: string }>).detail;
@@ -114,7 +127,7 @@ export class PpFocusedExplorer extends LitElement {
                     this._scheduleViewportRefresh();
                 });
             };
-            this.closest('sl-tab-group')?.addEventListener('sl-tab-show', this._tabShowHandler);
+            this.closest('wa-tab-group')?.addEventListener('wa-tab-show', this._tabShowHandler);
         }
     }
 

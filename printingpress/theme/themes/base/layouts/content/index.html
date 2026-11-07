@@ -1,0 +1,12 @@
+{{/* content/index.html lists the guides. Data: render.PageData of []render.GuideCard. */}}
+<div class="pp-root pp-content-index">
+	{{template "api/partials/breadcrumb.html" .Crumbs}}
+	<h1>Guides</h1>
+	<div class="pp-guide-cards">
+		{{range .Page}}
+			{{template "content/partials/guide-card.html" .}}
+		{{else}}
+			<p class="pp-content-index-empty">No guides are linked.</p>
+		{{end}}
+	</div>
+</div>

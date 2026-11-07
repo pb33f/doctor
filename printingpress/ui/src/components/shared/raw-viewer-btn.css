@@ -1,0 +1,44 @@
+/*
+ * raw-viewer-btn.css. The build wraps this sheet in an @scope block for each
+ * component that lists it in styles/components.json, : :scope is the
+ * component, or a pp-slot holding content its template wrote. Rules about the
+ * component itself use :where(:scope:not(pp-slot)), so a parent can still
+ * style it, as it could a shadow host.
+ */
+
+:where(:scope:not(pp-slot)) {
+    display: inline-block;
+}
+
+/* The box the Shoelace button host drew, which sets where the button sits in a heading. */
+.raw-viewer-box {
+    display: inline-block;
+    position: relative;
+}
+
+/* A native button, drawn on the first paint, at the size the Shoelace text button had. */
+.raw-viewer-button {
+    display: inline-flex;
+    vertical-align: middle;
+    align-items: center;
+    box-sizing: border-box;
+    height: 30px;
+    margin: 0;
+    padding: 0 8px 0 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--primary-color);
+    font-size: 1.5rem;
+    line-height: 28px;
+    cursor: pointer;
+}
+
+.raw-viewer-button:hover {
+    color: var(--font-color);
+}
+
+.raw-viewer-button:focus-visible {
+    outline: 1px solid var(--secondary-color);
+    outline-offset: 1px;
+}

@@ -1,13 +1,6 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {unsafeHTML} from 'lit/directives/unsafe-html.js';
 import {customElement, property, state} from 'lit/decorators.js';
-import sharedCss from '../../styles/shared.css.js';
-import constraintsCss from '../../styles/constraints.css.js';
-import markdownCss from '../../styles/markdown.css.js';
-import refLinkCss from '../../styles/ref-link.css.js';
-import statusColorsCss from '../../styles/status-colors.css.js';
-import operationResponsesCss from './operation-responses.css.js';
-import detailsCss from '../../styles/details.css.js';
 import '../shared/code-viewer.js';
 import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';
@@ -19,6 +12,8 @@ import {modelHref, operationHref} from '../../utils/doc-links.js';
 import '../shared/extensions.js';
 import '../shared/example-selector.js';
 import '../shared/media-type-selector.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+import {bindReveal} from '../../utils/content-behaviour.js';
 
 interface HeaderData {
     name: string;
@@ -44,8 +39,7 @@ interface LinkData {
 }
 
 @customElement('pp-operation-responses')
-export class PpOperationResponses extends LitElement {
-    static styles = [sharedCss, constraintsCss, markdownCss, refLinkCss, statusColorsCss, operationResponsesCss, detailsCss];
+export class PpOperationResponses extends LightElement {
 
     @property({attribute: 'responses-json'}) responsesJson = '';
     @property({attribute: 'common-headers-json'}) commonHeadersJson = '';
@@ -60,6 +54,18 @@ export class PpOperationResponses extends LitElement {
     @state() private successResponses: ResponseData[] = [];
     @state() private redirectResponses: ResponseData[] = [];
     @state() private errorResponses: ResponseData[] = [];
+
+    // Server-written content is never drawn again.
+    protected canReplaceServerMarkup(): boolean {
+        return false;
+    }
+
+    connectedCallback() {
+        super.connectedCallback();
+        if (this.serverRendered) {
+            bindReveal(this);
+        }
+    }
 
     willUpdate(changed: Map<string, unknown>) {
         if (changed.has('responsesJson') && this.responsesJson) {
@@ -101,6 +107,10 @@ export class PpOperationResponses extends LitElement {
     }
 
     public getResponseNavItems(): Array<{label: string; id: string}> {
+        if (this.serverRendered) {
+            return Array.from(this.querySelectorAll<HTMLElement>('.response[data-nav-label]'),
+                (response) => ({label: response.dataset.navLabel ?? '', id: response.id}));
+        }
         const items: Array<{label: string; id: string}> = [];
         for (const r of [...this.successResponses, ...this.redirectResponses, ...this.errorResponses]) {
             items.push({
@@ -112,10 +122,10 @@ export class PpOperationResponses extends LitElement {
     }
 
     private scrollToHeader(name: string) {
-        const el = this.shadowRoot?.getElementById('header-' + name);
+        const el = this.querySelector(`#${CSS.escape('header-' + name)}`);
         if (!el) return;
-        // Expand the parent <sl-details> if collapsed
-        const details = el.closest('sl-details') as (HTMLElement & {open: boolean; updateComplete: Promise<void>}) | null;
+        // Expand the parent <wa-details> if collapsed
+        const details = el.closest('wa-details') as (HTMLElement & {open: boolean; updateComplete: Promise<void>}) | null;
         if (details && !details.open) {
             details.open = true;
             details.updateComplete?.then(() => {
@@ -262,7 +272,7 @@ export class PpOperationResponses extends LitElement {
     }
 
     private scrollToCommonError(key: string) {
-        const el = this.shadowRoot?.getElementById('common-error-' + key);
+        const el = this.querySelector(`#${CSS.escape('common-error-' + key)}`);
         el?.scrollIntoView({behavior: 'auto', block: 'nearest'});
     }
 
@@ -387,27 +397,27 @@ export class PpOperationResponses extends LitElement {
             <h2>Responses</h2>
             ${this.successResponses.map(r => this.renderResponse(r, commonNames))}
             ${this.redirectResponses.length ? html`
-                <sl-details class="pp-details">
+                <wa-details class="pp-details">
                     <span slot="summary" class="pp-details-summary"><h3>Redirect Responses</h3></span>
                     ${this.redirectResponses.map(r => this.renderResponse(r, commonNames))}
-                </sl-details>
+                </wa-details>
             ` : nothing}
             ${this.commonResponseHeaders.length ? html`
-                <sl-details class="pp-details">
+                <wa-details class="pp-details">
                     <span slot="summary" class="pp-details-summary"><h3>Common Response Headers</h3></span>
                     <div class="property-box">
                         ${this.commonResponseHeaders.map(h => html`
                             <div id="header-${h.name}">${this.renderHeaderEntry(h)}</div>
                         `)}
                     </div>
-                </sl-details>
+                </wa-details>
             ` : nothing}
             ${this.errorResponses.length || commonResponses.size ? html`
-                <sl-details class="pp-details">
+                <wa-details class="pp-details">
                     <div slot="summary" class="pp-details-summary"><h3>Error Responses</h3></div>
                     ${this.renderCommonErrors(commonResponses, commonNames)}
                     ${this.errorResponses.map(r => this.renderResponse(r, commonNames, commonKeys))}
-                </sl-details>
+                </wa-details>
             ` : nothing}
         `;
     }

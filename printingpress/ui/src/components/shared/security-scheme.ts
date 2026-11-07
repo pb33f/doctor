@@ -1,7 +1,6 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import sharedCss from '../../styles/shared.css.ts';
-import styles from './security-scheme.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 const flowDisplayNames: Record<string, string> = {
     implicit: 'IMPLICIT',
@@ -32,11 +31,15 @@ function schemeIcon(type: string, inLocation?: string, scheme?: string): string 
 }
 
 @customElement('pp-security-scheme')
-export class PpSecurityScheme extends LitElement {
-    static styles = [sharedCss, styles];
+export class PpSecurityScheme extends LightElement {
 
     @property({attribute: 'scheme-json'}) schemeJson = '';
     @state() private scheme: any = null;
+
+    // The server-written scheme is never drawn again.
+    protected canReplaceServerMarkup(): boolean {
+        return false;
+    }
 
     willUpdate(changed: Map<string, unknown>) {
         if (changed.has('schemeJson') && this.schemeJson) {
@@ -62,7 +65,7 @@ export class PpSecurityScheme extends LitElement {
             <div class="property">
                 <div class="prop-name-col"><span class="prop-name">type</span></div>
                 <div class="prop-type-col">
-                    <sl-icon name=${iconName} class="type-icon"></sl-icon>
+                    <wa-icon name=${iconName} class="type-icon"></wa-icon>
                     <span class="prop-type">${type.toUpperCase()}</span>
                 </div>
             </div>

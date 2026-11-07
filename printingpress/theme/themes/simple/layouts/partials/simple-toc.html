@@ -1,0 +1,4 @@
+{{if .Page.Headings}}<aside class="simple-toc" aria-label="On this page">
+<h2>On this page</h2>
+<ul>{{range .Page.Headings}}<li class="level-{{.Level}}"><a href="#{{.ID}}">{{.Text}}</a></li>{{end}}</ul>
+</aside>{{end}}

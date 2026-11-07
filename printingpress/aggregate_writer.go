@@ -5,10 +5,10 @@
 package printingpress
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	htmlstd "html"
 	"io"
 	"os"
 	"path"
@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/a-h/templ"
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"github.com/pb33f/doctor/printingpress/render"
@@ -76,6 +75,9 @@ func (ap *AggregatePrintingPress) buildEntrySite(spec *aggregateDiscoveredSpec, 
 		DeveloperMode:                      ap.developerMode,
 		LintResults:                        ap.specLintResults[spec.RelativePath],
 		EnableContentPages:                 true,
+		mockSeed:                           ap.config.mockSeed,
+		Theme:                              ap.config.Theme,
+		SiteLayouts:                        ap.siteLayoutsDir(),
 	}
 	if ap.config.BaseURL != "" {
 		if joined, err := joinBaseURLPath(ap.config.BaseURL, spec.OutputSubdir); err == nil {
@@ -1208,16 +1210,20 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 	rootPath := filepath.Join(ap.config.OutputDir, pppaths.FileIndexHTML)
 	rootPage := ap.catalogPageData(pppaths.FileIndexHTML, catalog.Title, catalog.Description, nil, false, catalogRootContent(catalog, ap.config.DisableSkippedRendering))
 	rootPage = withCatalogContentNav(rootPage, catalog, "catalog")
-	if err := writeCatalogPage(rootPath, rootPage); err != nil {
+	if home := catalog.HomePage; catalog.Kind.IsDocs() && home != nil {
+		rootPage.MarkdownHref = home.MarkdownHref
+		rootPage.MetaDescription = home.Description
+	}
+	if err := ap.writeCatalogPage(rootPath, rootPage); err != nil {
 		return nil, err
 	}
 	written = append(written, rootPath)
 
 	if len(catalog.ContentPages) > 0 {
 		guidesPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(pppaths.GuidesIndexHTML()))
-		guidesPage := ap.catalogPageData(pppaths.GuidesIndexHTML(), "Guides", "", nil, false, render.ContentIndexTempl(catalog.ContentPages, render.GuidesIndexBreadcrumb(), ""))
+		guidesPage := ap.catalogPageData(pppaths.GuidesIndexHTML(), "Guides", "", nil, false, render.ContentIndexBody(contentPagesForNav(catalog.ContentPages), render.GuidesIndexBreadcrumb(), ""))
 		guidesPage = withCatalogContentNav(guidesPage, catalog, "guides")
-		if err := writeCatalogPage(guidesPath, guidesPage); err != nil {
+		if err := ap.writeCatalogPage(guidesPath, guidesPage); err != nil {
 			return nil, err
 		}
 		written = append(written, guidesPath)
@@ -1225,14 +1231,19 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 	}
 
 	for _, contentPage := range catalog.ContentPages {
-		if contentPage == nil {
+		if contentPage == nil || !contentPage.Audience.ForHumans() {
 			continue
 		}
 		contentPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(contentPage.Href))
-		content := render.ContentPageTemplWithBreadcrumb(contentPage, "", catalogContentPageBreadcrumb(contentPage))
+		content := render.ContentPageBodyWithBreadcrumb(contentPage, "", catalogContentPageBreadcrumb(contentPage))
+		if catalog.Kind.IsDocs() {
+			content = docsContentPageContent(catalog, contentPage)
+		}
 		page := ap.catalogPageData(contentPage.Href, fmt.Sprintf("%s - %s", contentPage.Title, catalog.Title), "", nil, false, content)
 		page = withCatalogContentNav(page, catalog, "content/"+contentPage.Slug)
-		if err := writeCatalogPage(contentPath, page); err != nil {
+		page.MarkdownHref = contentPage.MarkdownHref
+		page.MetaDescription = contentPage.Description
+		if err := ap.writeCatalogPage(contentPath, page); err != nil {
 			return nil, err
 		}
 		written = append(written, contentPath)
@@ -1248,16 +1259,16 @@ func (ap *AggregatePrintingPress) writeCatalogHTML(catalog *ppmodel.CatalogSite)
 				continue
 			}
 			versionPath := filepath.Join(ap.config.OutputDir, filepath.FromSlash(version.OverviewHref))
-			if err := writeCatalogPage(versionPath, ap.catalogPageData(version.OverviewHref, service.DisplayName+" "+version.Label, versionSubtitle(version), service, true, catalogVersionContent(version))); err != nil {
+			if err := ap.writeCatalogPage(versionPath, ap.catalogPageData(version.OverviewHref, service.DisplayName+" "+version.Label, versionSubtitle(version), service, true, catalogVersionContent(version))); err != nil {
 				return nil, err
 			}
 			written = append(written, versionPath)
 		}
 	}
-	if err := ap.removePreviousCatalogContentArtifacts(contentStatePaths); err != nil {
+	if err := ap.removePreviousContentArtifacts(pppaths.FileCatalogContentStateJSON, contentStatePaths); err != nil {
 		return nil, err
 	}
-	if err := ap.writeCatalogContentState(contentStatePaths); err != nil {
+	if err := ap.writeContentState(pppaths.FileCatalogContentStateJSON, contentStatePaths); err != nil {
 		return nil, err
 	}
 	return written, nil
@@ -1304,8 +1315,10 @@ type catalogContentState struct {
 	Paths []string `json:"paths"`
 }
 
-func (ap *AggregatePrintingPress) removePreviousCatalogContentArtifacts(currentPaths []string) error {
-	paths, err := ap.readCatalogContentState()
+// removePreviousContentArtifacts removes the files an earlier build listed in
+// stateFile that this build no longer writes.
+func (ap *AggregatePrintingPress) removePreviousContentArtifacts(stateFile string, currentPaths []string) error {
+	paths, err := ap.readContentState(stateFile)
 	if err != nil {
 		if ap != nil && ap.config != nil && ap.config.Logger != nil {
 			ap.config.Logger.Warn("printingpress: unable to read previous catalog content state", "error", err)
@@ -1335,8 +1348,8 @@ func (ap *AggregatePrintingPress) removePreviousCatalogContentArtifacts(currentP
 	return nil
 }
 
-func (ap *AggregatePrintingPress) readCatalogContentState() ([]string, error) {
-	statePath := filepath.Join(ap.config.OutputDir, pppaths.FileCatalogContentStateJSON)
+func (ap *AggregatePrintingPress) readContentState(stateFile string) ([]string, error) {
+	statePath := filepath.Join(ap.config.OutputDir, stateFile)
 	data, err := os.ReadFile(statePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -1351,8 +1364,8 @@ func (ap *AggregatePrintingPress) readCatalogContentState() ([]string, error) {
 	return state.Paths, nil
 }
 
-func (ap *AggregatePrintingPress) writeCatalogContentState(paths []string) error {
-	statePath := filepath.Join(ap.config.OutputDir, pppaths.FileCatalogContentStateJSON)
+func (ap *AggregatePrintingPress) writeContentState(stateFile string, paths []string) error {
+	statePath := filepath.Join(ap.config.OutputDir, stateFile)
 	if len(paths) == 0 {
 		err := os.Remove(statePath)
 		if err != nil && !os.IsNotExist(err) {
@@ -1399,9 +1412,15 @@ func cleanCatalogContentStatePath(relPath string) (string, bool) {
 	if clean == pppaths.GuidesIndexHTML() || strings.HasPrefix(clean, path.Join(pppaths.DirAssets, "docs")+"/") {
 		return clean, true
 	}
-	if strings.ToLower(path.Ext(clean)) == pppaths.ExtHTML {
-		slugPath := strings.TrimSuffix(clean, pppaths.ExtHTML)
-		if isReservedContentSlug(slugPath) {
+	// The agent files of content pages: the home page.md and llms-full.txt.
+	if clean == contentMarkdownHref(pppaths.FileIndexHTML) || clean == pppaths.FileLLMFull {
+		return clean, true
+	}
+	for _, ext := range []string{pppaths.ExtHTML, pppaths.ExtMarkdown} {
+		if strings.ToLower(path.Ext(clean)) != ext {
+			continue
+		}
+		if isReservedContentSlug(strings.TrimSuffix(clean, ext)) {
 			return "", false
 		}
 		return clean, true
@@ -1480,15 +1499,19 @@ func (ap *AggregatePrintingPress) writeCatalogJSON(catalog *ppmodel.CatalogSite)
 }
 
 func (ap *AggregatePrintingPress) writeCatalogLLM(catalog *ppmodel.CatalogSite) ([]string, error) {
-	var written []string
+	pages := newSiteAgentPages(catalog)
+	written, err := ap.writeSiteAgentPages(catalog, pages)
+	if err != nil {
+		return nil, err
+	}
 	rootAgentsPath := filepath.Join(ap.config.OutputDir, pppaths.FileAgentsGuide)
-	if err := os.WriteFile(rootAgentsPath, []byte(buildCatalogAgentsGuide(catalog)), 0o644); err != nil {
+	if err := os.WriteFile(rootAgentsPath, []byte(buildCatalogAgentsGuide(catalog, pages)), 0o644); err != nil {
 		return nil, err
 	}
 	written = append(written, rootAgentsPath)
 
 	rootPath := filepath.Join(ap.config.OutputDir, pppaths.FileLLMIndex)
-	if err := os.WriteFile(rootPath, []byte(buildCatalogLLMIndex(catalog)), 0o644); err != nil {
+	if err := os.WriteFile(rootPath, []byte(buildCatalogLLMIndex(catalog, pages)), 0o644); err != nil {
 		return nil, err
 	}
 	written = append(written, rootPath)
@@ -1523,16 +1546,25 @@ type catalogPageData struct {
 	Title          string
 	Subtitle       string
 	Service        *ppmodel.CatalogService
-	Content        templ.Component
+	Content        render.Body
 	AssetBase      string
 	ShowHeroTitle  bool
 	Footer         *ppmodel.FooterConfig
 	ShowCatalogNav bool
 	CatalogPages   []*ppmodel.ContentPage
 	ActiveNavSlug  string
+	// HomeLabel is the nav label of the site's home page: the site title in a
+	// docs site, "API Catalog" in a catalog.
+	HomeLabel string
+	// docsSite is set on pages of a docs site, whose nav comes from its tree.
+	docsSite *ppmodel.CatalogSite
+	// MarkdownHref is the page.md beside this page, for the alternate link.
+	MarkdownHref string
+	// MetaDescription is the page's meta description.
+	MetaDescription string
 }
 
-func (ap *AggregatePrintingPress) catalogPageData(relPath, title, subtitle string, service *ppmodel.CatalogService, showHeroTitle bool, content templ.Component) catalogPageData {
+func (ap *AggregatePrintingPress) catalogPageData(relPath, title, subtitle string, service *ppmodel.CatalogService, showHeroTitle bool, content render.Body) catalogPageData {
 	headerTitle := title
 	if ap.catalog != nil && strings.TrimSpace(ap.catalog.Title) != "" {
 		headerTitle = ap.catalog.Title
@@ -1547,6 +1579,7 @@ func (ap *AggregatePrintingPress) catalogPageData(relPath, title, subtitle strin
 		AssetBase:     ap.catalogAssetBase(relPath),
 		ShowHeroTitle: showHeroTitle,
 		Footer:        cloneFooterConfig(ap.config.Footer),
+		HomeLabel:     siteHomeLabel(ap.catalog),
 	}
 }
 
@@ -1557,6 +1590,10 @@ func withCatalogContentNav(page catalogPageData, catalog *ppmodel.CatalogSite, a
 	page.ShowCatalogNav = hasContentPagesForNav(catalog.ContentPages)
 	page.CatalogPages = catalog.ContentPages
 	page.ActiveNavSlug = activeSlug
+	if catalog.Kind.IsDocs() {
+		page.docsSite = catalog
+		page.ShowCatalogNav = siteNavHasItems(catalog.Nav)
+	}
 	return page
 }
 
@@ -1572,60 +1609,6 @@ func (ap *AggregatePrintingPress) catalogAssetBase(relPath string) string {
 	return strings.Repeat("../", depth)
 }
 
-func writeCatalogPage(filePath string, page catalogPageData) error {
-	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
-		return err
-	}
-	f, err := os.Create(filePath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	shell := catalogShell(page)
-	return shell.Render(context.Background(), f)
-}
-
-func writeCatalogHead(w io.Writer, title, assetBase string) error {
-	assets := []string{
-		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePB33FThemeCSS)),
-		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FileCowboyComponentsCSS)),
-		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FileShoelaceDarkCSS)),
-		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePrintingPressCSS)),
-		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FileChromaCSS)),
-		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePrintingPressIndexCSS)),
-		catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePrintingPressCatalogCSS)),
-	}
-	if _, err := io.WriteString(w, `<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><script>
-			(function() {
-				try {
-					var root = document.documentElement;
-					var storedTheme = localStorage.getItem('pb33f-theme');
-					var theme = storedTheme === 'tektronix' ? 'tektronix' : (storedTheme === 'light' ? 'light' : 'dark');
-					var splitPos = sessionStorage.getItem('pp-split-position');
-					root.setAttribute('theme', theme);
-					root.style.setProperty('--pp-split-position', splitPos ? splitPos + '%' : '20%');
-					if (theme === 'light') {
-						root.classList.remove('sl-theme-dark');
-					} else {
-						root.classList.add('sl-theme-dark');
-					}
-				} catch (_) {}
-			})();
-		</script><title>`+templ.EscapeString(title)+`</title>`); err != nil {
-		return err
-	}
-	for _, asset := range assets {
-		if _, err := io.WriteString(w, `<link rel="stylesheet" href="`+templ.EscapeString(asset)+`">`); err != nil {
-			return err
-		}
-	}
-	if _, err := io.WriteString(w, `<script defer src="`+templ.EscapeString(catalogAssetHref(assetBase, pppaths.StaticAsset(pppaths.FilePrintingPressJS)))+`"></script></head>`); err != nil {
-		return err
-	}
-	return nil
-}
-
 func catalogAssetHref(assetBase, href string) string {
 	if strings.TrimSpace(assetBase) == "" {
 		return href
@@ -1633,137 +1616,18 @@ func catalogAssetHref(assetBase, href string) string {
 	return assetBase + href
 }
 
-func catalogShell(page catalogPageData) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		showNav := catalogPageHasNav(page)
-		if _, err := io.WriteString(w, `<!doctype html><html lang="en" class="sl-theme-dark">`); err != nil {
-			return err
-		}
-		if err := writeCatalogHead(w, page.Title, page.AssetBase); err != nil {
-			return err
-		}
-		if showNav {
-			return renderCatalogNavShell(ctx, w, page)
-		}
-		if _, err := io.WriteString(w, `<body class="pp-catalog-body"><pb33f-header name="`+templ.EscapeString(page.HeaderTitle)+`" url="`+templ.EscapeString(relativeCatalogHref(path.Dir(page.RelPath), pppaths.FileIndexHTML))+`" fluid><div class="header-tools">`); err != nil {
-			return err
-		}
-		if hasCatalogVersionSwitcher(page.Service) {
-			if _, err := io.WriteString(w, catalogVersionPickerHTML(path.Dir(page.RelPath), page.RelPath, page.Service, "version-picker version-picker--catalog", "pp-catalog-select", true)); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(w, `<div class="theme-controls"><pb33f-theme-switcher></pb33f-theme-switcher></div></div></pb33f-header>`); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(w, `<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">`+templ.EscapeString(page.HeaderTitle)+`</span></div>`); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(w, `<main class="pp-catalog-shell">`); err != nil {
-			return err
-		}
-		if page.ShowHeroTitle || strings.TrimSpace(page.Subtitle) != "" {
-			if _, err := io.WriteString(w, `<section class="pp-catalog-hero">`); err != nil {
-				return err
-			}
-			if page.ShowHeroTitle {
-				if _, err := io.WriteString(w, `<h1 class="pp-catalog-title">`+templ.EscapeString(page.Title)+`</h1>`); err != nil {
-					return err
-				}
-			}
-			if strings.TrimSpace(page.Subtitle) != "" {
-				if _, err := io.WriteString(w, `<p class="pp-catalog-subtitle">`+templ.EscapeString(page.Subtitle)+`</p>`); err != nil {
-					return err
-				}
-			}
-			if _, err := io.WriteString(w, `</section>`); err != nil {
-				return err
-			}
-		}
-		if err := page.Content.Render(ctx, w); err != nil {
-			return err
-		}
-		if err := render.WriteFooter(w, page.Footer); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(w, `</main>`); err != nil {
-			return err
-		}
-		_, err := io.WriteString(w, catalogVersionSelectScriptHTML()+`</body></html>`)
-		return err
-	})
-}
-
-func renderCatalogNavShell(ctx context.Context, w io.Writer, page catalogPageData) error {
-	if _, err := io.WriteString(w, `<body class="pp-catalog-body"`); err != nil {
-		return err
-	}
-	if strings.TrimSpace(page.AssetBase) != "" {
-		if err := writeCatalogOptionalAttr(w, "data-pp-base-url", page.AssetBase); err != nil {
-			return err
-		}
-	}
-	if _, err := io.WriteString(w, `><pp-layout data-title="`+templ.EscapeString(page.HeaderTitle)+`">`); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(w, `<div class="pp-layout-fallback-header" aria-hidden="true"><span class="pp-layout-fallback-caret">$</span><span class="pp-layout-fallback-name">`+templ.EscapeString(page.HeaderTitle)+`</span></div>`); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(w, `<pp-nav id="pp-nav" slot="nav" data-active="`+templ.EscapeString(page.ActiveNavSlug)+`" data-pp-preview-hold="true">`+catalogNavHTML(page)+`</pp-nav>`); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(w, `<main slot="content" class="pp-catalog-shell">`); err != nil {
-		return err
-	}
-	if page.ShowHeroTitle || strings.TrimSpace(page.Subtitle) != "" {
-		if _, err := io.WriteString(w, `<section class="pp-catalog-hero">`); err != nil {
-			return err
-		}
-		if page.ShowHeroTitle {
-			if _, err := io.WriteString(w, `<h1 class="pp-catalog-title">`+templ.EscapeString(page.Title)+`</h1>`); err != nil {
-				return err
-			}
-		}
-		if strings.TrimSpace(page.Subtitle) != "" {
-			if _, err := io.WriteString(w, `<p class="pp-catalog-subtitle">`+templ.EscapeString(page.Subtitle)+`</p>`); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(w, `</section>`); err != nil {
-			return err
-		}
-	}
-	if err := page.Content.Render(ctx, w); err != nil {
-		return err
-	}
-	if err := render.WriteFooter(w, page.Footer); err != nil {
-		return err
-	}
-	_, err := io.WriteString(w, `</main></pp-layout>`+catalogVersionSelectScriptHTML()+`</body></html>`)
-	return err
-}
-
-func catalogVersionSelectScriptHTML() string {
-	return `<script>
-			document.addEventListener('sl-select', function(event) {
-				const menu = event.target && event.target.closest ? event.target.closest('sl-menu[data-catalog-version-menu]') : null;
-				if (!menu) return;
-				const item = event.detail && event.detail.item;
-				const value = item && item.value;
-				if (value) window.location.href = value;
-			});
-		</script>`
-}
-
 func writeCatalogOptionalAttr(w io.Writer, key, value string) error {
 	if strings.TrimSpace(value) == "" {
 		return nil
 	}
-	_, err := io.WriteString(w, ` `+key+`="`+templ.EscapeString(value)+`"`)
+	_, err := io.WriteString(w, ` `+key+`="`+htmlstd.EscapeString(value)+`"`)
 	return err
 }
 
 func catalogPageHasNav(page catalogPageData) bool {
+	if page.docsSite != nil {
+		return page.ShowCatalogNav
+	}
 	return page.ShowCatalogNav && hasContentPagesForNav(page.CatalogPages)
 }
 
@@ -1771,10 +1635,17 @@ func catalogNavHTML(page catalogPageData) string {
 	if !catalogPageHasNav(page) {
 		return ""
 	}
+	if page.docsSite != nil {
+		return docsNavHTML(page.docsSite, page.RelPath)
+	}
 	fromDir := path.Dir(page.RelPath)
 	var builder strings.Builder
 	builder.WriteString(`<div class="pp-nav-preview">`)
-	builder.WriteString(catalogNavHomeHTML("API Catalog", relativeCatalogHref(fromDir, pppaths.FileIndexHTML), page.ActiveNavSlug == "catalog"))
+	homeLabel := page.HomeLabel
+	if homeLabel == "" {
+		homeLabel = catalogSiteTitleFallback
+	}
+	builder.WriteString(catalogNavHomeHTML(homeLabel, relativeCatalogHref(fromDir, pppaths.FileIndexHTML), page.ActiveNavSlug == "catalog"))
 	builder.WriteString(`<div class="nav-section nav-pages-section"><h4>Guides</h4><ul class="nav-pages-list">`)
 	for _, contentPage := range contentPagesForNav(page.CatalogPages) {
 		active := page.ActiveNavSlug == "content/"+contentPage.Slug
@@ -1793,15 +1664,15 @@ func catalogNavHomeHTML(label, href string, active bool) string {
 	}
 	var builder strings.Builder
 	builder.WriteString(`<a class="`)
-	builder.WriteString(templ.EscapeString(classAttr))
+	builder.WriteString(htmlstd.EscapeString(classAttr))
 	builder.WriteString(`" href="`)
-	builder.WriteString(templ.EscapeString(href))
+	builder.WriteString(htmlstd.EscapeString(href))
 	builder.WriteString(`"`)
 	if active {
 		builder.WriteString(` aria-current="page"`)
 	}
 	builder.WriteString(`><span class="nav-home-chevron" aria-hidden="true"></span>`)
-	builder.WriteString(templ.EscapeString(label))
+	builder.WriteString(htmlstd.EscapeString(label))
 	builder.WriteString(`</a>`)
 	return builder.String()
 }
@@ -1813,15 +1684,15 @@ func catalogNavPageLinkHTML(label, href string, active bool) string {
 	}
 	var builder strings.Builder
 	builder.WriteString(`<a class="`)
-	builder.WriteString(templ.EscapeString(classAttr))
+	builder.WriteString(htmlstd.EscapeString(classAttr))
 	builder.WriteString(`" href="`)
-	builder.WriteString(templ.EscapeString(href))
+	builder.WriteString(htmlstd.EscapeString(href))
 	builder.WriteString(`"`)
 	if active {
 		builder.WriteString(` aria-current="page"`)
 	}
 	builder.WriteString(`><span class="nav-page-chevron" aria-hidden="true"></span><span>`)
-	builder.WriteString(templ.EscapeString(label))
+	builder.WriteString(htmlstd.EscapeString(label))
 	builder.WriteString(`</span></a>`)
 	return builder.String()
 }
@@ -1858,52 +1729,6 @@ func catalogContentPageNavLabel(page *ppmodel.ContentPage) string {
 	return "Untitled"
 }
 
-func catalogRootContent(catalog *ppmodel.CatalogSite, disableSkippedRendering bool) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		if catalog == nil {
-			return nil
-		}
-		if !disableSkippedRendering {
-			if err := renderCatalogWarnings(w, catalog.Warnings); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(w, `<section class="pp-catalog-section"><div class="pp-model-cards">`); err != nil {
-			return err
-		}
-		for _, service := range catalog.Services {
-			if !hasVisibleCatalogVersions(service) {
-				continue
-			}
-			if _, err := io.WriteString(w, `<article class="pp-catalog-card pp-model-card">`); err != nil {
-				return err
-			}
-			if _, err := io.WriteString(w, `<h2 class="pp-catalog-card-title"><a href="`+templ.EscapeString(servicePrimaryHref(service))+`">`+templ.EscapeString(service.DisplayName)+`</a></h2>`); err != nil {
-				return err
-			}
-			if _, err := io.WriteString(w, catalogSummaryHTML(catalogServiceSummary(service))); err != nil {
-				return err
-			}
-			if _, err := io.WriteString(w, catalogContactHTML(catalogServiceContact(service))); err != nil {
-				return err
-			}
-			if picker := catalogCardVersionPickerHTML(".", service); picker != "" {
-				if _, err := io.WriteString(w, picker); err != nil {
-					return err
-				}
-			}
-			if _, err := io.WriteString(w, catalogDiagnosticsHTML(service.Counts, catalogServiceDiagnosticsHref(".", service))); err != nil {
-				return err
-			}
-			if _, err := io.WriteString(w, `</article>`); err != nil {
-				return err
-			}
-		}
-		_, err := io.WriteString(w, `</div></section>`)
-		return err
-	})
-}
-
 func servicePrimaryHref(service *ppmodel.CatalogService) string {
 	if entry := catalogDefaultContractLatestEntry(service); entry != nil && strings.TrimSpace(entry.OverviewHref) != "" {
 		return entry.OverviewHref
@@ -1913,44 +1738,6 @@ func servicePrimaryHref(service *ppmodel.CatalogService) string {
 		return ""
 	}
 	return catalogVersionPrimaryHref(version)
-}
-
-func catalogCardVersionPickerHTML(fromDir string, service *ppmodel.CatalogService) string {
-	versions := catalogCardVersions(service)
-	if len(versions) <= 1 {
-		return ""
-	}
-	latest := versions[0]
-	for _, version := range versions {
-		if version.latest {
-			latest = version
-			break
-		}
-	}
-	optionLabel := func(version catalogCardVersion) string {
-		if version.latest {
-			return version.Label + " (latest)"
-		}
-		return version.Label
-	}
-
-	var builder strings.Builder
-	builder.WriteString(`<div class="version-picker version-picker--card"><sl-dropdown skidding="5" distance="5"><sl-button slot="trigger" caret class="pp-catalog-select">`)
-	builder.WriteString(templ.EscapeString(optionLabel(latest)))
-	builder.WriteString(`</sl-button><sl-menu data-catalog-version-menu>`)
-	for _, version := range versions {
-		builder.WriteString(`<sl-menu-item value="`)
-		builder.WriteString(templ.EscapeString(relativeCatalogHref(fromDir, version.Href)))
-		builder.WriteString(`"`)
-		if version.latest {
-			builder.WriteString(` checked`)
-		}
-		builder.WriteString(`>`)
-		builder.WriteString(templ.EscapeString(optionLabel(version)))
-		builder.WriteString(`</sl-menu-item>`)
-	}
-	builder.WriteString(`</sl-menu></sl-dropdown></div>`)
-	return builder.String()
 }
 
 type catalogCardVersion struct {
@@ -2000,59 +1787,6 @@ func catalogCardVersions(service *ppmodel.CatalogService) []catalogCardVersion {
 	return versions
 }
 
-func catalogVersionContent(version *ppmodel.CatalogVersion) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		if version == nil || len(visibleCatalogEntries(version)) == 0 {
-			return nil
-		}
-		fromDir := path.Dir(version.OverviewHref)
-		if _, err := io.WriteString(w, `<section class="pp-catalog-section"><article class="pp-catalog-card pp-model-card"><h2 class="pp-catalog-card-title"><a href="`+templ.EscapeString(relativeCatalogHref(fromDir, catalogVersionPrimaryHref(version)))+`">`+templ.EscapeString(version.Label)+`</a></h2>`+
-			catalogSummaryHTML(version.Summary)+
-			catalogDiagnosticsHTML(version.Counts, catalogVersionDiagnosticsHref(fromDir, version))+
-			`</article></section>`); err != nil {
-			return err
-		}
-		return catalogVersionEntriesContent(version).Render(ctx, w)
-	})
-}
-
-func catalogVersionEntriesContent(version *ppmodel.CatalogVersion) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		if version == nil {
-			return nil
-		}
-		entries := visibleCatalogEntries(version)
-		if _, err := io.WriteString(w, `<section class="pp-catalog-section"><h2>Specification Entries</h2><div class="pp-model-cards">`); err != nil {
-			return err
-		}
-		for _, entry := range entries {
-			if _, err := io.WriteString(w, `<article class="pp-catalog-entry pp-model-card">`); err != nil {
-				return err
-			}
-			if _, err := io.WriteString(w, `<h3 class="pp-catalog-card-title"><a href="`+templ.EscapeString(relativeCatalogHref(path.Dir(version.OverviewHref), entry.OverviewHref))+`">`+templ.EscapeString(entry.Title)+`</a></h3>`); err != nil {
-				return err
-			}
-			if _, err := io.WriteString(w, catalogSpecKindBadgeHTML(entry)); err != nil {
-				return err
-			}
-			if _, err := io.WriteString(w, catalogSummaryHTML(entry.Summary)); err != nil {
-				return err
-			}
-			if _, err := io.WriteString(w, catalogContactHTML(entry.Contact)); err != nil {
-				return err
-			}
-			if _, err := io.WriteString(w, catalogDiagnosticsHTML(entry.Counts, catalogEntryDiagnosticsHref(path.Dir(version.OverviewHref), entry))); err != nil {
-				return err
-			}
-			if _, err := io.WriteString(w, `</article>`); err != nil {
-				return err
-			}
-		}
-		_, err := io.WriteString(w, `</div></section>`)
-		return err
-	})
-}
-
 func versionSubtitle(version *ppmodel.CatalogVersion) string {
 	if version == nil {
 		return ""
@@ -2072,39 +1806,6 @@ func catalogVersionTarget(service *ppmodel.CatalogService, version *ppmodel.Cata
 		return ""
 	}
 	return catalogVersionPrimaryHref(version)
-}
-
-func catalogVersionPickerHTML(fromDir, relPath string, service *ppmodel.CatalogService, wrapperClass, selectClass string, showLabel bool) string {
-	if !hasCatalogVersionSwitcher(service) {
-		return ""
-	}
-	visible := visibleCatalogVersions(service)
-	var builder strings.Builder
-	builder.WriteString(`<div class="`)
-	builder.WriteString(templ.EscapeString(wrapperClass))
-	builder.WriteString(`">`)
-	if showLabel {
-		builder.WriteString(`<span>Version</span>`)
-	}
-	builder.WriteString(`<sl-dropdown skidding="5" distance="5"><sl-button slot="trigger" caret class="`)
-	builder.WriteString(templ.EscapeString(selectClass))
-	builder.WriteString(`">`)
-	builder.WriteString(templ.EscapeString(catalogVersionTriggerLabel(relPath, service)))
-	builder.WriteString(`</sl-button><sl-menu data-catalog-version-menu>`)
-	for _, version := range visible {
-		target := relativeCatalogHref(fromDir, catalogVersionTarget(service, version))
-		builder.WriteString(`<sl-menu-item value="`)
-		builder.WriteString(templ.EscapeString(target))
-		builder.WriteString(`"`)
-		if catalogVersionSelected(relPath, service, version) {
-			builder.WriteString(` checked`)
-		}
-		builder.WriteString(`>`)
-		builder.WriteString(templ.EscapeString(catalogVersionOptionLabel(version)))
-		builder.WriteString(`</sl-menu-item>`)
-	}
-	builder.WriteString(`</sl-menu></sl-dropdown></div>`)
-	return builder.String()
 }
 
 func catalogVersionTriggerLabel(relPath string, service *ppmodel.CatalogService) string {
@@ -2266,29 +1967,6 @@ func visibleCatalogServiceEntries(service *ppmodel.CatalogService) []*ppmodel.Ca
 	return entries
 }
 
-func catalogSummaryHTML(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return ""
-	}
-	var builder strings.Builder
-	builder.WriteString(`<div class="pp-catalog-card-summary">`)
-	builder.WriteString(`<p class="pp-catalog-summary">`)
-	builder.WriteString(templ.EscapeString(value))
-	builder.WriteString(`</p>`)
-	builder.WriteString(`</div>`)
-	return builder.String()
-}
-
-func catalogSpecKindBadgeHTML(entry *ppmodel.CatalogSpecEntry) string {
-	label := catalogEntrySpecKindLabel(entry)
-	if label == "" {
-		return ""
-	}
-	return `<p class="pp-catalog-spec-kind"><span class="pp-catalog-spec-kind-badge" data-spec-kind="` +
-		templ.EscapeString(entry.SpecKind.MachineValue()) + `">` + templ.EscapeString(label) + `</span></p>`
-}
-
 func catalogEntrySpecKindLabel(entry *ppmodel.CatalogSpecEntry) string {
 	if entry == nil {
 		return ""
@@ -2323,57 +2001,6 @@ func catalogEntryDiagnosticsHref(fromDir string, entry *ppmodel.CatalogSpecEntry
 	return relativeCatalogHref(fromDir, diagnosticsPath)
 }
 
-func catalogDiagnosticsHTML(counts *ppmodel.ViolationCounts, href string) string {
-	if counts == nil || counts.Total() == 0 {
-		return ""
-	}
-	var builder strings.Builder
-	tag := "div"
-	if strings.TrimSpace(href) != "" {
-		tag = "a"
-	}
-	builder.WriteString(`<`)
-	builder.WriteString(tag)
-	builder.WriteString(` class="pp-catalog-diagnostics"`)
-	if tag == "a" {
-		builder.WriteString(` href="`)
-		builder.WriteString(templ.EscapeString(href))
-		builder.WriteString(`"`)
-	}
-	builder.WriteString(` aria-label="`)
-	builder.WriteString(templ.EscapeString(catalogDiagnosticsLabel(counts)))
-	builder.WriteString(`">`)
-	builder.WriteString(`<span class="pp-catalog-diagnostics-title">Diagnostics</span>`)
-	builder.WriteString(catalogDiagnosticCountHTML("err", "exclamation-square", counts.Errors, "error", "errors"))
-	builder.WriteString(catalogDiagnosticCountHTML("warn", "exclamation-triangle", counts.Warns, "warning", "warnings"))
-	builder.WriteString(catalogDiagnosticCountHTML("info", "info-square", counts.Infos, "info", "infos"))
-	builder.WriteString(`</`)
-	builder.WriteString(tag)
-	builder.WriteString(`>`)
-	return builder.String()
-}
-
-func catalogDiagnosticCountHTML(className, icon string, count int, singular, plural string) string {
-	if count <= 0 {
-		return ""
-	}
-	noun := plural
-	if count == 1 {
-		noun = singular
-	}
-	var builder strings.Builder
-	builder.WriteString(`<span class="pp-catalog-diagnostic-count `)
-	builder.WriteString(templ.EscapeString(className))
-	builder.WriteString(`"><sl-icon name="`)
-	builder.WriteString(templ.EscapeString(icon))
-	builder.WriteString(`" aria-hidden="true"></sl-icon><span class="pp-catalog-diagnostic-number">`)
-	builder.WriteString(templ.EscapeString(fmt.Sprintf("%d", count)))
-	builder.WriteString(`</span><span class="pp-catalog-sr-only"> `)
-	builder.WriteString(templ.EscapeString(noun))
-	builder.WriteString(`</span></span>`)
-	return builder.String()
-}
-
 func catalogDiagnosticsLabel(counts *ppmodel.ViolationCounts) string {
 	if counts == nil || counts.Total() == 0 {
 		return "Diagnostics"
@@ -2395,30 +2022,6 @@ func catalogDiagnosticsLabel(counts *ppmodel.ViolationCounts) string {
 	return "Diagnostics: " + strings.Join(parts, ", ")
 }
 
-func catalogContactHTML(contact *ppmodel.ContactInfo) string {
-	name := catalogContactName(contact)
-	email := catalogContactEmail(contact)
-	if name == "" && email == "" {
-		return ""
-	}
-	var builder strings.Builder
-	builder.WriteString(`<dl class="pp-catalog-contact-grid">`)
-	if name != "" {
-		builder.WriteString(`<dt>Contact:</dt><dd>`)
-		builder.WriteString(templ.EscapeString(name))
-		builder.WriteString(`</dd>`)
-	}
-	if email != "" {
-		builder.WriteString(`<dt>Email</dt><dd><a href="mailto:`)
-		builder.WriteString(templ.EscapeString(email))
-		builder.WriteString(`">`)
-		builder.WriteString(templ.EscapeString(email))
-		builder.WriteString(`</a></dd>`)
-	}
-	builder.WriteString(`</dl>`)
-	return builder.String()
-}
-
 func catalogContactName(contact *ppmodel.ContactInfo) string {
 	if contact == nil {
 		return ""
@@ -2433,39 +2036,6 @@ func catalogContactEmail(contact *ppmodel.ContactInfo) string {
 	return strings.TrimSpace(contact.Email)
 }
 
-func renderCatalogWarnings(w io.Writer, warnings []*ppmodel.BuildWarning) error {
-	if len(warnings) == 0 {
-		return nil
-	}
-
-	headerText := "Skipped Render Build"
-	if len(warnings) > 1 {
-		headerText = "Skipped Render Builds"
-	}
-	if _, err := io.WriteString(w, `<pb33f-attention-box class="pp-catalog-warning" type="warning" headerText="`+templ.EscapeString(headerText)+`">`); err != nil {
-		return err
-	}
-	if len(warnings) == 1 {
-		if _, err := io.WriteString(w, `<p>`+templ.EscapeString(catalogWarningText(warnings[0]))+`</p>`); err != nil {
-			return err
-		}
-	} else {
-		if _, err := io.WriteString(w, `<ul class="pp-catalog-warning-list">`); err != nil {
-			return err
-		}
-		for _, warning := range warnings {
-			if _, err := io.WriteString(w, `<li>`+templ.EscapeString(catalogWarningText(warning))+`</li>`); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(w, `</ul>`); err != nil {
-			return err
-		}
-	}
-	_, err := io.WriteString(w, `</pb33f-attention-box>`)
-	return err
-}
-
 func catalogWarningText(warning *ppmodel.BuildWarning) string {
 	if warning == nil {
 		return ""
@@ -2476,7 +2046,7 @@ func catalogWarningText(warning *ppmodel.BuildWarning) string {
 	return warning.Message + " (" + warning.Context + ")"
 }
 
-func buildCatalogAgentsGuide(catalog *ppmodel.CatalogSite) string {
+func buildCatalogAgentsGuide(catalog *ppmodel.CatalogSite, pages *siteAgentPages) string {
 	var builder strings.Builder
 	builder.WriteString("# ")
 	builder.WriteString(catalogLLMTitle(catalog))
@@ -2489,8 +2059,18 @@ func buildCatalogAgentsGuide(catalog *ppmodel.CatalogSite) string {
 	}
 
 	builder.WriteString("## Files\n\n")
-	builder.WriteString("- [llms.txt](llms.txt) — Aggregate discovery index for all visible services, versions, and spec entry indexes.\n\n")
-	builder.WriteString("## Services\n\n")
+	if catalog != nil && catalog.Kind.IsDocs() {
+		builder.WriteString("- [llms.txt](llms.txt) — Discovery index for this documentation site.\n")
+	} else {
+		builder.WriteString("- [llms.txt](llms.txt) — Aggregate discovery index for all visible services, versions, and spec entry indexes.\n")
+	}
+	writeSiteLLMFullFileLine(&builder, pages)
+	builder.WriteString("\n")
+	writeSiteAgentStartHere(&builder, catalog, pages)
+	writeSiteAgentPagesMarkdown(&builder, catalog, pages)
+	if !writeSiteServicesHeading(&builder, catalog) {
+		return builder.String()
+	}
 	for _, service := range visibleCatalogServices(catalog) {
 		serviceLLM := pppaths.AggregateServiceLLM(service.Slug)
 		builder.WriteString("- [")
@@ -2538,7 +2118,7 @@ func buildCatalogAgentsGuide(catalog *ppmodel.CatalogSite) string {
 	return builder.String()
 }
 
-func buildCatalogLLMIndex(catalog *ppmodel.CatalogSite) string {
+func buildCatalogLLMIndex(catalog *ppmodel.CatalogSite, pages *siteAgentPages) string {
 	var builder strings.Builder
 	builder.WriteString("# ")
 	builder.WriteString(catalogLLMTitle(catalog))
@@ -2549,8 +2129,17 @@ func buildCatalogLLMIndex(catalog *ppmodel.CatalogSite) string {
 		builder.WriteString("\n\n")
 	}
 	builder.WriteString("## Files\n\n")
-	builder.WriteString("- [AGENTS.md](AGENTS.md) — Start-here guide for traversing the aggregate catalog and spec entry indexes\n\n")
-	builder.WriteString("## Services\n\n")
+	if catalog != nil && catalog.Kind.IsDocs() {
+		builder.WriteString("- [AGENTS.md](AGENTS.md) — Start-here guide for agents reading this documentation site\n")
+	} else {
+		builder.WriteString("- [AGENTS.md](AGENTS.md) — Start-here guide for traversing the aggregate catalog and spec entry indexes\n")
+	}
+	writeSiteLLMFullFileLine(&builder, pages)
+	builder.WriteString("\n")
+	writeSiteAgentPagesMarkdown(&builder, catalog, pages)
+	if !writeSiteServicesHeading(&builder, catalog) {
+		return builder.String()
+	}
 	for _, service := range visibleCatalogServices(catalog) {
 		serviceLLM := pppaths.AggregateServiceLLM(service.Slug)
 		builder.WriteString("- [")

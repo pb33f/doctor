@@ -1,0 +1,6 @@
+<header class="simple-header">
+<a class="simple-brand" href="{{.Page.HomeHref}}">{{with .Site.Brand}}{{with .Logo}}<img class="simple-logo" src="{{$.Page.Root}}{{.}}" alt="">{{end}}{{end}}<span>{{.Site.Title}}</span></a>
+{{with .Site.Nav}}{{if gt (len .Tabs) 1}}<nav class="simple-tabs" aria-label="Sections">{{range .Tabs}}{{if .Href}}<a href="{{.Href}}"{{if .Active}} class="active" aria-current="true"{{end}}>{{.Title}}</a>{{end}}{{end}}</nav>{{end}}{{end}}
+{{with .Site.Brand}}{{if .HeaderLinks}}<nav class="simple-links" aria-label="Links">{{range .HeaderLinks}}<a href="{{.Href}}">{{.Label}}</a>{{end}}</nav>{{end}}{{end}}
+{{with .Engine.HeaderTools}}<div class="simple-tools">{{.}}</div>{{end}}
+</header>

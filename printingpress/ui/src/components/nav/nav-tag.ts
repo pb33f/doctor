@@ -1,10 +1,10 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import navTagCss from './nav-tag.css.js';
 import {operationHref} from '../../utils/doc-links.js';
 import {renderViolationBadges, type ViolationCounts} from '../../utils/violations.js';
 import '../shared/asyncapi-action.js';
 import '../shared/asyncapi-protocol.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 interface NavTag {
     name: string;
@@ -39,8 +39,7 @@ function tagContainsSlug(tag: NavTag, slug: string): boolean {
 }
 
 @customElement('pp-nav-tag')
-export class PpNavTag extends LitElement {
-    static styles = navTagCss;
+export class PpNavTag extends LightElement {
 
     @property({type: Object}) tag: NavTag = {
         name: '',
@@ -52,6 +51,11 @@ export class PpNavTag extends LitElement {
 
     @property() activeSlug = '';
     @state() private open = false;
+
+    // A server-written tag waits for pp-nav to hand it its tag.
+    protected canReplaceServerMarkup(): boolean {
+        return this.tag.name !== '';
+    }
 
     willUpdate(changed: Map<string, unknown>) {
         if (changed.has('tag') || changed.has('activeSlug')) {
@@ -75,7 +79,7 @@ export class PpNavTag extends LitElement {
         const dev = this.developerMode();
         return html`
             <div class="tag-header ${containsActive ? 'active' : ''} ${dev ? 'developer' : ''}" @click=${this.toggle}>
-                <sl-icon name=${open ? 'chevron-down' : 'chevron-right'} class="chevron"></sl-icon>
+                <wa-icon name=${open ? 'chevron-down' : 'chevron-right'} class="chevron"></wa-icon>
                 <span class="tag-name">
                     ${tag.protocol
                         ? html`<pp-asyncapi-protocol protocol=${tag.protocol} size="nav"></pp-asyncapi-protocol>`
@@ -104,8 +108,8 @@ export class PpNavTag extends LitElement {
                                                                 <span class="op-title">${op.summary || op.path}</span>
                                                                 ${isAsyncAPIOperation(op)
                                                                         ? html`<pp-asyncapi-action action=${op.method} size="small"></pp-asyncapi-action>`
-                                                                        : html`<pb33f-http-method mode="nav-naked"
-                                                                                method=${op.method}></pb33f-http-method>`}
+                                                                        : html`<pp-http-method mode="nav-naked"
+                                                                                method=${op.method}></pp-http-method>`}
                                                                 ${dev ? renderViolationBadges(op.counts) : nothing}
                                                             </a>
                                                         </li>

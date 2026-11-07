@@ -183,20 +183,20 @@ describe('pp-schema-properties allOf', () => {
         const el = create(JSON.stringify(schema));
         await el.updateComplete;
 
-        const refs = el.shadowRoot?.querySelector('.composition-refs');
+        const refs = el.querySelector('.composition-refs');
         expect(refs).toBeTruthy();
 
-        const refEntries = el.shadowRoot?.querySelectorAll('.composition-ref-entry');
+        const refEntries = el.querySelectorAll('.composition-ref-entry');
         expect(refEntries?.length).toBe(2);
 
         // Expanded refs contribute their properties to the merged table
-        const propNames = Array.from(el.shadowRoot?.querySelectorAll('.prop-name') ?? [])
+        const propNames = Array.from(el.querySelectorAll('.prop-name') ?? [])
             .map((node) => node.textContent?.trim());
         expect(propNames).toContain('links');
         expect(propNames).toContain('self');
 
         // "Composed from" label
-        const label = el.shadowRoot?.querySelector('.composition-label');
+        const label = el.querySelector('.composition-label');
         expect(label?.textContent).toContain('Composed from');
     });
 
@@ -211,11 +211,11 @@ describe('pp-schema-properties allOf', () => {
         await el.updateComplete;
 
         // No composition refs section
-        const refs = el.shadowRoot?.querySelector('.composition-refs');
+        const refs = el.querySelector('.composition-refs');
         expect(refs).toBeNull();
 
         // Merged property table
-        const properties = el.shadowRoot?.querySelectorAll('.property');
+        const properties = el.querySelectorAll('.property');
         expect(properties?.length).toBe(2);
     });
 
@@ -229,10 +229,10 @@ describe('pp-schema-properties allOf', () => {
         const el = create(JSON.stringify(schema));
         await el.updateComplete;
 
-        const refs = el.shadowRoot?.querySelector('.composition-refs');
+        const refs = el.querySelector('.composition-refs');
         expect(refs).toBeTruthy();
 
-        const propNames = Array.from(el.shadowRoot?.querySelectorAll('.prop-name') ?? [])
+        const propNames = Array.from(el.querySelectorAll('.prop-name') ?? [])
             .map((node) => node.textContent?.trim());
         expect(propNames).toContain('links');
         expect(propNames).toContain('data');
@@ -252,22 +252,22 @@ describe('pp-schema-properties allOf', () => {
         const el = create(JSON.stringify(schema));
         await el.updateComplete;
 
-        const refEntries = el.shadowRoot?.querySelectorAll('.composition-ref-entry');
+        const refEntries = el.querySelectorAll('.composition-ref-entry');
         expect(refEntries?.length).toBe(1);
 
-        const propertyNames = Array.from(el.shadowRoot?.querySelectorAll('.prop-name') ?? [])
+        const propertyNames = Array.from(el.querySelectorAll('.prop-name') ?? [])
             .map((node) => node.textContent?.trim());
         expect(propertyNames).toContain('amount');
         expect(propertyNames).toContain('source');
         expect(propertyNames).toContain('links');
 
-        const sourceRow = Array.from(el.shadowRoot?.querySelectorAll('.property, .property-oneof') ?? [])
+        const sourceRow = Array.from(el.querySelectorAll('.property, .property-oneof') ?? [])
             .find((prop) => prop.querySelector('.prop-name')?.textContent?.trim() === 'source');
         const sourceTypeCol = sourceRow?.querySelector('.prop-type-col, .oneof-desc-container');
         const variantLinks = sourceTypeCol?.querySelectorAll('a.ref-type-link');
         expect(variantLinks?.length).toBe(2);
 
-        const requiredBadges = Array.from(el.shadowRoot?.querySelectorAll('.required-badge') ?? []);
+        const requiredBadges = Array.from(el.querySelectorAll('.required-badge') ?? []);
         expect(requiredBadges.length).toBeGreaterThanOrEqual(2);
     });
 
@@ -337,9 +337,9 @@ describe('pp-schema-properties allOf', () => {
         el.setAttribute('constrained', '');
         await el.updateComplete;
 
-        const tabs = el.shadowRoot?.querySelector('sl-tab-group');
+        const tabs = el.querySelector('wa-tab-group');
         expect(tabs?.getAttribute('placement')).toBe('start');
-        expect(el.shadowRoot?.querySelector('.polymorphic-dropdown')).toBeNull();
+        expect(el.querySelector('.polymorphic-dropdown')).toBeNull();
     });
 
     it('uses dropdown polymorphic selectors in popover layouts even when short labels fit', async () => {
@@ -353,11 +353,11 @@ describe('pp-schema-properties allOf', () => {
         el.setAttribute('popover-context', '');
         await el.updateComplete;
 
-        expect(el.shadowRoot?.querySelector('sl-tab-group')).toBeNull();
-        const dropdown = el.shadowRoot?.querySelector('.polymorphic-dropdown');
+        expect(el.querySelector('wa-tab-group')).toBeNull();
+        const dropdown = el.querySelector('.polymorphic-dropdown');
         expect(dropdown).toBeTruthy();
         expect(dropdown?.querySelector('sl-button')?.textContent?.trim()).toBe('customer');
-        expect(el.shadowRoot?.querySelector('.oneof-property-popover-dropdown')).toBeTruthy();
+        expect(el.querySelector('.oneof-property-popover-dropdown')).toBeTruthy();
     });
 
     it('reserves the normal left badge slot for required polymorphic properties', async () => {
@@ -377,7 +377,7 @@ describe('pp-schema-properties allOf', () => {
         el.setAttribute('popover-context', '');
         await el.updateComplete;
 
-        const propName = el.shadowRoot?.querySelector('.oneof-prop-name');
+        const propName = el.querySelector('.oneof-prop-name');
         expect(propName?.querySelector('.required-badge')?.textContent?.trim()).toBe('req');
         expect(propName?.querySelector('.required-badge-placeholder')).toBeNull();
         expect(propName?.querySelector('.prop-name')?.textContent?.trim()).toBe('meter');
@@ -402,8 +402,8 @@ describe('pp-schema-properties allOf', () => {
         el.requestUpdate();
         await el.updateComplete;
 
-        expect(el.shadowRoot?.querySelector('sl-tab-group')).toBeNull();
-        const dropdown = el.shadowRoot?.querySelector('.polymorphic-dropdown');
+        expect(el.querySelector('wa-tab-group')).toBeNull();
+        const dropdown = el.querySelector('.polymorphic-dropdown');
         expect(dropdown).toBeTruthy();
         const trigger = dropdown?.querySelector('sl-button');
         expect(trigger?.textContent?.trim()).toBe('external_account_payout_bank_account');
@@ -423,11 +423,11 @@ describe('pp-schema-properties allOf', () => {
         el.setAttribute('constrained', '');
         await el.updateComplete;
 
-        expect(el.shadowRoot?.querySelector('sl-tab-group')).toBeNull();
-        expect(el.shadowRoot?.querySelector('.polymorphic-dropdown')).toBeNull();
-        expect(el.shadowRoot?.querySelector('.oneof-single-panel')).toBeTruthy();
+        expect(el.querySelector('wa-tab-group')).toBeNull();
+        expect(el.querySelector('.polymorphic-dropdown')).toBeNull();
+        expect(el.querySelector('.oneof-single-panel')).toBeTruthy();
 
-        const propNames = Array.from(el.shadowRoot?.querySelectorAll('.oneof-single-panel .prop-name') ?? [])
+        const propNames = Array.from(el.querySelectorAll('.oneof-single-panel .prop-name') ?? [])
             .map((node) => node.textContent?.trim());
         expect(propNames).toContain('tos_acceptance');
     });
@@ -447,10 +447,10 @@ describe('pp-schema-properties allOf', () => {
         el.setAttribute('constrained', '');
         await el.updateComplete;
 
-        expect(el.shadowRoot?.querySelector('sl-tab-group')).toBeNull();
-        expect(el.shadowRoot?.querySelector('.polymorphic-dropdown')).toBeNull();
-        expect(el.shadowRoot?.querySelector('.oneof-single-value .ref-type-link')?.textContent?.trim()).toContain('WideOption');
-        expect(el.shadowRoot?.querySelector('.oneof-single-panel .ref-type-link')).toBeNull();
+        expect(el.querySelector('wa-tab-group')).toBeNull();
+        expect(el.querySelector('.polymorphic-dropdown')).toBeNull();
+        expect(el.querySelector('.oneof-single-value .ref-type-link')?.textContent?.trim()).toContain('WideOption');
+        expect(el.querySelector('.oneof-single-panel .ref-type-link')).toBeNull();
     });
 
     it('updates dropdown-selected polymorphic option content independently', async () => {
@@ -472,20 +472,20 @@ describe('pp-schema-properties allOf', () => {
         el.requestUpdate();
         await el.updateComplete;
 
-        let propNames = Array.from(el.shadowRoot?.querySelectorAll('.oneof-dropdown-panel .prop-name') ?? [])
+        let propNames = Array.from(el.querySelectorAll('.oneof-dropdown-panel .prop-name') ?? [])
             .map((node) => node.textContent?.trim());
         expect(propNames).toContain('bank_name');
         expect(propNames).not.toContain('card_brand');
 
-        const menu = el.shadowRoot?.querySelector('.polymorphic-dropdown sl-menu');
+        const menu = el.querySelector('.polymorphic-dropdown sl-menu');
         menu?.dispatchEvent(new CustomEvent('sl-select', {detail: {item: {value: '1'}}, bubbles: true, composed: true}));
         await el.updateComplete;
 
-        propNames = Array.from(el.shadowRoot?.querySelectorAll('.oneof-dropdown-panel .prop-name') ?? [])
+        propNames = Array.from(el.querySelectorAll('.oneof-dropdown-panel .prop-name') ?? [])
             .map((node) => node.textContent?.trim());
         expect(propNames).not.toContain('bank_name');
         expect(propNames).toContain('card_brand');
-        const trigger = el.shadowRoot?.querySelector('.polymorphic-dropdown sl-button');
+        const trigger = el.querySelector('.polymorphic-dropdown sl-button');
         expect(trigger?.textContent?.trim()).toBe('external_account_card');
     });
 
@@ -508,8 +508,8 @@ describe('pp-schema-properties allOf', () => {
         el.requestUpdate();
         await el.updateComplete;
 
-        expect(el.shadowRoot?.querySelector('sl-tab-group')).toBeNull();
-        const trigger = el.shadowRoot?.querySelector('.polymorphic-dropdown sl-button');
+        expect(el.querySelector('wa-tab-group')).toBeNull();
+        const trigger = el.querySelector('.polymorphic-dropdown sl-button');
         expect(trigger?.textContent?.trim()).toBe('account_business_profile');
     });
 
@@ -539,9 +539,9 @@ describe('pp-schema-properties allOf', () => {
         el.requestUpdate();
         await el.updateComplete;
 
-        const tabs = el.shadowRoot?.querySelector('sl-tab-group');
+        const tabs = el.querySelector('wa-tab-group');
         expect(tabs?.getAttribute('placement')).toBe('start');
-        expect(el.shadowRoot?.querySelector('.polymorphic-dropdown')).toBeNull();
+        expect(el.querySelector('.polymorphic-dropdown')).toBeNull();
     });
 
     it('merges sibling properties at same level as allOf', async () => {
@@ -557,7 +557,7 @@ describe('pp-schema-properties allOf', () => {
         await el.updateComplete;
 
         // sibling properties should be in the table
-        const propNames = Array.from(el.shadowRoot?.querySelectorAll('.prop-name') ?? [])
+        const propNames = Array.from(el.querySelectorAll('.prop-name') ?? [])
             .map((node) => node.textContent?.trim());
         expect(propNames).toContain('links');
         expect(propNames).toContain('extra');
@@ -573,7 +573,7 @@ describe('pp-schema-properties allOf', () => {
         const el = create(JSON.stringify(schema));
         await el.updateComplete;
 
-        const badge = el.shadowRoot?.querySelector('.required-badge');
+        const badge = el.querySelector('.required-badge');
         expect(badge).toBeTruthy();
     });
 
@@ -596,7 +596,7 @@ describe('pp-schema-properties allOf', () => {
         await el.updateComplete;
 
         // The links property should show linked ref names
-        const typeCol = el.shadowRoot?.querySelector('.prop-type-col');
+        const typeCol = el.querySelector('.prop-type-col');
         const refLinks = typeCol?.querySelectorAll('a.ref-type-link');
         expect(refLinks?.length).toBe(2);
 
@@ -622,7 +622,7 @@ describe('pp-schema-properties allOf', () => {
         const el = create(JSON.stringify(schema));
         await el.updateComplete;
 
-        const typeSpan = el.shadowRoot?.querySelector('.prop-type');
+        const typeSpan = el.querySelector('.prop-type');
         expect(typeSpan?.textContent).toContain('allOf');
     });
 
@@ -639,10 +639,10 @@ describe('pp-schema-properties allOf', () => {
         const el = create(JSON.stringify(schema));
         await el.updateComplete;
 
-        const refs = el.shadowRoot?.querySelector('.composition-refs');
+        const refs = el.querySelector('.composition-refs');
         expect(refs).toBeTruthy();
 
-        const propNames = Array.from(el.shadowRoot?.querySelectorAll('.prop-name') ?? [])
+        const propNames = Array.from(el.querySelectorAll('.prop-name') ?? [])
             .map((node) => node.textContent?.trim());
         expect(propNames).toContain('links');
         expect(propNames).toContain('id');
@@ -659,12 +659,12 @@ describe('pp-schema-properties allOf', () => {
 
         // Verify compact attribute is reflected and composition renders
         expect(el.hasAttribute('compact')).toBe(true);
-        const refs = el.shadowRoot?.querySelector('.composition-refs');
+        const refs = el.querySelector('.composition-refs');
         expect(refs).toBeTruthy();
 
         // CSS hides .composition-ref-desc and .composition-label in compact mode
         // (can't verify computed styles in jsdom, but the elements and CSS rules exist)
-        const label = el.shadowRoot?.querySelector('.composition-label');
+        const label = el.querySelector('.composition-label');
         expect(label).toBeTruthy();
     });
 
@@ -673,8 +673,8 @@ describe('pp-schema-properties allOf', () => {
         const el = create(JSON.stringify(schema));
         await el.updateComplete;
 
-        const refs = el.shadowRoot?.querySelector('.composition-refs');
-        const properties = el.shadowRoot?.querySelectorAll('.property');
+        const refs = el.querySelector('.composition-refs');
+        const properties = el.querySelectorAll('.property');
         expect(refs).toBeNull();
         expect(properties?.length ?? 0).toBe(0);
     });
@@ -685,12 +685,12 @@ describe('pp-schema-properties allOf', () => {
         }));
         await el.updateComplete;
 
-        const propNames = Array.from(el.shadowRoot?.querySelectorAll('.prop-name') ?? [])
+        const propNames = Array.from(el.querySelectorAll('.prop-name') ?? [])
             .map((node) => node.textContent?.trim());
         expect(propNames).toContain('title');
         expect(propNames).toContain('detail');
 
-        const scalarType = el.shadowRoot?.querySelector('.property.scalar .prop-type');
+        const scalarType = el.querySelector('.property.scalar .prop-type');
         expect(scalarType).toBeNull();
     });
 });

@@ -1,200 +1,131 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import '../src/components/layout/layout.js';
 
+// The layout markup as the theme's engine-layout.html writes it.
+function layoutMarkup(embedded = false): string {
+  const header = embedded ? '' : `<header class="pp-doc-header"><div class="logo"><span class="caret">$</span> <span class="name"><a class="doc-logo-link" href="index.html">API Catalog</a></span></div><div class="header-space"><div class="header-tools"><div class="theme-controls"><button type="button" class="theme-icon-button theme-mode-toggle" data-pp-theme-toggle="base" aria-label="Toggle dark/light" title="Toggle dark/light"><wa-icon name="sun" aria-hidden="true"></wa-icon></button><button type="button" class="theme-icon-button theme-tektronix-toggle" data-pp-theme-toggle="tektronix" aria-label="Toggle Tektronix" title="Toggle Tektronix"><wa-icon name="display" aria-hidden="true"></wa-icon></button></div></div></div></header>`;
+  return `<pp-layout${embedded ? ' embedded' : ''}>${header}<div class="pp-split"><div class="nav-panel"><nav class="test-nav">NAV</nav></div><div class="pp-split-divider" role="separator" aria-orientation="vertical" aria-label="Resize the navigation" aria-valuemin="0" aria-valuemax="100" tabindex="0"><wa-icon name="grip-vertical" class="divider-vert" aria-hidden="true"></wa-icon></div><div class="content-panel"><main>CONTENT</main></div></div></pp-layout>`;
+}
+
+function mountLayout(embedded = false): HTMLElement {
+  document.body.innerHTML = layoutMarkup(embedded);
+  return document.querySelector('pp-layout') as HTMLElement;
+}
+
+function splitPosition(): string {
+  return document.documentElement.style.getPropertyValue('--pp-split-position');
+}
+
+function divider(el: HTMLElement): HTMLElement {
+  return el.querySelector('.pp-split-divider') as HTMLElement;
+}
+
 describe('pp-layout', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
-    delete document.body.dataset.ppCatalogHref;
-    delete document.body.dataset.ppCurrentVersion;
-    delete document.body.dataset.ppVersions;
-    delete document.body.dataset.ppContracts;
+    document.documentElement.style.removeProperty('--pp-split-position');
     localStorage.clear();
     sessionStorage.clear();
     document.documentElement.setAttribute('theme', 'dark');
     document.documentElement.classList.add('sl-theme-dark');
   });
 
-  it('should render nav and content slots', async () => {
-    const el = document.createElement('pp-layout');
-    document.body.appendChild(el);
-    await el.updateComplete;
+  it('keeps the header, navigation and content the page wrote', () => {
+    const before = layoutMarkup();
+    const el = mountLayout();
 
-    const slots = el.shadowRoot?.querySelectorAll('slot');
-    expect(slots?.length).toBe(2);
-
-    const slotNames = Array.from(slots || []).map((s) => s.getAttribute('name'));
-    expect(slotNames).toContain('nav');
-    expect(slotNames).toContain('content');
+    expect(el.querySelector('.doc-logo-link')?.textContent).toBe('API Catalog');
+    expect(el.querySelector('.nav-panel > .test-nav')?.textContent).toBe('NAV');
+    expect(el.querySelector('.content-panel > main')?.textContent).toBe('CONTENT');
+    expect(el.querySelector('pp-slot')).toBeNull();
+    // Only the attributes the behaviour adds differ from what the page wrote.
+    expect(document.body.querySelectorAll('pp-layout *').length).toBe(
+      new DOMParser().parseFromString(before, 'text/html').querySelectorAll('pp-layout *').length + 2,
+    );
   });
 
-  it('binds spaced header titles without leaking text into header tools', async () => {
-    const el = document.createElement('pp-layout');
-    el.setAttribute('data-title', 'API Catalog');
-    document.body.appendChild(el);
-    await el.updateComplete;
+  it('gives each palette button a tooltip with its label', () => {
+    const el = mountLayout();
 
-    const logoLink = el.shadowRoot?.querySelector('.doc-logo-link') as HTMLAnchorElement | null;
-    const headerTools = el.shadowRoot?.querySelector('.header-tools');
-
-    expect(logoLink?.textContent).toBe('API Catalog');
-    expect(headerTools?.textContent?.replace(/\s+/g, ' ').trim()).toBe('');
+    for (const button of el.querySelectorAll('[data-pp-theme-toggle]')) {
+      const tooltip = el.querySelector(`wa-tooltip[for="${button.id}"]`);
+      expect(button.id).not.toBe('');
+      expect(tooltip?.textContent).toBe(button.getAttribute('aria-label'));
+      expect(button.hasAttribute('title')).toBe(false);
+    }
   });
 
-  it('wires the split panel resize without leaked Lit event attributes', async () => {
-    sessionStorage.setItem('pp-split-position', '0');
+  it('makes the palette buttons switch the palette', () => {
+    const el = mountLayout();
+    const modeButton = el.querySelector('.theme-mode-toggle') as HTMLElement;
+    const tektronixButton = el.querySelector('.theme-tektronix-toggle') as HTMLElement;
 
-    const el = document.createElement('pp-layout');
-    document.body.appendChild(el);
-    await el.updateComplete;
+    expect(modeButton.getAttribute('aria-label')).toBe('Switch to Roger Mode (light)');
+    expect(tektronixButton.getAttribute('aria-label')).toBe('Enable Tektronix 4010 Mode');
 
-    const split = el.shadowRoot?.querySelector('sl-split-panel') as HTMLElement & {position?: number};
-    expect(split.getAttribute('position')).toBe('20');
-    expect(split.outerHTML).not.toContain('@sl-reposition');
-
-    split.position = 30;
-    split.dispatchEvent(new CustomEvent('sl-reposition'));
-    await el.updateComplete;
-
-    expect(sessionStorage.getItem('pp-split-position')).toBe('30');
-    expect(split.getAttribute('position')).toBe('30');
-  });
-
-  it('renders working Shoelace theme buttons directly in the header', async () => {
-    const el = document.createElement('pp-layout');
-    document.body.appendChild(el);
-    await el.updateComplete;
-
-    const switcher = el.shadowRoot?.querySelector('pb33f-theme-switcher');
-    const modeButton = el.shadowRoot?.querySelector('.theme-mode-toggle') as HTMLElement | null;
-    const tektronixButton = el.shadowRoot?.querySelector('.theme-tektronix-toggle') as HTMLElement | null;
-    const buttons = el.shadowRoot?.querySelectorAll('.theme-controls button');
-
-    expect(switcher).toBeNull();
-    expect(buttons).toHaveLength(2);
-    expect(modeButton?.querySelector('sl-icon')?.getAttribute('name')).toBe('sun');
-    expect(modeButton?.getAttribute('aria-label')).toBe('Switch to Roger Mode (light)');
-    expect(tektronixButton?.querySelector('sl-icon')?.getAttribute('name')).toBe('display');
-    expect(tektronixButton?.getAttribute('aria-label')).toBe('Enable Tektronix 4010 Mode');
-
-    modeButton?.click();
+    modeButton.click();
     expect(localStorage.getItem('pb33f-theme')).toBe('light');
-    expect(localStorage.getItem('pb33f-base-theme')).toBe('light');
     expect(document.documentElement.getAttribute('theme')).toBe('light');
     expect(document.documentElement.classList.contains('sl-theme-dark')).toBe(false);
+    expect(modeButton.querySelector('wa-icon')?.getAttribute('name')).toBe('moon');
 
-    tektronixButton?.click();
+    tektronixButton.click();
     expect(localStorage.getItem('pb33f-theme')).toBe('tektronix');
     expect(localStorage.getItem('pb33f-base-theme')).toBe('light');
     expect(document.documentElement.getAttribute('theme')).toBe('tektronix');
-    expect(document.documentElement.classList.contains('sl-theme-dark')).toBe(true);
 
-    tektronixButton?.click();
+    tektronixButton.click();
     expect(localStorage.getItem('pb33f-theme')).toBe('light');
-    expect(localStorage.getItem('pb33f-base-theme')).toBe('light');
-    expect(document.documentElement.getAttribute('theme')).toBe('light');
   });
 
-  it('renders aggregate version controls without a redundant catalog backlink', async () => {
-    document.body.dataset.ppCatalogHref = '../../../../index.html';
-    document.body.dataset.ppCurrentVersion = 'v2';
-    document.body.dataset.ppVersions = JSON.stringify([
-      {label: 'v2', href: '../index.html', active: true},
-      {label: 'v1', href: '../../v1/index.html'},
-    ]);
+  it('applies the stored split position, and falls back to 20% for a bad one', () => {
+    sessionStorage.setItem('pp-split-position', '33');
+    let el = mountLayout();
+    expect(splitPosition()).toBe('33%');
+    expect(divider(el).getAttribute('aria-valuenow')).toBe('33');
 
-    const el = document.createElement('pp-layout');
-    document.body.appendChild(el);
-    await el.updateComplete;
-
-    const dropdown = el.shadowRoot?.querySelector('sl-dropdown');
-    const button = el.shadowRoot?.querySelector('sl-button');
-    const items = el.shadowRoot?.querySelectorAll('sl-menu-item');
-    const logoLink = el.shadowRoot?.querySelector('.doc-logo-link') as HTMLAnchorElement | null;
-    const backlink = el.shadowRoot?.querySelector('.catalog-backlink');
-    const headerContextChildren = Array.from(el.shadowRoot?.querySelector('.header-context')?.children ?? []);
-
-    expect(dropdown).toBeTruthy();
-    expect(backlink).toBeNull();
-    expect(headerContextChildren[0]?.classList.contains('version-picker')).toBe(true);
-    expect(button?.textContent).toContain('Version: v2');
-    expect(items?.length).toBe(2);
-    expect(logoLink?.href).toBe('http://localhost:3000/index.html');
-    expect(el.shadowRoot?.querySelector('.service-name')).toBeNull();
-    expect(el.shadowRoot?.querySelector('.versions-link')).toBeNull();
+    sessionStorage.setItem('pp-split-position', '0');
+    el = mountLayout();
+    expect(splitPosition()).toBe('20%');
+    expect(divider(el).getAttribute('data-pp-resize-ready')).toBe('true');
   });
 
-  it('moves version controls into multi-contract navigation and preserves malformed-data fallback', async () => {
-    document.body.dataset.ppCurrentVersion = 'v2';
-    document.body.dataset.ppVersions = JSON.stringify([
-      {label: 'v2', href: 'index.html', active: true},
-      {label: 'v1', href: '../v1/index.html'},
-    ]);
-    document.body.dataset.ppContracts = JSON.stringify([
-      {role: 'http-api', label: 'HTTP API', contracts: [{id: 'http', label: 'HTTP', specKind: 'openapi', href: 'index.html', active: true}]},
-      {role: 'events', label: 'Events', contracts: [{id: 'events', label: 'Events', specKind: 'asyncapi', href: '../events/index.html'}]},
-    ]);
+  it('resizes the navigation column when the divider is dragged', () => {
+    const el = mountLayout();
+    const split = el.querySelector('.pp-split') as HTMLElement;
+    split.getBoundingClientRect = () => ({left: 0, width: 1000} as DOMRect);
 
-    const multi = document.createElement('pp-layout');
-    document.body.appendChild(multi);
-    await multi.updateComplete;
-    expect(multi.shadowRoot?.querySelector('.version-picker')).toBeNull();
+    divider(el).dispatchEvent(new MouseEvent('mousedown', {button: 0, clientX: 300, bubbles: true}));
+    expect(splitPosition()).toBe('30%');
+    document.dispatchEvent(new MouseEvent('mousemove', {clientX: 250}));
+    expect(splitPosition()).toBe('25%');
+    document.dispatchEvent(new MouseEvent('mouseup'));
+    document.dispatchEvent(new MouseEvent('mousemove', {clientX: 500}));
 
-    multi.remove();
-    document.body.dataset.ppContracts = '[';
-    const malformed = document.createElement('pp-layout');
-    document.body.appendChild(malformed);
-    await malformed.updateComplete;
-    expect(malformed.shadowRoot?.querySelector('.version-picker')).toBeTruthy();
+    expect(splitPosition()).toBe('25%');
+    expect(sessionStorage.getItem('pp-split-position')).toBe('25');
   });
 
-  it('uses sanitized contract counts so the header and navigation consumers agree', async () => {
-    document.body.dataset.ppCurrentVersion = 'v2';
-    document.body.dataset.ppVersions = JSON.stringify([
-      {label: 'v2', href: 'index.html', active: true},
-      {label: 'v1', href: '../v1/index.html'},
-    ]);
-    document.body.dataset.ppContracts = JSON.stringify([{
-      role: 'http-api',
-      label: 'HTTP API',
-      contracts: [
-        {id: 'http', label: 'HTTP', specKind: 'openapi', href: 'index.html', active: true},
-        {id: '', label: 'Broken', specKind: 'asyncapi', href: 'events.html'},
-      ],
-    }]);
+  it('moves the divider with the keyboard', () => {
+    const el = mountLayout();
+    const press = (key: string, shiftKey = false) =>
+      divider(el).dispatchEvent(new KeyboardEvent('keydown', {key, shiftKey, bubbles: true}));
 
-    const sanitizedOne = document.createElement('pp-layout');
-    document.body.appendChild(sanitizedOne);
-    await sanitizedOne.updateComplete;
-    expect(sanitizedOne.shadowRoot?.querySelector('.version-picker')).toBeTruthy();
-
-    sanitizedOne.remove();
-    document.body.dataset.ppContracts = JSON.stringify([{
-      role: 'http-api',
-      label: 'HTTP API',
-      contracts: [
-        {id: 'http', label: 'HTTP', specKind: 'openapi', href: 'index.html', active: true},
-        {id: 'events', label: 'Events', specKind: 'asyncapi', href: 'events.html'},
-      ],
-    }]);
-    const sanitizedTwo = document.createElement('pp-layout');
-    document.body.appendChild(sanitizedTwo);
-    await sanitizedTwo.updateComplete;
-    expect(sanitizedTwo.shadowRoot?.querySelector('.version-picker')).toBeNull();
+    press('ArrowRight');
+    expect(splitPosition()).toBe('21%');
+    press('ArrowLeft', true);
+    expect(splitPosition()).toBe('11%');
+    press('Home');
+    expect(splitPosition()).toBe('1%');
+    press('End');
+    expect(splitPosition()).toBe('100%');
+    expect(sessionStorage.getItem('pp-split-position')).toBe('100');
   });
 
-  it('keeps catalog href on the header title without rendering a header backlink', async () => {
-    document.body.dataset.ppCatalogHref = '../../../../index.html';
-
-    const el = document.createElement('pp-layout');
-    document.body.appendChild(el);
-    await el.updateComplete;
-
-    const logoLink = el.shadowRoot?.querySelector('.doc-logo-link') as HTMLAnchorElement | null;
-    const backlink = el.shadowRoot?.querySelector('.catalog-backlink');
-    const dropdown = el.shadowRoot?.querySelector('sl-dropdown');
-
-    expect(logoLink?.href).toBe('http://localhost:3000/index.html');
-    expect(backlink).toBeNull();
-    expect(dropdown).toBeNull();
+  it('works embedded, with no header', () => {
+    const el = mountLayout(true);
+    expect(el.hasAttribute('embedded')).toBe(true);
+    expect(el.querySelector('.pp-doc-header')).toBeNull();
+    expect(divider(el).getAttribute('data-pp-resize-ready')).toBe('true');
   });
 });

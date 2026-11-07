@@ -1,9 +1,9 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import navModelGroupCss from './nav-model-group.css.js';
 import {modelHref} from '../../utils/doc-links.js';
 import {renderViolationBadges, type ViolationCounts} from '../../utils/violations.js';
 import '../shared/asyncapi-protocol.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 interface NavModelGroup {
     name: string;
@@ -27,8 +27,7 @@ function groupContainsSlug(group: NavModelGroup, slug: string): boolean {
 }
 
 @customElement('pp-nav-model-group')
-export class PpNavModelGroup extends LitElement {
-    static styles = navModelGroupCss;
+export class PpNavModelGroup extends LightElement {
 
     @property({type: Object}) group: NavModelGroup = {
         name: '',
@@ -38,6 +37,11 @@ export class PpNavModelGroup extends LitElement {
 
     @property() activeSlug = '';
     @state() private open = false;
+
+    // A server-written group waits for pp-nav to hand it its group.
+    protected canReplaceServerMarkup(): boolean {
+        return this.group.name !== '';
+    }
 
     willUpdate(changed: Map<string, unknown>) {
         if (changed.has('group') || changed.has('activeSlug')) {
@@ -72,7 +76,7 @@ export class PpNavModelGroup extends LitElement {
         const dev = this.developerMode();
         return html`
             <div class="group-header ${containsActive ? 'active' : ''} ${dev ? 'developer' : ''}" @click=${this.toggle}>
-                <sl-icon name=${open ? 'chevron-down' : 'chevron-right'} class="chevron"></sl-icon>
+                <wa-icon name=${open ? 'chevron-down' : 'chevron-right'} class="chevron"></wa-icon>
                 <span>${group.name}</span>
                 ${dev ? renderViolationBadges(group.counts) : nothing}
             </div>

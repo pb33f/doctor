@@ -1,0 +1,16 @@
+{{/* tag-section.html is one tag's operations and its child tags. Data: render.TagSectionArgs. */}}
+{{if or (not .Tag.IsNavOnly) .Tag.Operations .Tag.Children}}
+	<div class="pp-tag-group">
+		{{if eq .Depth 0}}
+			<h3>{{.Tag.Summary}}</h3>
+		{{else}}
+			<h4><span class="blue-chevron">&gt; {{.Tag.Summary}}</span></h4>
+		{{end}}
+		{{if .Tag.Operations}}
+			<ul class="pp-operation-list">
+				{{range .Tag.Operations}}{{template "api/partials/operation-item.html" (opItem . $.Base)}}{{end}}
+			</ul>
+		{{end}}
+		{{range .Tag.Children}}{{template "api/partials/tag-section.html" (tagSection . (add $.Depth 1) $.Base)}}{{end}}
+	</div>
+{{end}}

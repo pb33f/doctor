@@ -1,0 +1,9 @@
+{{/* version-picker.html switches between the versions of a service. Data: the engine's version picker view. */}}
+<div class="{{.WrapperClass}}">
+	{{if .ShowLabel}}<span>Version</span>{{end}}
+	<sl-dropdown skidding="5" distance="5">
+		<sl-button slot="trigger" caret class="{{.SelectClass}}">{{.Trigger}}</sl-button><sl-menu data-catalog-version-menu>
+			{{range .Options}}<sl-menu-item value="{{.Href}}"{{if .Checked}} checked{{end}}>{{.Label}}</sl-menu-item>{{end}}
+		</sl-menu>
+	</sl-dropdown>
+</div>

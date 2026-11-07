@@ -1,6 +1,6 @@
-import {LitElement, html} from 'lit';
+import {html} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
-import asyncapiActionCss from './asyncapi-action.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 type AsyncAPIActionSize = 'small' | 'large';
 
@@ -42,8 +42,7 @@ function actionLabel(action: string): string {
 }
 
 @customElement('pp-asyncapi-action')
-export class PpAsyncAPIAction extends LitElement {
-  static styles = asyncapiActionCss;
+export class PpAsyncAPIAction extends LightElement {
 
   @property({reflect: true}) action = '';
   @property({reflect: true}) size: AsyncAPIActionSize = 'small';
@@ -52,7 +51,7 @@ export class PpAsyncAPIAction extends LitElement {
     const normalized = normalizeAction(this.action);
     return html`
       <span class="action ${this.size} ${normalized}" aria-label=${actionLabel(this.action)}>
-        <sl-icon name=${actionIcon(this.action)}></sl-icon>
+        <wa-icon name=${actionIcon(this.action)}></wa-icon>
         <span>${actionCode(this.action)}</span>
       </span>
     `;

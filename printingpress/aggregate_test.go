@@ -5,13 +5,11 @@
 package printingpress
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	stdhtml "html"
-	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -23,10 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/a-h/templ"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
+	"github.com/pb33f/doctor/printingpress/render"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
 )
@@ -1401,8 +1399,8 @@ func TestAggregateHTMLPromotionSurvivorHasFinalContractTopologyWithoutRewrite(t 
 		rendered := readAggregateFile(t, filepath.Join(httpOutput, filepath.FromSlash(relativePage)))
 		assert.Empty(t, aggregateBodyAttribute(t, rendered, "data-pp-contracts"), relativePage)
 		assert.Equal(t, "API OVERVIEW", aggregateBodyAttribute(t, rendered, "data-pp-overview-label"), relativePage)
-		assert.Contains(t, rendered, `<div class="pp-nav-fallback-home">API OVERVIEW</div>`, relativePage)
-		assert.NotContains(t, rendered, `class="pp-nav-fallback-contracts"`, relativePage)
+		assert.Contains(t, rendered, `<wa-icon name="chevron-right" class="nav-home-chevron"></wa-icon>API OVERVIEW</a>`, relativePage)
+		assert.NotContains(t, rendered, `class="contract-navigation"`, relativePage)
 	}
 }
 
@@ -4109,9 +4107,7 @@ func TestAggregateServicePrimaryHrefAndLegacyCompatibility(t *testing.T) {
 
 	assert.Equal(t, defaultContract.LatestVersion.OverviewHref, servicePrimaryHref(service))
 	assert.Empty(t, catalogServiceSummary(service))
-	var html strings.Builder
-	require.NoError(t, catalogRootContent(catalog, false).Render(context.Background(), &html))
-	assert.Contains(t, html.String(), `href="`+defaultContract.LatestVersion.OverviewHref+`"`)
+	assert.Contains(t, renderBodyForTest(t, catalogRootContent(catalog, false)), `href="`+defaultContract.LatestVersion.OverviewHref+`"`)
 	assert.Equal(t, "services/orders/index.html", service.OverviewHref)
 	assert.Equal(t, "services/orders/versions/index.html", service.VersionsHref)
 	require.Len(t, service.Versions, 2)
@@ -4136,9 +4132,7 @@ func TestAggregateCatalogCardVersionPickerUsesDefaultContract(t *testing.T) {
 	require.Len(t, defaultContract.Versions, 2)
 	require.NotNil(t, defaultContract.LatestVersion)
 
-	var html strings.Builder
-	require.NoError(t, catalogRootContent(catalog, false).Render(context.Background(), &html))
-	rendered := html.String()
+	rendered := renderBodyForTest(t, catalogRootContent(catalog, false))
 	assert.Contains(t, rendered, `>v2 (latest)</sl-button>`)
 	for _, version := range defaultContract.Versions {
 		assert.Contains(t, rendered, `value="`+version.OverviewHref+`"`)
@@ -4857,10 +4851,9 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogAndEntrySites(t *testing
 	rootHTML, err := os.ReadFile(filepath.Join(outputDir, "index.html"))
 	require.NoError(t, err)
 	assert.Contains(t, string(rootHTML), "Platform Catalog")
-	assert.Contains(t, string(rootHTML), `<pb33f-header name="Platform Catalog"`)
-	assert.Contains(t, string(rootHTML), `<div class="pp-layout-fallback-header" aria-hidden="true">`)
-	assert.Contains(t, string(rootHTML), `<span class="pp-layout-fallback-name">Platform Catalog</span>`)
-	assert.Contains(t, string(rootHTML), "pb33f-theme-switcher")
+	assert.Contains(t, string(rootHTML), `<header class="pb33f-header"><div class="logo fluid"><span class="caret">$</span> <span class="name"><a href="index.html">Platform Catalog</a></span>`)
+	assert.NotContains(t, string(rootHTML), `pp-layout-fallback-header`, "a server-rendered header needs no fallback")
+	assert.Contains(t, string(rootHTML), `data-pp-theme-toggle="tektronix"`)
 	assert.Contains(t, string(rootHTML), `href="services/users/versions/v2/specs/users-api/index.html"`)
 	assert.Contains(t, string(rootHTML), "static/printing-press.css")
 	assert.Contains(t, string(rootHTML), "pp-catalog-card-summary")
@@ -4885,7 +4878,7 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogAndEntrySites(t *testing
 	assert.Contains(t, string(entryHTML), `data-pp-versions=`)
 	assert.Contains(t, string(entryHTML), `data-pp-catalog-href="../../../../../../index.html"`)
 	assert.Contains(t, string(entryHTML), `data-pp-overview-href="index.html"`)
-	assert.Contains(t, string(entryHTML), `href="../../../../../../static/printing-press.css"`)
+	assert.Contains(t, string(entryHTML), `url("../../../../../../static/printing-press.css")`)
 	assert.Contains(t, string(entryHTML), `src="../../../../../../static/printing-press.js"`)
 	assert.NoFileExists(t, filepath.Join(filepath.Dir(entryIndex), "static", "printing-press.js"))
 	assert.NotContains(t, string(entryHTML), `data-pp-versions-href=`)
@@ -4894,7 +4887,7 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogAndEntrySites(t *testing
 	require.NoError(t, err)
 	assert.Contains(t, string(entryOperationHTML), `<base href="../">`)
 	assert.Contains(t, string(entryOperationHTML), `data-pp-base-url="../"`)
-	assert.Contains(t, string(entryOperationHTML), `href="../../../../../../static/printing-press.css"`)
+	assert.Contains(t, string(entryOperationHTML), `url("../../../../../../static/printing-press.css")`)
 	assert.Contains(t, string(entryOperationHTML), `src="../../../../../../static/printing-press.js"`)
 }
 
@@ -4925,7 +4918,7 @@ func TestAggregatePrintingPress_ServedEntryNestedPagesUsePageAwareSharedAssets(t
 	rendered := string(operationHTML)
 	assert.NotContains(t, rendered, `<base href=`)
 	assert.Contains(t, rendered, `data-pp-base-url="../"`)
-	assert.Contains(t, rendered, `href="../../../../../../../static/printing-press.css"`)
+	assert.Contains(t, rendered, `url("../../../../../../../static/printing-press.css")`)
 	assert.Contains(t, rendered, `src="../../../../../../../static/printing-press.js"`)
 	assert.Contains(t, rendered, `data-pp-shared="data/nav"`)
 	require.FileExists(t, filepath.Join(entryDir, "data", "nav.json"))
@@ -5149,8 +5142,9 @@ Hidden direct page.
 	require.NoError(t, err)
 
 	rootHTML := readAggregateFile(t, filepath.Join(outputDir, "index.html"))
-	assert.Contains(t, rootHTML, `<pp-layout data-title="Platform Catalog">`)
-	assert.Contains(t, rootHTML, `<pp-nav id="pp-nav" slot="nav" data-active="catalog" data-pp-preview-hold="true">`)
+	assert.Contains(t, rootHTML, `<pp-layout><header class="pp-doc-header">`)
+	assert.Contains(t, rootHTML, `<a class="doc-logo-link" href="index.html">Platform Catalog</a>`)
+	assert.Contains(t, rootHTML, `<pp-nav id="pp-nav" data-active="catalog" data-pp-preview-hold="true">`)
 	assert.Contains(t, rootHTML, `class="pp-nav-preview"`)
 	rootNav := catalogNavSegment(rootHTML)
 	assert.Contains(t, rootNav, `class="nav-home active"`)
@@ -5166,27 +5160,29 @@ Hidden direct page.
 	assert.NotContains(t, rootNav, `Users Public API`)
 
 	guidesHTML := readAggregateFile(t, filepath.Join(outputDir, "guides.html"))
-	assert.Contains(t, guidesHTML, `<pp-nav id="pp-nav" slot="nav" data-active="guides" data-pp-preview-hold="true">`)
+	assert.Contains(t, guidesHTML, `<pp-nav id="pp-nav" data-active="guides" data-pp-preview-hold="true">`)
 	assert.Contains(t, guidesHTML, `href="about.html" class="pp-guide-card"`)
 	assert.Contains(t, guidesHTML, `href="guides/setup.html" class="pp-guide-card"`)
 	assert.NotContains(t, guidesHTML, `faq.html`)
 
 	aboutHTML := readAggregateFile(t, filepath.Join(outputDir, "about.html"))
-	assert.Contains(t, aboutHTML, `<sl-breadcrumb-item href="guides.html">GUIDES</sl-breadcrumb-item>`)
-	breadcrumbIndex := strings.Index(aboutHTML, `<sl-breadcrumb class="pp-breadcrumb">`)
-	descriptionIndex := strings.Index(aboutHTML, "Higher-level catalog context.")
+	assert.Contains(t, aboutHTML, `<a class="pp-breadcrumb-label" href="guides.html">GUIDES</a>`)
+	aboutBody := aboutHTML[strings.Index(aboutHTML, "<body"):]
+	breadcrumbIndex := strings.Index(aboutBody, `<nav class="pp-breadcrumb" aria-label="Breadcrumb">`)
+	descriptionIndex := strings.Index(aboutBody, "Higher-level catalog context.")
 	require.NotEqual(t, -1, breadcrumbIndex)
 	require.NotEqual(t, -1, descriptionIndex)
 	assert.Less(t, breadcrumbIndex, descriptionIndex)
-	assert.Equal(t, 1, strings.Count(aboutHTML, "Higher-level catalog context."))
+	assert.Equal(t, 1, strings.Count(aboutBody, "Higher-level catalog context."), "the description shows once in the page; the head carries it as the meta description")
+	assert.Contains(t, aboutHTML, `<meta name="description" content="Higher-level catalog context.">`)
 	assert.Contains(t, aboutHTML, "Shared catalog note.")
 	assert.Contains(t, aboutHTML, `src="assets/docs/about/map.svg"`)
 	assert.Contains(t, aboutHTML, `href="guides/setup.html"`)
 	assert.FileExists(t, filepath.Join(outputDir, "assets", "docs", "about", "map.svg"))
 
 	setupHTML := readAggregateFile(t, filepath.Join(outputDir, "guides", "setup.html"))
-	assert.Contains(t, setupHTML, `<sl-breadcrumb-item href="../index.html">HOME</sl-breadcrumb-item>`)
-	assert.Contains(t, setupHTML, `<sl-breadcrumb-item href="../guides.html">GUIDES</sl-breadcrumb-item>`)
+	assert.Contains(t, setupHTML, `<a class="pp-breadcrumb-label" href="../index.html">HOME</a>`)
+	assert.Contains(t, setupHTML, `<a class="pp-breadcrumb-label" href="../guides.html">GUIDES</a>`)
 	assert.Contains(t, setupHTML, `href="../about.html"`)
 	assert.Contains(t, catalogNavSegment(setupHTML), `href="../index.html"`)
 	assert.Contains(t, catalogNavSegment(setupHTML), `class="nav-page-link active" href="setup.html"`)
@@ -5275,9 +5271,9 @@ func TestAggregatePrintingPress_PrintHTML_RendersCatalogDiagnosticsCounts(t *tes
 	assert.Equal(t, 1, strings.Count(rootRendered, `class="pp-catalog-diagnostics"`))
 	assert.Contains(t, rootRendered, `href="services/users/versions/v1/specs/users-api/diagnostics.html"`)
 	assert.Contains(t, rootRendered, `aria-label="Diagnostics: 1 error, 1 warning, 1 info"`)
-	assert.Contains(t, rootRendered, `<sl-icon name="exclamation-square" aria-hidden="true"></sl-icon><span class="pp-catalog-diagnostic-number">1</span>`)
-	assert.Contains(t, rootRendered, `<sl-icon name="exclamation-triangle" aria-hidden="true"></sl-icon><span class="pp-catalog-diagnostic-number">1</span>`)
-	assert.Contains(t, rootRendered, `<sl-icon name="info-square" aria-hidden="true"></sl-icon><span class="pp-catalog-diagnostic-number">1</span>`)
+	assert.Contains(t, rootRendered, `<wa-icon name="exclamation-square" aria-hidden="true"></wa-icon><span class="pp-catalog-diagnostic-number">1</span>`)
+	assert.Contains(t, rootRendered, `<wa-icon name="exclamation-triangle" aria-hidden="true"></wa-icon><span class="pp-catalog-diagnostic-number">1</span>`)
+	assert.Contains(t, rootRendered, `<wa-icon name="info-square" aria-hidden="true"></wa-icon><span class="pp-catalog-diagnostic-number">1</span>`)
 }
 
 func TestAggregateEntrySharedAssetBaseURL(t *testing.T) {
@@ -5337,16 +5333,12 @@ func TestCatalogRootContent_RendersAllWarningsInSingleAttentionBox(t *testing.T)
 		},
 	}
 
-	var html strings.Builder
-	err := catalogRootContent(catalog, false).Render(context.Background(), &html)
-	require.NoError(t, err)
-
-	rendered := html.String()
+	rendered := renderBodyForTest(t, catalogRootContent(catalog, false))
 	assert.Contains(t, rendered, `headerText="Skipped Render Builds"`)
 	assert.Contains(t, rendered, `<ul class="pp-catalog-warning-list">`)
 	assert.Contains(t, rendered, `<li>skipped render build for discovered spec (APIs/1forge.com/0.0.1/swagger.yaml)</li>`)
 	assert.Contains(t, rendered, `<li>skipped render build for discovered spec (APIs/example.com/2024-01-01/openapi.yaml)</li>`)
-	assert.NotContains(t, rendered, `</p></pb33f-attention-box>`)
+	assert.NotContains(t, rendered, `</p></pp-attention-box>`)
 }
 
 func TestCatalogRootContent_DisableSkippedRenderingSuppressesWarningBox(t *testing.T) {
@@ -5369,30 +5361,35 @@ func TestCatalogRootContent_DisableSkippedRenderingSuppressesWarningBox(t *testi
 		},
 	}
 
-	var html strings.Builder
-	err := catalogRootContent(catalog, true).Render(context.Background(), &html)
-	require.NoError(t, err)
-
-	rendered := html.String()
-	assert.NotContains(t, rendered, `pb33f-attention-box`)
+	rendered := renderBodyForTest(t, catalogRootContent(catalog, true))
+	assert.NotContains(t, rendered, `pp-attention-box`)
 	assert.Contains(t, rendered, `Users API`)
 }
 
-func TestCatalogShell_WithContentNavIncludesVersionSelectScript(t *testing.T) {
+// A catalog page with a navigation column draws the layout header as markup;
+// the engine script, not the page, makes its version menu work.
+func TestCatalogShell_WithContentNavDrawsTheLayoutHeader(t *testing.T) {
 	page := catalogPageData{
 		RelPath:        pppaths.FileIndexHTML,
 		HeaderTitle:    "Platform Catalog",
 		Title:          "Platform Catalog",
-		Content:        templ.ComponentFunc(func(ctx context.Context, w io.Writer) error { _, err := w.Write([]byte("content")); return err }),
+		Content:        render.Body{},
 		ShowCatalogNav: true,
 		CatalogPages: []*ppmodel.ContentPage{
 			{Title: "About", Label: "About", Slug: "about", Href: "about.html"},
 		},
 		ActiveNavSlug: "catalog",
 	}
-	var html strings.Builder
-	require.NoError(t, catalogShell(page).Render(context.Background(), &html))
-	assert.Contains(t, html.String(), `sl-menu[data-catalog-version-menu]`)
+	ap := &AggregatePrintingPress{config: &AggregatePrintingPressConfig{}}
+	stack, err := ap.themeStack()
+	require.NoError(t, err)
+	view, err := ap.catalogPageView(page, stack)
+	require.NoError(t, err)
+	html, err := stack.RenderString(view)
+	require.NoError(t, err)
+	assert.Contains(t, html, `<header class="pp-doc-header">`)
+	assert.Contains(t, html, `<div class="pp-split"><div class="nav-panel"><pp-nav id="pp-nav"`)
+	assert.NotContains(t, html, `sl-menu[data-catalog-version-menu]')`)
 }
 
 func TestCatalogVersionPrimaryHref_UsesVersionOverviewForCollisions(t *testing.T) {
@@ -6801,7 +6798,7 @@ func TestCatalogStylesheet_UsesSharedBackgroundSurface(t *testing.T) {
 
 	css := string(stylesheet)
 	assert.Contains(t, css, `background: var(--background-color);`)
-	assert.Contains(t, css, `.pp-catalog-shell pb33f-footer`)
+	assert.Contains(t, css, `.pp-catalog-shell .pb33f-footer`)
 	assert.Contains(t, css, `margin-top: calc(var(--global-padding-double) * 2);`)
 	assert.Contains(t, css, `.pp-catalog-diagnostics`)
 	assert.Contains(t, css, `border-top: 1px dotted color-mix(in srgb, var(--tertiary-color) 38%, transparent);`)
@@ -7138,4 +7135,12 @@ func findCatalogEntry(t *testing.T, service *ppmodel.CatalogService, versionLabe
 	}
 	t.Fatalf("entry for version %s not found", versionLabel)
 	return nil
+}
+
+// renderBodyForTest draws a page body through the default theme.
+func renderBodyForTest(t *testing.T, body render.Body) string {
+	t.Helper()
+	html, err := render.MustLoadDefaultTheme().RenderTemplate(body.Template, body.Data)
+	require.NoError(t, err)
+	return string(html)
 }

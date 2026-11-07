@@ -1,12 +1,11 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import {getPageDeveloperPayload, type PageDeveloperPayload} from '../../utils/page-payload.js';
 import {pluralLabel, violationTotal} from '../../utils/violations.js';
-import violationStatsCss from './violation-stats.css.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 @customElement('pp-violation-stats')
-export class PpViolationStats extends LitElement {
-  static styles = violationStatsCss;
+export class PpViolationStats extends LightElement {
 
   @property({attribute: 'data-scope-label'}) scopeLabel = '';
   @property({attribute: 'data-title'}) drawerTitle = '';
@@ -15,8 +14,21 @@ export class PpViolationStats extends LitElement {
   @property({attribute: 'data-component-type'}) componentType = '';
   @state() private payload: PageDeveloperPayload | null = null;
 
-  async firstUpdated() {
-    this.payload = await getPageDeveloperPayload();
+  private loading = false;
+
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.loading) {
+      this.loading = true;
+      void getPageDeveloperPayload().then((payload) => {
+        this.payload = payload;
+      });
+    }
+  }
+
+  // The server writes the summary; it stays until the page's problems arrive.
+  protected canReplaceServerMarkup(): boolean {
+    return this.payload !== null;
   }
 
   private resolveDrawerContext() {
@@ -62,7 +74,7 @@ export class PpViolationStats extends LitElement {
     if (value <= 0) return nothing;
     return html`
       <div class="stat ${severity}">
-        <sl-icon name=${icon} aria-hidden="true"></sl-icon>
+        <wa-icon name=${icon} aria-hidden="true"></wa-icon>
         <span class="label">${value}</span>
         <span class="violation">${pluralLabel(value, singular, plural)}</span>
       </div>
@@ -79,9 +91,7 @@ export class PpViolationStats extends LitElement {
         ${this.renderStat(counts.errors, 'err', 'exclamation-square', 'error')}
         ${this.renderStat(counts.warns, 'warn', 'exclamation-triangle', 'warning')}
         ${this.renderStat(counts.infos, 'info', 'info-square', 'info', 'infos')}
-        <sl-button class="details-button" size="medium" @click=${this.showDetails}>
-          OPEN PROBLEMS
-        </sl-button>
+        <button type="button" class="details-button" @click=${this.showDetails}>OPEN PROBLEMS</button>
       </div>
     `;
   }

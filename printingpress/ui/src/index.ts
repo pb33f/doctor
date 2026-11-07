@@ -4,26 +4,26 @@ import {hydratePrintingPressPage} from './utils/hydration.js';
 import {attentionInlineIcons} from './utils/attention-icons.js';
 import {enhanceContentCodeBlocks} from './utils/content-code-copy.js';
 import {printingPressStaticAssetHref} from './utils/static-assets.js';
+import {applyTheme, bindThemeSwitches, type ThemeName} from './utils/theme.js';
+import {bindVersionMenus} from './utils/version-menu.js';
 
 // Import Shoelace components used by cowboy-components
-import '@shoelace-style/shoelace/dist/components/tag/tag.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/split-panel/split-panel.js';
 import '@shoelace-style/shoelace/dist/components/drawer/drawer.js';
-import '@shoelace-style/shoelace/dist/components/details/details.js';
+import '@awesome.me/webawesome/dist/components/details/details.js';
 import '@shoelace-style/shoelace/dist/components/popup/popup.js';
-import '@shoelace-style/shoelace/dist/components/breadcrumb/breadcrumb.js';
-import '@shoelace-style/shoelace/dist/components/breadcrumb-item/breadcrumb-item.js';
-import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
+import '@awesome.me/webawesome/dist/components/spinner/spinner.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
 import '@shoelace-style/shoelace/dist/components/alert/alert.js';
-import '@shoelace-style/shoelace/dist/components/badge/badge.js';
+import '@awesome.me/webawesome/dist/components/badge/badge.js';
 import '@shoelace-style/shoelace/dist/components/format-number/format-number.js';
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.js';
 import { registerIconLibrary } from '@shoelace-style/shoelace/dist/utilities/icon-library.js';
+import { useBootstrapIcons } from '@pb33f/printing-press-components/icons.js';
 setBasePath(printingPressStaticAssetHref('shoelace'));
 
 // Inline shoelace icons, the ones we need.
@@ -85,17 +85,11 @@ registerIconLibrary('default', {
     return printingPressStaticAssetHref(`shoelace/assets/icons/${name}.svg`);
   },
 });
+// Web Awesome draws the same Bootstrap icons, from the same files.
+useBootstrapIcons(printingPressStaticAssetHref('shoelace/assets/icons'), inlineIcons);
 
-// Import cowboy-components
-import '@pb33f/cowboy-components/components/http-method/http-method.js';
-import '@pb33f/cowboy-components/components/render-operation-path/render-operation-path.js';
-import '@pb33f/cowboy-components/components/header/header.js';
-import '@pb33f/cowboy-components/components/theme-switcher/theme-switcher.js';
-import '@pb33f/cowboy-components/components/model-icon/model-icon.js';
-import '@pb33f/cowboy-components/components/attention-box/attention-box.js';
-import '@pb33f/cowboy-components/components/paginator/paginator.js';
-import '@pb33f/cowboy-components/components/terminal/terminal-example.js';
-import '@pb33f/cowboy-components/components/footer/footer.js';
+// Printing Press components: light DOM, on Web Awesome.
+import '@pb33f/printing-press-components';
 
 export { PpLayout } from './components/layout/layout.js';
 export { PpNav } from './components/nav/nav.js';
@@ -129,21 +123,16 @@ export { PpRefList } from './components/shared/ref-list.js';
 export { PpDiagnosticsList } from './components/diagnostics/diagnostics-list.js';
 
 // Shoelace tab components for visualization section
-import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
-import '@shoelace-style/shoelace/dist/components/tab/tab.js';
-import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
+import '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
+import '@awesome.me/webawesome/dist/components/tab/tab.js';
+import '@awesome.me/webawesome/dist/components/tab-panel/tab-panel.js';
 
 // Visualization components (excluded in lite builds via VITE_BUNDLE_LITE=1)
 import './components/class-diagram/class-diagram.js';
 import './components/mermaid/mermaid.js';
 import './components/explorer/focused-explorer.js';
 
-type HostThemeName = 'dark' | 'light' | 'tektronix';
-
-const PB33F_THEME = 'pb33f-theme';
-const PB33F_BASE_THEME = 'pb33f-base-theme';
-const PB33F_THEME_CHANGE = 'pb33f-theme-change';
-const hostThemes = new Set<HostThemeName>(['dark', 'light', 'tektronix']);
+const hostThemes = new Set<ThemeName>(['dark', 'light', 'tektronix']);
 
 function expectedHostOrigin() {
   try {
@@ -153,26 +142,8 @@ function expectedHostOrigin() {
   }
 }
 
-function isHostThemeName(value: unknown): value is HostThemeName {
-  return typeof value === 'string' && hostThemes.has(value as HostThemeName);
-}
-
-function applyHostTheme(theme: HostThemeName) {
-  try {
-    localStorage.setItem(PB33F_THEME, theme);
-    if (theme !== 'tektronix') {
-      localStorage.setItem(PB33F_BASE_THEME, theme);
-    }
-  } catch {
-    // storage failures should not prevent the embedded page from matching its host.
-  }
-  document.documentElement.setAttribute('theme', theme);
-  if (theme === 'light') {
-    document.documentElement.classList.remove('sl-theme-dark');
-  } else {
-    document.documentElement.classList.add('sl-theme-dark');
-  }
-  window.dispatchEvent(new CustomEvent(PB33F_THEME_CHANGE, {detail: {theme}}));
+function isHostThemeName(value: unknown): value is ThemeName {
+  return typeof value === 'string' && hostThemes.has(value as ThemeName);
 }
 
 window.addEventListener('message', (event) => {
@@ -183,10 +154,12 @@ window.addEventListener('message', (event) => {
   if (!data || typeof data !== 'object' || data.type !== 'doctor:theme' || !isHostThemeName(data.theme)) {
     return;
   }
-  applyHostTheme(data.theme);
+  applyTheme(data.theme);
 });
 
 function bootPrintingPressPage() {
+  bindThemeSwitches();
+  bindVersionMenus();
   enhanceContentCodeBlocks();
   void hydratePrintingPressPage();
 }

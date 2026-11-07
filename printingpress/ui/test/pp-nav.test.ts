@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import '../src/components/nav/nav.js';
 import '../src/components/nav/nav-tag.js';
 import '../src/components/nav/nav-model-group.js';
-import '@pb33f/cowboy-components/components/http-method/http-method.js';
-import navCss from '../src/components/nav/nav.css.js';
+import '@pb33f/printing-press-components/http-method/http-method.js';
+import {readFileSync} from 'fs';
+import {resolve} from 'path';
 
 describe('pp-nav', () => {
   beforeEach(() => {
@@ -16,6 +17,27 @@ describe('pp-nav', () => {
     delete document.body.dataset.ppServiceName;
     delete document.body.dataset.ppDeveloperMode;
     window.history.replaceState({}, '', '/');
+  });
+
+  it('keeps the nav the server wrote until the nav data arrives, then draws the same rows', async () => {
+    document.body.innerHTML = `<pp-nav id="pp-nav" data-active="create-burger" data-pp-owner="page" data-pp-ssr><a class="nav-home" href="index.html"><wa-icon name="chevron-right" class="nav-home-chevron"></wa-icon>API OVERVIEW</a><div class="nav-section nav-operations-section"><h4>Operations</h4><pp-nav-tag data-pp-owner="pp-nav" data-pp-ssr><div class="tag-header active"><wa-icon name="chevron-down" class="chevron"></wa-icon><span class="tag-name"><span>Burgers</span></span></div><div class="tag-body"><ul><li><a href="operations/create-burger.html" class="active"><span class="op-title">Create a new burger</span><pp-http-method mode="nav-naked" method="POST" data-pp-owner="pp-nav-tag" data-pp-ssr><span class="pp-http-method__naked post">POST</span></pp-http-method></a></li></ul></div></pp-nav-tag></div></pp-nav>`;
+    const el = document.querySelector('pp-nav') as HTMLElement & {updateComplete: Promise<unknown>};
+    await el.updateComplete;
+    const written = el.querySelector('pp-nav-tag');
+    expect(el.querySelector('.tag-header .tag-name')?.textContent).toBe('Burgers');
+    expect(el.querySelector('.pp-nav-fallback')).toBeNull();
+
+    el.setAttribute('data-nav', JSON.stringify([{
+      name: 'burgers', summary: 'Burgers', children: null, isNavOnly: false,
+      operations: [{method: 'POST', path: '/burgers', operationId: 'createBurger', summary: 'Create a new burger', slug: 'create-burger', deprecated: false}],
+    }]));
+    await el.updateComplete;
+    const tag = el.querySelector('pp-nav-tag') as HTMLElement & {updateComplete: Promise<unknown>};
+    await tag.updateComplete;
+    expect(tag).not.toBe(written);
+    expect(el.querySelectorAll('pp-nav-tag')).toHaveLength(1);
+    expect(tag.querySelector('.tag-header')?.classList.contains('active')).toBe(true);
+    expect(tag.querySelector('a.active .op-title')?.textContent).toBe('Create a new burger');
   });
 
   it('should render with nav data', async () => {
@@ -44,11 +66,11 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const homeLink = el.shadowRoot?.querySelector('.nav-home');
+    const homeLink = el.querySelector('.nav-home');
     expect(homeLink).toBeTruthy();
     expect(homeLink?.getAttribute('href')).toBe('http://localhost:3000/index.html');
 
-    const tagEls = el.shadowRoot?.querySelectorAll('pp-nav-tag');
+    const tagEls = el.querySelectorAll('pp-nav-tag');
     expect(tagEls?.length).toBe(1);
   });
 
@@ -79,13 +101,13 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const tagEl = el.shadowRoot?.querySelector('pp-nav-tag') as HTMLElement & { updateComplete?: Promise<unknown> };
+    const tagEl = el.querySelector('pp-nav-tag') as HTMLElement & { updateComplete?: Promise<unknown> };
     await tagEl?.updateComplete;
 
-    const action = tagEl?.shadowRoot?.querySelector('pp-asyncapi-action');
+    const action = tagEl?.querySelector('pp-asyncapi-action');
     expect(action?.getAttribute('action')).toBe('receive');
     expect(action?.getAttribute('size')).toBe('small');
-    expect(tagEl?.shadowRoot?.querySelector('pb33f-http-method')).toBeNull();
+    expect(tagEl?.querySelector('pb33f-http-method')).toBeNull();
   });
 
   it('renders protocol-named operation groups with the shared protocol component', async () => {
@@ -101,13 +123,13 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const tag = el.shadowRoot?.querySelector('pp-nav-tag') as HTMLElement & {updateComplete?: Promise<unknown>};
+    const tag = el.querySelector('pp-nav-tag') as HTMLElement & {updateComplete?: Promise<unknown>};
     await tag?.updateComplete;
-    const protocol = tag?.shadowRoot?.querySelector('.tag-name pp-asyncapi-protocol');
+    const protocol = tag?.querySelector('.tag-name pp-asyncapi-protocol');
     expect(protocol?.getAttribute('protocol')).toBe('kafka');
     expect(protocol?.getAttribute('size')).toBe('nav');
-    const label = protocol?.shadowRoot?.querySelector('.label');
-    const header = tag?.shadowRoot?.querySelector('.tag-header');
+    const label = protocol?.querySelector('.label');
+    const header = tag?.querySelector('.tag-header');
     expect(window.getComputedStyle(label as Element).fontSize).toBe(window.getComputedStyle(header as Element).fontSize);
   });
 
@@ -127,10 +149,10 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const group = el.shadowRoot?.querySelector('pp-nav-model-group') as HTMLElement & {updateComplete?: Promise<unknown>};
+    const group = el.querySelector('pp-nav-model-group') as HTMLElement & {updateComplete?: Promise<unknown>};
     await group?.updateComplete;
 
-    const protocol = group?.shadowRoot?.querySelector('pp-asyncapi-protocol');
+    const protocol = group?.querySelector('pp-asyncapi-protocol');
     expect(protocol?.getAttribute('protocol')).toBe('kafka');
     expect(protocol?.getAttribute('size')).toBe('nav');
   });
@@ -155,8 +177,8 @@ describe('pp-nav', () => {
     document.body.appendChild(group);
     await group.updateComplete;
 
-    expect(group.shadowRoot?.querySelector('.model-name > span')?.textContent).toBe('commandTransport');
-    const protocols = Array.from(group.shadowRoot?.querySelectorAll('pp-asyncapi-protocol') ?? []);
+    expect(group.querySelector('.model-name > span')?.textContent).toBe('commandTransport');
+    const protocols = Array.from(group.querySelectorAll('pp-asyncapi-protocol') ?? []);
     expect(protocols.map((protocol) => protocol.getAttribute('protocol'))).toEqual(['kafka', 'amqp']);
   });
 
@@ -188,7 +210,7 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const homeLink = el.shadowRoot?.querySelector('.nav-home');
+    const homeLink = el.querySelector('.nav-home');
     expect(homeLink?.getAttribute('href')).toBe('http://localhost:3000/harbor/index.html');
   });
 
@@ -226,11 +248,11 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const sectionHeadings = Array.from(el.shadowRoot?.querySelectorAll('.nav-section h4') || [])
+    const sectionHeadings = Array.from(el.querySelectorAll('.nav-section h4') || [])
       .map((heading) => heading.textContent?.trim());
     expect(sectionHeadings.slice(0, 2)).toEqual(['Guides', 'Operations']);
 
-    const links = Array.from(el.shadowRoot?.querySelectorAll('.nav-page-link') || []);
+    const links = Array.from(el.querySelectorAll('.nav-page-link') || []);
     expect(links.map((link) => link.textContent?.trim())).toEqual(['Start Here', 'Guide']);
     expect(links[0]?.getAttribute('href')).toBe('http://localhost:3000/docs/quickstart.html');
     expect(links[1]?.getAttribute('href')).toBe('http://localhost:3000/docs/guides/setup.html');
@@ -242,7 +264,7 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const tagEls = el.shadowRoot?.querySelectorAll('pp-nav-tag');
+    const tagEls = el.querySelectorAll('pp-nav-tag');
     expect(tagEls?.length).toBe(0);
   });
 
@@ -250,14 +272,14 @@ describe('pp-nav', () => {
     const empty = document.createElement('pp-nav');
     document.body.appendChild(empty);
     await empty.updateComplete;
-    expect(empty.shadowRoot?.querySelector('.pp-nav-fallback-guides')).toBeNull();
+    expect(empty.querySelector('.pp-nav-fallback-guides')).toBeNull();
 
     document.body.innerHTML = '';
     const withPages = document.createElement('pp-nav');
     withPages.setAttribute('data-has-content-pages', 'true');
     document.body.appendChild(withPages);
     await withPages.updateComplete;
-    expect(withPages.shadowRoot?.querySelector('.pp-nav-fallback-guides')).not.toBeNull();
+    expect(withPages.querySelector('.pp-nav-fallback-guides')).not.toBeNull();
   });
 
   it('uses the archive controls sender origin when requesting exports', async () => {
@@ -273,7 +295,7 @@ describe('pp-nav', () => {
     await el.updateComplete;
 
     const postMessage = vi.spyOn(window.parent, 'postMessage').mockImplementation(() => {});
-    const button = el.shadowRoot?.querySelector('.archive-download-button') as HTMLElement | null;
+    const button = el.querySelector('.archive-download-button') as HTMLElement | null;
     button?.click();
 
     expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({
@@ -300,7 +322,7 @@ describe('pp-nav', () => {
 
     const postMessage = vi.spyOn(window.parent, 'postMessage').mockImplementation(() => {});
     const directExport = vi.spyOn(el as any, 'requestDirectArchiveExport');
-    const button = el.shadowRoot?.querySelector('.archive-download-button') as HTMLElement | null;
+    const button = el.querySelector('.archive-download-button') as HTMLElement | null;
     button?.click();
 
     expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({
@@ -321,7 +343,7 @@ describe('pp-nav', () => {
 
     vi.spyOn(el as any, 'isEmbeddedInHost').mockReturnValue(true);
     const directExport = vi.spyOn(el as any, 'requestDirectArchiveExport');
-    const button = el.shadowRoot?.querySelector('.archive-download-button') as HTMLElement | null;
+    const button = el.querySelector('.archive-download-button') as HTMLElement | null;
     button?.click();
 
     expect(directExport).not.toHaveBeenCalled();
@@ -339,7 +361,7 @@ describe('pp-nav', () => {
     }));
     await el.updateComplete;
 
-    const checkboxes = Array.from(el.shadowRoot?.querySelectorAll('sl-checkbox') || []);
+    const checkboxes = Array.from(el.querySelectorAll('sl-checkbox') || []);
     const aiDocs = checkboxes.find((checkbox) => checkbox.textContent?.trim() === 'AI docs?') as
       | (HTMLElement & {checked: boolean})
       | undefined;
@@ -352,7 +374,7 @@ describe('pp-nav', () => {
     await el.updateComplete;
 
     const postMessage = vi.spyOn(window.parent, 'postMessage').mockImplementation(() => {});
-    const button = el.shadowRoot?.querySelector('.archive-download-button') as HTMLElement | null;
+    const button = el.querySelector('.archive-download-button') as HTMLElement | null;
     button?.click();
 
     expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({
@@ -377,7 +399,7 @@ describe('pp-nav', () => {
     await el.updateComplete;
 
     const postMessage = vi.spyOn(window.parent, 'postMessage').mockImplementation(() => {});
-    const button = el.shadowRoot?.querySelector('.archive-download-button') as HTMLElement | null;
+    const button = el.querySelector('.archive-download-button') as HTMLElement | null;
     button?.click();
     await el.updateComplete;
 
@@ -386,7 +408,7 @@ describe('pp-nav', () => {
     expect(button?.hasAttribute('disabled')).toBe(true);
     expect(button?.getAttribute('aria-busy')).toBe('true');
     expect(button?.textContent).not.toContain('export');
-    expect(button?.querySelector('sl-spinner')).not.toBeNull();
+    expect(button?.querySelector('wa-spinner')).not.toBeNull();
 
     button?.click();
     expect(postMessage).toHaveBeenCalledTimes(1);
@@ -401,7 +423,7 @@ describe('pp-nav', () => {
     expect(button?.hasAttribute('disabled')).toBe(false);
     expect(button?.getAttribute('aria-busy')).toBe('false');
     expect(button?.textContent).toContain('export');
-    expect(button?.querySelector('sl-spinner')).toBeNull();
+    expect(button?.querySelector('wa-spinner')).toBeNull();
   });
 
   it('keeps direct archive exports loading until the fetch-backed download finishes', async () => {
@@ -415,14 +437,14 @@ describe('pp-nav', () => {
       finishExport = resolve;
     });
     const directExport = vi.spyOn(el as any, 'requestDirectArchiveExport').mockReturnValue(exportPromise);
-    const button = el.shadowRoot?.querySelector('.archive-download-button') as HTMLElement | null;
+    const button = el.querySelector('.archive-download-button') as HTMLElement | null;
 
     button?.click();
     await el.updateComplete;
 
     expect(directExport).toHaveBeenCalledWith('/_printing-press/export');
     expect(button?.hasAttribute('disabled')).toBe(true);
-    expect(button?.querySelector('sl-spinner')).not.toBeNull();
+    expect(button?.querySelector('wa-spinner')).not.toBeNull();
 
     button?.click();
     expect(directExport).toHaveBeenCalledTimes(1);
@@ -432,7 +454,7 @@ describe('pp-nav', () => {
     await el.updateComplete;
 
     expect(button?.hasAttribute('disabled')).toBe(false);
-    expect(button?.querySelector('sl-spinner')).toBeNull();
+    expect(button?.querySelector('wa-spinner')).toBeNull();
   });
 
   it('downloads direct archive exports with fetch so loading can track the response', async () => {
@@ -487,16 +509,16 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const title = el.shadowRoot?.querySelector('.host-archive-controls-title');
+    const title = el.querySelector('.host-archive-controls-title');
     expect(title?.textContent?.trim()).toBe('export documentation');
 
-    const tooltips = Array.from(el.shadowRoot?.querySelectorAll('sl-tooltip.archive-option-tooltip') || []);
+    const tooltips = Array.from(el.querySelectorAll('sl-tooltip.archive-option-tooltip') || []);
     expect(tooltips.map((tooltip) => tooltip.getAttribute('content'))).toEqual([
       'INCLUDE QUALITY DIAGNOSTICS IN GENERATED DOCS',
       'INCLUDE llms.txt & AGENTIC READY VERSION OF DOCUMENTATION',
     ]);
 
-    const labels = Array.from(el.shadowRoot?.querySelectorAll('sl-checkbox') || [])
+    const labels = Array.from(el.querySelectorAll('sl-checkbox') || [])
       .map((checkbox) => checkbox.textContent?.trim());
     expect(labels).toEqual(['diagnostics?', 'AI docs?']);
   });
@@ -507,7 +529,7 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const controls = el.shadowRoot?.querySelector('.host-archive-controls');
+    const controls = el.querySelector('.host-archive-controls');
     expect(controls).toBeTruthy();
   });
 
@@ -547,24 +569,24 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    expect(Array.from(el.shadowRoot?.querySelectorAll('.contract-role-heading') ?? []).map((node) => node.textContent?.trim()))
+    expect(Array.from(el.querySelectorAll('.contract-role-heading') ?? []).map((node) => node.textContent?.trim()))
       .toEqual(['HTTP API', 'Published Events', 'Consumed Events', 'External Sources', 'Events']);
-    expect(Array.from(el.shadowRoot?.querySelectorAll('.contract-link') ?? []).map((node) => node.textContent?.trim()))
+    expect(Array.from(el.querySelectorAll('.contract-link') ?? []).map((node) => node.textContent?.trim()))
       .toEqual(['Users HTTP', 'Admin HTTP', 'Published Orders', 'Consumed Orders', 'External Orders', 'General Events']);
-    expect(el.shadowRoot?.querySelectorAll('.contract-local-navigation')).toHaveLength(1);
-    const local = el.shadowRoot?.querySelector('.contract-link[aria-current="page"]')?.closest('li')?.querySelector('.contract-local-navigation');
+    expect(el.querySelectorAll('.contract-local-navigation')).toHaveLength(1);
+    const local = el.querySelector('.contract-link[aria-current="page"]')?.closest('li')?.querySelector('.contract-local-navigation');
     expect(local?.querySelector('.nav-home')?.textContent).toContain('API OVERVIEW');
     expect(local?.textContent).toContain('DIAGNOSTICS');
     expect(local?.textContent).toContain('Guides');
     expect(local?.textContent).toContain('Operations');
     expect(local?.textContent).toContain('Models');
     expect(local?.textContent).toContain('Webhooks');
-    expect(el.shadowRoot?.querySelector('.contract-link:not([aria-current])')?.closest('li')?.querySelector('.contract-local-navigation')).toBeNull();
+    expect(el.querySelector('.contract-link:not([aria-current])')?.closest('li')?.querySelector('.contract-local-navigation')).toBeNull();
 
-    const links = Array.from(el.shadowRoot?.querySelectorAll('.contract-link') ?? []);
+    const links = Array.from(el.querySelectorAll('.contract-link') ?? []);
     expect(links[0]?.getAttribute('href')).toBe('http://localhost:3000/index.html');
     expect(links[1]?.getAttribute('href')).toBe('http://localhost:3000/v3/specs/admin-http/index.html');
-    const versionItems = Array.from(el.shadowRoot?.querySelectorAll('.contract-version-menu sl-menu-item') ?? []);
+    const versionItems = Array.from(el.querySelectorAll('.contract-version-menu sl-menu-item') ?? []);
     expect(versionItems.map((item) => item.getAttribute('value'))).toEqual([
       'http://localhost:3000/v2/specs/users-http/index.html',
       'http://localhost:3000/index.html',
@@ -579,7 +601,7 @@ describe('pp-nav', () => {
       el.setAttribute('data-nav', '[]');
       document.body.appendChild(el);
       await el.updateComplete;
-      const text = el.shadowRoot?.querySelector('.nav-home')?.textContent?.trim();
+      const text = el.querySelector('.nav-home')?.textContent?.trim();
       el.remove();
       return text;
     };
@@ -596,8 +618,8 @@ describe('pp-nav', () => {
       el.setAttribute('data-nav', '[]');
       document.body.appendChild(el);
       await el.updateComplete;
-      expect(el.shadowRoot?.querySelector('.contract-navigation')).toBeNull();
-      expect(el.shadowRoot?.querySelector('.nav-home')).toBeTruthy();
+      expect(el.querySelector('.contract-navigation')).toBeNull();
+      expect(el.querySelector('.nav-home')).toBeTruthy();
     },
   );
 
@@ -621,12 +643,12 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    expect(el.shadowRoot?.querySelector('.contract-navigation')).toBeNull();
-    expect(el.shadowRoot?.querySelector('.nav-home')?.textContent).toContain('API OVERVIEW');
-    expect(el.shadowRoot?.querySelector('.nav-pages-section')).toBeTruthy();
-    expect(el.shadowRoot?.querySelector('.nav-operations-section')).toBeTruthy();
-    expect(el.shadowRoot?.querySelector('.nav-models-section')).toBeTruthy();
-    expect(el.shadowRoot?.querySelector('.nav-webhooks-section')).toBeTruthy();
+    expect(el.querySelector('.contract-navigation')).toBeNull();
+    expect(el.querySelector('.nav-home')?.textContent).toContain('API OVERVIEW');
+    expect(el.querySelector('.nav-pages-section')).toBeTruthy();
+    expect(el.querySelector('.nav-operations-section')).toBeTruthy();
+    expect(el.querySelector('.nav-models-section')).toBeTruthy();
+    expect(el.querySelector('.nav-webhooks-section')).toBeTruthy();
   });
 
   it('removes the retained server preview after normal hydration', async () => {
@@ -640,7 +662,7 @@ describe('pp-nav', () => {
     await el.updateComplete;
 
     expect(el.querySelector('[data-server-fallback="true"]')).toBeNull();
-    expect(el.shadowRoot?.querySelector('.nav-operations-section')).toBeTruthy();
+    expect(el.querySelector('.nav-operations-section')).toBeTruthy();
   });
 
   it('keeps the retained server preview when preview hold is active', async () => {
@@ -655,7 +677,7 @@ describe('pp-nav', () => {
     await el.updateComplete;
 
     expect(el.querySelector('[data-server-fallback="true"]')).toBe(preview);
-    expect(el.shadowRoot?.querySelector('slot')).toBeTruthy();
+    expect(el.querySelector('pp-slot')?.contains(preview)).toBe(true);
   });
 
   it('keeps contract anchors and the active version trigger as separate keyboard-focusable controls', async () => {
@@ -667,15 +689,15 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const active = el.shadowRoot?.querySelector('.contract-link[aria-current="page"]') as HTMLAnchorElement | null;
-    const trigger = el.shadowRoot?.querySelector('.contract-version-trigger') as HTMLElement | null;
+    const active = el.querySelector('.contract-link[aria-current="page"]') as HTMLAnchorElement | null;
+    const trigger = el.querySelector('.contract-version-trigger') as HTMLElement | null;
     expect(active?.querySelector('button, sl-button')).toBeNull();
     expect(active?.getAttribute('aria-current')).toBe('page');
     expect(trigger?.getAttribute('aria-label')).toBe('Select version for Users HTTP, current version v1');
     active?.focus();
-    expect(el.shadowRoot?.activeElement).toBe(active);
+    expect(document.activeElement).toBe(active);
     trigger?.focus();
-    expect(el.shadowRoot?.activeElement).toBe(trigger);
+    expect(document.activeElement).toBe(trigger);
     const list = active?.closest('ul');
     expect(list?.getAttribute('aria-labelledby')).toBeTruthy();
   });
@@ -687,7 +709,7 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const menu = el.shadowRoot?.querySelector('.contract-version-menu');
+    const menu = el.querySelector('.contract-version-menu');
     const olderVersion = menu?.querySelector('sl-menu-item') as (HTMLElement & {value: string}) | null;
     const expectedTarget = 'http://localhost:3000/v2/specs/users-http/index.html';
     expect(menu).toBeTruthy();
@@ -708,7 +730,7 @@ describe('pp-nav', () => {
     expect(navigationWindow.location.href).toBe(expectedTarget);
     expect(olderVersion?.getAttribute('value')).toBe(expectedTarget);
     expect(olderVersion?.getAttribute('aria-current')).toBeNull();
-    expect(el.shadowRoot?.querySelector('.contract-link[aria-current="page"]')?.textContent).toContain('Users HTTP');
+    expect(el.querySelector('.contract-link[aria-current="page"]')?.textContent).toContain('Users HTTP');
   });
 
   it('preserves legacy navigation classes and order for one contract', async () => {
@@ -722,14 +744,14 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const children = Array.from(el.shadowRoot?.children ?? []);
+    const children = Array.from(el.children ?? []);
     expect(children[0]?.classList.contains('nav-home')).toBe(true);
     expect(children.slice(1).map((child) => child.className).filter(Boolean)).toEqual([
       'nav-section nav-pages-section',
       'nav-section nav-operations-section',
       'nav-section nav-models-section',
     ]);
-    expect(el.shadowRoot?.querySelector('.contract-navigation')).toBeNull();
+    expect(el.querySelector('.contract-navigation')).toBeNull();
   });
 
   it('renders only sanitized contract versions with one deterministic current item', async () => {
@@ -763,8 +785,8 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const trigger = el.shadowRoot?.querySelector('.contract-version-trigger');
-    const items = Array.from(el.shadowRoot?.querySelectorAll('.contract-version-menu sl-menu-item') ?? []);
+    const trigger = el.querySelector('.contract-version-trigger');
+    const items = Array.from(el.querySelectorAll('.contract-version-menu sl-menu-item') ?? []);
     expect(trigger?.textContent?.trim()).toBe('v2');
     expect(items.map((item) => item.textContent?.trim())).toEqual(['v3', 'v2', 'v1']);
     expect(items.filter((item) => item.getAttribute('aria-current') === 'page')).toHaveLength(1);
@@ -785,12 +807,12 @@ describe('pp-nav', () => {
     document.body.appendChild(el);
     await el.updateComplete;
 
-    expect(el.shadowRoot?.querySelector('.contract-navigation')).toBeNull();
-    expect(el.shadowRoot?.querySelector('.nav-home')).toBeTruthy();
+    expect(el.querySelector('.contract-navigation')).toBeNull();
+    expect(el.querySelector('.nav-home')).toBeTruthy();
   });
 
   it('styles contract navigation only with the existing theme custom properties', () => {
-    const source = navCss.cssText;
+    const source = readFileSync(resolve(__dirname, '../src/components/nav/nav.css'), 'utf8');
     expect(source).toContain('var(--primary-color)');
     expect(source).toContain('var(--background-color)');
     expect(source).toContain('var(--font-color)');

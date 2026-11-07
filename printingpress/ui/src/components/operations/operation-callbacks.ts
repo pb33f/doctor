@@ -1,11 +1,6 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {unsafeHTML} from 'lit/directives/unsafe-html.js';
 import {customElement, property, state} from 'lit/decorators.js';
-import sharedCss from '../../styles/shared.css.js';
-import markdownCss from '../../styles/markdown.css.js';
-import refLinkCss from '../../styles/ref-link.css.js';
-import statusColorsCss from '../../styles/status-colors.css.js';
-import operationCallbacksCss from './operation-callbacks.css.js';
 import {ComponentLinkData, MediaTypeData, ResponseData} from '../../utils/schema.js';
 import {renderMarkdown} from '../../utils/markdown.js';
 import {renderComponentRefLink} from '../../utils/render-helpers.js';
@@ -14,6 +9,7 @@ import '../shared/schema-properties.js';
 import '../shared/ref-popover.js';
 import '../shared/example-selector.js';
 import '../shared/media-type-selector.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 interface RequestBodyData {
     description?: string;
@@ -39,11 +35,15 @@ interface CallbackData {
 }
 
 @customElement('pp-operation-callbacks')
-export class PpOperationCallbacks extends LitElement {
-    static styles = [sharedCss, markdownCss, refLinkCss, statusColorsCss, operationCallbacksCss];
+export class PpOperationCallbacks extends LightElement {
 
     @property({attribute: 'callbacks-json'}) callbacksJson = '';
     @state() private callbacks: CallbackData[] = [];
+
+    // Server-written content is never drawn again.
+    protected canReplaceServerMarkup(): boolean {
+        return false;
+    }
 
     willUpdate(changed: Map<string, unknown>) {
         if (changed.has('callbacksJson') && this.callbacksJson) {
@@ -95,7 +95,7 @@ export class PpOperationCallbacks extends LitElement {
         return html`
             <div class="callback-operation">
                 <div class="callback-method-expression">
-                    <pb33f-http-method method=${op.method}></pb33f-http-method>
+                    <pp-http-method method=${op.method}></pp-http-method>
                     <span class="callback-expression">${op.expression}</span>
                 </div>
                 ${op.descHtml

@@ -17,6 +17,7 @@ import (
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/doctor/printingpress/internal/pppaths"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
+	"github.com/pb33f/doctor/printingpress/theme"
 )
 
 const (
@@ -113,6 +114,24 @@ type AggregatePrintingPressConfig struct {
 	// and llms-models.txt are generated for each entry. Supported values are
 	// "auto", "always", and "never".
 	LLMGenerateMonoliths string
+
+	// SiteKind forces the directory build to be a docs site or a catalog. Empty
+	// lets the build decide: a directory with no specs is a docs site.
+	SiteKind ppmodel.SiteKind
+	// Brand is the site's brand content (logo, favicon, header links).
+	Brand *ppmodel.SiteBrand
+	// Theme is the site theme: a built-in theme name or a theme folder.
+	// Empty selects the default theme.
+	Theme string
+	// SiteLayouts is the site's own layouts folder, which wins over the
+	// theme. Empty uses layouts/ under the scan root.
+	SiteLayouts string
+	// NavPath is the docs site's nav.yaml. Empty looks for docs/nav.yaml,
+	// then nav.yaml, under the scan root.
+	NavPath string
+
+	// mockSeed is passed to every entry's mock generators (tests only).
+	mockSeed int64
 }
 
 // AggregatePressStatistics reports the outcome of an aggregate print run.
@@ -185,6 +204,8 @@ type AggregatePrintingPress struct {
 	beginEntryPromotion     func(string, string) (*aggregateEntryPromotion, error, error)
 	cleanupPromotionBackup  func(string) error
 	removeStagedOutput      func(string) error
+	// theme is the loaded site theme.
+	theme *theme.Stack
 }
 
 // CreateAggregatePrintingPressFromPath creates a multi-spec printing press rooted at scanRoot.
@@ -227,6 +248,7 @@ func cloneAggregateConfig(config *AggregatePrintingPressConfig) *AggregatePrinti
 	cloned.ServiceIdentity.StripSuffixes = append([]string(nil), config.ServiceIdentity.StripSuffixes...)
 	cloned.ContractRoles = append([]AggregateContractRoleRule(nil), config.ContractRoles...)
 	cloned.Footer = cloneFooterConfig(config.Footer)
+	cloned.Brand = cloneSiteBrand(config.Brand)
 	return &cloned
 }
 

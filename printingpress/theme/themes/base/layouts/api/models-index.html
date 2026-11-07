@@ -1,0 +1,13 @@
+{{/* models-index.html lists every model group. Data: render.PageData of []*model.NavModelGroup. */}}
+{{$base := .Base}}
+<div class="pp-root">
+	{{template "api/partials/breadcrumb.html" .Crumbs}}
+	{{iconTitle "schemas" "Models"}} {{range .Page}}
+		{{if .Models}}
+			<div class="pp-model-category">
+				<h2><a href="{{docHref $base (modelTypeIndexHTML .TypeSlug)}}" class="pp-category-link">{{.Name}}</a></h2>
+				{{template "api/partials/model-cards.html" (modelGroup . $base)}}
+			</div>
+		{{end}}
+	{{end}}
+</div>

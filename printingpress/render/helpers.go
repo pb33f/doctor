@@ -5,6 +5,7 @@
 package render
 
 import (
+	"encoding/json"
 	"fmt"
 	"html"
 	"net/url"
@@ -532,4 +533,13 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// MustJSON encodes v as JSON, or "{}" when it cannot be encoded.
+func MustJSON(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
 }

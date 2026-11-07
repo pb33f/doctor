@@ -1,0 +1,128 @@
+/*
+ * The pb33f look for the Printing Press components: each --pp-* token takes
+ * its value from the pb33f palette, so the dark, light and tektronix
+ * palettes reach the components with no restyling.
+ */
+:root {
+  --pp-font-mono: var(--font-stack);
+  --pp-font-mono-bold: var(--font-stack-bold);
+
+  --pp-color-text: var(--font-color);
+  --pp-color-text-sub1: var(--font-color-sub1);
+  --pp-color-text-sub2: var(--font-color-sub2);
+  --pp-color-background: var(--background-color);
+  --pp-color-surface: var(--terminal-background);
+  --pp-color-border: var(--code-border);
+  --pp-color-primary: var(--primary-color);
+  --pp-color-primary-soft: var(--primary-color-lowalpha);
+  --pp-color-secondary: var(--secondary-color);
+  --pp-color-secondary-soft: var(--secondary-color-lowalpha);
+  --pp-color-tertiary: var(--tertiary-color);
+  --pp-color-ok: var(--terminal-text);
+  --pp-color-ok-soft: var(--ok-color-lowalpha);
+  --pp-color-warn: var(--warn-color);
+  --pp-color-warn-soft: var(--warn-color-lowalpha);
+  --pp-color-error: var(--error-color);
+  --pp-color-error-soft: var(--error-color-lowalpha);
+
+  --pp-glow: 10px;
+  --pp-space: var(--global-space);
+  --pp-padding: var(--global-padding);
+}
+
+/*
+ * Web Awesome panels in the pb33f look: the surface, border and corners its
+ * Shoelace theme gave them. That theme set them in dark mode only, so in light mode a
+ * panel has no fill and a border in the text colour.
+ */
+:root {
+  --wa-color-surface-default: hsl(240 5.9% 11%);
+  --wa-color-surface-border: hsl(240 4.6% 22%);
+  --wa-panel-border-radius: 0.25rem;
+}
+
+:root[theme="light"] {
+  --wa-color-surface-default: transparent;
+  --wa-color-surface-border: currentColor;
+}
+
+/*
+ * Web Awesome's icon sets --primary-color and --secondary-color on itself for
+ * duotone icons. Those are pb33f palette names, so they are passed through.
+ */
+wa-icon {
+  --primary-color: inherit;
+  --secondary-color: inherit;
+}
+
+:root[theme="light"] {
+  --pp-glow: 0;
+  --pp-http-background: #f0f0f0;
+  --pp-http-get: #15803d;
+  --pp-http-post: #2563eb;
+  --pp-http-put: #2563eb;
+  --pp-http-delete: #dc2626;
+  --pp-http-patch: #2563eb;
+  --pp-http-query: #2563eb;
+  --pp-http-other: #6b7280;
+  --pp-http-get-border: #000;
+  --pp-http-post-border: #000;
+  --pp-http-put-border: #000;
+  --pp-http-delete-border: #000;
+  --pp-http-patch-border: #000;
+  --pp-http-query-border: #000;
+  --pp-http-other-border: #000;
+}
+
+/* Attention boxes keep the pb33f amber and error shades, and their glow. */
+pp-attention-box .pp-attention-box__frame.warning {
+  border-left-color: var(--warn-200);
+  animation: pp-warning-glow 2s infinite alternate;
+}
+
+pp-attention-box .pp-attention-box__frame.error {
+  animation: pp-error-glow 1.2s infinite alternate;
+}
+
+:root[theme="light"] pp-attention-box .pp-attention-box__frame {
+  animation: none;
+}
+
+pp-attention-box wa-callout.warning {
+  border-color: var(--warn-200);
+  color: var(--warn-300);
+}
+
+pp-attention-box wa-callout.warning::part(icon) {
+  color: var(--warn-300);
+}
+
+pp-attention-box wa-callout.warning > strong {
+  color: var(--warn-200);
+}
+
+pp-attention-box wa-callout.error {
+  color: var(--error-font-color);
+}
+
+@keyframes pp-error-glow {
+  from {
+    box-shadow: 0 0 1px var(--error-color-lowalpha);
+    border-color: var(--error-color-verylowalpha);
+  }
+  to {
+    border-color: var(--error-color);
+    box-shadow: 0 0 8px var(--error-color);
+  }
+}
+
+@keyframes pp-warning-glow {
+  from {
+    box-shadow: 0 0 1px var(--warn-300-lowalpha);
+    border-color: var(--warn-200-lowalpha);
+  }
+  to {
+    border-color: var(--warn-300);
+    box-shadow: 0 0 8px var(--warn-200);
+  }
+}

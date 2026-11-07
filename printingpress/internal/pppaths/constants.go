@@ -55,9 +55,10 @@ const (
 	FileAgentsGuide             = "AGENTS.md"
 	FileStateSQLite             = ".printingpress-state.db"
 	FileCatalogContentStateJSON = ".printingpress-catalog-content.json"
+	// FileCatalogAgentContentStateJSON lists the page.md files a directory
+	// build wrote, so the next build removes those it no longer has.
+	FileCatalogAgentContentStateJSON = ".printingpress-catalog-agent-content.json"
 
-	FilePB33FThemeCSS             = "pb33f-theme.css"
-	FileCowboyComponentsCSS       = "cowboy-components.css"
 	FileShoelaceDarkCSS           = "shoelace-dark.css"
 	FilePrintingPressCSS          = "printing-press.css"
 	FileChromaCSS                 = "chroma.css"

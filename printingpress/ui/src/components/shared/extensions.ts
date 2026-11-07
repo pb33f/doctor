@@ -1,7 +1,7 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import extensionsCss from './extensions.css.js';
 import './code-viewer.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 interface ExtensionEntry {
   key: string;
@@ -9,11 +9,15 @@ interface ExtensionEntry {
 }
 
 @customElement('pp-extensions')
-export class PpExtensions extends LitElement {
-  static styles = extensionsCss;
+export class PpExtensions extends LightElement {
 
   @property({attribute: 'extensions-json'}) extensionsJson = '';
   @state() private extensions: ExtensionEntry[] = [];
+
+  // Server-written extensions are never drawn again.
+  protected canReplaceServerMarkup(): boolean {
+    return false;
+  }
 
   willUpdate(changed: Map<string, unknown>) {
     if (changed.has('extensionsJson')) {

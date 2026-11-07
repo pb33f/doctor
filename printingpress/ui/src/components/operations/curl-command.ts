@@ -1,11 +1,12 @@
-import {LitElement, html, nothing} from 'lit';
+import {html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import curlCommandCss from './curl-command.css.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/menu/menu.js';
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
-import '@pb33f/cowboy-components/components/terminal/terminal-example.js';
+import '@pb33f/printing-press-components/terminal-example/terminal-example.js';
+import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+import {bindCurlChoice} from '../../utils/content-behaviour.js';
 
 interface CurlVariant {
   label: string;
@@ -16,12 +17,23 @@ interface CurlVariant {
 }
 
 @customElement('pp-curl-command')
-export class PpCurlCommand extends LitElement {
-  static styles = [curlCommandCss];
+export class PpCurlCommand extends LightElement {
 
   @property({attribute: 'curl-json'}) curlJson = '';
   @state() private variants: CurlVariant[] = [];
   @state() private selectedIndex = 0;
+
+  // Server-written variants are never drawn again.
+  protected canReplaceServerMarkup(): boolean {
+    return false;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    if (this.serverRendered) {
+      bindCurlChoice(this);
+    }
+  }
 
   willUpdate(changed: Map<string, unknown>) {
     if (changed.has('curlJson')) {
@@ -87,7 +99,7 @@ export class PpCurlCommand extends LitElement {
 
     return html`
       ${this.renderSelector()}
-      <terminal-example>${current.command}</terminal-example>
+      <pp-terminal-example .command=${current.command}></pp-terminal-example>
     `;
   }
 }

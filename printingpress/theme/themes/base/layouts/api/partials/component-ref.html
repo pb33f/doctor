@@ -1,0 +1,8 @@
+{{/* component-ref.html is a reference to a component; without an Href it is text. Data: render.ComponentRefArgs. */}}
+<span class="pp-component-ref">
+	{{modelIcon .ComponentType "medium"}} {{if .Href}}
+		<a class="pp-component-ref-link" href="{{.Href}}"><span aria-hidden="true">&#10140;</span> {{.Name}}</a>
+	{{else}}
+		<span class="pp-component-ref-link"><span aria-hidden="true">&#10140;</span> {{.Name}}</span>
+	{{end}}
+</span>

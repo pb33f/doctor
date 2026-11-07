@@ -179,7 +179,7 @@ func buildModelHydrationPayload(page *ppmodel.ModelPage, sourceCache *yamlSliceH
 			SchemaRawJSON: page.SchemaRawJSON,
 		}
 	}
-	if page.AsyncAPI != nil && len(page.AsyncAPI.Content) > 0 {
+	if page.AsyncAPI != nil && len(page.AsyncAPI.Content) > 0 && page.AsyncAPI.ContentHTML == "" {
 		payload.Attributes["pp-message-content"] = map[string]string{
 			"content-json": render.MustJSON(page.AsyncAPI.Content),
 		}
@@ -219,11 +219,20 @@ func buildOperationHydrationPayload(page *ppmodel.OperationPage, sourceCache *ya
 				"raw-yaml": page.RequestBody.RawYAML,
 			}
 		}
-		if len(page.RequestBody.Content) > 0 {
+		if len(page.RequestBody.Content) > 0 && page.Content == nil {
 			payload.Attributes["pp-request-body-content"] = map[string]string{
 				"content-json": render.MustJSON(page.RequestBody.Content),
 			}
 		}
+	}
+
+	// Server-written sections carry their content in the page.
+	if page.Content != nil {
+		payload.Developer = buildDeveloperHydrationPayloadWithCache(page.Counts, page.Problems, page.Slices, ppmodel.ViolationCounts{}, 0, sourceCache)
+		if len(payload.Attributes) == 0 {
+			payload.Attributes = nil
+		}
+		return payload
 	}
 
 	if page.ResponsesJSON != "" || page.CommonHeadersJSON != "" {

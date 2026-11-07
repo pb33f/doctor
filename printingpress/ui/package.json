@@ -11,8 +11,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@pb33f/saddlebag": "^0.2.3",
+    "@awesome.me/webawesome": "^3.14.0",
     "@pb33f/cowboy-components": "^0.13.0",
+    "@pb33f/printing-press-components": "file:../../../../../printing-press-components",
+    "@pb33f/saddlebag": "^0.2.3",
     "@shoelace-style/shoelace": "^2.20.1",
     "@types/prismjs": "^1.26.6",
     "lit": "^3.2.0",
@@ -22,6 +24,7 @@
   },
   "devDependencies": {
     "jsdom": "^25.0.0",
+    "postcss": "^8.5.32",
     "typescript": "^5.7.0",
     "vite": "^8.0.0",
     "vitest": "^3.0.0"

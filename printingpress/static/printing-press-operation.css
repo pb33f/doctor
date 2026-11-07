@@ -22,22 +22,34 @@ h1 {
     width: 100%;
 }
 
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
+
 .pp-code-samples-tabs::part(tabs) {
     border-bottom: 1px dashed var(--hrcolor);
 }
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
 
 .pp-code-samples-tabs::part(body) {
     padding-top: var(--global-padding);
 }
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
 
 .pp-code-samples-tabs sl-tab::part(base) {
     font-family: var(--font-stack-bold), monospace;
     letter-spacing: 0;
     text-transform: uppercase;
 }
+}
+
+@scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
 
 .pp-code-samples-tabs sl-tab[active]::part(base) {
     color: var(--primary-color);
+}
 }
 
 .pp-code-sample {
