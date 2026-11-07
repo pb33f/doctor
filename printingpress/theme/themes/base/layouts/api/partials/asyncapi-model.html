@@ -6,7 +6,7 @@
 		{{if .Content}}
 			<div class="pp-request-body" id="section-message-content" data-nav-label="Content">
 				<h3>CONTENT</h3>
-				<pp-media-type-selector id="pp-message-content"></pp-media-type-selector>
+				{{raw .ContentHTML}}
 			</div>
 		{{end}}
 	{{else if eq .Kind "reply"}}
@@ -15,7 +15,7 @@
 				<h3>REPLY</h3>
 				{{with .Address}}
 					<div class="pp-asyncapi-meta-row">
-						<span class="pp-asyncapi-meta-label">Address</span><div class="pp-asyncapi-meta-value"><pp-render-operation-path path="{{.}}"></pp-render-operation-path></div>
+						<span class="pp-asyncapi-meta-label">Address</span><div class="pp-asyncapi-meta-value">{{operationPath . false}}</div>
 					</div>
 				{{end}}
 				{{with .Channel}}
@@ -26,7 +26,7 @@
 							{{else if .Name}}
 								{{template "api/partials/component-ref.html" (componentRef "channels" "" .Name)}}
 							{{end}}
-							{{with .Address}}<pp-render-operation-path path="{{.}}"></pp-render-operation-path>{{end}}
+							{{with .Address}}{{operationPath . false}}{{end}}
 						</div>
 					</div>
 				{{end}}
@@ -61,11 +61,11 @@
 		{{end}}
 	{{else if eq .Kind "channel"}}
 		<div class="pp-asyncapi-operation" id="section-channel" data-nav-label="Channel">
-			{{with .Address}}<div class="pp-asyncapi-channel-target"><pp-render-operation-path path="{{.}}"></pp-render-operation-path></div>{{end}}
+			{{with .Address}}<div class="pp-asyncapi-channel-target">{{operationPath . false}}</div>{{end}}
 			{{if .Bindings}}
 				<div class="pp-asyncapi-meta-row pp-asyncapi-bindings-row">
 					<span class="pp-asyncapi-meta-label">Bindings</span><div class="pp-security-scopes" aria-label="Bindings">
-						{{range .Bindings}}<pp-asyncapi-protocol protocol="{{.}}" size="small"></pp-asyncapi-protocol>{{end}}
+						{{range .Bindings}}{{asyncAPIProtocol . "small" false}}{{end}}
 					</div>
 				</div>
 			{{end}}
@@ -82,7 +82,7 @@
 			<div class="pp-server-entry">
 				{{with .Kind}}<span class="pp-security-badge">{{.}}</span>{{end}}
 				{{with .Address}}<code>{{.}}</code>{{end}}
-				{{with .Protocol}}<pp-asyncapi-protocol protocol="{{.}}" size="medium"></pp-asyncapi-protocol>{{end}}
+				{{with .Protocol}}{{asyncAPIProtocol . "medium" false}}{{end}}
 				{{with .ContentType}}<code>{{.}}</code>{{end}}
 			</div>
 		{{end}}

@@ -78,7 +78,7 @@ func TestNavMarkupAsyncAPIRows(t *testing.T) {
 		}}},
 	})
 	for _, expected := range []string{
-		`<pp-asyncapi-protocol protocol="kafka" size="nav" data-pp-owner="pp-nav-tag" data-pp-ssr><span class="protocol nav"><span class="mark" aria-hidden="true"></span><span class="label">KAFKA</span></span></pp-asyncapi-protocol>`,
+		`<pp-asyncapi-protocol protocol="kafka" size="nav" data-pp-owner="pp-nav-tag" data-pp-ssr><span class="protocol nav"><span class="mark kafka" aria-hidden="true"></span><span class="label">KAFKA</span></span></pp-asyncapi-protocol>`,
 		`<pp-asyncapi-action action="receive" size="small" data-pp-owner="pp-nav-tag" data-pp-ssr><span class="action small receive" aria-label="Receive"><wa-icon name="arrow-left"></wa-icon><span>RCV</span></span></pp-asyncapi-action>`,
 	} {
 		if !strings.Contains(html, expected) {

@@ -63,6 +63,28 @@ export class PpCodeViewer extends LightElement {
     };
     private _highlightCache: { spec: string; parsed: Set<number> } = { spec: '', parsed: new Set() };
 
+    // Server-written code is never highlighted again.
+    protected canReplaceServerMarkup(): boolean {
+        return false;
+    }
+
+    connectedCallback() {
+        super.connectedCallback();
+        if (this.serverRendered && this.hasAttribute('data-pp-highlight')) {
+            this.highlightInPlace();
+        }
+    }
+
+    /** highlightInPlace colours server-written code that the server left as text. */
+    private highlightInPlace() {
+        const code = this.querySelector('pre > code');
+        const prismLang = this.language === 'xml' ? 'markup' : this.language;
+        const grammar = Prism.languages[prismLang];
+        if (!code || !grammar) return;
+        code.innerHTML = Prism.highlight(code.textContent ?? '', grammar, prismLang);
+        this.removeAttribute('data-pp-highlight');
+    }
+
     get displayCode(): string {
         if (!this.code) return '';
         if (this.pretty && this.language === 'json') {

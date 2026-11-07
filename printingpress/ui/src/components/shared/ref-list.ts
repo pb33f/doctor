@@ -3,11 +3,6 @@ import {customElement, property, state} from 'lit/decorators.js';
 import '@pb33f/printing-press-components/paginator/paginated-list.js';
 import {modelHref, operationHref} from '../../utils/doc-links.js';
 import './asyncapi-action.js';
-import '@shoelace-style/shoelace/dist/components/input/input.js';
-import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
-import '@shoelace-style/shoelace/dist/components/menu/menu.js';
-import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
-import '@shoelace-style/shoelace/dist/components/button/button.js';
 import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
 
 export interface OperationRef {
@@ -121,14 +116,8 @@ export class PpRefList extends LightElement {
         }, 150);
     }
 
-    private handleClear = () => {
-        clearTimeout(this.searchTimeout);
-        this.searchTerm = '';
-    };
-
-    private handleFilter(e: CustomEvent) {
-        const value = e.detail?.item?.value;
-        this.filterValue = value ?? '';
+    private handleFilter(e: Event) {
+        this.filterValue = (e.target as HTMLSelectElement).value;
     }
 
     private renderOperationMethod(method: string) {
@@ -138,40 +127,23 @@ export class PpRefList extends LightElement {
         return html`<pp-http-method method=${method} tiny></pp-http-method>`;
     }
 
+    // The toolbar is a native select and search input, so the server can
+    // write it as it renders (crossRefs in content_refs.go).
     private renderToolbar() {
-        const filterLabel = this.type === 'operations'
-            ? (this.filterValue || 'ALL METHODS')
-            : (TYPE_LABELS[this.filterValue]?.toUpperCase() || this.filterValue?.toUpperCase() || 'ALL TYPES');
-
+        const operations = this.type === 'operations';
         return html`
             <div class="toolbar">
-                <sl-dropdown>
-                    <sl-button slot="trigger" class="filter-btn" caret size="small">
-                        ${this.type === 'operations' && this.filterValue
-                            ? this.renderOperationMethod(this.filterValue)
-                            : filterLabel}
-                    </sl-button>
-                    <sl-menu @sl-select=${this.handleFilter}>
-                        <sl-menu-item value="">
-                            ${this.type === 'operations' ? 'ALL METHODS' : 'ALL TYPES'}
-                        </sl-menu-item>
-                        ${this.type === 'operations'
-                            ? this.filterOptions.map(m => html`
-                                <sl-menu-item value=${m}>${this.renderOperationMethod(m)}</sl-menu-item>`)
-                            : this.filterOptions.map(t => html`
-                                <sl-menu-item value=${t}>
-                                    ${TYPE_LABELS[t] || t}
-                                </sl-menu-item>`)}
-                    </sl-menu>
-                </sl-dropdown>
-                <sl-input
-                    size="small"
-                    placeholder=${this.type === 'operations' ? 'SEARCH OPERATIONS...' : 'SEARCH NAMES...'}
-                    aria-label=${this.type === 'operations' ? 'Filter by operation' : 'Search components'}
-                    clearable
-                    @sl-input=${this.handleSearch}
-                    @sl-clear=${this.handleClear}>
-                </sl-input>
+                <select class="pp-ref-filter" aria-label=${operations ? 'Filter by method' : 'Filter by type'} @change=${this.handleFilter}>
+                    <option value="">${operations ? 'ALL METHODS' : 'ALL TYPES'}</option>
+                    ${this.filterOptions.map((option) => html`
+                        <option value=${option} ?selected=${option === this.filterValue}>${operations ? option : TYPE_LABELS[option] || option}</option>`)}
+                </select>
+                <input
+                    class="pp-ref-search"
+                    type="search"
+                    placeholder=${operations ? 'SEARCH OPERATIONS...' : 'SEARCH NAMES...'}
+                    aria-label=${operations ? 'Filter by operation' : 'Search components'}
+                    @input=${this.handleSearch}>
             </div>
         `;
     }

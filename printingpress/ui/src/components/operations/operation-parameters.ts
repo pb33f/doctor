@@ -31,6 +31,11 @@ export class PpOperationParameters extends LightElement {
   @property({attribute: 'parameters-json'}) parametersJson = '';
   @state() private params: ParameterData[] = [];
 
+  // Server-written parameters are never drawn again.
+  protected canReplaceServerMarkup(): boolean {
+    return false;
+  }
+
   willUpdate(changed: Map<string, unknown>) {
     if (changed.has('parametersJson') && this.parametersJson) {
       try {

@@ -480,3 +480,110 @@ a.ref-type-link:hover {
 :scope:not(pp-slot):is([compact]) .oneof-container {
     display: block;
 }
+
+/*
+ * Variants the server writes. A tab rail and a native select both choose a
+ * variant; a container query shows the one that fits, where the component
+ * used to measure. Every panel is written, and the chosen one shows.
+ */
+:where(:scope:not(pp-slot)) {
+    container: pp-schema / inline-size;
+}
+
+.pp-variants {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+}
+
+.pp-variant-tabs {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    width: var(--polymorphic-tab-rail-width);
+    min-width: var(--polymorphic-tab-rail-width);
+    border-inline-end: var(--global-padding) solid var(--warn-color);
+}
+
+:scope:not(pp-slot):is([condensed]) .pp-variant-tabs {
+    width: var(--polymorphic-condensed-tab-rail-width);
+    min-width: var(--polymorphic-condensed-tab-rail-width);
+}
+
+:scope:not(pp-slot):is([compact]) .pp-variant-tabs {
+    width: var(--polymorphic-compact-tab-rail-width);
+    min-width: var(--polymorphic-compact-tab-rail-width);
+}
+
+.pp-variant-tab {
+    display: flex;
+    width: 100%;
+    margin: 0 -1px 0 0;
+    padding: 0.5rem 0.8rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--warn-color);
+    font-family: var(--font-stack-bold), monospace;
+    font-size: inherit;
+    text-align: start;
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
+    cursor: pointer;
+}
+
+.pp-variant-tab[aria-selected="true"] {
+    background-color: var(--warn-color);
+    color: var(--background-color);
+}
+
+.pp-variant-tab:focus-visible {
+    outline: 1px solid var(--warn-color);
+    outline-offset: 2px;
+}
+
+.pp-variant-select {
+    display: none;
+    min-width: min(16rem, 100%);
+    max-width: min(26rem, 100%);
+    margin: 0 0 var(--global-padding);
+    padding: var(--global-padding-half) var(--global-padding);
+    border: 1px solid var(--warn-color);
+    border-radius: 0;
+    background: var(--background-color);
+    color: var(--warn-color);
+    font-family: var(--font-stack-bold), monospace;
+    font-size: inherit;
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
+}
+
+.pp-variant-panel {
+    flex: 1;
+    min-width: 13rem;
+    overflow: auto;
+    padding: 0 0 0 var(--global-padding);
+}
+
+@container pp-schema (max-width: 860px) {
+    .pp-variants {
+        flex-direction: column;
+    }
+
+    .pp-variant-tabs {
+        display: none;
+    }
+
+    .pp-variant-select {
+        display: block;
+    }
+
+    .pp-variant-panel {
+        min-width: 0;
+        padding: 0;
+    }
+}
+
+.pp-variant-panel[hidden] {
+    display: none;
+}

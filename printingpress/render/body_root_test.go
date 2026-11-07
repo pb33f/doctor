@@ -27,8 +27,8 @@ func TestRootPageAsyncAPIOperationUsesSharedActionAndPathRenderers(t *testing.T)
 			}
 
 			html := renderTemplateForTest(t, "api/partials/operation-item.html", newOperationItemArgs(op, ""))
-			actionMarkup := `<pp-asyncapi-action action="` + tt.action + `" size="small">`
-			pathMarkup := `<pp-render-operation-path path="` + destination + `"></pp-render-operation-path>`
+			actionMarkup := `<pp-asyncapi-action action="` + tt.action + `" size="small" data-pp-owner="page" data-pp-ssr>`
+			pathMarkup := `<pp-render-operation-path path="` + destination + `" data-pp-owner="page" data-pp-ssr>`
 			actionIndex := strings.Index(html, actionMarkup)
 			pathIndex := strings.Index(html, pathMarkup)
 			if actionIndex < 0 || pathIndex < 0 || actionIndex >= pathIndex {

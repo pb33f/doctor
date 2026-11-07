@@ -112,6 +112,28 @@
     display: none;
   }
 
+  /* Until the script defines them, a tab group lays its tabs out in a row at
+     the size of the tab part, and shows only its active panel. */
+  wa-tab-group:not(:defined) {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  wa-tab-group:not(:defined) > wa-tab {
+    display: block;
+    padding: 1rem 1.25rem;
+  }
+
+  wa-tab-group:not(:defined) > wa-tab-panel {
+    display: none;
+    flex-basis: 100%;
+  }
+
+  wa-tab-group:not(:defined) > wa-tab-panel[active] {
+    display: block;
+    padding: 1rem 0;
+  }
+
   /* The details chevron sits in a 1em box, as the icons beside it do, in the header text colour. */
   wa-details::part(icon) {
     width: 1em;
@@ -380,13 +402,25 @@ pp-terminal-example .pp-terminal-example__copy {
   right: 10px;
 }
 
-pp-terminal-example .pp-terminal-example__copy::part(button) {
+pp-terminal-example .pp-terminal-example__copy {
+  height: 2.375rem;
+  padding: 0 1rem;
   border: 1px solid var(--pp-color-border);
   border-radius: 0;
   background-color: transparent;
   color: var(--pp-color-primary);
   font-family: var(--pp-font-mono);
+  font-size: 0.8rem;
   text-transform: uppercase;
+  cursor: pointer;
+}
+
+pp-terminal-example .pp-terminal-example__copy:hover {
+  border-color: var(--pp-color-primary);
+}
+
+pp-terminal-example[hidden] {
+  display: none;
 }
 
 @media only screen and (max-width: 1000px) {

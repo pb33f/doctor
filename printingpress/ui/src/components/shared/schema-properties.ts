@@ -13,6 +13,7 @@ import {renderConstraints, renderSchemaType} from '../../utils/render-helpers.js
 import {getCachedSchemaModelByRef, getSchemaEntryByRef, preloadSchemaReferences} from '../../utils/schema-registry.js';
 import './ref-popover.js';
 import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+import {bindVariantChoice} from '../../utils/content-behaviour.js';
 
 const DEFAULT_COMPACT_NAME_WIDTH_PX = 200;
 const MIN_COMPACT_NAME_WIDTH_PX = 180;
@@ -50,8 +51,17 @@ export class PpSchemaProperties extends LightElement {
 
     private resizeObserver: ResizeObserver | null = null;
 
+    // Server-written tables are never drawn again; popovers draw their own.
+    protected canReplaceServerMarkup(): boolean {
+        return false;
+    }
+
     connectedCallback() {
         super.connectedCallback();
+        if (this.serverRendered) {
+            bindVariantChoice(this);
+            return;
+        }
         this.updateAvailableWidth();
         if (typeof ResizeObserver === 'undefined') return;
         this.resizeObserver = new ResizeObserver((entries) => {

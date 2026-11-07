@@ -6,6 +6,7 @@ import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@pb33f/printing-press-components/terminal-example/terminal-example.js';
 import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+import {bindCurlChoice} from '../../utils/content-behaviour.js';
 
 interface CurlVariant {
   label: string;
@@ -21,6 +22,18 @@ export class PpCurlCommand extends LightElement {
   @property({attribute: 'curl-json'}) curlJson = '';
   @state() private variants: CurlVariant[] = [];
   @state() private selectedIndex = 0;
+
+  // Server-written variants are never drawn again.
+  protected canReplaceServerMarkup(): boolean {
+    return false;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    if (this.serverRendered) {
+      bindCurlChoice(this);
+    }
+  }
 
   willUpdate(changed: Map<string, unknown>) {
     if (changed.has('curlJson')) {

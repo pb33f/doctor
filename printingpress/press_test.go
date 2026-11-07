@@ -503,7 +503,8 @@ func TestPrintingPress_WriteHTMLSite(t *testing.T) {
 	}
 	if op.CurlJSON != "" {
 		assert.Contains(t, string(opHTML), `id="section-curl" data-nav-label="cURL" style="display:block;min-height:64px;"`)
-		assert.Contains(t, string(opHTML), `pp-operation-curl" style="display:block;min-height:156px;"`)
+		assert.Contains(t, string(opHTML), `<pp-curl-command id="pp-operation-curl" data-pp-owner="page" data-pp-ssr>`)
+		assert.Contains(t, string(opHTML), `<pp-terminal-example class="pp-curl-variant" data-index="0"`)
 	}
 	assert.NotContains(t, string(opHTML), "responses-json=")
 	assert.NotContains(t, string(opHTML), "parameters-json=")

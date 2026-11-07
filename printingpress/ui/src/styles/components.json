@@ -62,6 +62,7 @@
       "styles/shared.css",
       "styles/ref-link.css",
       "styles/dropdown.css",
+      "styles/schema-split.css",
       "components/shared/media-type-selector.css"
     ],
     "pp-mermaid": [
@@ -74,6 +75,7 @@
     "pp-model-page": [
       "styles/shared.css",
       "styles/constraints.css",
+      "styles/schema-split.css",
       "components/models/model-page.css"
     ],
     "pp-nav": [

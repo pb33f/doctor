@@ -36,6 +36,11 @@ export class PpSecurityScheme extends LightElement {
     @property({attribute: 'scheme-json'}) schemeJson = '';
     @state() private scheme: any = null;
 
+    // The server-written scheme is never drawn again.
+    protected canReplaceServerMarkup(): boolean {
+        return false;
+    }
+
     willUpdate(changed: Map<string, unknown>) {
         if (changed.has('schemeJson') && this.schemeJson) {
             try {

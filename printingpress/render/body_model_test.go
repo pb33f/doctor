@@ -67,14 +67,14 @@ func TestModelPageNamedTraitPreservesIdentityAndRendersProtocols(t *testing.T) {
 		`<pp-icon-title icon="operationTraits" heading="commandTransport" data-pp-owner="page" data-pp-ssr>`,
 		`<h1>commandTransport</h1>`,
 		`id="section-protocols" data-nav-label="Protocols"`,
-		`<pp-asyncapi-protocol protocol="kafka" size="medium">`,
-		`<pp-asyncapi-protocol protocol="amqp" size="medium">`,
+		`<pp-asyncapi-protocol protocol="kafka" size="medium" data-pp-owner="page" data-pp-ssr>`,
+		`<pp-asyncapi-protocol protocol="amqp" size="medium" data-pp-owner="page" data-pp-ssr>`,
 	} {
 		if !strings.Contains(html, expected) {
 			t.Fatalf("expected rendered trait to contain %q, got:\n%s", expected, html)
 		}
 	}
-	if strings.Contains(html, `<pp-asyncapi-protocol protocol="kafka" size="large" heading>`) {
+	if strings.Contains(html, `<pp-asyncapi-protocol protocol="kafka" size="large" heading data-pp-owner="page" data-pp-ssr>`) {
 		t.Fatalf("named trait must not replace its title with the protocol: %s", html)
 	}
 }

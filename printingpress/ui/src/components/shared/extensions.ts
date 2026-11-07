@@ -14,6 +14,11 @@ export class PpExtensions extends LightElement {
   @property({attribute: 'extensions-json'}) extensionsJson = '';
   @state() private extensions: ExtensionEntry[] = [];
 
+  // Server-written extensions are never drawn again.
+  protected canReplaceServerMarkup(): boolean {
+    return false;
+  }
+
   willUpdate(changed: Map<string, unknown>) {
     if (changed.has('extensionsJson')) {
       if (this.extensionsJson) {

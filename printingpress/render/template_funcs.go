@@ -29,11 +29,13 @@ func Funcs() template.FuncMap {
 		"add": func(a, b int) int { return a + b },
 
 		// Components written with the markup they render (component_markup.go).
-		"iconTitle":       IconTitleMarkup,
-		"httpMethod":      HTTPMethodMarkup,
-		"operationPath":   OperationPathMarkup,
-		"rawViewerButton": RawViewerButtonMarkup,
-		"violationStats":  ViolationStatsMarkup,
+		"iconTitle":        IconTitleMarkup,
+		"httpMethod":       HTTPMethodMarkup,
+		"operationPath":    OperationPathMarkup,
+		"rawViewerButton":  RawViewerButtonMarkup,
+		"violationStats":   ViolationStatsMarkup,
+		"modelIcon":        func(icon, size string) template.HTML { return ModelIconMarkup(icon, size, "primary", "page") },
+		"asyncAPIProtocol": AsyncAPIProtocolMarkup,
 
 		"docHref":            DocHref,
 		"operationDocHref":   OperationDocHref,

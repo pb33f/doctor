@@ -49,6 +49,19 @@ h3 {
     margin-bottom: 0;
 }
 
+/* Until Web Awesome defines the server-written details, the summary takes the
+   border and padding of the header part, and the body stays hidden. */
+wa-details.pp-details:not(:defined) > [slot="summary"] {
+    display: block;
+    min-height: 30px;
+    padding: var(--global-padding);
+    border: 1px dashed var(--secondary-color-dimmer);
+}
+
+wa-details.pp-details:not(:defined) > :not([slot="summary"]) {
+    display: none;
+}
+
 .status-code {
     font-family: var(--font-stack-bold), monospace;
 }

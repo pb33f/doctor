@@ -3,7 +3,7 @@
 <div class="pp-root">
 	{{template "api/partials/breadcrumb.html" .Crumbs}}
 	{{with .Page}}
-		<pp-icon-title icon="operation" heading="{{.DisplayName}}"></pp-icon-title> {{if .DescHTML}}<div class="pp-description">{{raw .DescHTML}}</div>{{end}}
+		{{iconTitle "operation" .DisplayName}} {{if .DescHTML}}<div class="pp-description">{{raw .DescHTML}}</div>{{end}}
 		{{if .Operations}}
 			<ul class="pp-operation-list">
 				{{range .Operations}}{{template "api/partials/operation-item.html" (opItem . $base)}}{{end}}

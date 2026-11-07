@@ -4,12 +4,12 @@
 		<a href="{{docHref $.Base (modelHTML .TypeSlug .Slug)}}" class="pp-model-card">
 			<div class="pp-model-card-title">
 				{{if .Protocol}}
-					<pp-asyncapi-protocol protocol="{{.Protocol}}" size="small"></pp-asyncapi-protocol>
+					{{asyncAPIProtocol .Protocol "small" false}}
 				{{else}}
-					<pp-model-icon icon="{{.TypeSlug}}" size="small"></pp-model-icon>
+					{{modelIcon .TypeSlug "small"}}
 					<strong>{{.Name}}</strong> {{if .Protocols}}
 						<span class="pp-model-card-protocols">
-							{{range .Protocols}}<pp-asyncapi-protocol protocol="{{.}}" size="small"></pp-asyncapi-protocol>{{end}}
+							{{range .Protocols}}{{asyncAPIProtocol . "small" false}}{{end}}
 						</span>
 					{{end}}
 				{{end}}

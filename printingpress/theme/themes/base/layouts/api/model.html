@@ -6,7 +6,7 @@
 	{{template "api/partials/breadcrumb.html" $crumbs}}
 	<div class="pp-model-header">
 		{{with asyncAPIModelProtocol .}}
-			<pp-asyncapi-protocol protocol="{{.}}" size="large" heading></pp-asyncapi-protocol>
+			{{asyncAPIProtocol . "large" true}}
 		{{else}}
 			{{iconTitle .ComponentType .Name}}
 		{{end}} {{if or .RawYAML .SchemaJSON}}
@@ -26,13 +26,13 @@
 		<div class="pp-asyncapi-operation" id="section-protocols" data-nav-label="Protocols">
 			<h3>PROTOCOLS</h3>
 			<div class="pp-security-scopes" aria-label="Protocols">
-				{{range .AsyncAPI.Bindings}}<pp-asyncapi-protocol protocol="{{.}}" size="medium"></pp-asyncapi-protocol>{{end}}
+				{{range .AsyncAPI.Bindings}}{{asyncAPIProtocol . "medium" false}}{{end}}
 			</div>
 		</div>
 	{{end}}
 	{{if shouldRenderAsyncAPIModelSection .}}{{template "api/partials/asyncapi-model.html" (asyncAPIModel .AsyncAPI $base)}}{{end}}
 	{{if and (eq .ComponentType "securitySchemes") .SchemaJSON}}
-		<pp-security-scheme id="pp-model-security-scheme"></pp-security-scheme>
+		{{raw .SecuritySchemeHTML}}
 	{{else if and .SchemaJSON (not (isAsyncAPIMessagePage .)) (not (isAsyncAPIReplyPage .)) (not (isAsyncAPIChannelPage .))}}
 		<pp-model-page id="pp-model-page" name="{{.Name}}" component-type="{{.ComponentType}}"
 			{{- with .LayoutMode}} layout-mode="{{.}}"{{end}}
@@ -42,17 +42,15 @@
 			{{- if gt .RequiredCount 0}} required-count="{{.RequiredCount}}"{{end}}
 			{{- if .HasExamplePayload}} has-example{{end}}
 			{{- if gt .SchemaStartLine 0}} schema-start-line="{{.SchemaStartLine}}"{{end}}
-			{{- with .Origin}}{{if gt .Line 0}} start-line="{{.Line}}"{{end}}{{with .OriginalFile}} location="{{.}}"{{end}}{{end}}></pp-model-page>
+			{{- with .Origin}}{{if gt .Line 0}} start-line="{{.Line}}"{{end}}{{with .OriginalFile}} location="{{.}}"{{end}}{{end}}{{if .ContentWritten}} data-pp-owner="page" data-pp-ssr>{{raw .ContentHTML}}{{else}}>{{end}}</pp-model-page>
 	{{end}}
 	{{if .ExtensionsJSON}}
 		<wa-details class="pp-details" style="display:block;min-height:64px;">
 			<span slot="summary" class="pp-details-summary"><h2>{{modelExtensionsSummary .}}</h2></span>
-			<pp-extensions extensions-json="{{.ExtensionsJSON}}"></pp-extensions>
+			{{raw .ExtensionsHTML}}
 		</wa-details>
 	{{end}}
-	{{if .CrossRefsJSON}}
-		<pp-cross-refs refs-json="{{.CrossRefsJSON}}" style="display:block;min-height:{{if gt .EstimatedCrossRefsHeight 0}}{{.EstimatedCrossRefsHeight}}{{else}}240{{end}}px;"></pp-cross-refs>
-	{{end}}
+	{{raw .CrossRefsHTML}}
 	{{if or .MermaidDiagram .GraphJSON}}
 		<div class="pp-visualization-section">
 			{{if and .MermaidDiagram .GraphJSON}}

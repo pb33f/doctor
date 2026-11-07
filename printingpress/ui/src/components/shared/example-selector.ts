@@ -10,6 +10,7 @@ import type {ShowExampleDetail} from './example-drawer.js';
 import {renderMarkdown} from '../../utils/markdown.js';
 import '../shared/code-viewer.js';
 import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+import {bindExampleActions} from '../../utils/content-behaviour.js';
 
 interface ExamplesData {
   mockJson?: string;
@@ -35,6 +36,18 @@ export class PpExampleSelector extends LightElement {
   @state() private entries: Array<{key: string; json: string}> = [];
   @state() private descriptions: Record<string, string> = {};
   @state() private selectedIndex = 0;
+
+  // Server-written examples are never drawn again; the drawer draws its own.
+  protected canReplaceServerMarkup(): boolean {
+    return false;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    if (this.serverRendered) {
+      bindExampleActions(this, () => this.exampleTitle, () => this.codeLanguage);
+    }
+  }
 
   willUpdate(changed: Map<string, unknown>) {
     if (changed.has('examplesData') || changed.has('mockJson') || changed.has('examplesJson') || changed.has('descriptionsJson')) {

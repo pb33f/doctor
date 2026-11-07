@@ -379,13 +379,17 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		progressTracker.advance("preparing guides index")
 	}
 
+	contentRefs := contentRefIndex(site)
+
 	// Write operation pages (1 level deep: operations/)
 	for _, op := range site.Operations {
 		p := *params
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressOperationCSS)}
 		highlightCodeSamplesForHTML(op)
-		opContent := render.OperationBody(op, templateDocBaseURL(p.AssetMode, p.BaseURL))
+		opBase := templateDocBaseURL(p.AssetMode, p.BaseURL)
+		op.Content = (&contentRenderer{noMermaid: site.NoMermaid, base: opBase, refs: contentRefs}).operationContent(op)
+		opContent := render.OperationBody(op, opBase)
 		pageTitle := fmt.Sprintf("%s %s - %s", op.Method, op.Path, title)
 		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.OperationHTML(op.Slug)))
 		staticPaths, jobs, err = appendHydratedHTMLJob(resolvedOutputDir, staticPaths, jobs, assetMode, p, htmlHydrationJob{
@@ -436,7 +440,18 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 				}
 				staticPaths = append(staticPaths, graphAssetPaths...)
 			}
-			modelContent := render.ModelBody(page, templateDocBaseURL(p.AssetMode, p.BaseURL))
+			linkBase := templateDocBaseURL(p.AssetMode, p.BaseURL)
+			content := &contentRenderer{noMermaid: site.NoMermaid, base: linkBase, refs: contentRefs}
+			page.ContentHTML, page.ContentWritten = content.modelPageContent(page)
+			if page.AsyncAPI != nil && len(page.AsyncAPI.Content) > 0 {
+				page.AsyncAPI.ContentHTML = content.mediaTypeSelector(page.AsyncAPI.Content, mediaTypeOptions{Owner: "page", ID: "pp-message-content"})
+			}
+			page.ExtensionsHTML = content.extensions(page.Extensions, "page")
+			page.CrossRefsHTML = content.crossRefs(page.CrossRefs, page.CrossRefsJSON, crossRefsMinHeight(page))
+			if page.ComponentType == "securitySchemes" && page.SchemaJSON != "" {
+				page.SecuritySchemeHTML = securityScheme(page.SchemaJSON)
+			}
+			modelContent := render.ModelBody(page, linkBase)
 			pageTitle := fmt.Sprintf("%s - %s", page.Name, title)
 			path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.ModelHTML(typeSlug, page.Slug)))
 			activeModelSlug := page.TypeSlug + "/" + page.Slug
@@ -556,7 +571,9 @@ func writeHTMLSiteDetailed(site *ppmodel.Site, outputDir, baseURL string, progre
 		p.BaseURL = resolveBase(resolvedBaseURL, 1)
 		p.ExtraCSS = []string{pppaths.StaticAsset(pppaths.FilePrintingPressOperationCSS)}
 		highlightCodeSamplesForHTML(wh)
-		whContent := render.OperationBody(wh, templateDocBaseURL(p.AssetMode, p.BaseURL))
+		whBase := templateDocBaseURL(p.AssetMode, p.BaseURL)
+		wh.Content = (&contentRenderer{noMermaid: site.NoMermaid, base: whBase, refs: contentRefs}).operationContent(wh)
+		whContent := render.OperationBody(wh, whBase)
 		pageTitle := fmt.Sprintf("Webhook: %s %s - %s", wh.Method, wh.Path, title)
 		path := filepath.Join(resolvedOutputDir, filepath.FromSlash(pppaths.OperationHTML(wh.Slug)))
 		staticPaths, jobs, err = appendHydratedHTMLJob(resolvedOutputDir, staticPaths, jobs, assetMode, p, htmlHydrationJob{

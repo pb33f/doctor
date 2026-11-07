@@ -68,9 +68,37 @@ func IconTitleMarkup(icon, heading string) template.HTML {
 // HTTPMethodMarkup is the method tag of an operation header: pp-http-method
 // as it renders, at its default size.
 func HTTPMethodMarkup(method string) template.HTML {
+	return HTTPMethodMarkupOwned(method, "page")
+}
+
+// HTTPMethodMarkupOwned is HTTPMethodMarkup inside the component named by
+// owner.
+func HTTPMethodMarkupOwned(method, owner string) template.HTML {
 	lower := strings.ToLower(method)
 	return template.HTML(fmt.Sprintf(`<pp-http-method method="%s"%s><span class="pp-http-method__tag medium %s"><span class="pp-http-method__label">%s</span></span></pp-http-method>`,
-		html.EscapeString(method), ssrAttrs("page"), html.EscapeString(lower), html.EscapeString(strings.ToUpper(method))))
+		html.EscapeString(method), ssrAttrs(owner), html.EscapeString(lower), html.EscapeString(strings.ToUpper(method))))
+}
+
+// HTTPMethodTinyMarkup is pp-http-method with tiny set, inside the component
+// named by owner.
+func HTTPMethodTinyMarkup(method, owner string) template.HTML {
+	lower := strings.ToLower(method)
+	return template.HTML(fmt.Sprintf(`<pp-http-method method="%s" tiny%s><span class="pp-http-method__tag small %s"><span class="pp-http-method__label">%s</span></span></pp-http-method>`,
+		html.EscapeString(method), ssrAttrs(owner), html.EscapeString(lower), html.EscapeString(strings.ToUpper(method))))
+}
+
+// AsyncAPIActionMarkup is pp-asyncapi-action as it renders, inside the
+// component named by owner.
+func AsyncAPIActionMarkup(action, size, owner string) template.HTML {
+	var w strings.Builder
+	writeAsyncAPIAction(&w, action, size, owner)
+	return template.HTML(w.String())
+}
+
+// ModelIconMarkup is pp-model-icon as it renders, inside the component named
+// by owner.
+func ModelIconMarkup(icon, size, color, owner string) template.HTML {
+	return template.HTML(modelIconMarkup(icon, size, color, owner))
 }
 
 var operationPathParameter = regexp.MustCompile(`\{([^}]+)\}`)
@@ -78,6 +106,12 @@ var operationPathParameter = regexp.MustCompile(`\{([^}]+)\}`)
 // OperationPathMarkup is a path with its slashes and parameters marked:
 // pp-render-operation-path as it renders.
 func OperationPathMarkup(path string, nowrap bool) template.HTML {
+	return OperationPathMarkupOwned(path, nowrap, "page")
+}
+
+// OperationPathMarkupOwned is OperationPathMarkup inside the component named
+// by owner.
+func OperationPathMarkupOwned(path string, nowrap bool, owner string) template.HTML {
 	var w strings.Builder
 	slashes := func(text string) {
 		for i, piece := range strings.Split(text, "/") {
@@ -100,7 +134,7 @@ func OperationPathMarkup(path string, nowrap bool) template.HTML {
 		attrs += ` nowrap`
 		parts = `<div class="pp-render-operation-path__nowrap">` + parts + `</div>`
 	}
-	return template.HTML(`<pp-render-operation-path` + attrs + ssrAttrs("page") + `>` + parts + `</pp-render-operation-path>`)
+	return template.HTML(`<pp-render-operation-path` + attrs + ssrAttrs(owner) + `>` + parts + `</pp-render-operation-path>`)
 }
 
 // RawViewerButtonMarkup is what pp-raw-viewer-btn renders: a button that

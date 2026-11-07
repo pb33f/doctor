@@ -7,6 +7,7 @@ package render
 import (
 	"fmt"
 	"html"
+	"html/template"
 	"strconv"
 	"strings"
 	"time"
@@ -309,28 +310,77 @@ func writeAsyncAPIAction(w *strings.Builder, action, size, owner string) {
 		html.EscapeString(action), size, ssrAttrs(owner), size, html.EscapeString(normalized), html.EscapeString(label), icon, html.EscapeString(code))
 }
 
-// asyncAPIProtocolLabels are the labels pp-asyncapi-protocol draws, by the
-// protocol name with case and separators removed.
-var asyncAPIProtocolLabels = map[string]string{
-	"amqp": "AMQP", "amqp1": "AMQP 1.0", "amqps": "AMQPS", "anypointmq": "ANYPOINT MQ",
-	"gcppubsub": "GOOGLE PUB/SUB", "googlepubsub": "GOOGLE PUB/SUB", "http": "HTTP", "https": "HTTPS",
-	"ibmmq": "IBM MQ", "jms": "JMS", "kafka": "KAFKA", "kafkasecure": "KAFKA", "mercure": "MERCURE",
-	"mqtt": "MQTT", "mqtt5": "MQTT 5", "mqtts": "MQTTS", "mqttsecure": "MQTT", "securemqtt": "MQTT",
-	"nats": "NATS", "pulsar": "PULSAR", "redis": "REDIS", "sns": "SNS", "solace": "SOLACE", "sqs": "SQS",
-	"stomp": "STOMP", "stomps": "STOMPS", "websocket": "WEBSOCKET", "websockets": "WEBSOCKET",
-	"ws": "WEBSOCKET", "wss": "WEBSOCKET",
+// asyncAPIProtocolPresentation is the label and mark pp-asyncapi-protocol
+// draws for a protocol.
+type asyncAPIProtocolPresentation struct {
+	label, mark string
 }
 
-// writeAsyncAPIProtocol writes a protocol badge's box and label. The mark
-// inside it is a fixed-size box, so its drawing can wait for the component.
+// asyncAPIProtocolPresentations are the presentations pp-asyncapi-protocol
+// draws, by the normalized protocol name (asyncapi-protocol.ts).
+var asyncAPIProtocolPresentations = map[string]asyncAPIProtocolPresentation{
+	"amqp":         {"AMQP", "amqp"},
+	"amqp1":        {"AMQP 1.0", "amqp"},
+	"amqps":        {"AMQPS", "amqp"},
+	"anypointmq":   {"ANYPOINT MQ", "anypointmq"},
+	"gcppubsub":    {"GOOGLE PUB/SUB", "googlepubsub"},
+	"googlepubsub": {"GOOGLE PUB/SUB", "googlepubsub"},
+	"http":         {"HTTP", "globe"},
+	"https":        {"HTTPS", "globe"},
+	"ibmmq":        {"IBM MQ", "ibmmq"},
+	"jms":          {"JMS", "queue"},
+	"kafka":        {"KAFKA", "kafka"},
+	"kafkasecure":  {"KAFKA", "kafka"},
+	"mercure":      {"MERCURE", "broadcast"},
+	"mqtt":         {"MQTT", "mqtt"},
+	"mqtt5":        {"MQTT 5", "mqtt"},
+	"mqtts":        {"MQTTS", "mqtt"},
+	"mqttsecure":   {"MQTT", "mqtt"},
+	"securemqtt":   {"MQTT", "mqtt"},
+	"nats":         {"NATS", "nats"},
+	"pulsar":       {"PULSAR", "pulsar"},
+	"redis":        {"REDIS", "redis"},
+	"sns":          {"SNS", "sns"},
+	"solace":       {"SOLACE", "solace"},
+	"sqs":          {"SQS", "sqs"},
+	"stomp":        {"STOMP", "stomp"},
+	"stomps":       {"STOMPS", "stomp"},
+	"websocket":    {"WEBSOCKET", "websocket"},
+	"websockets":   {"WEBSOCKET", "websocket"},
+	"ws":           {"WEBSOCKET", "websocket"},
+	"wss":          {"WEBSOCKET", "websocket"},
+}
+
 func writeAsyncAPIProtocol(w *strings.Builder, protocol, owner string) {
+	writeAsyncAPIProtocolSized(w, protocol, "nav", false, owner)
+}
+
+// writeAsyncAPIProtocolSized writes pp-asyncapi-protocol as it renders, with
+// its mark box empty: the client draws the SVG of the mark into the box,
+// which keeps its size.
+func writeAsyncAPIProtocolSized(w *strings.Builder, protocol, size string, heading bool, owner string) {
 	key := strings.NewReplacer("-", "", "_", "", ".", "", " ", "", "\t", "").Replace(strings.ToLower(strings.TrimSpace(protocol)))
-	label, ok := asyncAPIProtocolLabels[key]
+	presentation, ok := asyncAPIProtocolPresentations[key]
 	if !ok {
-		label = strings.ToUpper(strings.TrimSpace(protocol))
+		presentation = asyncAPIProtocolPresentation{label: strings.ToUpper(strings.TrimSpace(protocol)), mark: "topology"}
 	}
-	fmt.Fprintf(w, `<pp-asyncapi-protocol protocol="%s" size="nav"%s><span class="protocol nav"><span class="mark" aria-hidden="true"></span><span class="label">%s</span></span></pp-asyncapi-protocol>`,
-		html.EscapeString(protocol), ssrAttrs(owner), html.EscapeString(label))
+	content := `<span class="mark ` + presentation.mark + `" aria-hidden="true"></span><span class="label">` + html.EscapeString(presentation.label) + `</span>`
+	attrs := ""
+	if heading {
+		attrs = " heading"
+		content = `<h1 class="` + size + `">` + content + `</h1>`
+	} else {
+		content = `<span class="protocol ` + size + `">` + content + `</span>`
+	}
+	fmt.Fprintf(w, `<pp-asyncapi-protocol protocol="%s" size="%s"%s%s>%s</pp-asyncapi-protocol>`,
+		html.EscapeString(protocol), size, attrs, ssrAttrs(owner), content)
+}
+
+// AsyncAPIProtocolMarkup is pp-asyncapi-protocol in page content.
+func AsyncAPIProtocolMarkup(protocol, size string, heading bool) template.HTML {
+	var w strings.Builder
+	writeAsyncAPIProtocolSized(&w, protocol, size, heading, "page")
+	return template.HTML(w.String())
 }
 
 func writeViolationBadges(w *strings.Builder, counts *ppmodel.ViolationCounts) {

@@ -10,6 +10,7 @@ import '../shared/media-type-selector.js';
 
 import {TYPE_SLUG_PATH_ITEMS, collectConstraints} from '../../utils/schema.js';
 import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+import {bindSplits} from '../../utils/content-behaviour.js';
 
 const refSegmentToTypeSlug: Record<string, string> = {
   schemas: 'schemas',
@@ -61,8 +62,17 @@ export class PpModelPage extends LightElement {
   private observedPropsContent: Element | null = null;
   private observedExampleContent: Element | null = null;
 
+  // The server wrote this page's content; the component only gives it behaviour.
+  protected canReplaceServerMarkup(): boolean {
+    return false;
+  }
+
   connectedCallback() {
     super.connectedCallback();
+    if (this.serverRendered) {
+      bindSplits(this);
+      return;
+    }
     this.wide = this.offsetWidth >= 900;
     if (typeof ResizeObserver === 'undefined') return;
     this.resizeObserver = new ResizeObserver((entries) => {

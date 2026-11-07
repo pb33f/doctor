@@ -32,8 +32,23 @@ h2 {
     margin-top: var(--global-padding);
 }
 
-.toolbar sl-input {
+.pp-ref-filter,
+.pp-ref-search {
+    height: 1.875rem; /* the height of the small Shoelace controls they replace */
+    padding: 0 var(--global-padding);
+    border: 1px solid var(--primary-color);
+    border-radius: 0;
+    background: var(--background-color);
+    color: var(--primary-color);
+    font-family: var(--font-stack), monospace;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
+}
+
+.pp-ref-search {
     flex: 1;
+    min-width: 0;
 }
 
 pp-paginated-list .pp-paginated-list__values {
@@ -46,48 +61,4 @@ pp-paginated-list .pp-paginated-list__values {
     color: var(--font-color-sub2);
     font-family: var(--font-stack), monospace;
     padding: var(--global-padding);
-}
-
-sl-dropdown::part(panel) {
-    background: var(--background-color);
-    border: 1px dashed var(--primary-color);
-    border-radius: 0;
-}
-
-sl-menu-item::part(base) {
-    font-family: var(--font-stack), monospace;
-    color: var(--font-color);
-}
-
-sl-menu-item::part(checked-icon) {
-    color: var(--primary-color);
-}
-
-sl-input::part(base) {
-    background: var(--background-color);
-    border: 1px solid var(--primary-color);
-    border-radius: 0;
-}
-
-sl-input::part(input) {
-    font-family: var(--font-stack), monospace;
-    font-size: 0.85rem;
-    color: var(--primary-color);
-    text-transform: uppercase;
-    letter-spacing: var(--label-spacing);
-}
-
-.filter-btn::part(base) {
-    font-family: var(--font-stack), monospace;
-    font-size: 0.85rem;
-    color: var(--primary-color);
-    background: var(--background-color);
-    border: 1px solid var(--primary-color);
-    border-radius: 0;
-    text-transform: uppercase;
-    letter-spacing: var(--label-spacing);
-}
-
-.filter-btn::part(label) {
-    font-family: var(--font-stack), monospace;
 }

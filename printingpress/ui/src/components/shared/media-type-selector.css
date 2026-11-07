@@ -48,35 +48,15 @@
     margin: 0 0 var(--global-padding) 0;
 }
 
-/* Split panel (wide layout) */
+/* Split panel (wide layout). A media type's split sits close under its
+   header, with no frame, and is as tall as its content, unlike the model
+   page's. */
 
 .schema-split {
-    --divider-width: 2px;
-    --divider-hit-area: 12px;
-    --min: min(44rem, 58%);
-    --max: calc(100% - min(28rem, 40%));
+    max-height: none;
     margin-top: var(--global-padding);
-    overflow: hidden;
-    grid-template-rows: 1fr;
-}
-
-.schema-split.example-hidden {
-    --max: calc(100% - 2.75rem);
-}
-
-.schema-split::part(divider) {
-    background-color: var(--secondary-color);
-}
-
-.schema-split wa-icon[slot="divider"] {
-    position: absolute;
-    left: 2px;
-    border-radius: 0;
-    background: var(--secondary-color);
-    color: var(--background-color);
+    border: 0;
     padding: 0;
-    width: 10px;
-    height: 40px;
 }
 
 .split-pane {
@@ -112,7 +92,8 @@
     --code-viewer-margin-top: 0;
 }
 
-.example-hidden .schema-example-pane {
+.example-hidden .schema-example-pane,
+.schema-split[data-example-hidden] .schema-example-pane {
     display: flex;
     align-items: flex-start;
     justify-content: center;
@@ -157,4 +138,24 @@
     font-size: var(--font-size-small);
     text-transform: uppercase;
     overflow-wrap: anywhere;
+}
+
+/* The media-type choice the server writes: a native select in each block. */
+.pp-media-type-select {
+    min-width: 150px;
+    max-width: 300px;
+    height: 2.5rem; /* the height of the dropdown button it replaces */
+    padding: var(--global-padding-half) var(--global-padding);
+    border: 1px solid var(--primary-color);
+    border-radius: 0;
+    background-color: var(--background-color);
+    color: var(--primary-color);
+    font-family: var(--font-stack), monospace;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: var(--label-spacing);
+}
+
+.pp-media-type-block[hidden] {
+    display: none;
 }

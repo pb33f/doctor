@@ -2,7 +2,7 @@
 {{$base := .Base}}
 <div class="pp-root">
 	{{template "api/partials/breadcrumb.html" .Crumbs}}
-	<pp-icon-title icon="schemas" heading="Models"></pp-icon-title> {{range .Page}}
+	{{iconTitle "schemas" "Models"}} {{range .Page}}
 		{{if .Models}}
 			<div class="pp-model-category">
 				<h2><a href="{{docHref $base (modelTypeIndexHTML .TypeSlug)}}" class="pp-category-link">{{.Name}}</a></h2>

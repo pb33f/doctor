@@ -2,10 +2,10 @@
 <li>
 	<a href="{{docHref .Base (operationHTML .Op.Slug)}}" class="{{opItemClass .Op.Deprecated}}">
 		{{if .Op.SpecKind.IsAsyncAPI}}
-			{{template "api/partials/asyncapi-action.html" (asyncAPIAction (operationNavActionLabel .Op) "small")}} <pp-render-operation-path path="{{operationNavPathLabel .Op}}"></pp-render-operation-path>
+			{{template "api/partials/asyncapi-action.html" (asyncAPIAction (operationNavActionLabel .Op) "small")}} {{operationPath (operationNavPathLabel .Op) false}}
 		{{else}}
-			<pp-http-method small method="{{lower .Op.Method}}"></pp-http-method>
-			<pp-render-operation-path path="{{.Op.Path}}"></pp-render-operation-path>
+			{{httpMethod .Op.Method}}
+			{{operationPath .Op.Path false}}
 		{{end}}
 	</a> {{if .Op.OperationID}}<span class="op-id">{{operationRootIDLabel .Op}} <span class="op-id-value">{{.Op.OperationID}}</span></span> {{end}}
 	{{if .Op.Summary}}<span class="op-summary">{{.Op.Summary}}</span>{{end}}

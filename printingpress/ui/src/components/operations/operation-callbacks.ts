@@ -40,6 +40,11 @@ export class PpOperationCallbacks extends LightElement {
     @property({attribute: 'callbacks-json'}) callbacksJson = '';
     @state() private callbacks: CallbackData[] = [];
 
+    // Server-written content is never drawn again.
+    protected canReplaceServerMarkup(): boolean {
+        return false;
+    }
+
     willUpdate(changed: Map<string, unknown>) {
         if (changed.has('callbacksJson') && this.callbacksJson) {
             try {

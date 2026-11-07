@@ -13,6 +13,7 @@ import '../shared/extensions.js';
 import '../shared/example-selector.js';
 import '../shared/media-type-selector.js';
 import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+import {bindReveal} from '../../utils/content-behaviour.js';
 
 interface HeaderData {
     name: string;
@@ -54,6 +55,18 @@ export class PpOperationResponses extends LightElement {
     @state() private redirectResponses: ResponseData[] = [];
     @state() private errorResponses: ResponseData[] = [];
 
+    // Server-written content is never drawn again.
+    protected canReplaceServerMarkup(): boolean {
+        return false;
+    }
+
+    connectedCallback() {
+        super.connectedCallback();
+        if (this.serverRendered) {
+            bindReveal(this);
+        }
+    }
+
     willUpdate(changed: Map<string, unknown>) {
         if (changed.has('responsesJson') && this.responsesJson) {
             try {
@@ -94,6 +107,10 @@ export class PpOperationResponses extends LightElement {
     }
 
     public getResponseNavItems(): Array<{label: string; id: string}> {
+        if (this.serverRendered) {
+            return Array.from(this.querySelectorAll<HTMLElement>('.response[data-nav-label]'),
+                (response) => ({label: response.dataset.navLabel ?? '', id: response.id}));
+        }
         const items: Array<{label: string; id: string}> = [];
         for (const r of [...this.successResponses, ...this.redirectResponses, ...this.errorResponses]) {
             items.push({

@@ -386,6 +386,20 @@ type OperationPage struct {
 	Problems              []*PageProblem
 	Slices                map[string]*YamlSlice
 	AsyncAPI              *AsyncAPIOperationInfo `json:"asyncapi,omitempty"`
+	Content               *OperationContent      `json:"-"` // server-written content sections, for the page template
+}
+
+// OperationContent is the markup the server writes for the content sections
+// of an operation page. An empty field means the section draws nothing.
+type OperationContent struct {
+	RequestBody           string
+	RequestBodyExtensions string
+	Responses             string
+	Parameters            string
+	Curl                  string
+	Callbacks             string
+	Extensions            string
+	PathExtensions        string
 }
 
 // OperationCrossRefs holds cross-reference information for an operation.
@@ -440,6 +454,7 @@ type AsyncAPIModelInfo struct {
 	Messages    []*AsyncAPIMessageRef     `json:"messages,omitempty"`
 	Channel     *AsyncAPIChannelRef       `json:"channel,omitempty"`
 	Content     []*MediaTypeInfo          `json:"content,omitempty"`
+	ContentHTML string                    `json:"-"` // the server-written pp-media-type-selector of a message
 	Schemas     []*AsyncAPISchemaSurface  `json:"schemas,omitempty"`
 	Bindings    []string                  `json:"bindings,omitempty"`
 	Examples    []*AsyncAPIMessageExample `json:"examples,omitempty"`
@@ -590,6 +605,11 @@ type ModelPage struct {
 	DescHTML                 string
 	SchemaJSON               string // JSON representation for cowboy-components rendering
 	SchemaHighlightedHTML    string `json:"-"` // chroma output, for the page template
+	ContentHTML              string `json:"-"` // the server-written content of pp-model-page, when it writes this shape
+	ContentWritten           bool   `json:"-"` // the server wrote the content (it may draw nothing)
+	SecuritySchemeHTML       string `json:"-"` // the server-written pp-security-scheme, for a security scheme page
+	ExtensionsHTML           string `json:"-"` // the server-written pp-extensions of the model
+	CrossRefsHTML            string `json:"-"` // the server-written pp-cross-refs
 	RawYAML                  string `json:"-"` // re-rendered YAML from Render(), for raw viewer
 	SchemaRawYAML            string `json:"-"` // schema-only YAML for inline viewer (parameters, headers)
 	SchemaRawJSON            string `json:"-"` // schema-only JSON for inline viewer (parameters, headers)

@@ -15,6 +15,7 @@ import '../shared/example-selector.js';
 import '../class-diagram/class-diagram.js';
 import '../shared/code-viewer.js';
 import {LightElement} from '@pb33f/printing-press-components/base/light-element.js';
+import {bindMediaTypeChoice, bindSplits} from '../../utils/content-behaviour.js';
 
 @customElement('pp-media-type-selector')
 export class PpMediaTypeSelector extends LightElement {
@@ -42,8 +43,18 @@ export class PpMediaTypeSelector extends LightElement {
     private observedPropsContent: Element | null = null;
     private observedExampleContent: Element | null = null;
 
+    // Server-written content is never drawn again.
+    protected canReplaceServerMarkup(): boolean {
+        return false;
+    }
+
     connectedCallback() {
         super.connectedCallback();
+        if (this.serverRendered) {
+            bindMediaTypeChoice(this);
+            bindSplits(this);
+            return;
+        }
         setTimeout(() => {
             this.wide = this.offsetWidth >= 900;
             if (typeof ResizeObserver === 'undefined') return;

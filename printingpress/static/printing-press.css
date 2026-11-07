@@ -374,6 +374,9 @@ pp-layout[embedded] .pp-split {
     height: calc(100vh - var(--pp-header-height));
     scrollbar-width: thin;
     scrollbar-color: var(--secondary-color-lowalpha) var(--terminal-background);
+    /* The scroll bar space is kept, so content that grows after the first
+       paint does not narrow the page. */
+    scrollbar-gutter: stable;
 }
 
 pp-layout[embedded] .nav-panel,
@@ -1676,8 +1679,13 @@ wa-details.pp-details:not(:defined) > :not([slot="summary"]) {
     display: none !important;
 }
 
+/* Until Web Awesome defines it, the summary takes the border and padding of
+   the header part, so the heading does not move when it does. */
 wa-details.pp-details:not(:defined) > [slot="summary"] {
     display: block;
+    min-height: 30px;
+    padding: var(--global-padding);
+    border: 1px dashed var(--secondary-color-dimmer);
 }
 
 @scope (:root) to (:scope [data-pp-owner]:not(pp-slot) > *:not(:has(pp-slot[data-pp-owner="page"]))) {
@@ -2539,4 +2547,13 @@ pp-mermaid[data-render-failed] > .pp-mermaid-fallback {
 }
 
 
+}
+
+/* The dashed line under the tabs part, until Web Awesome defines the group. */
+.pp-visualization-section wa-tab-group:not(:defined) > wa-tab {
+    border-bottom: 1px dashed var(--hrcolor);
+    font-family: var(--font-stack), monospace;
+    text-transform: uppercase;
+    font-size: 1rem;
+    color: var(--font-color-sub1);
 }
