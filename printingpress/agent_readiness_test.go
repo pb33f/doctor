@@ -5,6 +5,8 @@
 package printingpress
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -13,10 +15,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/pb33f/doctor/printingpress/curl"
 	. "github.com/pb33f/doctor/printingpress/model"
+	"github.com/pb33f/doctor/printingpress/render"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
 )
@@ -303,4 +307,199 @@ func TestAgentComponentFragmentsIdentifyReferenceContext(t *testing.T) {
 	markdown = renderModelMD(modelFileRenderContext(site), page)
 	assert.Contains(t, markdown, "Component fragment (JSON)")
 	assert.NotContains(t, markdown, "Machine-readable schema")
+}
+
+func TestAgentExternalExamplesRemainMetadata(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		_, _ = w.Write([]byte(`{"unexpected":"fetch"}`))
+	}))
+	defer server.Close()
+	spec := `openapi: 3.1.0
+info: {title: External examples, version: '1'}
+paths:
+  /items:
+    post:
+      operationId: createItem
+      parameters:
+        - name: sample
+          in: query
+          schema: {type: string}
+          examples:
+            remote:
+              externalValue: EXTERNAL/parameter.txt
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: {type: string}
+            examples:
+              remote:
+                externalValue: EXTERNAL/request.json
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: {type: object, properties: {id: {type: string}}}
+              examples:
+                remote:
+                  externalValue: EXTERNAL/response.json
+`
+	spec = strings.ReplaceAll(spec, "EXTERNAL", server.URL)
+	site := pressFromSpec(t, spec)
+	op := site.Operations[0]
+	assert.Empty(t, op.Parameters[0].Examples)
+	assert.Equal(t, server.URL+"/parameter.txt", op.Parameters[0].ExternalExamples["remote"])
+	assert.Equal(t, server.URL+"/request.json", op.RequestBody.Content[0].ExternalExamples["remote"])
+	assert.Equal(t, server.URL+"/response.json", op.Responses[0].Content[0].ExternalExamples["remote"])
+	assert.NotContains(t, op.CurlJSON, server.URL)
+	assert.NotContains(t, op.CurlJSON, "externalValue")
+
+	markdown := renderOperationMD(operationFileRenderContext(site), op)
+	var html bytes.Buffer
+	require.NoError(t, render.OperationPageTempl(op, "").Render(context.Background(), &html))
+	for _, path := range []string{"parameter.txt", "request.json", "response.json"} {
+		assert.Contains(t, markdown, "[External example](<"+server.URL+"/"+path+">) (not fetched)")
+		assert.Contains(t, html.String(), `href="`+server.URL+"/"+path+`"`)
+	}
+	assert.Contains(t, html.String(), "External examples:")
+	assert.Zero(t, requests.Load())
+
+	// an inline value takes precedence even if an invalid producer also sets externalValue.
+	var inlineSpec strings.Builder
+	for _, line := range strings.Split(spec, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "externalValue:") {
+			indentation := line[:len(line)-len(strings.TrimLeft(line, " "))]
+			inlineSpec.WriteString(indentation + "value: inline-payload\n")
+		}
+		inlineSpec.WriteString(line + "\n")
+	}
+	inlineSite := pressFromSpec(t, inlineSpec.String())
+	inline := inlineSite.Operations[0]
+	assert.Equal(t, `"inline-payload"`, inline.Parameters[0].Examples["remote"])
+	assert.Empty(t, inline.Parameters[0].ExternalExamples)
+	assert.Equal(t, `"inline-payload"`, inline.RequestBody.Content[0].Examples["remote"])
+	assert.Empty(t, inline.RequestBody.Content[0].ExternalExamples)
+	assert.Equal(t, `"inline-payload"`, inline.Responses[0].Content[0].Examples["remote"])
+	assert.Empty(t, inline.Responses[0].Content[0].ExternalExamples)
+	assert.Contains(t, inline.CurlJSON, "inline-payload")
+	assert.NotContains(t, inline.CurlJSON, server.URL)
+	assert.Zero(t, requests.Load())
+}
+
+func TestAgentDefaultRequestsOmitOptionalConditionalHeaders(t *testing.T) {
+	spec := `openapi: 3.1.0
+info: {title: Content access, version: '1'}
+paths:
+  /content:
+    parameters:
+      - {name: If-Match, in: header, schema: {type: string}, example: '"saved-etag"'}
+      - {name: If-None-Match, in: header, schema: {type: string}, example: '"saved-etag"'}
+      - {name: If-Modified-Since, in: header, schema: {type: string}, example: 'Wed, 21 Oct 2015 07:28:00 GMT'}
+      - {name: If-Unmodified-Since, in: header, schema: {type: string}, example: 'Wed, 21 Oct 2015 07:28:00 GMT'}
+      - {name: iF-rAnGe, in: header, schema: {type: string}, example: '"saved-etag"'}
+      - {name: Range, in: header, schema: {type: string}, example: 'bytes=0-3'}
+      - {name: x-client, in: header, schema: {type: string}, example: documentation}
+    get:
+      operationId: readContent
+      responses: {'200': {description: full bytes}}
+    head:
+      operationId: headContent
+      responses: {'200': {description: metadata}}
+    put:
+      operationId: replaceContent
+      parameters:
+        - {name: If-Match, in: header, required: true, schema: {type: string}, example: '"required-etag"'}
+      responses: {'200': {description: replaced}}
+    patch:
+      operationId: patchContent
+      parameters:
+        - {name: If-Match, in: header, required: true, schema: {type: string}, example: '"required-etag"'}
+      responses: {'200': {description: patched}}
+`
+	site := pressFromSpec(t, spec)
+	require.Len(t, site.Operations, 4)
+	for _, op := range site.Operations {
+		var variants []*CurlVariant
+		require.NoError(t, json.Unmarshal([]byte(op.CurlJSON), &variants))
+		require.NotEmpty(t, variants)
+		command := variants[0].Command
+		assert.Contains(t, command, "x-client: documentation")
+		for _, header := range []string{"If-None-Match", "If-Modified-Since", "If-Unmodified-Since", "iF-rAnGe", "Range"} {
+			assert.NotContains(t, command, header+":", op.Method)
+		}
+		if strings.EqualFold(op.Method, "PUT") || strings.EqualFold(op.Method, "PATCH") {
+			assert.Contains(t, command, `If-Match: "required-etag"`)
+		} else {
+			assert.NotContains(t, command, "If-Match:")
+		}
+		assert.NotContains(t, command, "saved-etag")
+	}
+}
+
+func TestAgentCommonErrorModelUsesResponseObject(t *testing.T) {
+	spec := `openapi: 3.1.0
+info: {title: Errors, version: '1'}
+paths:
+  /items:
+    get:
+      responses:
+        '200': {description: ok}
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/BunkHouseError'}
+components:
+  schemas:
+    ProblemDetail:
+      type: string
+      description: A human readable explanation.
+    BunkHouseError:
+      type: object
+      required: [title, detail]
+      properties:
+        title: {type: string}
+        detail: {$ref: '#/components/schemas/ProblemDetail'}
+`
+	site := pressFromSpec(t, spec)
+	require.NotNil(t, detectErrorModel(site))
+	assert.Equal(t, "BunkHouseError", detectErrorModel(site).Name)
+	var preamble strings.Builder
+	require.NoError(t, writeLLMFullPreamble(rootLLMRenderContext(site), &preamble))
+	assert.Contains(t, preamble.String(), `"type": "object"`)
+	assert.NotContains(t, preamble.String(), "A human readable explanation.")
+	scalarOnly := &Site{Models: map[string][]*ModelPage{"schemas": {{Name: "ProblemDetail", Slug: "problem-detail", SchemaJSON: `{"type":"string"}`}}}}
+	assert.Nil(t, detectErrorModel(scalarOnly))
+}
+
+func TestAgentHeaderExamplesRespectDeclaredPrecedence(t *testing.T) {
+	const key = "14253ce5-67bf-4f11-85c6-4a420b0f21d0"
+	const spec = `openapi: 3.1.0
+info: {title: Declared keys, version: '1'}
+paths:
+  /jobs:
+    post:
+      operationId: createJob
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            examples: [14253ce5-67bf-4f11-85c6-4a420b0f21d0]
+            default: ignored-default
+      responses: {'202': {description: accepted}}
+`
+	site := pressFromSpec(t, spec)
+	assert.Contains(t, site.Operations[0].CurlJSON, "Idempotency-Key: "+key)
+	assert.NotContains(t, site.Operations[0].CurlJSON, "ignored-default")
+	override := strings.Replace(spec, "          schema:", "          example: parameter-value\n          schema:", 1)
+	overridden := pressFromSpec(t, override)
+	assert.Contains(t, overridden.Operations[0].CurlJSON, "Idempotency-Key: parameter-value")
+	assert.NotContains(t, overridden.Operations[0].CurlJSON, key)
 }

@@ -189,7 +189,7 @@ func buildCurlCommand(op *ppmodel.OperationPage, serverURL string, group *ppmode
 	var cookies []string
 
 	for _, parameter := range op.Parameters {
-		if parameter == nil || (parameter.In == "query" && !parameter.Required && strings.EqualFold(parameter.Name, "cursor")) {
+		if parameter == nil || (parameter.In == "query" && !parameter.Required && strings.EqualFold(parameter.Name, "cursor")) || isOptionalConditionalHeader(parameter) {
 			continue
 		}
 		value := curlParameterValue(parameter)
@@ -282,6 +282,18 @@ func buildCurlCommand(op *ppmodel.OperationPage, serverURL string, group *ppmode
 	return joinCurlLines(lines)
 }
 
+// isOptionalConditionalHeader keeps initial examples independent of cached state.
+func isOptionalConditionalHeader(parameter *ppmodel.ParameterInfo) bool {
+	if parameter.Required || parameter.In != "header" {
+		return false
+	}
+	switch strings.ToLower(parameter.Name) {
+	case "if-match", "if-none-match", "if-modified-since", "if-unmodified-since", "if-range", "range":
+		return true
+	}
+	return false
+}
+
 func curlParameterValue(parameter *ppmodel.ParameterInfo) string {
 	if parameter == nil {
 		return "value"
@@ -290,6 +302,9 @@ func curlParameterValue(parameter *ppmodel.ParameterInfo) string {
 		return value
 	}
 	if value, ok := scalarFromSchemaField(parameter.SchemaJSON, "example"); ok {
+		return value
+	}
+	if value, ok := scalarFromSchemaField(parameter.SchemaJSON, "examples"); ok {
 		return value
 	}
 	if value, ok := scalarFromSchemaField(parameter.SchemaJSON, "default"); ok {
@@ -334,6 +349,13 @@ func scalarFromSchemaField(schemaJSON, field string) (string, bool) {
 	value, ok := schema[field]
 	if !ok {
 		return "", false
+	}
+	if field == "examples" {
+		examples, _ := value.([]any)
+		if len(examples) == 0 {
+			return "", false
+		}
+		return stringifyScalar(examples[0])
 	}
 	return stringifyScalar(value)
 }

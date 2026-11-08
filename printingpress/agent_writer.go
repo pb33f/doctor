@@ -1297,16 +1297,54 @@ func buildResourceTable(site *Site) string {
 	return b.String()
 }
 
-// detectErrorModel finds a common error schema by name heuristic.
+// detectErrorModel prefers object schemas used by error responses over names.
 func detectErrorModel(site *Site) *ModelPage {
-	schemas := site.Models["schemas"]
-	if schemas == nil {
+	if site == nil {
 		return nil
 	}
-	errorNames := []string{"Error", "ApiError", "ErrorResponse", "ProblemDetail", "ErrorModel"}
-	for _, name := range errorNames {
-		for _, page := range schemas {
-			if strings.EqualFold(page.Name, name) {
+	bySlug := make(map[string]*ModelPage, len(site.Models["schemas"]))
+	for _, page := range site.Models["schemas"] {
+		bySlug[page.Slug] = page
+	}
+	objects := make(map[*ModelPage]bool)
+	isObject := func(page *ModelPage) bool {
+		if page == nil {
+			return false
+		}
+		if result, checked := objects[page]; checked {
+			return result
+		}
+		schema := parseJSONMap(page.SchemaJSON)
+		result := stringValue(schema["type"]) == "object" || len(objectAny(schema["properties"])) > 0
+		objects[page] = result
+		return result
+	}
+	counts := make(map[*ModelPage]int)
+	var best *ModelPage
+	for _, operation := range site.Operations {
+		for _, response := range operation.Responses {
+			if !strings.HasPrefix(response.StatusCode, "4") && !strings.HasPrefix(response.StatusCode, "5") {
+				continue
+			}
+			for _, media := range response.Content {
+				if media.SchemaRef == nil || media.SchemaRef.TypeSlug != "schemas" {
+					continue
+				}
+				if page := bySlug[media.SchemaRef.Slug]; isObject(page) {
+					counts[page]++
+					if best == nil || counts[page] > counts[best] {
+						best = page
+					}
+				}
+			}
+		}
+	}
+	if best != nil {
+		return best
+	}
+	for _, name := range []string{"Error", "ApiError", "ErrorResponse", "ProblemDetail", "ErrorModel"} {
+		for _, page := range site.Models["schemas"] {
+			if strings.EqualFold(page.Name, name) && isObject(page) {
 				return page
 			}
 		}
@@ -2027,6 +2065,7 @@ func renderParameterDetailsMD(ctx llmRenderContext, op *OperationPage, params []
 				b.WriteString("\n")
 			}
 		}
+		b.WriteString(renderExternalExamplesMD(p.ExternalExamples))
 		if len(p.Extensions) > 0 {
 			b.WriteString("Extensions:\n\n")
 			b.WriteString(renderExtensionsMD(p.Extensions))
@@ -2485,6 +2524,7 @@ func renderMediaTypeSummaryMD(ctx llmRenderContext, mt *MediaTypeInfo) string {
 			b.WriteString("\n")
 		}
 	}
+	b.WriteString(renderExternalExamplesMD(mt.ExternalExamples))
 	if len(mt.Extensions) > 0 {
 		b.WriteString("Extensions:\n\n")
 		b.WriteString(renderExtensionsMD(mt.Extensions))
@@ -2523,9 +2563,22 @@ func renderRequestMediaTypeSummaryMD(ctx llmRenderContext, op *OperationPage, mt
 			b.WriteString("\n")
 		}
 	}
+	b.WriteString(renderExternalExamplesMD(mt.ExternalExamples))
 	if len(mt.Extensions) > 0 {
 		b.WriteString("Extensions:\n\n")
 		b.WriteString(renderExtensionsMD(mt.Extensions))
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+func renderExternalExamplesMD(examples map[string]string) string {
+	var b strings.Builder
+	for _, name := range sortedStringMapKeys(examples) {
+		destination := strings.NewReplacer("<", "%3C", ">", "%3E", "\n", "%0A", "\r", "%0D").Replace(examples[name])
+		b.WriteString("- **" + name + "**: [External example](<" + destination + ">) (not fetched)\n")
+	}
+	if b.Len() > 0 {
 		b.WriteString("\n")
 	}
 	return b.String()

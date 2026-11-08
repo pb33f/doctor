@@ -549,6 +549,12 @@ func (pp *PrintingPress) collectParameters(params []*v3.Parameter, piOrigin *bun
 			pi.Examples = make(map[string]string)
 			for pair := p.Examples.First(); pair != nil; pair = pair.Next() {
 				ex := pair.Value()
+				if ex != nil && ex.Value != nil && ex.Value.Value == nil && ex.Value.ExternalValue != "" {
+					if pi.ExternalExamples == nil {
+						pi.ExternalExamples = make(map[string]string)
+					}
+					pi.ExternalExamples[pair.Key()] = ex.Value.ExternalValue
+				}
 				if ex != nil && ex.Value != nil && ex.Value.Value != nil {
 					yamlBytes, err := yaml.Marshal(ex.Value.Value)
 					if err == nil {
@@ -676,6 +682,12 @@ func (pp *PrintingPress) collectMediaType(mediaTypeName string, mt *v3.MediaType
 		mti.Examples = make(map[string]string)
 		for pair := mt.Examples.First(); pair != nil; pair = pair.Next() {
 			ex := pair.Value()
+			if ex != nil && ex.Value != nil && ex.Value.Value == nil && ex.Value.ExternalValue != "" {
+				if mti.ExternalExamples == nil {
+					mti.ExternalExamples = make(map[string]string)
+				}
+				mti.ExternalExamples[pair.Key()] = ex.Value.ExternalValue
+			}
 			if ex == nil || ex.Value == nil || ex.Value.Value == nil {
 				continue
 			}
