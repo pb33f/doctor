@@ -1,6 +1,8 @@
 package render
 
 import "fmt"
+import "maps"
+import "slices"
 import "github.com/pb33f/doctor/printingpress/curl"
 import "github.com/pb33f/doctor/printingpress/internal/pppaths"
 import ppmodel "github.com/pb33f/doctor/printingpress/model"
@@ -161,11 +163,19 @@ templ OperationPageTempl(page *ppmodel.OperationPage, baseURL string) {
 		if page.ResponsesJSON != "" {
 			<pp-operation-responses id="section-responses" data-nav-label="Responses">
 			</pp-operation-responses>
+			for _, response := range page.Responses {
+				for _, media := range response.Content {
+					@ExternalExamples(media.ExternalExamples, response.StatusCode+" "+media.MediaType)
+				}
+			}
 		}
 		if page.ParametersJSON != "" {
 			<sl-details class="pp-details" id="section-parameters" data-nav-label="Parameters" style="display:block;min-height:64px;">
 				<span slot="summary" class="pp-details-summary"><h3>Parameters</h3></span>
 				<pp-operation-parameters id="pp-operation-parameters"></pp-operation-parameters>
+				for _, parameter := range page.Parameters {
+					@ExternalExamples(parameter.ExternalExamples, parameter.Name)
+				}
 			</sl-details>
 		}
 		if page.CurlJSON != "" {
@@ -358,8 +368,25 @@ templ RequestBodySection(rb *ppmodel.RequestBodyInfo, baseURL string, title stri
 		}
 		if len(rb.Content) > 0 {
 			<pp-media-type-selector id="pp-request-body-content"></pp-media-type-selector>
+			for _, media := range rb.Content {
+				@ExternalExamples(media.ExternalExamples, media.MediaType)
+			}
 		}
 	</div>
+}
+
+// ExternalExamples renders links as metadata without loading remote payloads.
+templ ExternalExamples(examples map[string]string, label string) {
+	if len(examples) > 0 {
+		<div class="pp-description">
+			<strong>External examples: { label } (not fetched)</strong>
+			<ul>
+				for _, name := range slices.Sorted(maps.Keys(examples)) {
+					<li><a href={ templ.URL(examples[name]) } rel="noopener">{ name }</a></li>
+				}
+			</ul>
+		</div>
+	}
 }
 
 templ InlineExamples(mt *ppmodel.MediaTypeInfo) {

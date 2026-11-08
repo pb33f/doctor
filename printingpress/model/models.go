@@ -419,21 +419,22 @@ type AsyncAPIMessageExample struct {
 
 // ParameterInfo holds operation parameter data.
 type ParameterInfo struct {
-	Name        string            `json:"name"`
-	In          string            `json:"in"`
-	Description string            `json:"description"`
-	Required    bool              `json:"required"`
-	Deprecated  bool              `json:"deprecated"`
-	SchemaJSON  string            `json:"schemaJson"`
-	MockJSON    string            `json:"mockJson,omitempty"`
-	Examples    map[string]string `json:"examples,omitempty"`
-	Ref         *ComponentLink    `json:"ref,omitempty"`
-	RawJSON     string            `json:"rawJson,omitempty"`
-	RawYAML     string            `json:"rawYaml,omitempty"`
-	SourceLine  int               `json:"sourceLine,omitempty"`
-	Location    string            `json:"location,omitempty"`
-	Source      *SourceRef        `json:"source,omitempty"`
-	Extensions  []*ExtensionEntry `json:"extensions,omitempty"`
+	Name             string            `json:"name"`
+	In               string            `json:"in"`
+	Description      string            `json:"description"`
+	Required         bool              `json:"required"`
+	Deprecated       bool              `json:"deprecated"`
+	SchemaJSON       string            `json:"schemaJson"`
+	MockJSON         string            `json:"mockJson,omitempty"`
+	Examples         map[string]string `json:"examples,omitempty"`
+	ExternalExamples map[string]string `json:"externalExamples,omitempty"` // URLs only; never request payloads.
+	Ref              *ComponentLink    `json:"ref,omitempty"`
+	RawJSON          string            `json:"rawJson,omitempty"`
+	RawYAML          string            `json:"rawYaml,omitempty"`
+	SourceLine       int               `json:"sourceLine,omitempty"`
+	Location         string            `json:"location,omitempty"`
+	Source           *SourceRef        `json:"source,omitempty"`
+	Extensions       []*ExtensionEntry `json:"extensions,omitempty"`
 }
 
 // RequestBodyInfo holds request body data.
@@ -466,6 +467,7 @@ type MediaTypeInfo struct {
 	MockYAML              string            `json:"mockYaml,omitempty"`
 	MockXML               string            `json:"mockXml,omitempty"`
 	Examples              map[string]string `json:"examples,omitempty"`
+	ExternalExamples      map[string]string `json:"externalExamples,omitempty"` // URLs only; never request payloads.
 	SchemaRef             *ComponentLink    `json:"schemaRef,omitempty"`
 	IsArray               bool              `json:"isArray,omitempty"`
 	ItemsRef              *ComponentLink    `json:"itemsRef,omitempty"`
