@@ -189,7 +189,7 @@ func buildCurlCommand(op *ppmodel.OperationPage, serverURL string, group *ppmode
 	var cookies []string
 
 	for _, parameter := range op.Parameters {
-		if parameter == nil {
+		if parameter == nil || (parameter.In == "query" && !parameter.Required && strings.EqualFold(parameter.Name, "cursor")) {
 			continue
 		}
 		value := curlParameterValue(parameter)
@@ -254,7 +254,7 @@ func buildCurlCommand(op *ppmodel.OperationPage, serverURL string, group *ppmode
 			bodyContentType = mediaType.MediaType
 			bodyFlags = buildRequestBodyFlags(op, mediaType)
 			if len(bodyFlags) == 0 {
-				bodyContentType = ""
+				bodyFlags = []string{"--data-binary @request-body"}
 			}
 		}
 	}
@@ -509,13 +509,19 @@ func buildRequestBodyFlags(op *ppmodel.OperationPage, mediaType *ppmodel.MediaTy
 		}
 		return []string{fmt.Sprintf("-d %s", shellQuote(body))}
 	case "application/xml":
-		body := strings.TrimSpace(mediaType.MockXML)
+		body := compactFirstJSONExample(mediaType.Examples)
+		if value, ok := firstScalarExample(mediaType.Examples); ok {
+			body = value
+		}
+		if body == "" {
+			body = strings.TrimSpace(mediaType.MockXML)
+		}
 		if body == "" {
 			return nil
 		}
 		return []string{fmt.Sprintf("--data-raw %s", shellQuote(body))}
 	case "multipart/form-data":
-		values := flattenObjectMock(mediaType.MockJSON)
+		values := flattenObjectMock(selectJSONBodyPayload(op, mediaType))
 		if len(values) == 0 {
 			return nil
 		}
@@ -526,11 +532,11 @@ func buildRequestBodyFlags(op *ppmodel.OperationPage, mediaType *ppmodel.MediaTy
 		}
 		sort.Strings(keys)
 		for _, key := range keys {
-			flags = append(flags, fmt.Sprintf("-F %s", shellQuote(key+"="+values[key])))
+			flags = append(flags, fmt.Sprintf("--form-string %s", shellQuote(key+"="+values[key])))
 		}
 		return flags
 	case "application/x-www-form-urlencoded":
-		values := flattenObjectMock(mediaType.MockJSON)
+		values := flattenObjectMock(selectJSONBodyPayload(op, mediaType))
 		if len(values) == 0 {
 			return nil
 		}
@@ -547,7 +553,13 @@ func buildRequestBodyFlags(op *ppmodel.OperationPage, mediaType *ppmodel.MediaTy
 	case "application/octet-stream":
 		return []string{"--data-binary @file.bin"}
 	default:
-		return nil
+		if strings.HasSuffix(strings.ToLower(mediaType.MediaType), "+json") {
+			if body := selectJSONBodyPayload(op, mediaType); body != "" {
+				return []string{fmt.Sprintf("-d %s", shellQuote(body))}
+			}
+		}
+		// a file placeholder preserves raw bytes, including newlines and leading @.
+		return []string{"--data-binary @request-body"}
 	}
 }
 
@@ -555,13 +567,13 @@ func selectJSONBodyPayload(op *ppmodel.OperationPage, mediaType *ppmodel.MediaTy
 	if mediaType == nil {
 		return ""
 	}
+	if body := compactFirstJSONExample(mediaType.Examples); body != "" {
+		return body
+	}
 	if strings.EqualFold(mediaType.MediaType, "application/json-patch+json") {
 		if body := deriveJSONPatchBodyPayload(op, mediaType); body != "" {
 			return body
 		}
-	}
-	if body := compactFirstJSONExample(mediaType.Examples); body != "" {
-		return body
 	}
 	return compactJSON(mediaType.MockJSON)
 }

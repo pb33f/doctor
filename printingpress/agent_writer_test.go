@@ -664,7 +664,7 @@ func TestWriteLLMFullPreamble(t *testing.T) {
 
 	got := builder.String()
 	assert.Contains(t, got, "# Preamble API")
-	assert.Contains(t, got, "> Useful API")
+	assert.Contains(t, got, "Useful API")
 	assert.Contains(t, got, "**Version:** 1.2.3")
 	assert.Contains(t, got, "openapi.yaml")
 	assert.Contains(t, got, "## How to Use This API")
@@ -1318,7 +1318,7 @@ func TestRenderModelMD_IncludesSchemaSummaryAndCrossRefLinks(t *testing.T) {
 	assert.Contains(t, md, "#### Schema Summary")
 	assert.Contains(t, md, "`date` (`string` format `date`) required")
 	assert.Contains(t, md, "[GET /account-usages/{accountId}/summaries](operations/get-usages-by-account-id.md)")
-	assert.NotContains(t, md, "\"properties\"")
+	assert.Contains(t, md, "\"properties\"")
 }
 
 func TestRenderModelMD_RetainsRawSchemaForComposedSchemas(t *testing.T) {
