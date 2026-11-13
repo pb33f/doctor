@@ -25,6 +25,7 @@ type llmRenderContext struct {
 	site                  *Site
 	operationLinkPrefix   string
 	modelLinkPrefix       string
+	componentLinks        map[string]*ComponentLink
 	cache                 *llmRenderCache
 	relatedOperationIndex *llmRelatedOperationIndex
 }
@@ -37,9 +38,10 @@ type llmRenderCache struct {
 }
 
 type llmSchemaSummaryKey struct {
-	schemaJSON string
-	schemaRef  string
-	itemsRef   string
+	schemaJSON      string
+	schemaRef       string
+	itemsRef        string
+	modelLinkPrefix string
 }
 
 func newLLMRenderCache() *llmRenderCache {
@@ -54,7 +56,16 @@ func newLLMRenderContext(site *Site, operationLinkPrefix, modelLinkPrefix string
 	if cache == nil {
 		cache = newLLMRenderCache()
 	}
+	links := make(map[string]*ComponentLink)
+	if site != nil {
+		for _, pages := range site.Models {
+			for _, page := range pages {
+				links[page.ComponentType+"/"+page.Name] = &ComponentLink{Name: page.Name, ComponentType: page.ComponentType, TypeSlug: page.TypeSlug, Slug: page.Slug}
+			}
+		}
+	}
 	return llmRenderContext{
+		componentLinks:      links,
 		site:                site,
 		operationLinkPrefix: operationLinkPrefix,
 		modelLinkPrefix:     modelLinkPrefix,
@@ -125,13 +136,25 @@ func writeLLMSiteDetailed(site *Site, outputDir string, progress writeProgressFu
 		return nil, fmt.Errorf("creating output directory: %w", err)
 	}
 
+	overviewPath := filepath.Join(resolvedOutputDir, "overview.md")
+	if err := writeBufferedTextFile(overviewPath, func(w io.StringWriter) error {
+		return writeLLMFullPreamble(rootLLMRenderContext(site), w)
+	}); err != nil {
+		return nil, fmt.Errorf("writing overview: %w", err)
+	}
+
 	plan := newLLMWritePlan(site)
 	relatedOperationIndex := newLLMRelatedOperationIndex(site)
-	written := make([]string, 0)
+	written := []string{overviewPath}
 	step := 0
 	total := 5 + len(site.Operations) + len(site.Webhooks)
 	for _, group := range site.NavModelGroups {
 		total += len(site.Models[group.TypeSlug])
+		for _, page := range site.Models[group.TypeSlug] {
+			if page.SchemaJSON != "" {
+				total++
+			}
+		}
 	}
 
 	if err := removeLLMShardFiles(resolvedOutputDir); err != nil {
@@ -274,7 +297,7 @@ func writeLLMFullPreamble(ctx llmRenderContext, w io.StringWriter) error {
 	}
 
 	if site.Root != nil && site.Root.Description != "" {
-		if err := writeString(w, "> "+singleLine(site.Root.Description)+"\n\n"); err != nil {
+		if err := writeString(w, site.Root.Description+"\n\n"); err != nil {
 			return err
 		}
 	}
@@ -680,6 +703,7 @@ func renderAgentsGuide(site *Site, plans ...llmWritePlan) string {
 }
 
 func writeLLMFileMap(b *strings.Builder, plan llmWritePlan) {
+	b.WriteString("- [API overview and workflows](overview.md): full authored introduction.\n")
 	b.WriteString("- [AGENTS.md](AGENTS.md) - Start-here guide for agents: artifact map and recommended workflow\n")
 	b.WriteString("- [llms.txt](llms.txt) - Compact discovery index for tags, operations, and model groups\n")
 	if plan.generateMonoliths {
@@ -789,6 +813,13 @@ func writeLLMModelFiles(site *Site, outputDir string) ([]string, error) {
 			path := filepath.Join(outputDir, filepath.FromSlash(pppaths.ModelMarkdown(group.TypeSlug, page.Slug)))
 			page := page
 			groupSlug := group.TypeSlug
+			if page.SchemaJSON != "" {
+				tasks = append(tasks, llmMarkdownFileTask{
+					path:   strings.TrimSuffix(path, ".md") + ".schema.json",
+					label:  "schema " + page.Slug,
+					render: func() string { return page.SchemaJSON },
+				})
+			}
 			tasks = append(tasks, llmMarkdownFileTask{
 				path:  path,
 				label: "model " + groupSlug + "/" + page.Slug,
@@ -1266,16 +1297,54 @@ func buildResourceTable(site *Site) string {
 	return b.String()
 }
 
-// detectErrorModel finds a common error schema by name heuristic.
+// detectErrorModel prefers object schemas used by error responses over names.
 func detectErrorModel(site *Site) *ModelPage {
-	schemas := site.Models["schemas"]
-	if schemas == nil {
+	if site == nil {
 		return nil
 	}
-	errorNames := []string{"Error", "ApiError", "ErrorResponse", "ProblemDetail", "ErrorModel"}
-	for _, name := range errorNames {
-		for _, page := range schemas {
-			if strings.EqualFold(page.Name, name) {
+	bySlug := make(map[string]*ModelPage, len(site.Models["schemas"]))
+	for _, page := range site.Models["schemas"] {
+		bySlug[page.Slug] = page
+	}
+	objects := make(map[*ModelPage]bool)
+	isObject := func(page *ModelPage) bool {
+		if page == nil {
+			return false
+		}
+		if result, checked := objects[page]; checked {
+			return result
+		}
+		schema := parseJSONMap(page.SchemaJSON)
+		result := stringValue(schema["type"]) == "object" || len(objectAny(schema["properties"])) > 0
+		objects[page] = result
+		return result
+	}
+	counts := make(map[*ModelPage]int)
+	var best *ModelPage
+	for _, operation := range site.Operations {
+		for _, response := range operation.Responses {
+			if !strings.HasPrefix(response.StatusCode, "4") && !strings.HasPrefix(response.StatusCode, "5") {
+				continue
+			}
+			for _, media := range response.Content {
+				if media.SchemaRef == nil || media.SchemaRef.TypeSlug != "schemas" {
+					continue
+				}
+				if page := bySlug[media.SchemaRef.Slug]; isObject(page) {
+					counts[page]++
+					if best == nil || counts[page] > counts[best] {
+						best = page
+					}
+				}
+			}
+		}
+	}
+	if best != nil {
+		return best
+	}
+	for _, name := range []string{"Error", "ApiError", "ErrorResponse", "ProblemDetail", "ErrorModel"} {
+		for _, page := range site.Models["schemas"] {
+			if strings.EqualFold(page.Name, name) && isObject(page) {
 				return page
 			}
 		}
@@ -1469,7 +1538,7 @@ func renderOperationMD(ctx llmRenderContext, op *OperationPage) string {
 		b.WriteString(strings.Join(meta, "  \n") + "\n\n")
 	}
 
-	if src := renderSourceMetadataRef(op.Source); src != "" {
+	if src := renderContextSourceMetadataRef(ctx, op.Source); src != "" {
 		b.WriteString(src)
 		b.WriteString("\n")
 	}
@@ -1556,7 +1625,7 @@ func renderAsyncAPIOperationMD(ctx llmRenderContext, op *OperationPage) string {
 		b.WriteString(strings.Join(meta, "  \n") + "\n\n")
 	}
 
-	if src := renderSourceMetadataRef(op.Source); src != "" {
+	if src := renderContextSourceMetadataRef(ctx, op.Source); src != "" {
 		b.WriteString(src)
 		b.WriteString("\n")
 	}
@@ -1658,7 +1727,7 @@ func renderModelMD(ctx llmRenderContext, page *ModelPage) string {
 		b.WriteString(page.Description + "\n\n")
 	}
 
-	if src := renderSourceMetadataRef(page.Source); src != "" {
+	if src := renderContextSourceMetadataRef(ctx, page.Source); src != "" {
 		b.WriteString(src)
 		b.WriteString("\n")
 	}
@@ -1669,7 +1738,9 @@ func renderModelMD(ctx llmRenderContext, page *ModelPage) string {
 		b.WriteString(summary)
 	}
 
-	if shouldRenderRawSchemaWithContext(ctx, page.SchemaJSON, summary != "", false, modelHasLinkedRefs(page)) {
+	if page.SchemaJSON != "" {
+		b.WriteString("[Component fragment (JSON)](" + ctx.modelLinkPrefix + page.TypeSlug + "/" + page.Slug + ".schema.json)\n\n")
+		b.WriteString(renderComponentFragmentContext(ctx, page))
 		b.WriteString(renderSchemaBlock(page.SchemaJSON))
 		b.WriteString("\n")
 	}
@@ -1685,6 +1756,36 @@ func renderModelMD(ctx llmRenderContext, page *ModelPage) string {
 	return b.String()
 }
 
+// renderComponentFragmentContext identifies the reference namespace without
+// pretending a detached component is an independently resolvable schema.
+func renderComponentFragmentContext(ctx llmRenderContext, page *ModelPage) string {
+	var b strings.Builder
+	b.WriteString("#### Complete component fragment\n\nThis JSON is a component fragment, not a standalone JSON Schema. Local references use the composed specification's component namespace; resolve them through the linked model pages or the source specification.\n\n")
+	pointer := "#/components/" + escapeJSONPointerToken(page.ComponentType) + "/" + escapeJSONPointerToken(page.Name)
+	b.WriteString("**Composed component pointer:** `" + pointer + "`\n\n")
+	if page.Origin != nil {
+		pointer := page.Origin.OriginalRef
+		if pointer == "" {
+			pointer = "#"
+		}
+		b.WriteString("**Original component pointer** (in the Source file above): `" + pointer + "`\n\n")
+	}
+	if ctx.site != nil && ctx.site.Source != nil && ctx.site.Source.LinkEnabled {
+		source := *ctx.site.Source
+		source.Line = 0
+		source.Href = strings.SplitN(source.Href, "#", 2)[0]
+		b.WriteString("**Canonical source specification:** ")
+		href := source.Href
+		if strings.HasPrefix(href, "spec/") {
+			href = strings.TrimSuffix(ctx.modelLinkPrefix, "models/") + href
+		}
+		b.WriteString("[" + sourceLabel(&source) + "](" + href + ")\n\n")
+	} else {
+		b.WriteString("The source specification is not bundled in this export. Use the original API specification to resolve source references.\n\n")
+	}
+	return b.String()
+}
+
 func renderAsyncAPIModelMD(ctx llmRenderContext, page *ModelPage) string {
 	var b strings.Builder
 	info := page.AsyncAPI
@@ -1697,7 +1798,7 @@ func renderAsyncAPIModelMD(ctx llmRenderContext, page *ModelPage) string {
 	if page.Description != "" {
 		b.WriteString(page.Description + "\n\n")
 	}
-	if src := renderSourceMetadataRef(page.Source); src != "" {
+	if src := renderContextSourceMetadataRef(ctx, page.Source); src != "" {
 		b.WriteString(src)
 		b.WriteString("\n")
 	}
@@ -1939,7 +2040,7 @@ func renderParameterDetailsMD(ctx llmRenderContext, op *OperationPage, params []
 		if p.Description != "" {
 			b.WriteString(p.Description + "\n\n")
 		}
-		if src := renderSourceMetadataRef(p.Source); src != "" {
+		if src := renderContextSourceMetadataRef(ctx, p.Source); src != "" {
 			b.WriteString(src)
 			b.WriteString("\n")
 		}
@@ -1964,6 +2065,7 @@ func renderParameterDetailsMD(ctx llmRenderContext, op *OperationPage, params []
 				b.WriteString("\n")
 			}
 		}
+		b.WriteString(renderExternalExamplesMD(p.ExternalExamples))
 		if len(p.Extensions) > 0 {
 			b.WriteString("Extensions:\n\n")
 			b.WriteString(renderExtensionsMD(p.Extensions))
@@ -1987,7 +2089,7 @@ func renderRequestBodyMD(ctx llmRenderContext, op *OperationPage, rb *RequestBod
 		if rb.Description != "" {
 			b.WriteString(rb.Description + "\n\n")
 		}
-		if src := renderSourceMetadataRef(rb.Source); src != "" {
+		if src := renderContextSourceMetadataRef(ctx, rb.Source); src != "" {
 			b.WriteString(src)
 			b.WriteString("\n")
 		}
@@ -2033,15 +2135,25 @@ func renderResponsesMD(ctx llmRenderContext, responses []*ResponseInfo) string {
 		if len(resp.Content) > 0 {
 			for _, mt := range resp.Content {
 				b.WriteString(fmt.Sprintf("**%s** (`%s`)%s\n\n", resp.StatusCode, mt.MediaType, desc))
-				if src := renderSourceMetadataRef(resp.Source); src != "" {
+				if src := renderContextSourceMetadataRef(ctx, resp.Source); src != "" {
 					b.WriteString(src)
 					b.WriteString("\n")
 				}
-				summary := renderMediaTypeSummaryMD(ctx, mt)
+				summaryMedia := mt
+				if (mt.SchemaRef != nil && !strings.HasPrefix(resp.StatusCode, "2")) || seenSchemas[mt.SchemaJSON] != "" {
+					copyMedia := *mt
+					copyMedia.SchemaJSON = ""
+					copyMedia.MockJSON = ""
+					summaryMedia = &copyMedia
+				}
+				summary := renderMediaTypeSummaryMD(ctx, summaryMedia)
+				if mt.SchemaRef == nil && seenSchemas[mt.SchemaJSON] != "" {
+					summary += fmt.Sprintf("*Same schema as %s response.*\n\n", seenSchemas[mt.SchemaJSON])
+				}
 				if summary != "" {
 					b.WriteString(summary)
 				}
-				if shouldRenderRawSchemaWithContext(ctx, mt.SchemaJSON, summary != "", mediaTypeHasExample(mt), mediaTypeHasLinkedRefs(mt)) {
+				if summaryMedia == mt && shouldRenderRawSchemaWithContext(ctx, mt.SchemaJSON, summary != "", mediaTypeHasExample(mt), mediaTypeHasLinkedRefs(mt)) {
 					if firstCode, seen := seenSchemas[mt.SchemaJSON]; seen {
 						b.WriteString(fmt.Sprintf("*Same schema as %s response.*\n\n", firstCode))
 					} else {
@@ -2049,6 +2161,9 @@ func renderResponsesMD(ctx llmRenderContext, responses []*ResponseInfo) string {
 						b.WriteString(renderSchemaBlock(mt.SchemaJSON))
 						b.WriteString("\n")
 					}
+				}
+				if mt.SchemaJSON != "" && seenSchemas[mt.SchemaJSON] == "" {
+					seenSchemas[mt.SchemaJSON] = resp.StatusCode
 				}
 				if len(resp.Headers) > 0 {
 					b.WriteString("Headers:\n")
@@ -2396,7 +2511,7 @@ func renderMediaTypeSummaryMD(ctx llmRenderContext, mt *MediaTypeInfo) string {
 	if summary := renderSchemaSummaryMD(ctx, mt.SchemaJSON, mt.SchemaRef, mt.ItemsRef); summary != "" {
 		b.WriteString(summary)
 	}
-	if mt.MockJSON != "" {
+	if mt.MockJSON != "" && len(mt.Examples) == 0 {
 		b.WriteString("**Example payload**\n\n")
 		b.WriteString(renderSchemaBlock(mt.MockJSON))
 		b.WriteString("\n")
@@ -2409,6 +2524,7 @@ func renderMediaTypeSummaryMD(ctx llmRenderContext, mt *MediaTypeInfo) string {
 			b.WriteString("\n")
 		}
 	}
+	b.WriteString(renderExternalExamplesMD(mt.ExternalExamples))
 	if len(mt.Extensions) > 0 {
 		b.WriteString("Extensions:\n\n")
 		b.WriteString(renderExtensionsMD(mt.Extensions))
@@ -2434,7 +2550,7 @@ func renderRequestMediaTypeSummaryMD(ctx llmRenderContext, op *OperationPage, mt
 	if patchable := renderPatchablePathsMD(op, mt); patchable != "" {
 		b.WriteString(patchable)
 	}
-	if example := requestExamplePayload(op, mt); example != "" {
+	if example := requestExamplePayload(op, mt); example != "" && len(mt.Examples) == 0 {
 		b.WriteString("**Example payload**\n\n")
 		b.WriteString(renderSchemaBlock(example))
 		b.WriteString("\n")
@@ -2447,9 +2563,22 @@ func renderRequestMediaTypeSummaryMD(ctx llmRenderContext, op *OperationPage, mt
 			b.WriteString("\n")
 		}
 	}
+	b.WriteString(renderExternalExamplesMD(mt.ExternalExamples))
 	if len(mt.Extensions) > 0 {
 		b.WriteString("Extensions:\n\n")
 		b.WriteString(renderExtensionsMD(mt.Extensions))
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+func renderExternalExamplesMD(examples map[string]string) string {
+	var b strings.Builder
+	for _, name := range sortedStringMapKeys(examples) {
+		destination := strings.NewReplacer("<", "%3C", ">", "%3E", "\n", "%0A", "\r", "%0D").Replace(examples[name])
+		b.WriteString("- **" + name + "**: [External example](<" + destination + ">) (not fetched)\n")
+	}
+	if b.Len() > 0 {
 		b.WriteString("\n")
 	}
 	return b.String()
@@ -2543,9 +2672,10 @@ func renderSchemaSummaryMD(ctx llmRenderContext, schemaJSON string, schemaRef, i
 		itemsRefLabel = componentLinkLabel(ctx, itemsRef)
 	}
 	key := llmSchemaSummaryKey{
-		schemaJSON: schemaJSON,
-		schemaRef:  schemaRefLabel,
-		itemsRef:   itemsRefLabel,
+		schemaJSON:      schemaJSON,
+		schemaRef:       schemaRefLabel,
+		itemsRef:        itemsRefLabel,
+		modelLinkPrefix: ctx.modelLinkPrefix,
 	}
 	if ctx.cache != nil {
 		ctx.cache.mu.RLock()
@@ -2567,7 +2697,7 @@ func renderSchemaSummaryMD(ctx llmRenderContext, schemaJSON string, schemaRef, i
 		b.WriteString("- Reference: " + schemaRefLabel + "\n")
 	}
 	if ref := stringValue(schema["$ref"]); ref != "" {
-		b.WriteString("- Reference path: `" + ref + "`\n")
+		b.WriteString("- Reference path: " + schemaReferenceLabel(ctx, ref) + "\n")
 	}
 	if typeLine := formatSchemaTypeLine(schema); typeLine != "" {
 		b.WriteString("- Type: " + typeLine + "\n")
@@ -2609,7 +2739,7 @@ func renderSchemaSummaryMD(ctx llmRenderContext, schemaJSON string, schemaRef, i
 		b.WriteString(fmt.Sprintf("- %s: %d entries\n", compKey, len(entries)))
 		for _, entry := range entries {
 			if ref := stringValue(objectAny(entry)["$ref"]); ref != "" {
-				b.WriteString("  - `" + ref + "`\n")
+				b.WriteString("  - " + schemaReferenceLabel(ctx, ref) + "\n")
 				continue
 			}
 			if t := formatSchemaTypeLine(objectAny(entry)); t != "" {
@@ -2630,6 +2760,16 @@ func renderSchemaSummaryMD(ctx llmRenderContext, schemaJSON string, schemaRef, i
 			line := "- `" + name + "`"
 			if t := formatSchemaTypeLine(prop); t != "" {
 				line += " (" + t + ")"
+			}
+			if ref := stringValue(prop["$ref"]); ref != "" {
+				line += " — " + schemaReferenceLabel(ctx, ref)
+			}
+			if items := objectAny(prop["items"]); items != nil {
+				if ref := stringValue(items["$ref"]); ref != "" {
+					line += " items " + schemaReferenceLabel(ctx, ref)
+				} else if typ := formatSchemaTypeLine(items); typ != "" {
+					line += " items " + typ
+				}
 			}
 			if requiredSet[name] {
 				line += " required"
@@ -2678,13 +2818,13 @@ func requestExamplePayload(op *OperationPage, mt *MediaTypeInfo) string {
 	if mt == nil {
 		return ""
 	}
+	if example := firstStructuredExample(mt.Examples); example != "" {
+		return example
+	}
 	if strings.EqualFold(mt.MediaType, "application/json-patch+json") {
 		if payload := deriveJSONPatchExample(op, mt); payload != "" {
 			return payload
 		}
-	}
-	if example := firstStructuredExample(mt.Examples); example != "" {
-		return example
 	}
 	return mt.MockJSON
 }
@@ -2935,6 +3075,29 @@ func renderSiteSourceMetadata(source *SourceRef) string {
 		return "**Source spec:** [" + label + "](" + href + ")\n\n"
 	}
 	return "**Source spec:** `" + label + "`\n\n"
+}
+
+func renderContextSourceMetadataRef(ctx llmRenderContext, source *SourceRef) string {
+	if source == nil {
+		return ""
+	}
+	copySource := *source
+	if strings.HasPrefix(copySource.Href, "spec/") {
+		copySource.Href = strings.TrimSuffix(ctx.modelLinkPrefix, "models/") + copySource.Href
+	}
+	return renderSourceMetadataRef(&copySource)
+}
+
+func schemaReferenceLabel(ctx llmRenderContext, ref string) string {
+	key := strings.TrimPrefix(ref, "#/components/")
+	parts := strings.SplitN(key, "/", 2)
+	if strings.HasPrefix(ref, "#/components/") && len(parts) == 2 {
+		key = decodeJSONPointerToken(parts[0]) + "/" + decodeJSONPointerToken(parts[1])
+		if link := ctx.componentLinks[key]; link != nil {
+			return componentLinkLabel(ctx, link)
+		}
+	}
+	return "`" + ref + "`"
 }
 
 func renderSourceMetadataRef(source *SourceRef) string {

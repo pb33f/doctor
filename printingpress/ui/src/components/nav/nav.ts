@@ -83,7 +83,9 @@ export class PpNav extends LitElement {
     @state() private includeDiagnostics = false;
     @state() private includeAIDocs = false;
     @state() private archiveExporting = false;
+    @state() private archiveExportError = "";
     private archiveExportTargetOrigin = '';
+    private directArchiveAttempt?: {url: string; key: string};
     private archiveExportRequestId = 0;
     private activeArchiveExportRequestId = 0;
     private expiryTimer?: number;
@@ -230,6 +232,7 @@ export class PpNav extends LitElement {
                         ${this.archiveExporting ? html`<sl-spinner></sl-spinner>` : 'export'}
                     </sl-button>
                 </div>
+                ${this.archiveExportError ? html`<p role="alert">${this.archiveExportError}</p>` : ''}
             </div>
         `;
     }
@@ -275,10 +278,10 @@ export class PpNav extends LitElement {
         const url = new URL(directExportURL, window.location.href);
         url.searchParams.set('format', this.archiveFormat);
         if (this.includeDiagnostics) {
-            url.searchParams.set('diagnostics', '1');
+            url.searchParams.set('diagnostics', 'true');
         }
         if (this.includeAIDocs) {
-            url.searchParams.set('llm', '1');
+            url.searchParams.set('llm', 'true');
         }
         return url;
     }
@@ -321,19 +324,32 @@ export class PpNav extends LitElement {
     private async requestDirectArchiveExport(directExportURL: string) {
         const format = this.archiveFormat;
         const url = this.archiveExportURL(directExportURL);
-        const response = await fetch(url.toString(), {
-            method: 'GET',
+        const identity = url.toString();
+        if (this.directArchiveAttempt?.url !== identity) {
+            // getRandomValues also works on HTTP preview origins, unlike randomUUID.
+            const key = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
+            this.directArchiveAttempt = {url: identity, key};
+        }
+        const attempt = this.directArchiveAttempt;
+        const response = await fetch(identity, {
+            method: 'POST',
             credentials: 'include',
+            headers: {'Idempotency-Key': attempt.key},
         });
         if (!response.ok) {
+            if (response.headers.get('Idempotency-Status') === 'rejected' && this.directArchiveAttempt === attempt) {
+                this.directArchiveAttempt = undefined;
+            }
             throw await this.archiveErrorFromResponse(response);
         }
         const blob = await response.blob();
         this.downloadArchiveBlob(blob, this.archiveFilenameFromResponse(response, format));
+        if (this.directArchiveAttempt === attempt) this.directArchiveAttempt = undefined;
     }
 
     private beginArchiveExport(): number {
         this.archiveExporting = true;
+        this.archiveExportError = '';
         this.activeArchiveExportRequestId = ++this.archiveExportRequestId;
         return this.activeArchiveExportRequestId;
     }
@@ -363,7 +379,8 @@ export class PpNav extends LitElement {
             try {
                 await this.requestDirectArchiveExport(directExportURL);
             } catch (error) {
-                console.error('Unable to export documentation archive:', error);
+                const problem = error as {detail?: string};
+                this.archiveExportError = problem?.detail || 'The export did not complete. Retry with these options to check the same request.';
             } finally {
                 this.completeArchiveExport(requestId);
             }

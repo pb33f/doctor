@@ -549,8 +549,14 @@ func (pp *PrintingPress) collectParameters(params []*v3.Parameter, piOrigin *bun
 			pi.Examples = make(map[string]string)
 			for pair := p.Examples.First(); pair != nil; pair = pair.Next() {
 				ex := pair.Value()
-				if ex != nil && ex.Value != nil {
-					yamlBytes, err := ex.Value.Render()
+				if ex != nil && ex.Value != nil && ex.Value.Value == nil && ex.Value.ExternalValue != "" {
+					if pi.ExternalExamples == nil {
+						pi.ExternalExamples = make(map[string]string)
+					}
+					pi.ExternalExamples[pair.Key()] = ex.Value.ExternalValue
+				}
+				if ex != nil && ex.Value != nil && ex.Value.Value != nil {
+					yamlBytes, err := yaml.Marshal(ex.Value.Value)
 					if err == nil {
 						jsonStr, err := yamlToJSON(yamlBytes)
 						if err == nil {
@@ -558,6 +564,14 @@ func (pp *PrintingPress) collectParameters(params []*v3.Parameter, piOrigin *bun
 						}
 					}
 				}
+			}
+		}
+		if p.Value.Example != nil {
+			if pi.Examples == nil {
+				pi.Examples = make(map[string]string)
+			}
+			if value := yamlNodeToJSON(p.Value.Example); value != "" {
+				pi.Examples["Example"] = value
 			}
 		}
 		pi.Extensions = collectExtensions(p.Value.Extensions)
@@ -668,10 +682,16 @@ func (pp *PrintingPress) collectMediaType(mediaTypeName string, mt *v3.MediaType
 		mti.Examples = make(map[string]string)
 		for pair := mt.Examples.First(); pair != nil; pair = pair.Next() {
 			ex := pair.Value()
-			if ex == nil || ex.Value == nil {
+			if ex != nil && ex.Value != nil && ex.Value.Value == nil && ex.Value.ExternalValue != "" {
+				if mti.ExternalExamples == nil {
+					mti.ExternalExamples = make(map[string]string)
+				}
+				mti.ExternalExamples[pair.Key()] = ex.Value.ExternalValue
+			}
+			if ex == nil || ex.Value == nil || ex.Value.Value == nil {
 				continue
 			}
-			yamlBytes, err := ex.Value.Render()
+			yamlBytes, err := yaml.Marshal(ex.Value.Value)
 			if err != nil {
 				continue
 			}
@@ -697,6 +717,15 @@ func (pp *PrintingPress) collectMediaType(mediaTypeName string, mt *v3.MediaType
 			}
 		}
 	}
+	if mt.Value.Example != nil {
+		if mti.Examples == nil {
+			mti.Examples = make(map[string]string)
+		}
+		if value := yamlNodeToJSON(mt.Value.Example); value != "" {
+			mti.Examples["Example"] = value
+		}
+	}
+
 	if isComplexSchema(sch) {
 		mti.MockJSON = pp.generateMockAs(mt.Value, "json")
 		switch lang {
@@ -2058,20 +2087,25 @@ func (pp *PrintingPress) resolveSecurityRequirement(name string, scopes []string
 			TypeSlug:      page.TypeSlug,
 			Slug:          page.Slug,
 		}
-		var schema map[string]any
-		if json.Unmarshal([]byte(page.SchemaJSON), &schema) == nil {
-			if t, ok := schema["type"].(string); ok {
-				req.SchemeType = t
+		// composed specifications retain alias references in raw artifacts. Follow
+		// those aliases for authentication metadata without rewriting the artifact.
+		seen := make(map[string]bool)
+		for page != nil && !seen[page.Name] {
+			seen[page.Name] = true
+			var schema map[string]any
+			if json.Unmarshal([]byte(page.SchemaJSON), &schema) != nil {
+				break
 			}
-			if in, ok := schema["in"].(string); ok {
-				req.In = in
+			req.SchemeType, _ = schema["type"].(string)
+			req.In, _ = schema["in"].(string)
+			req.ParameterName, _ = schema["name"].(string)
+			req.Scheme, _ = schema["scheme"].(string)
+			ref, _ := schema["$ref"].(string)
+			link := pp.resolveComponentLink(ref)
+			if req.SchemeType != "" || link == nil || link.TypeSlug != "security" {
+				break
 			}
-			if parameterName, ok := schema["name"].(string); ok {
-				req.ParameterName = parameterName
-			}
-			if s, ok := schema["scheme"].(string); ok {
-				req.Scheme = s
-			}
+			page = pp.modelIndex["security/"+link.Name]
 		}
 	}
 	return req

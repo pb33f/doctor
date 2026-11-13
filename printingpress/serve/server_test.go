@@ -44,6 +44,39 @@ func TestStaticServerServesZipArchiveExport(t *testing.T) {
 	assert.NotContains(t, names, "diagnostics.html")
 }
 
+func TestStaticServerArchiveExportMethods(t *testing.T) {
+	dir := writeArchiveExportTestDir(t, "portable", false)
+	server := httptest.NewServer(NewStaticServer(dir, ""))
+	defer server.Close()
+
+	for _, tc := range []struct {
+		method string
+		status int
+	}{
+		{http.MethodHead, http.StatusOK},
+		{http.MethodOptions, http.StatusNoContent},
+		{http.MethodDelete, http.StatusMethodNotAllowed},
+	} {
+		t.Run(tc.method, func(t *testing.T) {
+			req, err := http.NewRequest(tc.method, server.URL+ArchiveExportEndpoint, nil)
+			require.NoError(t, err)
+			resp, err := server.Client().Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+			assert.Equal(t, tc.status, resp.StatusCode)
+			if tc.method == http.MethodHead {
+				assert.Equal(t, "application/zip", resp.Header.Get("Content-Type"))
+				assert.Positive(t, resp.ContentLength)
+				body, err := io.ReadAll(resp.Body)
+				require.NoError(t, err)
+				assert.Empty(t, body)
+			} else {
+				assert.Equal(t, "GET, HEAD, POST, OPTIONS", resp.Header.Get("Allow"))
+			}
+		})
+	}
+}
+
 func TestStaticServerArchiveExportSkipsNestedDiagnosticsPayloads(t *testing.T) {
 	dir := t.TempDir()
 	writeArchiveTestFile(t, dir, "index.html", "catalog")
@@ -126,6 +159,7 @@ func TestStaticServerArchiveExportParsesNavToggleValues(t *testing.T) {
 
 	tests := []struct {
 		name              string
+		method            string
 		query             string
 		wantIndex         string
 		wantDiagnostics   bool
@@ -151,6 +185,14 @@ func TestStaticServerArchiveExportParsesNavToggleValues(t *testing.T) {
 			wantLLMArchiveDir: true,
 		},
 		{
+			name:              "POST diagnostics and llm true",
+			method:            http.MethodPost,
+			query:             "?format=zip&diagnostics=true&llm=true",
+			wantIndex:         "diagnostics-llm",
+			wantDiagnostics:   true,
+			wantLLMArchiveDir: true,
+		},
+		{
 			name:              "diagnostics and llm true",
 			query:             "?diagnostics=true&llm=true",
 			wantIndex:         "diagnostics-llm",
@@ -161,7 +203,9 @@ func TestStaticServerArchiveExportParsesNavToggleValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := server.Client().Get(server.URL + ArchiveExportEndpoint + tt.query)
+			req, err := http.NewRequest(tt.method, server.URL+ArchiveExportEndpoint+tt.query, nil)
+			require.NoError(t, err)
+			resp, err := server.Client().Do(req)
 			require.NoError(t, err)
 			defer resp.Body.Close()
 			require.Equal(t, http.StatusOK, resp.StatusCode)

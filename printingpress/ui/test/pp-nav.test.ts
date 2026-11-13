@@ -435,7 +435,8 @@ describe('pp-nav', () => {
     expect(button?.querySelector('sl-spinner')).toBeNull();
   });
 
-  it('downloads direct archive exports with fetch so loading can track the response', async () => {
+  it.each(['/_printing-press/export', '/ppress/docs/doc-1/export'])(
+    'posts direct archive exports to %s with boolean options and downloads the response', async (exportPath) => {
     const el = document.createElement('pp-nav') as any;
     document.body.appendChild(el);
     await el.updateComplete;
@@ -460,7 +461,7 @@ describe('pp-nav', () => {
     vi.useFakeTimers();
 
     try {
-      await el.requestDirectArchiveExport('/_printing-press/export');
+      await el.requestDirectArchiveExport(exportPath);
       vi.advanceTimersByTime(500);
     } finally {
       vi.useRealTimers();
@@ -469,14 +470,20 @@ describe('pp-nav', () => {
     }
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      'http://localhost:3000/_printing-press/export?format=zip&diagnostics=1&llm=1',
-      {method: 'GET', credentials: 'include'},
+      `http://localhost:3000${exportPath}?format=zip&diagnostics=true&llm=true`,
+      {method: 'POST', credentials: 'include', headers: {'Idempotency-Key': expect.any(String)}},
     );
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     const archiveBlob = createObjectURL.mock.calls[0]?.[0];
     expect(archiveBlob?.size).toBe(new TextEncoder().encode('archive').byteLength);
     expect(archiveBlob?.type).toBe('application/zip');
-    expect(await archiveBlob?.text()).toBe('archive');
+    const archiveText = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(archiveBlob!);
+    });
+    expect(archiveText).toBe('archive');
     expect(clickSpy).toHaveBeenCalled();
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:docs');
   });
@@ -499,6 +506,67 @@ describe('pp-nav', () => {
     const labels = Array.from(el.shadowRoot?.querySelectorAll('sl-checkbox') || [])
       .map((checkbox) => checkbox.textContent?.trim());
     expect(labels).toEqual(['diagnostics?', 'AI docs?']);
+  });
+
+  it('shows retry guidance after a direct download failure and clears it on success', async () => {
+    const el = document.createElement('pp-nav') as any;
+    el.archiveExportUrl = '/ppress/docs/doc-1/export';
+    document.body.appendChild(el);
+    await el.updateComplete;
+    vi.spyOn(el, 'downloadArchiveBlob').mockImplementation(() => {});
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new TypeError('lost')).mockResolvedValueOnce(new Response('archive'));
+    await el.requestArchiveExport();
+    await el.updateComplete;
+    expect(el.shadowRoot.querySelector('[role="alert"]').textContent).toContain('Retry with these options');
+    await el.requestArchiveExport();
+    await el.updateComplete;
+    expect(el.shadowRoot.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('exports from an HTTP preview where crypto.randomUUID is unavailable', async () => {
+    const getRandomValues = crypto.getRandomValues.bind(crypto);
+    vi.stubGlobal('crypto', {getRandomValues});
+    try {
+      const el = document.createElement('pp-nav') as any;
+      el.archiveExportUrl = '/_printing-press/export';
+      document.body.appendChild(el);
+      await el.updateComplete;
+      const download = vi.spyOn(el, 'downloadArchiveBlob').mockImplementation(() => {});
+      const request = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('archive'));
+      await el.requestArchiveExport();
+      await el.updateComplete;
+      expect(request).toHaveBeenCalledOnce();
+      const key = (request.mock.calls[0][1]?.headers as Record<string,string>)['Idempotency-Key'];
+      expect(key).toMatch(/^[0-9a-f]{32}$/);
+      expect(download).toHaveBeenCalledOnce();
+      expect(el.shadowRoot.querySelector('[role="alert"]')).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('retains the direct export key after a lost response or active result and clears it after a confirmed outcome', async () => {
+    const el = document.createElement('pp-nav') as any;
+    document.body.appendChild(el);
+    await el.updateComplete;
+    vi.spyOn(el, 'downloadArchiveBlob').mockImplementation(() => {});
+    const request = vi.spyOn(globalThis, 'fetch')
+      .mockRejectedValueOnce(new TypeError('connection lost'))
+      .mockResolvedValueOnce(new Response('{}', {status: 409, headers: {'Idempotency-Status': 'reserved'}}))
+      .mockResolvedValueOnce(new Response('archive'))
+      .mockResolvedValueOnce(new Response('{}', {status: 402, headers: {'Idempotency-Status': 'rejected'}}))
+      .mockResolvedValueOnce(new Response('archive'));
+    await expect(el.requestDirectArchiveExport('/ppress/docs/doc-1/export')).rejects.toThrow('connection lost');
+    await expect(el.requestDirectArchiveExport('/ppress/docs/doc-1/export')).rejects.toEqual({});
+    await el.requestDirectArchiveExport('/ppress/docs/doc-1/export');
+    await expect(el.requestDirectArchiveExport('/ppress/docs/doc-1/export')).rejects.toEqual({});
+    await el.requestDirectArchiveExport('/ppress/docs/doc-1/export');
+    const keys = request.mock.calls.map(call => (call[1]?.headers as Record<string,string>)['Idempotency-Key']);
+    expect(keys[0]).toBeTruthy();
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).toBe(keys[0]);
+    expect(keys[3]).not.toBe(keys[0]);
+    expect(keys[4]).not.toBe(keys[3]);
   });
 
   it('renders archive controls when a direct export URL is configured', async () => {
