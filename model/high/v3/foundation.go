@@ -177,6 +177,23 @@ func (f *Foundation) BuildReferenceEdge(ctx context.Context, source, destination
 // line number, resolved to a node id after the walk completes. It avoids
 // formatting the line into the Targets slice just to parse it back out.
 func (f *Foundation) BuildReferenceEdgeToLine(ctx context.Context, source string, targetLine int, ref string, poly string) *Edge {
+	return f.buildLineReferenceEdge(ctx, source, targetLine, nil, ref, poly)
+}
+
+// BuildReferenceEdgeToNode builds a line-targeted reference edge that also
+// remembers the YAML node the reference resolves to. Lines repeat across the
+// files of a multi-file document, so the walk only resolves the edge to a
+// graph node built from that same YAML node; a reference to content that has
+// no graph node of its own (a whole-file $ref, for example) is dropped rather
+// than attached to whichever node shares the line number.
+func (f *Foundation) BuildReferenceEdgeToNode(ctx context.Context, source string, target *yaml.Node, ref string, poly string) *Edge {
+	if target == nil {
+		return nil
+	}
+	return f.buildLineReferenceEdge(ctx, source, target.Line, target, ref, poly)
+}
+
+func (f *Foundation) buildLineReferenceEdge(ctx context.Context, source string, targetLine int, targetNode *yaml.Node, ref string, poly string) *Edge {
 	drCtx := GetDrContext(ctx)
 	if drCtx != nil && f != nil {
 		if !drCtx.BuildGraph {
@@ -192,6 +209,7 @@ func (f *Foundation) BuildReferenceEdgeToLine(ctx context.Context, source string
 			Sources:    []string{source},
 			Targets:    []string{line},
 			TargetLine: targetLine,
+			TargetNode: targetNode,
 		}
 		if poly != "" {
 			e.Poly = poly
@@ -279,6 +297,7 @@ func (f *Foundation) BuildNode(ctx context.Context, label, nodeType string, arra
 	n.Height = 25
 
 	if f.ValueNode != nil {
+		n.Value = f.ValueNode
 		n.ValueLine = f.ValueNode.Line
 	}
 	if f.KeyNode != nil {
@@ -368,7 +387,7 @@ func (f *Foundation) ProcessNodesAndEdges(ctx context.Context, label, nodeType s
 					if root, ko := model.GoLowUntyped().(low.HasValueNodeUntyped); ko {
 						if root.GetValueNode() != nil {
 							// build edge from the source
-							f.BuildReferenceEdgeToLine(ctx, n.Id, root.GetValueNode().Line, r.GetReference(), "")
+							f.BuildReferenceEdgeToNode(ctx, n.Id, root.GetValueNode(), r.GetReference(), "")
 
 							// break the chain, no more rendering down this branch.
 							f.SetRefNode(f.GetNode().CloneShallow())
@@ -378,7 +397,7 @@ func (f *Foundation) ProcessNodesAndEdges(ctx context.Context, label, nodeType s
 						if root, ko := model.GoLowUntyped().(low.HasRootNode); ko {
 							if root.GetRootNode() != nil {
 								// build edge from the source
-								f.BuildReferenceEdgeToLine(ctx, n.Id, root.GetRootNode().Line, r.GetReference(), "")
+								f.BuildReferenceEdgeToNode(ctx, n.Id, root.GetRootNode(), r.GetReference(), "")
 
 								// break the chain, no more rendering down this branch.
 								f.SetRefNode(f.GetNode().CloneShallow())

@@ -613,6 +613,7 @@ func (w *DrDocument) walkV3WithConfigAndOptions(doc *v3.Document, config *DrConf
 	var edges []*drV3.Edge
 	var refEdges []*drV3.Edge
 	var nodeValueMap = make(map[int]*drV3.Node)
+	var nodeYamlMap = make(map[*yaml.Node]*drV3.Node)
 	var nodeIdMap = make(map[string]*drV3.Node)
 
 	const estimatedSchemas = 5000
@@ -686,6 +687,11 @@ func (w *DrDocument) walkV3WithConfigAndOptions(doc *v3.Document, config *DrConf
 					if !isRef {
 						if _, ok := nodeValueMap[nt.ValueLine]; !ok {
 							nodeValueMap[nt.ValueLine] = nt
+						}
+						if nt.Value != nil {
+							if _, ok := nodeYamlMap[nt.Value]; !ok {
+								nodeYamlMap[nt.Value] = nt
+							}
 						}
 					}
 					nodes = append(nodes, nt)
@@ -926,9 +932,21 @@ func (w *DrDocument) walkV3WithConfigAndOptions(doc *v3.Document, config *DrConf
 		for _, edge := range refEdges {
 			if edge.TargetLine > 0 {
 				// Line-targeted edge - resolve the line to a node ID
-				if targetNode, ok := nodeValueMap[edge.TargetLine]; ok {
+				// Lines repeat across the files of a multi-file document, so an
+				// edge that knows its target YAML node only resolves to the graph
+				// node built from that node. Anything else (a whole-file $ref has
+				// no graph node of its own) stays unresolved and is dropped below.
+				var targetNode *drV3.Node
+				var ok bool
+				if edge.TargetNode != nil {
+					targetNode, ok = nodeYamlMap[edge.TargetNode]
+				} else {
+					targetNode, ok = nodeValueMap[edge.TargetLine]
+				}
+				if ok {
 					edge.Targets[0] = targetNode.Id
 					edge.TargetLine = 0
+					edge.TargetNode = nil
 					// Skip self-referencing edges (source == target after conversion)
 					if edge.Sources[0] == edge.Targets[0] {
 						continue

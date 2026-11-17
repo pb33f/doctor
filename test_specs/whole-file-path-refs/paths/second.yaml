@@ -1,0 +1,5 @@
+get:
+  operationId: secondThing
+  responses:
+    '204':
+      description: nothing to see here.

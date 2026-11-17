@@ -253,6 +253,11 @@ type Edge struct {
 	// number during the walk; it is resolved to a node id (Targets[0]) or the
 	// edge is dropped before edges are published. Never serialized.
 	TargetLine int `json:"-"`
+
+	// TargetNode is the YAML node the reference resolves to. Line numbers
+	// repeat across the files of a multi-file document, so the node identity
+	// is what ties a line-targeted edge to the right graph node. Never serialized.
+	TargetNode *yaml.Node `json:"-"`
 }
 
 func (n *Node) MarshalJSON() ([]byte, error) {
