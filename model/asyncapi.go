@@ -21,18 +21,19 @@ type AsyncDocument = SourceGraph
 
 // SourceGraph indexes authored locations and connects reference sites to their definitions.
 type SourceGraph struct {
-	schema          *jsonschema.Document
-	schemaResources map[*yaml.Node]string
-	Root            *v3.Node
-	Nodes           []*v3.Node
-	Edges           []*v3.Edge
-	locations       map[asyncPosition]asyncLocation
-	visited         map[*yaml.Node]*v3.Node
-	objects         map[*yaml.Node]asyncLocation
-	aliases         map[string]asyncAlias
-	nodesByPath     map[string]*v3.Node
-	refSites        map[*index.SpecIndex]map[*yaml.Node]*index.Reference
-	references      []asyncReference
+	schema            *jsonschema.Document
+	schemaResources   map[*yaml.Node]schemaGraphResource
+	schemaInlinePaths map[string]string
+	Root              *v3.Node
+	Nodes             []*v3.Node
+	Edges             []*v3.Edge
+	locations         map[asyncPosition]asyncLocation
+	visited           map[*yaml.Node]*v3.Node
+	objects           map[*yaml.Node]asyncLocation
+	aliases           map[string]asyncAlias
+	nodesByPath       map[string]*v3.Node
+	refSites          map[*index.SpecIndex]map[*yaml.Node]*index.Reference
+	references        []asyncReference
 }
 
 func newSourceGraph() *SourceGraph {
@@ -116,13 +117,20 @@ func (d *SourceGraph) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.No
 	}
 	localPath := path
 	if d.schema != nil {
-		if resourcePath, ok := d.schemaResources[value]; ok {
-			path = resourcePath
+		occurrence := path
+		resource, declared := d.schemaResources[value]
+		if declared {
+			path = resource.path
 			localPath = "$"
 		} else if parent != nil && parent.Id != "root" {
 			// Report paths restart at every resource. Graph IDs carry the
 			// resource prefix to distinguish equal paths across files.
 			localPath = parent.DrInstance.(*v3.Foundation).JSONPath + path[len(parent.Id):]
+		}
+		if !declared || resource.unmatchedEmbedded {
+			if paired := d.schemaInlinePaths[occurrence]; paired != "" {
+				path = paired
+			}
 		}
 	}
 	var n *v3.Node
@@ -239,6 +247,11 @@ func (d *SourceGraph) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.No
 				d.locate(child, idx, n, path)
 			}
 		}
+	}
+	// A block schema and its first key can share coordinates. Membership
+	// changes point at the schema value itself.
+	if d.schema.IsSchema(value) {
+		d.locate(value, idx, n, localPath)
 	}
 	return n
 }

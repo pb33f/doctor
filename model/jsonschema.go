@@ -17,32 +17,84 @@ import (
 
 // NewSchemaGraph builds a tree for a schema or a collection and connects its indexed references.
 func NewSchemaGraph(doc *jsonschema.Document) (*SourceGraph, error) {
-	return newSchemaGraph(doc, nil)
+	return newSchemaGraph(doc, nil, nil)
 }
 
 // NewSchemaComparisonGraphs builds both source trees with shared IDs for matched
 // resources, including resources that changed their canonical URI.
 func NewSchemaComparisonGraphs(left, right *jsonschema.Document) (*SourceGraph, *SourceGraph, error) {
-	matches := jsonschema.MatchResources(left, right)
-	l, err := newSchemaGraph(left, matches)
+	r, err := NewSchemaGraph(right)
 	if err != nil {
 		return nil, nil, err
 	}
-	r, err := NewSchemaGraph(right)
+	matches := jsonschema.MatchResources(left, right)
+	l, err := newSchemaGraph(left, matches, inlineSchemaPaths(left, right, matches, r))
 	if err != nil {
-		l.Release()
+		r.Release()
 		return nil, nil, err
 	}
 	return l, r, nil
 }
 
-func newSchemaGraph(doc *jsonschema.Document, matches map[*jsonschema.Resource]*jsonschema.Resource) (*SourceGraph, error) {
+type schemaGraphResource struct {
+	path              string
+	unmatchedEmbedded bool
+}
+
+func schemaResourceNodeID(id string) string {
+	return "schema[" + strconv.Quote(id) + "]"
+}
+
+// When an inline schema acquires or drops its $id, both sides still describe
+// the same occurrence. Use the modified graph ID at that slot in the old tree.
+func inlineSchemaPaths(left, right *jsonschema.Document, matches map[*jsonschema.Resource]*jsonschema.Resource, graph *SourceGraph) map[string]string {
+	if left == nil || len(matches) == len(left.Resources) && len(matches) == len(right.Resources) {
+		return nil
+	}
+	unmatched := make(map[string]bool)
+	for _, resource := range right.Resources {
+		if resource.Pointer != "" {
+			unmatched[schemaResourceNodeID(resource.ID)] = true
+		}
+	}
+	for _, resource := range matches {
+		delete(unmatched, schemaResourceNodeID(resource.ID))
+	}
+	oldNamed := slices.ContainsFunc(left.Resources, func(r *jsonschema.Resource) bool { return r.Pointer != "" && matches[r] == nil })
+	if !oldNamed && len(unmatched) == 0 {
+		return nil
+	}
+	paths := make(map[string]string)
+	for _, n := range graph.Nodes {
+		if oldNamed && n.Type == "schema" {
+			paths[n.Id] = n.Id
+		}
+		if !unmatched[n.Id] {
+			continue
+		}
+		parent := n.DrInstance.(v3.Foundational).GetParent().GetNode()
+		path := parent.Id
+		if path == "root" {
+			path = "$"
+		}
+		if parent.IsArray {
+			path += "[" + n.Label + "]"
+		} else {
+			path = jsonschema.PropertyPath(path, n.Label)
+		}
+		paths[path] = n.Id
+	}
+	return paths
+}
+
+func newSchemaGraph(doc *jsonschema.Document, matches map[*jsonschema.Resource]*jsonschema.Resource, inlinePaths map[string]string) (*SourceGraph, error) {
 	if doc == nil {
 		return nil, fmt.Errorf("JSON Schema document required")
 	}
 	d := newSourceGraph()
 	d.schema = doc
-	d.schemaResources = make(map[*yaml.Node]string, len(doc.Resources))
+	d.schemaInlinePaths = inlinePaths
+	d.schemaResources = make(map[*yaml.Node]schemaGraphResource, len(doc.Resources))
 	var files []*jsonschema.Resource
 	for _, resource := range doc.Resources {
 		id := resource.ID
@@ -51,9 +103,9 @@ func newSchemaGraph(doc *jsonschema.Document, matches map[*jsonschema.Resource]*
 		}
 		path := "$"
 		if resource != doc.Root {
-			path = "schema[" + strconv.Quote(id) + "]"
+			path = schemaResourceNodeID(id)
 		}
-		d.schemaResources[resource.Node] = path
+		d.schemaResources[resource.Node] = schemaGraphResource{path: path, unmatchedEmbedded: resource.Pointer != "" && matches[resource] == nil}
 		if resource.Pointer == "" && resource != doc.Root {
 			files = append(files, resource)
 		}
@@ -82,10 +134,14 @@ func newSchemaGraph(doc *jsonschema.Document, matches map[*jsonschema.Resource]*
 		// remain distinct from the containment edge with the same endpoints.
 		edge := d.connect(from, to, ref.Value)
 		edge.Id = "ref:" + from.Id
+		if ref.Keyword == "$dynamicRef" {
+			edge.Id = "ref:$dynamicRef:" + from.Id
+		}
 	}
 	d.visited = nil
 	d.schema = nil
 	d.schemaResources = nil
+	d.schemaInlinePaths = nil
 	return d, nil
 }
 

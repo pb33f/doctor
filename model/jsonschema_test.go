@@ -63,3 +63,21 @@ func TestSchemaCollectionGraph(t *testing.T) {
 	}
 	require.Equal(t, 1, uses)
 }
+
+func TestSchemaGraphTwoReferencesAtOneSite(t *testing.T) {
+	doc, err := jsonschema.Load([]byte("$defs: {value: {$anchor: value}}\n$ref: '#value'\n$dynamicRef: '#value'"), "schema.yaml", nil, true)
+	require.NoError(t, err)
+	defer doc.Release()
+	graph, err := NewSchemaGraph(doc)
+	require.NoError(t, err)
+	defer graph.Release()
+	var ids []string
+	for _, edge := range graph.Edges {
+		if edge.Ref == "#value" {
+			require.Equal(t, []string{"root"}, edge.Sources)
+			require.Equal(t, []string{`$["$defs"].value`}, edge.Targets)
+			ids = append(ids, edge.Id)
+		}
+	}
+	require.ElementsMatch(t, []string{"ref:root", "ref:$dynamicRef:root"}, ids)
+}

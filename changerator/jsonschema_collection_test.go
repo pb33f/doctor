@@ -74,7 +74,7 @@ func TestJSONSchemaCollectionSharedDefinition(t *testing.T) {
 
 func TestJSONSchemaCollectionRemovedMember(t *testing.T) {
 	empty := schemaCollection(t, nil)
-	original := schemaCollection(t, map[string][]byte{"obsolete.yaml": []byte("false")})
+	original := schemaCollection(t, map[string][]byte{"obsolete.yaml": []byte("properties:\n  old: false")})
 	r := compareSchema(t, original, empty)
 	require.Len(t, r.Changerator.Changes, 1)
 	ch := r.Changerator.Changes[0]
@@ -152,4 +152,28 @@ func TestJSONSchemaCollectionRenamedID(t *testing.T) {
 	}
 	r.Changerator.PrepareChangeViewGraph(r.Right.Root)
 	require.Equal(t, 2, r.Right.Root.SubtreeChanges.Total)
+}
+
+func TestJSONSchemaEmbeddedResourceAddsOrDropsID(t *testing.T) {
+	inline := schemaCollection(t, map[string][]byte{"member.yaml": []byte("properties: {field: {type: string}}")})
+	named := schemaCollection(t, map[string][]byte{"member.yaml": []byte("properties: {field: {$id: urn:field, type: string}}")})
+	for _, tc := range []struct {
+		name        string
+		left, right *jsonschema.Document
+		id          string
+	}{
+		{"added", inline, named, `schema["urn:field"]`},
+		{"dropped", named, inline, `schema["member.yaml"].properties.field`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := compareSchema(t, tc.left, tc.right)
+			require.Len(t, r.Changerator.Changes, 1)
+			properties := r.Right.Root.Children[0].Children[0]
+			require.Len(t, properties.Children, 1)
+			field := properties.Children[0]
+			require.Equal(t, tc.id, field.Id)
+			require.Equal(t, "#/properties/field", field.SourcePointer)
+			require.Same(t, r.Changerator.Changes[0], field.RenderedChanges[0])
+		})
+	}
 }
