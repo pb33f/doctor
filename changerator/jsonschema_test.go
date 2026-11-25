@@ -66,6 +66,7 @@ $ref: '#/prefixItems/0'
 	}
 	require.NotNil(t, removed)
 	require.Equal(t, "customer.yaml", removed.OriginLocation)
+	require.Equal(t, "#/$defs/retired.kind", removed.SourcePointer)
 	require.Equal(t, 3, removed.ValueLine)
 	require.Len(t, removed.RenderedChanges, 1)
 	require.Same(t, ch, removed.RenderedChanges[0])
@@ -123,6 +124,7 @@ func TestJSONSchemaBooleanRoot(t *testing.T) {
 	graph.Root.RenderProps = true
 	raw, err := json.Marshal(graph.Root)
 	require.NoError(t, err)
+	require.Contains(t, string(raw), `"nodePath":"#"`)
 	require.Contains(t, string(raw), `"instance":false`)
 	graph.Release()
 	require.Nil(t, graph.Root)

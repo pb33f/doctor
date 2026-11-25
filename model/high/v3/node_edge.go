@@ -44,7 +44,9 @@ type ChildChangeSummary struct {
 
 type Node struct {
 	// DocumentKind identifies a native document root.
-	DocumentKind         string                 `json:"documentKind,omitempty"`
+	DocumentKind string `json:"documentKind,omitempty"`
+	// SourcePointer is the authored JSON pointer, including its fragment prefix.
+	SourcePointer        string                 `json:"-"`
 	Value                *yaml.Node             `json:"-"`
 	Id                   string                 `json:"id"`
 	IdHash               string                 `json:"idHash,omitempty"`
@@ -194,6 +196,7 @@ func (n *Node) CloneShallow() *Node {
 	return &Node{
 		Value:                n.Value,
 		DocumentKind:         n.DocumentKind,
+		SourcePointer:        n.SourcePointer,
 		Id:                   n.Id,
 		IdHash:               n.IdHash,
 		ParentId:             n.ParentId,
@@ -265,7 +268,10 @@ type Edge struct {
 
 func (n *Node) MarshalJSON() ([]byte, error) {
 
-	_, ref := utils.ConvertComponentIdIntoPath(n.Id)
+	ref := n.SourcePointer
+	if ref == "" {
+		_, ref = utils.ConvertComponentIdIntoPath(n.Id)
+	}
 	propMap := map[string]interface{}{
 		"id":        n.Id,
 		"idHash":    n.IdHash,

@@ -134,6 +134,12 @@ func (d *SourceGraph) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.No
 	n.ArrayIndex = -1
 	n.OriginLocation = idx.GetSpecAbsolutePath()
 	n.Origin = &index.NodeOrigin{Node: value, Line: value.Line, Column: value.Column, AbsoluteLocation: n.OriginLocation, Index: idx}
+	if d.schema != nil {
+		n.SourcePointer = "#"
+		if parent != nil && parent.Origin != nil && parent.Origin.Index == idx {
+			n.SourcePointer = parent.SourcePointer + "/" + strings.ReplaceAll(strings.ReplaceAll(label, "~", "~0"), "/", "~1")
+		}
+	}
 	n.Instance = value
 	foundation := &v3.Foundation{Node: n, KeyNode: value, ValueNode: value, PathSegment: label, InstanceType: kind}
 	foundation.JSONPathOnce.Do(func() { foundation.JSONPath = path })
