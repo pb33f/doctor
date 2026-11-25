@@ -30,8 +30,8 @@ import (
 type ChangeDeduplicator struct {
 	seen          map[string]*dedupedChange
 	changesByNode map[string][]*model.Change
-	hierarchyMap  map[string]string          // child -> parent ID mapping
-	hashCache     map[*model.Change]string   // avoids recomputing SHA-256 during reconciliation
+	hierarchyMap  map[string]string        // child -> parent ID mapping
+	hashCache     map[*model.Change]string // avoids recomputing SHA-256 during reconciliation
 }
 
 // dedupedChange tracks metadata about a deduplicated change
@@ -68,6 +68,9 @@ func (d *ChangeDeduplicator) GenerateChangeHash(change *model.Change) string {
 // generateChangeHash is the standalone hash computation, usable without a ChangeDeduplicator.
 func generateChangeHash(change *model.Change) string {
 	h := sha256.New()
+	if change.SchemaResource != "" {
+		fmt.Fprintf(h, "%q/%q/%q/%q/", change.SchemaResource, change.Path, change.OriginalEncoded, change.NewEncoded)
+	}
 
 	h.Write([]byte(fmt.Sprintf("%s:%d:%s:%s",
 		change.Property,

@@ -58,7 +58,7 @@ func (r *changeHTMLRenderer) renderText(
 	// Check if we should inject an icon before this text
 	if r.shouldRenderObjectIcon() && !r.isInsideHeading(node) {
 		// Check if this text contains an object type pattern and is followed by a code span
-		if objectType, hasMatch := r.matchesObjectTypePattern(textContent); hasMatch {
+		if objectType, hasMatch := r.matchesObjectTypePattern(textContent); hasMatch && !schemaReportNode(node) {
 			// Look ahead to see if the next sibling is a code span
 			if nextSibling := node.NextSibling(); nextSibling != nil {
 				if codeSpan, ok := nextSibling.(*ast.CodeSpan); ok {
@@ -168,7 +168,7 @@ func (r *changeHTMLRenderer) renderCodeSpan(
 	}
 
 	// Handle operation paths with custom component
-	if r.isOperationPath(textContent) {
+	if r.isOperationPath(textContent) && !schemaReportNode(node) {
 		w.WriteString(`<pb33f-render-operation-path path="`)
 		// escape attribute value to prevent injection
 		w.WriteString(html.EscapeString(textContent))
@@ -185,7 +185,7 @@ func (r *changeHTMLRenderer) renderCodeSpan(
 	}
 
 	// Check if this is an HTTP response code and add colorization class
-	if statusClass := r.getHTTPStatusClass(textContent); statusClass != "" {
+	if statusClass := r.getHTTPStatusClass(textContent); statusClass != "" && !schemaReportNode(node) {
 		class = class + " " + statusClass
 	}
 
@@ -321,7 +321,7 @@ func (r *changeHTMLRenderer) renderEmphasis(
 			}
 		}
 
-		if r.isHTTPMethod(textContent) {
+		if r.isHTTPMethod(textContent) && !schemaReportNode(node) {
 			if entering {
 				w.WriteString(`<pb33f-http-method method="`)
 				w.WriteString(textContent)

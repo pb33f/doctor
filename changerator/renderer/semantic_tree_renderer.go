@@ -84,6 +84,10 @@ func (sr *SemanticTreeRenderer) Render() string {
 	}
 
 	var sb strings.Builder
+	if sr.root.DocumentKind == "jsonschema" {
+		sr.renderNode(&sb, sr.root, "", true)
+		return sb.String()
+	}
 	children := sr.visibleChildren(sr.root)
 	for i, child := range children {
 		sr.renderNode(&sb, child, "", i == len(children)-1)
@@ -314,6 +318,11 @@ func semanticChangeKey(change *wcModel.Change) string {
 	if change == nil {
 		return ""
 	}
+	if change.SchemaResource != "" {
+		return fmt.Sprintf("%q/%q/%q/%d/%q/%q/%q/%q/%q/%t",
+			change.SchemaResource, change.Path, change.Property, change.ChangeType,
+			change.Original, change.New, change.OriginalEncoded, change.NewEncoded, change.Reference, change.Breaking)
+	}
 	return change.Path + ":" + change.Property
 }
 
@@ -407,6 +416,9 @@ func semanticChangeFingerprint(change *wcModel.Change) string {
 	if change == nil {
 		return ""
 	}
+	if change.SchemaResource != "" {
+		return semanticChangeKey(change)
+	}
 	var originalObject, newObject string
 	if value, ok := change.OriginalObject.(string); ok {
 		originalObject = value
@@ -447,6 +459,10 @@ func semanticPropertyLabel(node *v3.Node, change *wcModel.Change, rawChanges []*
 		}
 		if label := firstNonEmpty(change.New, change.Original); label != "" {
 			return label
+		}
+	case change.SchemaResource != "" && isSchemaValueListProperty(change.Property):
+		if value := firstNonEmpty(change.New, change.Original); value != "" {
+			return value
 		}
 	case node != nil && node.Type == "schema" && isSchemaValueListProperty(change.Property):
 		if len(rawChanges) > 1 {
@@ -1002,6 +1018,10 @@ func (sr *SemanticTreeRenderer) semanticContextLabels(node *v3.Node) (string, st
 		switch {
 		case label == "":
 			continue
+		case sr.root.DocumentKind == "jsonschema":
+			if label != "properties" && label != "$defs" {
+				context = append([]string{label}, context...)
+			}
 		case strings.HasPrefix(label, "/"):
 			pathLabel = label
 		case isHTTPMethod(label):

@@ -23,6 +23,7 @@ func (t *Changerator) GenerateReportWithConfig(
 	}
 
 	input := &renderer.RenderInput{
+		SchemaLabels:        t.SchemaLabels,
 		ChangeReport:        t.ChangeReport,
 		DeduplicatedChanges: t.DeduplicateChanges(),
 		RightDocContent:     t.rightDocContent,

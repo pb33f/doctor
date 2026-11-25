@@ -23,11 +23,26 @@ func renderChangeReport(input *RenderInput) string {
 	report.WriteString("# What Changed Report\n\n")
 	r.generateSummary(&report)
 	report.WriteString("## Change Breakdown\n\n")
-	path := ""
+	var resource, path string
 	for _, ch := range r.deduplicatedChanges {
+		if ch.SchemaResource != resource {
+			resource, path = ch.SchemaResource, ""
+			label := input.SchemaLabels[resource]
+			if label == "" {
+				label = resource
+			}
+			report.WriteString("\n### " + pathCodeSpan(label) + "\n\n")
+			if label != resource {
+				report.WriteString(pathCodeSpan(resource) + "\n\n")
+			}
+		}
 		if ch.Path != path {
 			path = ch.Path
-			report.WriteString("\n### " + pathCodeSpan(path) + "\n\n")
+			level := "### "
+			if resource != "" {
+				level = "#### "
+			}
+			report.WriteString("\n" + level + pathCodeSpan(path) + "\n\n")
 		}
 		r.renderChange(&report, ch)
 	}

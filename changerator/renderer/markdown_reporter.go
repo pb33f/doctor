@@ -1994,6 +1994,9 @@ func (r *MarkdownReporter) formatChangeDescription(change *model.Change) (string
 	if property == "" {
 		property = "value"
 	}
+	if change.SchemaResource != "" {
+		return r.formatPropertyChange(pathCodeSpan(property), change, false)
+	}
 
 	// Special handling for path and schema additions/removals
 	// These represent adding/removing entire paths or schemas, not property changes
@@ -2099,6 +2102,10 @@ func (r *MarkdownReporter) formatChangeDescription(change *model.Change) (string
 		}
 	}
 
+	return r.formatPropertyChange(property, change, isExtension)
+}
+
+func (r *MarkdownReporter) formatPropertyChange(property string, change *model.Change, isExtension bool) (string, bool) {
 	switch change.ChangeType {
 	case model.PropertyAdded, model.ObjectAdded:
 		if change.New != "" || change.NewEncoded != "" {
