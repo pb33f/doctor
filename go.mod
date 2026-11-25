@@ -15,17 +15,17 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/go-github/v72 v72.0.0
 	github.com/google/uuid v1.6.0
-	github.com/pb33f/go-yaml v0.1.1
+	github.com/pb33f/go-yaml v0.2.0
 	github.com/pb33f/jsonschema/v6 v6.0.3
 	github.com/pb33f/libasyncapi v0.0.6
-	github.com/pb33f/libopenapi v0.42.0
+	github.com/pb33f/libopenapi v0.44.1-0.20261125170651-15ccd8485acd
 	github.com/pb33f/ordered-map/v2 v2.3.2
 	github.com/pb33f/testify v0.1.1
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/yuin/goldmark v1.8.2
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	golang.org/x/net v0.56.0
-	golang.org/x/sync v0.24.0
+	golang.org/x/sync v0.25.0
 	golang.org/x/text v0.38.0
 	modernc.org/sqlite v1.52.0
 )
@@ -50,7 +50,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
-	github.com/pb33f/jsonpath v0.8.4 // indirect
+	github.com/pb33f/jsonpath v0.8.5 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
