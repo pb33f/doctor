@@ -12,13 +12,16 @@ import (
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libasyncapi"
 	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/jsonschema"
 	wc "github.com/pb33f/libopenapi/what-changed/model"
 )
 
-// AsyncDocument indexes authored AsyncAPI locations into doctor's existing node
-// graph. Resolved references share their definition nodes instead of expanding
-// a schema subtree at every use.
-type AsyncDocument struct {
+// AsyncDocument is the source graph for an AsyncAPI document.
+type AsyncDocument = SourceGraph
+
+// SourceGraph indexes authored locations and connects reference sites to their definitions.
+type SourceGraph struct {
+	schema      *jsonschema.Document
 	Root        *v3.Node
 	Nodes       []*v3.Node
 	Edges       []*v3.Edge
@@ -29,6 +32,10 @@ type AsyncDocument struct {
 	nodesByPath map[string]*v3.Node
 	refSites    map[*index.SpecIndex]map[*yaml.Node]*index.Reference
 	references  []asyncReference
+}
+
+func newSourceGraph() *SourceGraph {
+	return &SourceGraph{locations: make(map[asyncPosition]asyncLocation), visited: make(map[*yaml.Node]*v3.Node)}
 }
 
 type asyncPosition struct {
@@ -54,7 +61,8 @@ func NewAsyncDocument(doc libasyncapi.Document) (*AsyncDocument, error) {
 	if doc == nil || doc.IsPartial() {
 		return nil, fmt.Errorf("complete AsyncAPI document required")
 	}
-	d := &AsyncDocument{locations: make(map[asyncPosition]asyncLocation), visited: make(map[*yaml.Node]*v3.Node), refSites: make(map[*index.SpecIndex]map[*yaml.Node]*index.Reference)}
+	d := newSourceGraph()
+	d.refSites = make(map[*index.SpecIndex]map[*yaml.Node]*index.Reference)
 	d.objects = make(map[*yaml.Node]asyncLocation)
 	d.aliases = make(map[string]asyncAlias)
 	d.nodesByPath = make(map[string]*v3.Node)
@@ -83,7 +91,7 @@ func NewAsyncDocument(doc libasyncapi.Document) (*AsyncDocument, error) {
 	return d, nil
 }
 
-func (d *AsyncDocument) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.Node, path, label, kind string) *v3.Node {
+func (d *SourceGraph) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.Node, path, label, kind string) *v3.Node {
 	if value == nil {
 		return nil
 	}
@@ -146,14 +154,21 @@ func (d *AsyncDocument) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.
 		foundation.AddEdge(parentEdge)
 	}
 	d.visited[value] = n
-	d.nodesByPath[path] = n
+	if d.nodesByPath != nil {
+		d.nodesByPath[path] = n
+	}
 	d.locate(value, idx, n, path)
 	switch value.Kind {
 	case yaml.MappingNode:
 		for i := 0; i+1 < len(value.Content); i += 2 {
 			key, child := value.Content[i], value.Content[i+1]
-			childPath := AsyncObjectPath(path, key.Value)
-			if key.Value == "$ref" {
+			var childPath string
+			if d.schema != nil {
+				childPath = jsonschema.PropertyPath(path, key.Value)
+			} else {
+				childPath = AsyncObjectPath(path, key.Value)
+			}
+			if d.schema == nil && key.Value == "$ref" {
 				if site := d.referenceSite(value, idx); site != nil {
 					d.references = append(d.references, asyncReference{n, child, idx, site})
 					if parentEdge != nil {
@@ -161,8 +176,17 @@ func (d *AsyncDocument) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.
 					}
 				}
 			}
-			if child.Kind == yaml.MappingNode || child.Kind == yaml.SequenceNode || child.Kind == yaml.AliasNode {
-				cn := d.walk(child, idx, n, childPath, key.Value, asyncNodeType(kind, label, key.Value))
+			if child.Kind == yaml.MappingNode || child.Kind == yaml.SequenceNode || child.Kind == yaml.AliasNode || d.schema.IsSchema(child) {
+				var childType string
+				if d.schema != nil {
+					childType = key.Value
+					if d.schema.IsSchema(child) {
+						childType = "schema"
+					}
+				} else {
+					childType = asyncNodeType(kind, label, key.Value)
+				}
+				cn := d.walk(child, idx, n, childPath, key.Value, childType)
 				if cn != nil {
 					cn.KeyLine = key.Line
 					foundation := cn.DrInstance.(*v3.Foundation)
@@ -180,8 +204,12 @@ func (d *AsyncDocument) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.
 		n.ArrayValues = len(value.Content)
 		for i, child := range value.Content {
 			childPath := path + "[" + strconv.Itoa(i) + "]"
-			if child.Kind == yaml.MappingNode || child.Kind == yaml.SequenceNode {
-				cn := d.walk(child, idx, n, childPath, strconv.Itoa(i), kind)
+			if child.Kind == yaml.MappingNode || child.Kind == yaml.SequenceNode || d.schema.IsSchema(child) {
+				childType := kind
+				if d.schema.IsSchema(child) {
+					childType = "schema"
+				}
+				cn := d.walk(child, idx, n, childPath, strconv.Itoa(i), childType)
 				if cn != nil {
 					cn.ArrayIndex = i
 					foundation := cn.DrInstance.(*v3.Foundation)
@@ -198,7 +226,7 @@ func (d *AsyncDocument) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.
 }
 
 // connect uses the same edge identity and reference contract as the OpenAPI walk.
-func (d *AsyncDocument) connect(source, target *v3.Node, ref string) *v3.Edge {
+func (d *SourceGraph) connect(source, target *v3.Node, ref string) *v3.Edge {
 	edge := v3.GenerateEdge([]string{source.Id}, []string{target.Id})
 	edge.Ref = ref
 	d.Edges = append(d.Edges, edge)
@@ -206,7 +234,7 @@ func (d *AsyncDocument) connect(source, target *v3.Node, ref string) *v3.Edge {
 	return edge
 }
 
-func (d *AsyncDocument) referenceSite(node *yaml.Node, idx *index.SpecIndex) *index.Reference {
+func (d *SourceGraph) referenceSite(node *yaml.Node, idx *index.SpecIndex) *index.Reference {
 	sites, ok := d.refSites[idx]
 	if !ok {
 		sites = make(map[*yaml.Node]*index.Reference)
@@ -259,13 +287,15 @@ func asyncNodeType(parentType, parentLabel, key string) string {
 	return key
 }
 
-func (d *AsyncDocument) locate(value *yaml.Node, idx *index.SpecIndex, n *v3.Node, path string) {
-	d.locations[asyncPosition{idx.GetSpecAbsolutePath(), value.Line, value.Column}] = asyncLocation{n, path, value}
+func (d *SourceGraph) locate(value *yaml.Node, idx *index.SpecIndex, n *v3.Node, path string) {
 	loc := asyncLocation{n, path, value}
-	d.objects[value] = loc
+	d.locations[asyncPosition{idx.GetSpecAbsolutePath(), value.Line, value.Column}] = loc
+	if d.objects != nil {
+		d.objects[value] = loc
+	}
 }
 
-func (d *AsyncDocument) objectLocation(node *yaml.Node, scope string) asyncLocation {
+func (d *SourceGraph) objectLocation(node *yaml.Node, scope string) asyncLocation {
 	loc := d.objects[node]
 	if scope == "" || loc.path == scope || strings.HasPrefix(loc.path, scope+".") || strings.HasPrefix(loc.path, scope+"[") {
 		return loc
@@ -286,7 +316,7 @@ func (d *AsyncDocument) objectLocation(node *yaml.Node, scope string) asyncLocat
 
 // Alias edges share unchanged definitions. Only ancestry needed by an actual
 // change is materialized, so a small alias DAG cannot expand exponentially.
-func (d *AsyncDocument) copyOccurrence(target, parent *v3.Node, path, label string) *v3.Node {
+func (d *SourceGraph) copyOccurrence(target, parent *v3.Node, path, label string) *v3.Node {
 	n := v3.NewSyntheticNode(path, parent.Id, label, target.Type)
 	n.Value = target.Value
 	n.Instance = target.Instance
@@ -308,7 +338,7 @@ func (d *AsyncDocument) copyOccurrence(target, parent *v3.Node, path, label stri
 	return n
 }
 
-func (d *AsyncDocument) materializeOccurrence(original *v3.Node, alias asyncAlias) *v3.Node {
+func (d *SourceGraph) materializeOccurrence(original *v3.Node, alias asyncAlias) *v3.Node {
 	if original == alias.target {
 		return alias.occurrence
 	}
@@ -325,7 +355,7 @@ func (d *AsyncDocument) materializeOccurrence(original *v3.Node, alias asyncAlia
 
 // LocateChange returns the authored owner for one side of a change. Source
 // identity is part of the key so equal coordinates in separate files cannot collide.
-func (d *AsyncDocument) LocateChange(change *wc.Change, modified bool, scopes ...string) (*v3.Node, string) {
+func (d *SourceGraph) LocateChange(change *wc.Change, modified bool, scopes ...string) (*v3.Node, string) {
 	if d == nil || change == nil || change.Context == nil {
 		return nil, ""
 	}
@@ -428,16 +458,8 @@ func (d *AsyncDocument) LocateChange(change *wc.Change, modified bool, scopes ..
 }
 
 // Release drops all graph and source lookup references after consumers finish.
-func (d *AsyncDocument) Release() {
+func (d *SourceGraph) Release() {
 	if d != nil {
-		d.Root = nil
-		d.Nodes = nil
-		d.Edges = nil
-		d.locations = nil
-		d.visited = nil
-		d.references = nil
-		d.objects = nil
-		d.aliases = nil
-		d.nodesByPath = nil
+		*d = SourceGraph{}
 	}
 }

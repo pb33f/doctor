@@ -136,6 +136,12 @@ func CompareAsyncAPI(left, right libasyncapi.Document, config *asyncModel.Breaki
 	ctr.Changes = all
 	ctr.ChangedNodes = r.Nodes
 	ctr.ChangedEdges = r.Edges
+	retainRemovedNodes(ctr, l, r, nodesByPath)
+	result.Changerator = ctr
+	return result, nil
+}
+
+func retainRemovedNodes(ctr *Changerator, l, r *dr.SourceGraph, nodesByPath map[string]*v3.Node) {
 	// Retain removed branches and their old-side source locations.
 	known := make(map[string]bool, len(r.Nodes))
 	for _, n := range r.Nodes {
@@ -169,8 +175,6 @@ func CompareAsyncAPI(left, right libasyncapi.Document, config *asyncModel.Breaki
 			}
 		}
 	}
-	result.Changerator = ctr
-	return result, nil
 }
 
 func asyncChangeScopes[T interface{ GetAllChanges() []*wc.Change }](scopes map[*wc.Change]string, children map[string]T, path string) {

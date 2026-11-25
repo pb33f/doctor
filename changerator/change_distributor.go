@@ -21,6 +21,8 @@ import (
 type ChangeratorChange whatChangedModel.Change
 
 type Changerator struct {
+	// SchemaLabels maps native schema resource identities to their display names.
+	SchemaLabels map[string]string
 	// ChangeReport holds a non-OpenAPI engine's shared change view.
 	ChangeReport whatChanged.Changed
 	Config       *ChangeratorConfig

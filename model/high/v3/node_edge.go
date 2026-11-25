@@ -43,6 +43,8 @@ type ChildChangeSummary struct {
 }
 
 type Node struct {
+	// DocumentKind identifies a native document root.
+	DocumentKind         string                 `json:"documentKind,omitempty"`
 	Value                *yaml.Node             `json:"-"`
 	Id                   string                 `json:"id"`
 	IdHash               string                 `json:"idHash,omitempty"`
@@ -191,6 +193,7 @@ func (n *Node) CloneShallow() *Node {
 	}
 	return &Node{
 		Value:                n.Value,
+		DocumentKind:         n.DocumentKind,
 		Id:                   n.Id,
 		IdHash:               n.IdHash,
 		ParentId:             n.ParentId,
@@ -275,6 +278,9 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		"keyLine":   n.KeyLine,
 		"valueLine": n.ValueLine,
 		"hash":      n.Hash,
+	}
+	if n.DocumentKind != "" {
+		propMap["documentKind"] = n.DocumentKind
 	}
 	if n.Origin != nil && n.Origin.AbsoluteLocation != "" {
 		propMap["origin"] = n.Origin.AbsoluteLocation
