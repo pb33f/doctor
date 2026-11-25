@@ -21,17 +21,18 @@ type AsyncDocument = SourceGraph
 
 // SourceGraph indexes authored locations and connects reference sites to their definitions.
 type SourceGraph struct {
-	schema      *jsonschema.Document
-	Root        *v3.Node
-	Nodes       []*v3.Node
-	Edges       []*v3.Edge
-	locations   map[asyncPosition]asyncLocation
-	visited     map[*yaml.Node]*v3.Node
-	objects     map[*yaml.Node]asyncLocation
-	aliases     map[string]asyncAlias
-	nodesByPath map[string]*v3.Node
-	refSites    map[*index.SpecIndex]map[*yaml.Node]*index.Reference
-	references  []asyncReference
+	schema          *jsonschema.Document
+	schemaResources map[*yaml.Node]*jsonschema.Resource
+	Root            *v3.Node
+	Nodes           []*v3.Node
+	Edges           []*v3.Edge
+	locations       map[asyncPosition]asyncLocation
+	visited         map[*yaml.Node]*v3.Node
+	objects         map[*yaml.Node]asyncLocation
+	aliases         map[string]asyncAlias
+	nodesByPath     map[string]*v3.Node
+	refSites        map[*index.SpecIndex]map[*yaml.Node]*index.Reference
+	references      []asyncReference
 }
 
 func newSourceGraph() *SourceGraph {
@@ -113,6 +114,19 @@ func (d *SourceGraph) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.No
 	if previous := d.visited[value]; previous != nil {
 		return previous
 	}
+	localPath := path
+	if d.schema != nil {
+		if resource := d.schemaResources[value]; resource != nil {
+			if resource != d.schema.Root {
+				path = "schema[" + strconv.Quote(resource.ID) + "]"
+			}
+			localPath = "$"
+		} else if parent != nil && parent.Id != "root" {
+			// Report paths restart at every resource. Graph IDs carry the
+			// resource prefix to distinguish equal paths across files.
+			localPath = parent.DrInstance.(*v3.Foundation).JSONPath + path[len(parent.Id):]
+		}
+	}
 	var n *v3.Node
 	if parent != nil && parent.Id == path {
 		n = parent
@@ -142,7 +156,7 @@ func (d *SourceGraph) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.No
 	}
 	n.Instance = value
 	foundation := &v3.Foundation{Node: n, KeyNode: value, ValueNode: value, PathSegment: label, InstanceType: kind}
-	foundation.JSONPathOnce.Do(func() { foundation.JSONPath = path })
+	foundation.JSONPathOnce.Do(func() { foundation.JSONPath = localPath })
 	if parent != nil && parent != n {
 		foundation.Parent = parent.DrInstance
 		foundation.NodeParent = parent.DrInstance

@@ -5,28 +5,44 @@ package model
 
 import (
 	"fmt"
-	"strconv"
+	"slices"
+	"strings"
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/jsonschema"
 	wc "github.com/pb33f/libopenapi/what-changed/model"
 )
 
-// NewSchemaGraph builds a native document tree and connects the indexed reference sites.
+// NewSchemaGraph builds a tree for a schema or a collection and connects its indexed references.
 func NewSchemaGraph(doc *jsonschema.Document) (*SourceGraph, error) {
-	if doc == nil || doc.Root == nil {
-		return nil, fmt.Errorf("JSON Schema root required")
+	if doc == nil {
+		return nil, fmt.Errorf("JSON Schema document required")
 	}
 	d := newSourceGraph()
 	d.schema = doc
-	r := doc.Root
-	d.Root = d.walk(r.Node, r.Source.Index, nil, "$", r.Label(), "document")
-	d.Root.DocumentKind = "jsonschema"
+	d.schemaResources = make(map[*yaml.Node]*jsonschema.Resource, len(doc.Resources))
+	var files []*jsonschema.Resource
 	for _, resource := range doc.Resources {
-		if resource.Pointer != "" || resource == r {
-			continue
+		d.schemaResources[resource.Node] = resource
+		if resource.Pointer == "" && resource != doc.Root {
+			files = append(files, resource)
 		}
-		d.walk(resource.Node, resource.Source.Index, d.Root, "schema["+strconv.Quote(resource.ID)+"]", resource.Label(), "schema")
+	}
+	if r := doc.Root; r != nil {
+		d.Root = d.walk(r.Node, r.Source.Index, nil, "$", r.Label(), "document")
+	} else {
+		n := v3.NewSyntheticNode("root", "", "Schemas", "document")
+		n.ArrayIndex, n.SourcePointer = -1, "#"
+		f := &v3.Foundation{Node: n, PathSegment: n.Label, InstanceType: n.Type}
+		f.JSONPathOnce.Do(func() { f.JSONPath = "$" })
+		n.DrInstance = f
+		d.Root, d.Nodes = n, []*v3.Node{n}
+	}
+	d.Root.DocumentKind = "jsonschema"
+	slices.SortFunc(files, func(a, b *jsonschema.Resource) int { return strings.Compare(a.ID, b.ID) })
+	for _, resource := range files {
+		d.walk(resource.Node, resource.Source.Index, d.Root, "$", resource.Label(), "schema")
 	}
 	for _, ref := range doc.References {
 		from, to := d.visited[ref.From], d.visited[ref.To]
@@ -40,6 +56,7 @@ func NewSchemaGraph(doc *jsonschema.Document) (*SourceGraph, error) {
 	}
 	d.visited = nil
 	d.schema = nil
+	d.schemaResources = nil
 	return d, nil
 }
 
