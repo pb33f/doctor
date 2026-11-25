@@ -25,13 +25,8 @@ func CompareJSONSchema(left, right *jsonschema.Document, rules *wc.BreakingRules
 	if err != nil || changes == nil {
 		return nil, err
 	}
-	l, err := dr.NewSchemaGraph(left)
+	l, r, err := dr.NewSchemaComparisonGraphs(left, right)
 	if err != nil {
-		return nil, err
-	}
-	r, err := dr.NewSchemaGraph(right)
-	if err != nil {
-		l.Release()
 		return nil, err
 	}
 	result := &SchemaResult{Changes: changes, Left: l, Right: r}

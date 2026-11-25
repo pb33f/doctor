@@ -6,6 +6,7 @@ package model
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
@@ -16,15 +17,43 @@ import (
 
 // NewSchemaGraph builds a tree for a schema or a collection and connects its indexed references.
 func NewSchemaGraph(doc *jsonschema.Document) (*SourceGraph, error) {
+	return newSchemaGraph(doc, nil)
+}
+
+// NewSchemaComparisonGraphs builds both source trees with shared IDs for matched
+// resources, including resources that changed their canonical URI.
+func NewSchemaComparisonGraphs(left, right *jsonschema.Document) (*SourceGraph, *SourceGraph, error) {
+	matches := jsonschema.MatchResources(left, right)
+	l, err := newSchemaGraph(left, matches)
+	if err != nil {
+		return nil, nil, err
+	}
+	r, err := NewSchemaGraph(right)
+	if err != nil {
+		l.Release()
+		return nil, nil, err
+	}
+	return l, r, nil
+}
+
+func newSchemaGraph(doc *jsonschema.Document, matches map[*jsonschema.Resource]*jsonschema.Resource) (*SourceGraph, error) {
 	if doc == nil {
 		return nil, fmt.Errorf("JSON Schema document required")
 	}
 	d := newSourceGraph()
 	d.schema = doc
-	d.schemaResources = make(map[*yaml.Node]*jsonschema.Resource, len(doc.Resources))
+	d.schemaResources = make(map[*yaml.Node]string, len(doc.Resources))
 	var files []*jsonschema.Resource
 	for _, resource := range doc.Resources {
-		d.schemaResources[resource.Node] = resource
+		id := resource.ID
+		if matched := matches[resource]; matched != nil {
+			id = matched.ID
+		}
+		path := "$"
+		if resource != doc.Root {
+			path = "schema[" + strconv.Quote(id) + "]"
+		}
+		d.schemaResources[resource.Node] = path
 		if resource.Pointer == "" && resource != doc.Root {
 			files = append(files, resource)
 		}

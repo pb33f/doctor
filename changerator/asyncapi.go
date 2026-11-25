@@ -6,6 +6,7 @@ package changerator
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	dr "github.com/pb33f/doctor/model"
 	v3 "github.com/pb33f/doctor/model/high/v3"
@@ -147,34 +148,54 @@ func retainRemovedNodes(ctr *Changerator, l, r *dr.SourceGraph, nodesByPath map[
 	for _, n := range r.Nodes {
 		known[n.Id] = true
 	}
-	removed := false
+	originalCount := len(ctr.ChangedNodes)
 	for _, n := range l.Nodes {
-		if !known[n.Id] {
-			removed = true
-			ctr.ChangedNodes = append(ctr.ChangedNodes, n)
-			if known[n.ParentId] {
-				if p := nodesByPath[n.ParentId]; p != nil {
-					p.Children = append(p.Children, n)
-				}
-			}
-			nodesByPath[n.Id] = n
+		if !known[n.Id] && known[n.ParentId] {
+			parent := nodesByPath[n.ParentId]
+			branch := retainRemovedBranch(n, known, nodesByPath, &ctr.ChangedNodes)
+			parent.Children = append(parent.Children, branch)
 		}
 	}
 	// Keep containment into removed branches and references from removed sites.
 	// A surviving site may have a new target, so its old reference must not return.
-	if removed {
+	if len(ctr.ChangedNodes) > originalCount {
 		edgeIDs := make(map[string]bool, len(ctr.ChangedEdges))
 		for _, edge := range ctr.ChangedEdges {
 			edgeIDs[edge.Id] = true
 		}
 		for _, edge := range l.Edges {
 			source, target := edge.Sources[0], edge.Targets[0]
-			if !edgeIDs[edge.Id] && (!known[source] || (!known[target] && nodesByPath[target].ParentId == source)) {
+			intoRemoved := !known[target] && nodesByPath[target].ParentId == source
+			fromRemovedUse := !known[source] && (edge.Ref != "" || strings.HasPrefix(edge.Id, "ref:"))
+			if !edgeIDs[edge.Id] && (intoRemoved || fromRemovedUse) {
 				ctr.ChangedEdges = append(ctr.ChangedEdges, edge)
 				edgeIDs[edge.Id] = true
 			}
 		}
 	}
+}
+
+// A surviving definition can move out of a removed parent. Copy only the
+// ancestors that need a different child list and preserve the original graph.
+func retainRemovedBranch(n *v3.Node, known map[string]bool, byID map[string]*v3.Node, nodes *[]*v3.Node) *v3.Node {
+	at := len(*nodes)
+	*nodes = append(*nodes, n)
+	kept := n
+	for i, child := range n.Children {
+		var old *v3.Node
+		if !known[child.Id] {
+			old = retainRemovedBranch(child, known, byID, nodes)
+		}
+		if old != child && kept == n {
+			kept = n.CloneShallow()
+			kept.Children = append(make([]*v3.Node, 0, len(n.Children)), n.Children[:i]...)
+		}
+		if kept != n && old != nil {
+			kept.Children = append(kept.Children, old)
+		}
+	}
+	(*nodes)[at], byID[n.Id] = kept, kept
+	return kept
 }
 
 func asyncChangeScopes[T interface{ GetAllChanges() []*wc.Change }](scopes map[*wc.Change]string, children map[string]T, path string) {

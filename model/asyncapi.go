@@ -22,7 +22,7 @@ type AsyncDocument = SourceGraph
 // SourceGraph indexes authored locations and connects reference sites to their definitions.
 type SourceGraph struct {
 	schema          *jsonschema.Document
-	schemaResources map[*yaml.Node]*jsonschema.Resource
+	schemaResources map[*yaml.Node]string
 	Root            *v3.Node
 	Nodes           []*v3.Node
 	Edges           []*v3.Edge
@@ -116,10 +116,8 @@ func (d *SourceGraph) walk(value *yaml.Node, idx *index.SpecIndex, parent *v3.No
 	}
 	localPath := path
 	if d.schema != nil {
-		if resource := d.schemaResources[value]; resource != nil {
-			if resource != d.schema.Root {
-				path = "schema[" + strconv.Quote(resource.ID) + "]"
-			}
+		if resourcePath, ok := d.schemaResources[value]; ok {
+			path = resourcePath
 			localPath = "$"
 		} else if parent != nil && parent.Id != "root" {
 			// Report paths restart at every resource. Graph IDs carry the
