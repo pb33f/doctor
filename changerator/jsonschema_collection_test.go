@@ -4,11 +4,11 @@
 package changerator
 
 import (
-	"strings"
 	"testing"
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/jsonschema"
+	wc "github.com/pb33f/libopenapi/what-changed/model"
 	"github.com/pb33f/testify/require"
 )
 
@@ -110,7 +110,7 @@ func TestJSONSchemaCollectionRetargetedSite(t *testing.T) {
 	require.Len(t, r.Changerator.Changes, 1)
 	var refs int
 	for _, edge := range r.Changerator.ChangedEdges {
-		if strings.HasPrefix(edge.Id, "ref:") {
+		if edge.IsReference() {
 			refs++
 			require.Equal(t, "new.yaml", edge.Ref)
 			require.Equal(t, []string{`schema["new.yaml"]`}, edge.Targets)
@@ -176,4 +176,20 @@ func TestJSONSchemaEmbeddedResourceAddsOrDropsID(t *testing.T) {
 			require.Same(t, r.Changerator.Changes[0], field.RenderedChanges[0])
 		})
 	}
+}
+
+func TestJSONSchemaUnlocatedChangeStaysInReport(t *testing.T) {
+	snapshot := func(bound string) *jsonschema.Document {
+		return schemaCollection(t, map[string][]byte{"money.yaml": []byte("minLength: " + bound)})
+	}
+	r := compareSchema(t, snapshot("2"), snapshot("3"))
+	byID := make(map[string]*v3.Node, len(r.Right.Nodes))
+	for _, n := range r.Right.Nodes {
+		byID[n.Id] = n
+	}
+	line := 99
+	nowhere := &wc.ChangeContext{OriginalDocument: "money.yaml", ModifiedDocument: "money.yaml", OriginalLine: &line, OriginalColumn: &line, NewLine: &line, NewColumn: &line}
+	member := schemaChangeNode(r.Left, r.Right, byID, &wc.Change{SchemaResource: "money.yaml", Context: nowhere})
+	require.Same(t, byID[`schema["money.yaml"]`], member)
+	require.Same(t, r.Right.Root, schemaChangeNode(r.Left, r.Right, byID, &wc.Change{SchemaResource: "gone.yaml", Context: nowhere}))
 }

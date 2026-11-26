@@ -8,6 +8,7 @@ import (
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/jsonschema"
+	wc "github.com/pb33f/libopenapi/what-changed/model"
 	"github.com/pb33f/testify/require"
 )
 
@@ -71,13 +72,59 @@ func TestSchemaGraphTwoReferencesAtOneSite(t *testing.T) {
 	graph, err := NewSchemaGraph(doc)
 	require.NoError(t, err)
 	defer graph.Release()
-	var ids []string
+	keywords := make(map[string]string)
 	for _, edge := range graph.Edges {
-		if edge.Ref == "#value" {
-			require.Equal(t, []string{"root"}, edge.Sources)
-			require.Equal(t, []string{`$["$defs"].value`}, edge.Targets)
-			ids = append(ids, edge.Id)
+		if !edge.IsReference() {
+			require.Empty(t, edge.Keyword)
+			continue
 		}
+		require.Equal(t, "#value", edge.Ref)
+		require.Equal(t, v3.EdgeKindReference, edge.Kind)
+		require.Equal(t, []string{"root"}, edge.Sources)
+		require.Equal(t, []string{`$["$defs"].value`}, edge.Targets)
+		keywords[edge.Id] = edge.Keyword
 	}
-	require.ElementsMatch(t, []string{"ref:root", "ref:$dynamicRef:root"}, ids)
+	require.Equal(t, map[string]string{"ref:root": "$ref", "ref:$dynamicRef:root": "$dynamicRef"}, keywords)
+}
+
+func TestSchemaComparisonGraphsShareIDWhenSchemaAddsOrDropsID(t *testing.T) {
+	load := func(spec string) *jsonschema.Document {
+		t.Helper()
+		doc, err := jsonschema.LoadCollection(map[string][]byte{"member.yaml": []byte(spec)}, t.TempDir(), nil)
+		require.NoError(t, err)
+		t.Cleanup(doc.Release)
+		return doc
+	}
+	inline := load("properties: {field: {type: string}}")
+	named := load("properties: {field: {$id: urn:field, type: string}}")
+	field := func(g *SourceGraph) *v3.Node { return g.Root.Children[0].Children[0].Children[0] }
+	for _, tc := range []struct {
+		name        string
+		left, right *jsonschema.Document
+		id          string
+	}{
+		{"added", inline, named, `schema["urn:field"]`},
+		{"dropped", named, inline, `schema["member.yaml"].properties.field`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			l, r, err := NewSchemaComparisonGraphs(tc.left, tc.right)
+			require.NoError(t, err)
+			defer l.Release()
+			defer r.Release()
+			require.Equal(t, tc.id, field(r).Id)
+			require.Equal(t, tc.id, field(l).Id)
+
+			value := field(r).Value
+			modified := &wc.Change{Context: &wc.ChangeContext{ModifiedDocument: "member.yaml", NewLine: &value.Line, NewColumn: &value.Column}}
+			require.Same(t, field(r), r.SchemaChangeNode(modified, true))
+			require.Nil(t, l.SchemaChangeNode(modified, false))
+			require.Nil(t, r.SchemaChangeNode(&wc.Change{}, true))
+			require.Nil(t, r.SchemaChangeNode(nil, true))
+		})
+	}
+
+	_, _, err := NewSchemaComparisonGraphs(inline, nil)
+	require.EqualError(t, err, "JSON Schema document required")
+	_, _, err = NewSchemaComparisonGraphs(nil, inline)
+	require.EqualError(t, err, "JSON Schema document required")
 }

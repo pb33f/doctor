@@ -4,7 +4,6 @@
 package changerator
 
 import (
-	"strings"
 	"unicode/utf8"
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
@@ -36,7 +35,7 @@ func (t *Changerator) PrepareChangeViewGraph(root *v3.Node) {
 func schemaReferencePaths(root *v3.Node, edges []*v3.Edge) map[string]bool {
 	hasReferences := false
 	for _, edge := range edges {
-		if strings.HasPrefix(edge.Id, "ref:") {
+		if edge.IsReference() {
 			hasReferences = true
 			break
 		}

@@ -4,8 +4,6 @@
 package changerator
 
 import (
-	"fmt"
-
 	dr "github.com/pb33f/doctor/model"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/jsonschema"
@@ -20,6 +18,11 @@ type SchemaResult struct {
 }
 
 // CompareJSONSchema attaches each authored edit to the shared report and graph model.
+// It returns a nil result and a nil error when the schemas are equivalent.
+//
+// rules holds explicit overrides only. A rule replaces the direction-aware verdict
+// for its keyword, so a configuration merged with the defaults marks widening
+// edits as breaking.
 func CompareJSONSchema(left, right *jsonschema.Document, rules *wc.BreakingRulesConfig) (*SchemaResult, error) {
 	changes, err := jsonschema.Compare(left, right, rules)
 	if err != nil || changes == nil {
@@ -44,17 +47,7 @@ func CompareJSONSchema(left, right *jsonschema.Document, rules *wc.BreakingRules
 		byID[n.Id] = n
 	}
 	for _, change := range ctr.Changes {
-		n := r.SchemaChangeNode(change, true)
-		if n == nil {
-			n = l.SchemaChangeNode(change, false)
-			if n != nil && byID[n.Id] != nil {
-				n = byID[n.Id]
-			}
-		}
-		if n == nil {
-			result.Release()
-			return nil, fmt.Errorf("cannot locate JSON Schema change %s %s", change.SchemaResource, change.Path)
-		}
+		n := schemaChangeNode(l, r, byID, change)
 		n.AppendChange(ChangeList{change})
 		n.RenderedChanges = append(n.RenderedChanges, change)
 		n.CleanedChanged = append(n.CleanedChanged, change)
@@ -62,6 +55,25 @@ func CompareJSONSchema(left, right *jsonschema.Document, rules *wc.BreakingRules
 	retainRemovedNodes(ctr, l, r, byID)
 	result.Changerator = ctr
 	return result, nil
+}
+
+// schemaChangeNode returns the modified-side node that owns an edit, or the
+// original-side node for a removal. An edit whose coordinates match no node stays
+// in the report on its resource, or on the document.
+func schemaChangeNode(l, r *dr.SourceGraph, byID map[string]*v3.Node, change *wc.Change) *v3.Node {
+	if n := r.SchemaChangeNode(change, true); n != nil {
+		return n
+	}
+	if n := l.SchemaChangeNode(change, false); n != nil {
+		if current := byID[n.Id]; current != nil {
+			return current
+		}
+		return n
+	}
+	if n := byID[dr.SchemaResourceNodeID(change.SchemaResource)]; n != nil {
+		return n
+	}
+	return r.Root
 }
 
 // Release drops the graphs and their references to parsed sources.

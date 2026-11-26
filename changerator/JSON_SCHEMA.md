@@ -22,6 +22,8 @@ markdown, err := result.Changerator.GenerateReport(
 )
 ```
 
+`rules` holds explicit overrides only. A rule replaces the direction-aware verdict for its keyword, so pass `nil` or the user's own entries and never a configuration merged with the defaults.
+
 Load each input with `jsonschema.Load` in `github.com/pb33f/libopenapi/jsonschema`. The caller owns the parsed inputs and releases them after the comparison and its viewers finish.
 
 For a collection, pass the bytes for each snapshot member to `jsonschema.LoadCollection`. The keys are slash-separated paths relative to the snapshot directory. Pass the resulting two documents to the same comparison function. A collection has a `Schemas` document node. Each physical file appears below it. Named embedded resources retain their place in the authored tree.

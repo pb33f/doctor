@@ -6,7 +6,6 @@ package changerator
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	dr "github.com/pb33f/doctor/model"
 	v3 "github.com/pb33f/doctor/model/high/v3"
@@ -166,7 +165,7 @@ func retainRemovedNodes(ctr *Changerator, l, r *dr.SourceGraph, nodesByPath map[
 		for _, edge := range l.Edges {
 			source, target := edge.Sources[0], edge.Targets[0]
 			intoRemoved := !known[target] && nodesByPath[target].ParentId == source
-			fromRemovedUse := !known[source] && (edge.Ref != "" || strings.HasPrefix(edge.Id, "ref:"))
+			fromRemovedUse := !known[source] && edge.IsReference()
 			if !edgeIDs[edge.Id] && (intoRemoved || fromRemovedUse) {
 				ctr.ChangedEdges = append(ctr.ChangedEdges, edge)
 				edgeIDs[edge.Id] = true

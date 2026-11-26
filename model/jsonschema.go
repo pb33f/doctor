@@ -11,6 +11,7 @@ import (
 
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/jsonschema"
 	wc "github.com/pb33f/libopenapi/what-changed/model"
 )
@@ -41,7 +42,9 @@ type schemaGraphResource struct {
 	unmatchedEmbedded bool
 }
 
-func schemaResourceNodeID(id string) string {
+// SchemaResourceNodeID returns the graph ID of a named resource. The comparison
+// root keeps the ID "root".
+func SchemaResourceNodeID(id string) string {
 	return "schema[" + strconv.Quote(id) + "]"
 }
 
@@ -54,11 +57,11 @@ func inlineSchemaPaths(left, right *jsonschema.Document, matches map[*jsonschema
 	unmatched := make(map[string]bool)
 	for _, resource := range right.Resources {
 		if resource.Pointer != "" {
-			unmatched[schemaResourceNodeID(resource.ID)] = true
+			unmatched[SchemaResourceNodeID(resource.ID)] = true
 		}
 	}
 	for _, resource := range matches {
-		delete(unmatched, schemaResourceNodeID(resource.ID))
+		delete(unmatched, SchemaResourceNodeID(resource.ID))
 	}
 	oldNamed := slices.ContainsFunc(left.Resources, func(r *jsonschema.Resource) bool { return r.Pointer != "" && matches[r] == nil })
 	if !oldNamed && len(unmatched) == 0 {
@@ -91,10 +94,8 @@ func newSchemaGraph(doc *jsonschema.Document, matches map[*jsonschema.Resource]*
 	if doc == nil {
 		return nil, fmt.Errorf("JSON Schema document required")
 	}
-	d := newSourceGraph()
-	d.schema = doc
-	d.schemaInlinePaths = inlinePaths
-	d.schemaResources = make(map[*yaml.Node]schemaGraphResource, len(doc.Resources))
+	format := &schemaFormat{doc: doc, inlinePaths: inlinePaths, resources: make(map[*yaml.Node]schemaGraphResource, len(doc.Resources))}
+	d := newSourceGraph(format)
 	var files []*jsonschema.Resource
 	for _, resource := range doc.Resources {
 		id := resource.ID
@@ -103,9 +104,9 @@ func newSchemaGraph(doc *jsonschema.Document, matches map[*jsonschema.Resource]*
 		}
 		path := "$"
 		if resource != doc.Root {
-			path = schemaResourceNodeID(id)
+			path = SchemaResourceNodeID(id)
 		}
-		d.schemaResources[resource.Node] = schemaGraphResource{path: path, unmatchedEmbedded: resource.Pointer != "" && matches[resource] == nil}
+		format.resources[resource.Node] = schemaGraphResource{path: path, unmatchedEmbedded: resource.Pointer != "" && matches[resource] == nil}
 		if resource.Pointer == "" && resource != doc.Root {
 			files = append(files, resource)
 		}
@@ -137,13 +138,57 @@ func newSchemaGraph(doc *jsonschema.Document, matches map[*jsonschema.Resource]*
 		if ref.Keyword == "$dynamicRef" {
 			edge.Id = "ref:$dynamicRef:" + from.Id
 		}
+		edge.Kind, edge.Keyword = v3.EdgeKindReference, ref.Keyword
 	}
 	d.visited = nil
-	d.schema = nil
-	d.schemaResources = nil
-	d.schemaInlinePaths = nil
+	d.format = nil
 	return d, nil
 }
+
+// schemaFormat qualifies graph IDs by resource while report paths restart at each one.
+type schemaFormat struct {
+	doc         *jsonschema.Document
+	resources   map[*yaml.Node]schemaGraphResource
+	inlinePaths map[string]string
+}
+
+func (f *schemaFormat) place(value *yaml.Node, parent *v3.Node, path string) (string, string) {
+	occurrence, local := path, path
+	resource, declared := f.resources[value]
+	if declared {
+		path, local = resource.path, "$"
+	} else if parent != nil && parent.Id != "root" {
+		// Report paths restart at every resource. Graph IDs carry the
+		// resource prefix to distinguish equal paths across files.
+		local = parent.DrInstance.(*v3.Foundation).JSONPath + path[len(parent.Id):]
+	}
+	if !declared || resource.unmatchedEmbedded {
+		if paired := f.inlinePaths[occurrence]; paired != "" {
+			path = paired
+		}
+	}
+	return path, local
+}
+
+func (f *schemaFormat) setSourcePointer(n, parent *v3.Node, idx *index.SpecIndex, label string) {
+	n.SourcePointer = "#"
+	if parent != nil && parent.Origin != nil && parent.Origin.Index == idx {
+		n.SourcePointer = parent.SourcePointer + "/" + strings.ReplaceAll(strings.ReplaceAll(label, "~", "~0"), "/", "~1")
+	}
+}
+
+func (f *schemaFormat) childPath(path, key string) string { return jsonschema.PropertyPath(path, key) }
+
+func (f *schemaFormat) childType(_, _, key string, child *yaml.Node) string {
+	if f.doc.IsSchema(child) {
+		return "schema"
+	}
+	return key
+}
+
+func (f *schemaFormat) isSchema(value *yaml.Node) bool { return f.doc.IsSchema(value) }
+
+func (f *schemaFormat) collectsReferences() bool { return false }
 
 // SchemaChangeNode locates an edit in its authored side and source.
 func (d *SourceGraph) SchemaChangeNode(change *wc.Change, modified bool) *v3.Node {
@@ -161,5 +206,5 @@ func (d *SourceGraph) SchemaChangeNode(change *wc.Change, modified bool) *v3.Nod
 	if line == nil || column == nil {
 		return nil
 	}
-	return d.locations[asyncPosition{source, *line, *column}].node
+	return d.locations[sourcePosition{source, *line, *column}].node
 }

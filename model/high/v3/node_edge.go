@@ -254,6 +254,10 @@ type Edge struct {
 	Targets []string `json:"targets"`
 	Poly    string   `json:"poly,omitempty"`
 	Ref     string   `json:"ref"`
+	// Kind is EdgeKindReference for a reference edge and empty for containment.
+	Kind string `json:"kind,omitempty"`
+	// Keyword is the authored keyword of a reference edge, such as $ref or $dynamicRef.
+	Keyword string `json:"keyword,omitempty"`
 
 	// TargetLine carries an unresolved reference target as a source line
 	// number during the walk; it is resolved to a node id (Targets[0]) or the
@@ -264,6 +268,15 @@ type Edge struct {
 	// repeat across the files of a multi-file document, so the node identity
 	// is what ties a line-targeted edge to the right graph node. Never serialized.
 	TargetNode *yaml.Node `json:"-"`
+}
+
+// EdgeKindReference marks an edge from a reference site to its definition.
+const EdgeKindReference = "reference"
+
+// IsReference reports whether the edge follows a reference. An authored reference
+// can be the empty string, so Ref alone cannot identify one.
+func (e *Edge) IsReference() bool {
+	return e.Kind == EdgeKindReference || e.Ref != ""
 }
 
 func (n *Node) MarshalJSON() ([]byte, error) {
