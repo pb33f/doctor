@@ -92,8 +92,8 @@ github.com/pb33f/jsonschema/v6 v6.0.3 h1:TMIkE1xCmnF8Cy+anIBs+r4ASfGtwzfFxYsrrIn
 github.com/pb33f/jsonschema/v6 v6.0.3/go.mod h1:cYPShw+w1Jrs0YgpE2rk1FLdIAsKfWcotv/54G6ddFo=
 github.com/pb33f/libasyncapi v0.0.6 h1:csDUT7D9RyStvgPnenvbIi5BOBT/uTKRRicPttMdffY=
 github.com/pb33f/libasyncapi v0.0.6/go.mod h1:OcM42Lo3J4F9Tz55RZIOxcAubOv1BGRg9gy8Sp36skk=
-github.com/pb33f/libopenapi v0.44.1-0.20261125173239-a8c5a3f78589 h1:hHPOgW9pV7JhglY8djJ4xPmHPESi/ndgw9MO5MFAnSU=
-github.com/pb33f/libopenapi v0.44.1-0.20261125173239-a8c5a3f78589/go.mod h1:jp2ZQ3ZpilsMDSwhPSFgwlq0+xvrYE3+9mjS/rYNDDo=
+github.com/pb33f/libopenapi v0.44.1-0.20261126152905-3b07cb139b1b h1:dENJKwnNuh5gpT+Bmq0/yWR1k7E2WaLhAS7bl72Vdlw=
+github.com/pb33f/libopenapi v0.44.1-0.20261126152905-3b07cb139b1b/go.mod h1:jp2ZQ3ZpilsMDSwhPSFgwlq0+xvrYE3+9mjS/rYNDDo=
 github.com/pb33f/ordered-map/v2 v2.3.2 h1:wDyaZ2Pv9QLh64X4utCeD5Zoi9nIv2aW3lwv172O5PQ=
 github.com/pb33f/ordered-map/v2 v2.3.2/go.mod h1:1OhFrXu3OYw3kM+FXF+Ug3ugmmZ9LE8z0JfQMLvtV0w=
 github.com/pb33f/testify v0.1.1 h1:mnHe7uxKt8dyNYEGUspow72VjD264DB5rOJq4bz5tJw=
