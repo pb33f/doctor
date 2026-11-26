@@ -43,6 +43,10 @@ type ChildChangeSummary struct {
 }
 
 type Node struct {
+	// DocumentKind identifies a native document root.
+	DocumentKind string `json:"documentKind,omitempty"`
+	// SourcePointer is the authored JSON pointer, including its fragment prefix.
+	SourcePointer        string                 `json:"-"`
 	Value                *yaml.Node             `json:"-"`
 	Id                   string                 `json:"id"`
 	IdHash               string                 `json:"idHash,omitempty"`
@@ -191,6 +195,8 @@ func (n *Node) CloneShallow() *Node {
 	}
 	return &Node{
 		Value:                n.Value,
+		DocumentKind:         n.DocumentKind,
+		SourcePointer:        n.SourcePointer,
 		Id:                   n.Id,
 		IdHash:               n.IdHash,
 		ParentId:             n.ParentId,
@@ -248,6 +254,10 @@ type Edge struct {
 	Targets []string `json:"targets"`
 	Poly    string   `json:"poly,omitempty"`
 	Ref     string   `json:"ref"`
+	// Kind is EdgeKindReference for a reference edge and empty for containment.
+	Kind string `json:"kind,omitempty"`
+	// Keyword is the authored keyword of a reference edge, such as $ref or $dynamicRef.
+	Keyword string `json:"keyword,omitempty"`
 
 	// TargetLine carries an unresolved reference target as a source line
 	// number during the walk; it is resolved to a node id (Targets[0]) or the
@@ -260,9 +270,21 @@ type Edge struct {
 	TargetNode *yaml.Node `json:"-"`
 }
 
+// EdgeKindReference marks an edge from a reference site to its definition.
+const EdgeKindReference = "reference"
+
+// IsReference reports whether the edge follows a reference. An authored reference
+// can be the empty string, so Ref alone cannot identify one.
+func (e *Edge) IsReference() bool {
+	return e.Kind == EdgeKindReference || e.Ref != ""
+}
+
 func (n *Node) MarshalJSON() ([]byte, error) {
 
-	_, ref := utils.ConvertComponentIdIntoPath(n.Id)
+	ref := n.SourcePointer
+	if ref == "" {
+		_, ref = utils.ConvertComponentIdIntoPath(n.Id)
+	}
 	propMap := map[string]interface{}{
 		"id":        n.Id,
 		"idHash":    n.IdHash,
@@ -275,6 +297,9 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		"keyLine":   n.KeyLine,
 		"valueLine": n.ValueLine,
 		"hash":      n.Hash,
+	}
+	if n.DocumentKind != "" {
+		propMap["documentKind"] = n.DocumentKind
 	}
 	if n.Origin != nil && n.Origin.AbsoluteLocation != "" {
 		propMap["origin"] = n.Origin.AbsoluteLocation

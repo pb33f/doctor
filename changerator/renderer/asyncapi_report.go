@@ -111,10 +111,10 @@ func renderAsyncAPIReport(input *RenderInput, doc *async.DocumentChanges) string
 // changeIdentity keeps distinct edits to one property (an enum add and remove)
 // separate; only repeated comparisons through a shared reference collapse.
 type changeIdentity struct {
-	path, property, original, modified     string
-	originalEncoded, newEncoded, reference string
-	changeType                             int
-	breaking                               bool
+	resource, path, property, original, modified string
+	originalEncoded, newEncoded, reference       string
+	changeType                                   int
+	breaking                                     bool
 	// Changes without a semantic path are identified by their source position, or
 	// by the change itself when that is unknown too.
 	position  sourcePosition
@@ -131,10 +131,14 @@ func DeduplicateChanges(changes []*model.Change) []*model.Change {
 	seen := make(map[changeIdentity]bool, len(changes))
 	deduplicated := make([]*model.Change, 0, len(changes))
 	for _, ch := range changes {
-		if ch == nil || seen[changeKey(ch)] {
+		if ch == nil {
 			continue
 		}
-		seen[changeKey(ch)] = true
+		key := changeKey(ch)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
 		deduplicated = append(deduplicated, ch)
 	}
 	return deduplicated
@@ -142,7 +146,7 @@ func DeduplicateChanges(changes []*model.Change) []*model.Change {
 
 func changeKey(ch *model.Change) changeIdentity {
 	key := changeIdentity{
-		path: ch.Path, property: ch.Property, original: ch.Original, modified: ch.New,
+		resource: ch.SchemaResource, path: ch.Path, property: ch.Property, original: ch.Original, modified: ch.New,
 		originalEncoded: ch.OriginalEncoded, newEncoded: ch.NewEncoded,
 		reference: ch.Reference, changeType: ch.ChangeType, breaking: ch.Breaking,
 	}

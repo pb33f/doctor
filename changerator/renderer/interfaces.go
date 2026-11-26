@@ -21,6 +21,8 @@ type ChangeReportRenderer interface {
 
 // RenderInput provides all data needed to render a change report.
 type RenderInput struct {
+	// SchemaLabels maps standalone schema resource identities to their display names.
+	SchemaLabels map[string]string
 	// ChangeReport accepts another engine's change model without an OpenAPI conversion.
 	ChangeReport whatChanged.Changed
 	// DocumentChanges contains the structured change tree from what-changed library.

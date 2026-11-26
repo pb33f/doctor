@@ -6,11 +6,14 @@ package renderer
 import (
 	"bytes"
 
+	"github.com/pb33f/libopenapi/what-changed/model"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/renderer/html"
+	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 )
 
@@ -73,7 +76,12 @@ func (r *HTMLRenderer) RenderHTML(input *RenderInput) (string, error) {
 	}
 
 	var buf bytes.Buffer
-	if err := r.markdown.Convert([]byte(markdown), &buf); err != nil {
+	source := []byte(markdown)
+	doc := r.markdown.Parser().Parse(text.NewReader(source))
+	if _, ok := input.ChangeReport.(*model.SchemaChanges); ok {
+		doc.SetAttributeString("jsonschema", true)
+	}
+	if err := r.markdown.Renderer().Render(&buf, source, doc); err != nil {
 		return "", err
 	}
 
@@ -87,6 +95,15 @@ func (r *HTMLRenderer) RenderHTML(input *RenderInput) (string, error) {
 	}
 
 	return html, nil
+}
+
+func schemaReportNode(n ast.Node) bool {
+	root := n.OwnerDocument()
+	if root == nil {
+		return false
+	}
+	_, ok := root.AttributeString("jsonschema")
+	return ok
 }
 
 // newChangeHTMLRenderer creates a goldmark node renderer with custom logic.

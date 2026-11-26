@@ -267,7 +267,7 @@ func TestPruneEmptyNodes_RemovesNodeEmptiedByDedup(t *testing.T) {
 		Children: []*v3.Node{shallowParent, unchanged},
 	}
 
-	pruneEmptyNodes(root)
+	pruneEmptyNodes(root, nil)
 
 	// shallowParent should survive because deepChild (its child) has changes.
 	// unchanged should be removed.
@@ -284,7 +284,7 @@ func TestPruneEmptyNodes_RemovesEntireEmptyBranch(t *testing.T) {
 	mid := &v3.Node{Id: "mid", Label: "mid", Children: []*v3.Node{leaf}}
 	root := &v3.Node{Id: "root", Children: []*v3.Node{mid}}
 
-	pruneEmptyNodes(root)
+	pruneEmptyNodes(root, nil)
 
 	assert.Empty(t, root.Children, "entire empty branch should be pruned")
 }

@@ -19,22 +19,70 @@ import (
 // Call this after BuildNodeChangeTree() and before JSON serialization.
 func (t *Changerator) PrepareChangeViewGraph(root *v3.Node) {
 	t.DeduplicateAllNodes(root)
-	pruneEmptyNodes(root)
+	var keep map[string]bool
+	if root.DocumentKind == "jsonschema" {
+		keep = schemaReferencePaths(root, t.ChangedEdges)
+	}
+	pruneEmptyNodes(root, keep)
 	t.rebuildChangedNodes(root)
 	computeSubtreeChanges(root)
 	buildChildChangeSummaries(root)
 	recalculateChangeViewDimensions(root)
 }
 
-// pruneEmptyNodes removes nodes that have no changes and no changed
-// children. This is needed because DeduplicateAllNodes may strip
-// changes from nodes that Changerify originally kept, leaving them
-// as empty shells in the tree.
-func pruneEmptyNodes(node *v3.Node) {
+// schemaReferencePaths follows incoming references and containment links from
+// changed definitions. The visited set bounds recursion through cyclic schemas.
+func schemaReferencePaths(root *v3.Node, edges []*v3.Edge) map[string]bool {
+	hasReferences := false
+	for _, edge := range edges {
+		if edge.IsReference() {
+			hasReferences = true
+			break
+		}
+	}
+	if !hasReferences {
+		return nil
+	}
+	incoming := make(map[string][]string)
+	for _, edge := range edges {
+		for _, target := range edge.Targets {
+			incoming[target] = append(incoming[target], edge.Sources...)
+		}
+	}
+	keep := make(map[string]bool)
+	var pending []string
+	visit := func(id string) {
+		if !keep[id] {
+			keep[id] = true
+			pending = append(pending, id)
+		}
+	}
+	var seed func(*v3.Node)
+	seed = func(node *v3.Node) {
+		if nodeHasOwnChanges(node) {
+			visit(node.Id)
+		}
+		for _, child := range node.Children {
+			seed(child)
+		}
+	}
+	seed(root)
+	for len(pending) > 0 {
+		id := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		for _, source := range incoming[id] {
+			visit(source)
+		}
+	}
+	return keep
+}
+
+// pruneEmptyNodes drops unchanged branches unless they lead to a changed definition.
+func pruneEmptyNodes(node *v3.Node, keep map[string]bool) {
 	var kept []*v3.Node
 	for _, child := range node.Children {
-		pruneEmptyNodes(child)
-		if nodeHasOwnChanges(child) || len(child.Children) > 0 {
+		pruneEmptyNodes(child, keep)
+		if keep[child.Id] || nodeHasOwnChanges(child) || len(child.Children) > 0 {
 			kept = append(kept, child)
 		}
 	}
@@ -155,7 +203,7 @@ func recalculateChangeViewDimensions(node *v3.Node) {
 
 	// Account for the header label width (icon + label + dependent control button + padding).
 	label := node.Label
-	if node.Type == "document" {
+	if node.Type == "document" && node.DocumentKind != "jsonschema" {
 		label = "OpenAPI Document"
 		if node.Label == "AsyncAPI" {
 			label = "AsyncAPI Document"
