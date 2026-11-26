@@ -18,7 +18,7 @@ require (
 	github.com/pb33f/go-yaml v0.2.0
 	github.com/pb33f/jsonschema/v6 v6.0.3
 	github.com/pb33f/libasyncapi v0.0.6
-	github.com/pb33f/libopenapi v0.44.1-0.20261126152905-3b07cb139b1b
+	github.com/pb33f/libopenapi v0.44.1-0.20261126200719-18eb8107c9d0
 	github.com/pb33f/ordered-map/v2 v2.3.2
 	github.com/pb33f/testify v0.1.1
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
